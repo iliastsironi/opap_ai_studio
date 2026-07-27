@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Top-level stores
+    match /stores/{storeId} {
+      allow read: if true;
+      allow write: if isValidId(storeId);
+    }
+
+    // Organizations
+    match /organizations/{orgId} {
+      allow read: if true;
+      allow write: if isValidId(orgId);
+    }
+
+    // Stores inside organizations
+    match /organizations/{orgId}/stores/{storeId} {
+      allow read: if true;
+      allow write: if isValidId(storeId);
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isValidId(userId);
+    }
+
+    // Shifts
+    match /shifts/{shiftId} {
+      allow read: if true;
+      allow write: if isValidId(shiftId);
+    }
+
+    // Expenses
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow write: if isValidId(expenseId)
+        && (incoming().amount is number && incoming().amount >= 0);
+    }
+
+    // Incidents
+    match /incidents/{incidentId} {
+      allow read: if true;
+      allow write: if isValidId(incidentId);
+    }
+
+    // FnB sales
+    match /fnb_sales/{fnbId} {
+      allow read: if true;
+      allow write: if isValidId(fnbId)
+        && (incoming().quantity is number && incoming().quantity > 0)
+        && (incoming().unit_price is number && incoming().unit_price >= 0);
+    }
+
+    // Audit logs
+    match /auditLogs/{logId} {
+      allow read: if true;
+      allow write: if isValidId(logId);
+    }
+
+    // Trigger Email Extension collection
+    match /mail/{mailId} {
+      allow read: if true;
+      allow write: if isValidId(mailId);
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

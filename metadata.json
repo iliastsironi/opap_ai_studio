@@ -1,0 +1,6 @@
+{
+  "name": "ShiftLedger",
+  "description": "Multi-tenant operational management, shift closing, cash reconciliation, and store management platform for OPAP agencies and gaming retail stores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
