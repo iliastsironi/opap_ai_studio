@@ -78,15 +78,18 @@ export async function fetchUsersFromFirestore(orgId: string): Promise<any[]> {
     const usersList: any[] = [];
     snap.forEach((d) => usersList.push(d.data()));
     if (usersList.length === 0) {
-      for (const u of INITIAL_DEMO_USERS) {
-        await setDoc(doc(db, USERS_COLLECTION, u.id), u);
+      if (orgId === 'org_opap_demo') {
+        for (const u of INITIAL_DEMO_USERS) {
+          await setDoc(doc(db, USERS_COLLECTION, u.id), u);
+        }
+        return INITIAL_DEMO_USERS;
       }
-      return INITIAL_DEMO_USERS;
+      return [];
     }
     return usersList;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, USERS_COLLECTION);
-    return INITIAL_DEMO_USERS;
+    return orgId === 'org_opap_demo' ? INITIAL_DEMO_USERS : [];
   }
 }
 

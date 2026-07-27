@@ -102,6 +102,7 @@ export const INITIAL_DEMO_SHIFTS: Shift[] = [
 ];
 
 export async function seedInitialShiftsIfEmpty(orgId: string): Promise<void> {
+  if (orgId !== 'org_opap_demo') return;
   try {
     const q = query(collection(db, COLLECTION_NAME), where('organization_id', '==', orgId));
     const snap = await getDocs(q);
@@ -122,7 +123,9 @@ export async function fetchShiftsFromFirestore(
   status?: string
 ): Promise<Shift[]> {
   try {
-    await seedInitialShiftsIfEmpty(orgId);
+    if (orgId === 'org_opap_demo') {
+      await seedInitialShiftsIfEmpty(orgId);
+    }
 
     const shiftsRef = collection(db, COLLECTION_NAME);
     let q = query(shiftsRef, where('organization_id', '==', orgId));

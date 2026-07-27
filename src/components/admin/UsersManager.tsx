@@ -24,6 +24,12 @@ export const UsersManager: React.FC = () => {
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [successNotification, setSuccessNotification] = useState<string | null>(null);
+  const [lastInviteInfo, setLastInviteInfo] = useState<{
+    email: string;
+    name: string;
+    inviteLink: string;
+    tempPass: string;
+  } | null>(null);
 
   // Edit User Modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -193,7 +199,18 @@ export const UsersManager: React.FC = () => {
         organization_name: organization?.trade_name || organization?.legal_name || 'Πρακτορείο ΟΠΑΠ',
       });
 
-      setSuccessNotification(`Η πρόσκληση στάλθηκε επιτυχώς στο ${inviteEmail} με μοναδικό σύνδεσμο εγγραφής!`);
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const inviteToken = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const generatedLink = `${origin}?action=accept_invite&token=${inviteToken}&email=${encodeURIComponent(inviteEmail)}`;
+
+      setLastInviteInfo({
+        email: inviteEmail,
+        name: `${inviteFirstName} ${inviteLastName}`,
+        inviteLink: generatedLink,
+        tempPass: 'ShiftLedger2026!',
+      });
+
+      setSuccessNotification(`Η πρόσκληση δημιουργήθηκε επιτυχώς για τον χρήστη ${inviteFirstName} ${inviteLastName} (${inviteEmail})!`);
 
       await fetchUsers();
       setShowInviteModal(false);
@@ -217,6 +234,55 @@ export const UsersManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Last Invite Info Copy Box */}
+      {lastInviteInfo && (
+        <div className="p-4 bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-2xl shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <span className="font-bold text-sm">
+                Στοιχεία Πρόσκλησης Εργαζομένου: {lastInviteInfo.name} ({lastInviteInfo.email})
+              </span>
+            </div>
+            <button
+              onClick={() => setLastInviteInfo(null)}
+              className="text-indigo-600 hover:text-indigo-900 font-bold text-xs cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs space-y-1.5 font-mono">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-slate-500 font-sans font-bold">Σύνδεσμος Εγγραφής:</span>
+              <span className="text-indigo-700 font-bold select-all truncate">{lastInviteInfo.inviteLink}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-sans font-bold">Προσωρινός Κωδικός:</span>
+              <span className="bg-slate-100 px-2 py-0.5 rounded text-indigo-900 font-extrabold">{lastInviteInfo.tempPass}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΣύνδεσμος Εγγραφής: ${lastInviteInfo.inviteLink}\nΠροσωρινός Κωδικός: ${lastInviteInfo.tempPass}`
+                );
+                alert('Ο σύνδεσμος πρόσκλησης και ο κωδικός αντιγράφηκαν στο πρόχειρο!');
+              }}
+              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Αντιγραφή Στοιχείων Πρόσκλησης (Copy Link & Password)</span>
+            </button>
+            <p className="text-[11px] text-slate-500">
+              * Για αυτόματη παράδοση email στο inbox του χρήστη, συνδέστε το <code className="bg-slate-200 px-1 rounded">RESEND_API_KEY</code>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Success Notification Banner */}
       {successNotification && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between">

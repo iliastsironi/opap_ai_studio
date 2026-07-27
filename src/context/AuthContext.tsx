@@ -101,8 +101,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeRole = DEFAULT_EMPLOYEE_ROLE;
       }
 
+      // Check if user is a demo account
+      const isDemoUser = fbUser.email && (
+        fbUser.email.includes('shiftledger.gr') ||
+        fbUser.email.includes('opap.gr') ||
+        fbUser.email === 'owner@shiftledger.gr' ||
+        fbUser.email === 'manager@shiftledger.gr' ||
+        fbUser.email === 'employee@shiftledger.gr'
+      );
+
+      let activeOrg = DEFAULT_ORG;
+
       if (userSnap.exists()) {
         const uData = userSnap.data();
+        const userOrgId = uData.organization_id || (isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`);
+
         setUser({
           id: fbUser.uid,
           email: fbUser.email || uData.email || '',
@@ -112,17 +125,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           created_at: uData.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+
+        if (userOrgId !== 'org_opap_demo') {
+          try {
+            const orgSnap = await getDoc(doc(db, 'organizations', userOrgId));
+            if (orgSnap.exists()) {
+              activeOrg = orgSnap.data() as Organization;
+            } else {
+              activeOrg = {
+                id: userOrgId,
+                legal_name: `${uData.first_name || 'Χρήστης'} ${uData.last_name || 'ShiftLedger'}`,
+                trade_name: `Πρακτορείο ${uData.first_name || 'ΟΠΑΠ'}`,
+                vat_number: '',
+                tax_office: '',
+                address: '',
+                phone: '',
+                email: fbUser.email || '',
+                timezone: 'Europe/Athens',
+                currency: 'EUR',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              };
+              await setDoc(doc(db, 'organizations', userOrgId), activeOrg);
+            }
+          } catch (orgErr) {
+            console.warn('Error fetching custom org:', orgErr);
+          }
+        }
       } else {
         const nameParts = fbUser.displayName ? fbUser.displayName.split(' ') : ['Χρήστης', 'ShiftLedger'];
+        const firstName = nameParts[0] || 'Χρήστης';
+        const lastName = nameParts.slice(1).join(' ') || 'ShiftLedger';
+        const newOrgId = isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`;
+
         const newUserObj: User = {
           id: fbUser.uid,
           email: fbUser.email || '',
-          first_name: nameParts[0] || 'Χρήστης',
-          last_name: nameParts.slice(1).join(' ') || 'ShiftLedger',
+          first_name: firstName,
+          last_name: lastName,
           status: 'ACTIVE',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+
+        if (!isDemoUser) {
+          activeOrg = {
+            id: newOrgId,
+            legal_name: `${firstName} ${lastName}`,
+            trade_name: `Πρακτορείο ${firstName}`,
+            vat_number: '',
+            tax_office: '',
+            address: '',
+            phone: '',
+            email: fbUser.email || '',
+            timezone: 'Europe/Athens',
+            currency: 'EUR',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          await setDoc(doc(db, 'organizations', newOrgId), activeOrg);
+        }
 
         // Write user profile to Firestore
         await setDoc(userRef, {
@@ -130,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: newUserObj.email,
           first_name: newUserObj.first_name,
           last_name: newUserObj.last_name,
+          organization_id: newOrgId,
           status: 'ACTIVE',
           created_at: newUserObj.created_at,
           updated_at: newUserObj.updated_at,
@@ -139,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setRoles([activeRole]);
-      setOrganization(DEFAULT_ORG);
+      setOrganization(activeOrg);
       setPermissions(['*']);
     } catch (err) {
       console.error('Error syncing user profile with Firebase:', err);

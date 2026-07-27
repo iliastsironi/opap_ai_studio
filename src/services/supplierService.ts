@@ -74,15 +74,18 @@ export async function fetchSuppliersFromFirestore(orgId: string): Promise<Suppli
     const result: Supplier[] = [];
     snap.forEach((d) => result.push(d.data() as Supplier));
     if (result.length === 0) {
-      for (const sup of INITIAL_DEMO_SUPPLIERS) {
-        await setDoc(doc(db, SUPPLIERS_COLLECTION, sup.id), sup);
+      if (orgId === 'org_opap_demo') {
+        for (const sup of INITIAL_DEMO_SUPPLIERS) {
+          await setDoc(doc(db, SUPPLIERS_COLLECTION, sup.id), sup);
+        }
+        return INITIAL_DEMO_SUPPLIERS;
       }
-      return INITIAL_DEMO_SUPPLIERS;
+      return [];
     }
     return result;
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, SUPPLIERS_COLLECTION);
-    return INITIAL_DEMO_SUPPLIERS;
+    return orgId === 'org_opap_demo' ? INITIAL_DEMO_SUPPLIERS : [];
   }
 }
 

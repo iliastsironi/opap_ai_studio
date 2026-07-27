@@ -61,6 +61,7 @@ export const INITIAL_DEMO_STORES: Store[] = [
 ];
 
 export async function seedInitialStoresIfEmpty(orgId: string): Promise<void> {
+  if (orgId !== 'org_opap_demo') return;
   try {
     const q = query(collection(db, STORES_COLLECTION), where('organization_id', '==', orgId));
     const snap = await getDocs(q);
@@ -77,15 +78,18 @@ export async function seedInitialStoresIfEmpty(orgId: string): Promise<void> {
 
 export async function fetchStoresFromFirestore(orgId: string): Promise<Store[]> {
   try {
-    await seedInitialStoresIfEmpty(orgId);
+    if (orgId === 'org_opap_demo') {
+      await seedInitialStoresIfEmpty(orgId);
+    }
     const q = query(collection(db, STORES_COLLECTION), where('organization_id', '==', orgId));
     const snap = await getDocs(q);
     const result: Store[] = [];
     snap.forEach((d) => result.push(d.data() as Store));
-    return result.length > 0 ? result : INITIAL_DEMO_STORES;
+    if (result.length > 0) return result;
+    return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, STORES_COLLECTION);
-    return INITIAL_DEMO_STORES;
+    return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
   }
 }
 
