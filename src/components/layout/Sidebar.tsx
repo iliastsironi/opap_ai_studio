@@ -16,7 +16,8 @@ import {
   Coffee,
   AlertTriangle,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Truck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   const operationalModules = [
     { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock },
     { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt },
+    { id: 'suppliers', label: 'Προμηθευτές (Suppliers)', icon: Truck },
     { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket },
     { id: 'vlt', label: 'Τερματικά PLAY VLT', icon: Gamepad2 },
     { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee },

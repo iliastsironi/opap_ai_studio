@@ -27,6 +27,17 @@ export interface Organization {
   updated_at: string;
 }
 
+export interface PosTerminal {
+  id: string;
+  terminal_id: string; // e.g. TID-98211
+  merchant_id?: string; // e.g. MID-110293
+  serial_number?: string;
+  provider: string; // e.g. Viva Wallet, Eurobank, NBG, Wordline, TORA
+  device_type: 'CARD_EFTPOS' | 'TORA_POS' | 'OPAP_TERMINAL' | 'OTHER';
+  is_active: boolean;
+  notes?: string;
+}
+
 export interface Store {
   id: string;
   organization_id: string;
@@ -37,8 +48,29 @@ export interface Store {
   phone?: string;
   operating_hours?: string;
   is_active: boolean;
+  pos_terminals?: PosTerminal[];
   created_at: string;
   updated_at: string;
+}
+
+export interface Supplier {
+  id: string;
+  organization_id: string;
+  store_ids?: string[];
+  code: string;
+  company_name: string;
+  trade_name?: string;
+  vat_number: string;
+  tax_office?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  category: 'OPAP_SERVICES' | 'BEVERAGES_FNB' | 'OFFICE_CONSUMABLES' | 'IT_EQUIPMENT' | 'UTILITIES' | 'CLEANING' | 'OTHER';
+  balance: number;
+  notes?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface Department {

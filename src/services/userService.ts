@@ -3,6 +3,8 @@ import {
   doc,
   getDocs,
   setDoc,
+  updateDoc,
+  deleteDoc,
   query,
   where,
 } from 'firebase/firestore';
@@ -102,6 +104,29 @@ export async function createUserInFirestore(userData: any): Promise<any> {
     return newUser;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, USERS_COLLECTION);
+    throw error;
+  }
+}
+
+export async function updateUserInFirestore(userId: string, updateData: any): Promise<void> {
+  try {
+    const ref = doc(db, USERS_COLLECTION, userId);
+    await updateDoc(ref, {
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${USERS_COLLECTION}/${userId}`);
+    throw error;
+  }
+}
+
+export async function deleteUserInFirestore(userId: string): Promise<void> {
+  try {
+    const ref = doc(db, USERS_COLLECTION, userId);
+    await deleteDoc(ref);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${USERS_COLLECTION}/${userId}`);
     throw error;
   }
 }

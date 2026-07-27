@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Store as StoreIcon, Plus, Building2, MapPin, Phone, Clock, Layers, CheckCircle } from 'lucide-react';
+import { Store as StoreIcon, Plus, Building2, MapPin, Phone, Clock, Layers, CheckCircle, CreditCard, Smartphone, Trash2, ShieldCheck, Edit3 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
-import { Department, Store, StoreType } from '../../types/index.js';
-import { createStoreInFirestore } from '../../services/storeService.ts';
+import { Department, Store, StoreType, PosTerminal } from '../../types/index.js';
+import { createStoreInFirestore, updateStoreInFirestore } from '../../services/storeService.ts';
 
 export const StoresManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -28,6 +28,70 @@ export const StoresManager: React.FC = () => {
   const [newDeptCode, setNewDeptCode] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
   const [addDeptError, setAddDeptError] = useState<string | null>(null);
+
+  // New POS Terminal Modal
+  const [showAddPosModal, setShowAddPosModal] = useState(false);
+  const [posTerminalId, setPosTerminalId] = useState('');
+  const [posMerchantId, setPosMerchantId] = useState('');
+  const [posSerialNumber, setPosSerialNumber] = useState('');
+  const [posProvider, setPosProvider] = useState('Viva Wallet');
+  const [posType, setPosType] = useState<PosTerminal['device_type']>('CARD_EFTPOS');
+  const [posNotes, setPosNotes] = useState('');
+  const [addPosError, setAddPosError] = useState<string | null>(null);
+
+  const handleAddPosTerminal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStore) return;
+    setAddPosError(null);
+
+    const newPos: PosTerminal = {
+      id: `pos_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      terminal_id: posTerminalId,
+      merchant_id: posMerchantId,
+      serial_number: posSerialNumber,
+      provider: posProvider,
+      device_type: posType,
+      is_active: true,
+      notes: posNotes,
+    };
+
+    const currentPosList = selectedStore.pos_terminals || [];
+    const updatedPosList = [...currentPosList, newPos];
+
+    try {
+      await updateStoreInFirestore(selectedStore.id, {
+        pos_terminals: updatedPosList,
+      });
+
+      setSelectedStore({ ...selectedStore, pos_terminals: updatedPosList });
+      await refreshStores();
+      setShowAddPosModal(false);
+      setPosTerminalId('');
+      setPosMerchantId('');
+      setPosSerialNumber('');
+      setPosNotes('');
+    } catch (err: any) {
+      setAddPosError(err.message || 'Αποτυχία προσθήκης τερματικού POS');
+    }
+  };
+
+  const handleRemovePosTerminal = async (posId: string) => {
+    if (!selectedStore) return;
+    if (!window.confirm('Είστε βέβαιοι ότι θέλετε να καταργήσετε αυτό το τερματικό POS;')) return;
+
+    const currentPosList = selectedStore.pos_terminals || [];
+    const updatedPosList = currentPosList.filter((p) => p.id !== posId);
+
+    try {
+      await updateStoreInFirestore(selectedStore.id, {
+        pos_terminals: updatedPosList,
+      });
+      setSelectedStore({ ...selectedStore, pos_terminals: updatedPosList });
+      await refreshStores();
+    } catch (err: any) {
+      alert(err.message || 'Αποτυχία διαγραφής τερματικού POS');
+    }
+  };
 
   useEffect(() => {
     if (stores.length > 0 && !selectedStore) {
@@ -286,6 +350,77 @@ export const StoresManager: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* POS Terminals & Card Readers Section */}
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Τερματικά POS & EFTPOS ({selectedStore.pos_terminals?.length || 0})</h3>
+                      <p className="text-[11px] text-slate-500">Αριθμοί τερματικών Tora POS, Viva Wallet, Eurobank κ.ά.</p>
+                    </div>
+                  </div>
+
+                  {hasPermission('store.manage') && (
+                    <button
+                      onClick={() => setShowAddPosModal(true)}
+                      className="inline-flex items-center space-x-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Προσθήκη POS</span>
+                    </button>
+                  )}
+                </div>
+
+                {(!selectedStore.pos_terminals || selectedStore.pos_terminals.length === 0) ? (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                    Δεν έχουν καταχωρηθεί τερματικά POS για αυτό το κατάστημα.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {selectedStore.pos_terminals.map((pos) => (
+                      <div
+                        key={pos.id}
+                        className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start justify-between relative group"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
+                              {pos.provider}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">
+                              {pos.device_type}
+                            </span>
+                          </div>
+                          <p className="text-xs font-extrabold font-mono text-slate-900 mt-1">
+                            TID: {pos.terminal_id}
+                          </p>
+                          {pos.merchant_id && (
+                            <p className="text-[11px] text-slate-500 font-mono">MID: {pos.merchant_id}</p>
+                          )}
+                          {pos.serial_number && (
+                            <p className="text-[11px] text-slate-500 font-mono">S/N: {pos.serial_number}</p>
+                          )}
+                          {pos.notes && (
+                            <p className="text-[11px] text-slate-400 italic mt-0.5">{pos.notes}</p>
+                          )}
+                        </div>
+
+                        {hasPermission('store.manage') && (
+                          <button
+                            onClick={() => handleRemovePosTerminal(pos.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                            title="Διαγραφή POS"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
@@ -439,6 +574,116 @@ export const StoresManager: React.FC = () => {
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer"
                 >
                   Προσθήκη Τμήματος
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add POS Terminal Modal */}
+      {showAddPosModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Προσθήκη Τερματικού POS / EFTPOS</h2>
+
+            {addPosError && (
+              <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
+                {addPosError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddPosTerminal} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Πάροχος / Τράπεζα</label>
+                <select
+                  value={posProvider}
+                  onChange={(e) => setPosProvider(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                >
+                  <option value="TORA WALLET">TORA Wallet / ΟΠΑΠ</option>
+                  <option value="Viva Wallet">Viva Wallet</option>
+                  <option value="Eurobank">Eurobank EFTPOS</option>
+                  <option value="National Bank (ΕΤΕ)">National Bank (ΕΤΕ)</option>
+                  <option value="Wordline / NBG">Wordline / NBG</option>
+                  <option value="Piraeus Bank">Piraeus Bank / myPOS</option>
+                  <option value="Other">Άλλος Πάροχος</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τύπος Συσκευής</label>
+                <select
+                  value={posType}
+                  onChange={(e) => setPosType(e.target.value as PosTerminal['device_type'])}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                >
+                  <option value="CARD_EFTPOS">Τερματικό Καρτών (EFTPOS)</option>
+                  <option value="TORA_POS">Tora POS (Πληρωμές Λογαριασμών)</option>
+                  <option value="OPAP_TERMINAL">Κεντρικό Τερματικό ΟΠΑΠ</option>
+                  <option value="OTHER">Άλλος Εξοπλισμός</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Terminal ID (TID)</label>
+                <input
+                  type="text"
+                  value={posTerminalId}
+                  onChange={(e) => setPosTerminalId(e.target.value)}
+                  placeholder="π.χ. TID-881920"
+                  required
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Merchant ID (MID)</label>
+                  <input
+                    type="text"
+                    value={posMerchantId}
+                    onChange={(e) => setPosMerchantId(e.target.value)}
+                    placeholder="MID-00129"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Σειριακός Αριθμός (S/N)</label>
+                  <input
+                    type="text"
+                    value={posSerialNumber}
+                    onChange={(e) => setPosSerialNumber(e.target.value)}
+                    placeholder="SN-998811"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Σημειώσεις / Θέση</label>
+                <input
+                  type="text"
+                  value={posNotes}
+                  onChange={(e) => setPosNotes(e.target.value)}
+                  placeholder="π.χ. POS #1 - Ταμείο 1"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPosModal(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                >
+                  Προσθήκη POS
                 </button>
               </div>
             </form>

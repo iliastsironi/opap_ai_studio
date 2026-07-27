@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send } from 'lucide-react';
+import { UserCheck, UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, UserX, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
-import { fetchUsersFromFirestore, createUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
+import { fetchUsersFromFirestore, createUserInFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
 import { sendUserInviteEmail } from '../../services/emailService.ts';
 
 export const UsersManager: React.FC = () => {
@@ -24,6 +24,78 @@ export const UsersManager: React.FC = () => {
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [successNotification, setSuccessNotification] = useState<string | null>(null);
+
+  // Edit User Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmployeeCode, setEditEmployeeCode] = useState('');
+  const [editRoleCode, setEditRoleCode] = useState('EMPLOYEE');
+  const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE' | 'PENDING'>('ACTIVE');
+  const [editStoreIds, setEditStoreIds] = useState<string[]>([]);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditModal = (u: any) => {
+    setEditingUser(u);
+    setEditFirstName(u.first_name || '');
+    setEditLastName(u.last_name || '');
+    setEditPhone(u.phone || '');
+    setEditEmployeeCode(u.employee_code || '');
+    setEditRoleCode(u.role_code || 'EMPLOYEE');
+    setEditStatus(u.is_active ? 'ACTIVE' : 'INACTIVE');
+
+    const currentStoreIds = u.stores ? u.stores.map((s: any) => s.store_id) : (u.assigned_stores?.map((s: any) => s.store_id) || []);
+    setEditStoreIds(currentStoreIds);
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditError(null);
+
+    try {
+      const assignedStoresList = stores
+        .filter((s) => editStoreIds.includes(s.id))
+        .map((s) => ({ store_id: s.id, store_code: s.code, store_name: s.name }));
+
+      const selectedRoleObj = roles.find((r) => r.code === editRoleCode);
+
+      await updateUserInFirestore(editingUser.id, {
+        first_name: editFirstName,
+        last_name: editLastName,
+        phone: editPhone,
+        employee_code: editEmployeeCode,
+        role_code: editRoleCode,
+        role_name: selectedRoleObj?.name || editRoleCode,
+        is_active: editStatus === 'ACTIVE',
+        status: editStatus,
+        stores: assignedStoresList,
+        assigned_stores: assignedStoresList,
+      });
+
+      setSuccessNotification(`Ο χρήστης ${editFirstName} ${editLastName} ενημερώθηκε επιτυχώς.`);
+      setShowEditModal(false);
+      await fetchUsers();
+    } catch (err: any) {
+      setEditError(err.message || 'Αποτυχία ενημέρωσης χρήστη');
+    }
+  };
+
+  const handleDeleteUser = async (u: any) => {
+    if (window.confirm(`Είστε βέβαιοι ότι θέλετε να διαγράψετε τον εργαζόμενο "${u.first_name} ${u.last_name}";`)) {
+      try {
+        await deleteUserInFirestore(u.id);
+        setSuccessNotification(`Ο εργαζόμενος "${u.first_name} ${u.last_name}" διαγράφηκε επιτυχώς.`);
+        await fetchUsers();
+      } catch (err: any) {
+        alert(err.message || 'Αποτυχία διαγραφής εργαζομένου');
+      }
+    }
+  };
 
   const orgId = organization?.id || 'org_opap_demo';
 
@@ -204,6 +276,7 @@ export const UsersManager: React.FC = () => {
                   <th className="p-4">Ρόλος Οργανισμού</th>
                   <th className="p-4">Ανατεθειμένα Καταστήματα</th>
                   <th className="p-4">Κατάσταση</th>
+                  <th className="p-4 text-center">Ενέργειες</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -250,14 +323,20 @@ export const UsersManager: React.FC = () => {
                             {r.name}
                           </span>
                         ))}
+                        {(!u.roles || u.roles.length === 0) && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <Shield className="w-3 h-3 mr-1" />
+                            {u.role_name || u.role_code || 'Εργαζόμενος'}
+                          </span>
+                        )}
                       </div>
                     </td>
 
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">
-                        {u.assigned_stores?.map((as: any) => (
+                        {(u.assigned_stores || u.stores)?.map((as: any, idx: number) => (
                           <span
-                            key={as.id}
+                            key={as.store_id || idx}
                             className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700"
                           >
                             <StoreIcon className="w-3 h-3 mr-1 text-slate-400" />
@@ -268,10 +347,35 @@ export const UsersManager: React.FC = () => {
                     </td>
 
                     <td className="p-4">
-                      <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      <span
+                        className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                          u.is_active !== false && u.status !== 'INACTIVE'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            : 'text-rose-700 bg-rose-50 border-rose-200'
+                        }`}
+                      >
                         <CheckCircle2 className="w-3 h-3 mr-1" />
-                        {u.status}
+                        {u.is_active !== false && u.status !== 'INACTIVE' ? 'Ενεργός' : 'Απενεργοποιημένος'}
                       </span>
+                    </td>
+
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <button
+                          onClick={() => openEditModal(u)}
+                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title="Επεξεργασία Εργαζομένου"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Διαγραφή Εργαζομένου"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -395,6 +499,143 @@ export const UsersManager: React.FC = () => {
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer"
                 >
                   Προσθήκη Χρήστη
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Επεξεργασία Στοιχείων Εργαζομένου</h2>
+
+            {editError && (
+              <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateUser} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Επώνυμο</label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Εργαζομένου</label>
+                  <input
+                    type="text"
+                    value={editEmployeeCode}
+                    onChange={(e) => setEditEmployeeCode(e.target.value)}
+                    placeholder="EMP-001"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="+30 697 0000000"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ρόλος Εργαζομένου</label>
+                <select
+                  value={editRoleCode}
+                  onChange={(e) => setEditRoleCode(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                >
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.code}>
+                      {r.name} - {r.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατάσταση Χρήστη</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                >
+                  <option value="ACTIVE">Ενεργός (Active)</option>
+                  <option value="INACTIVE">Απενεργοποιημένος (Inactive)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Ανατεθειμένα Καταστήματα ({editStoreIds.length})
+                </label>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+                  {stores.map((st) => {
+                    const isChecked = editStoreIds.includes(st.id);
+                    return (
+                      <label
+                        key={st.id}
+                        className="flex items-center justify-between p-2 rounded hover:bg-white cursor-pointer text-xs font-medium text-slate-800"
+                      >
+                        <span>{st.code} - {st.name}</span>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setEditStoreIds(editStoreIds.filter((id) => id !== st.id));
+                            } else {
+                              setEditStoreIds([...editStoreIds, st.id]);
+                            }
+                          }}
+                          className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                >
+                  Αποθήκευση Αλλαγών
                 </button>
               </div>
             </form>

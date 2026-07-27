@@ -39,6 +39,9 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
       if (response.ok) {
         console.log(`[Email Service - Resend] Email successfully sent to ${to}`);
         return { success: true, provider: 'resend' };
+      } else {
+        const errorText = await response.text();
+        console.warn(`[Email Service - Resend API Error ${response.status}]`, errorText);
       }
     } catch (e: any) {
       console.warn('[Email Service - Resend Error]', e?.message || e);
