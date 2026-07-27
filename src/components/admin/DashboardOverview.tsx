@@ -1,5 +1,5 @@
 import React from 'react';
-import { Store as StoreIcon, Users, Shield, History, Building2, CheckCircle2, Lock } from 'lucide-react';
+import { Store as StoreIcon, Clock, Receipt, BarChart3, ShieldCheck, ArrowRight, Wallet, CheckCircle2, AlertTriangle, Building2, Ticket, Gamepad2, Coffee } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 
@@ -8,10 +8,12 @@ interface DashboardProps {
 }
 
 export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const { organization, roles, permissions, assignedStores } = useAuth();
+  const { organization, roles, assignedStores } = useAuth();
   const { stores, activeStoreId } = useTenant();
 
-  const primaryRole = roles[0]?.name || 'Χρήστης';
+  const activeStoreName = activeStoreId === 'ALL'
+    ? 'Όλα τα Καταστήματα'
+    : stores.find((s) => s.id === activeStoreId)?.name || 'Επιλεγμένο Κατάστημα';
 
   return (
     <div className="space-y-6">
@@ -19,160 +21,161 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1">
-            <span>Σύστημα</span>
+            <span>Αρχική</span>
             <span>/</span>
-            <span className="text-slate-900 font-bold">Αρχιτεκτονική & Επισκόπηση Οργανισμού</span>
+            <span className="text-slate-900 font-bold">Κεντρικό Ταμπλό Ελέγχου</span>
           </div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-            {organization?.trade_name || organization?.legal_name || ' ShiftLedger Multi-Tenant Engine'}
+            {organization?.trade_name || organization?.legal_name || 'ShiftLedger Store Manager'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Επιχειρησιακή διαχείριση καταστημάτων, δικαιωμάτων πρόσβασης και αμετάβλητων καταγραφών ελέγχου.
+            Επιχειρησιακή διαχείριση καταστημάτων, ταμείου βάρδιας, εισπράξεων ΟΠΑΠ/VLTs & εξόδων.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            Φάση 2: Βάρδιες & Ταμείο Ενεργή
+            <span>Σύστημα σε Λειτουργία</span>
           </div>
           <button
             onClick={() => onNavigate('shifts')}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center space-x-1.5"
           >
+            <Clock className="w-3.5 h-3.5" />
             <span>Βάρδιες & Ταμείο</span>
           </button>
         </div>
-
       </div>
 
-      {/* Grid Layout: Main Roadmap & Schema + Right Column Stats */}
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Καταστήματα</p>
+            <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{stores.length}</h3>
+            <p className="text-[11px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Όλα ενεργά
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
+            <Building2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Επιλεγμένο Σημείο</p>
+            <h3 className="text-sm font-bold text-slate-900 mt-1 truncate max-w-[140px]">{activeStoreName}</h3>
+            <p className="text-[11px] text-indigo-600 font-medium mt-0.5">
+              {activeStoreId === 'ALL' ? 'Συνολική προβολή' : 'Ενεργή συνεδρία'}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+            <StoreIcon className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Κατάσταση Ταμείου</p>
+            <h3 className="text-lg font-bold text-slate-900 mt-1">Έτοιμο για Βάρδια</h3>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Αριθμομηχανή & Cash Counter</p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
+            <Wallet className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ασφάλεια Multi-Tenant</p>
+            <h3 className="text-lg font-bold text-slate-900 mt-1">Πλήρης Απομόνωση</h3>
+            <p className="text-[11px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" /> Audit Logs Active
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main 8-col area */}
+        {/* Left Column: Quick Actions & Stores Network */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Schema Visualizer Card */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="font-bold text-slate-900 text-sm">PostgreSQL Schema (14 Tables)</h2>
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                MULTI-TENANT SCHEMA
-              </span>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    Core Identity
-                  </p>
-                  <ul className="text-xs space-y-2 text-slate-700 font-medium">
-                    <li className="flex justify-between">
-                      <span>organizations</span> <span className="text-slate-400 font-mono text-[10px]">PK</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>users</span> <span className="text-slate-400 font-mono text-[10px]">PK</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>roles</span> <span className="text-slate-400 font-mono text-[10px]">PK</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    Structural
-                  </p>
-                  <ul className="text-xs space-y-2 text-slate-700 font-medium">
-                    <li className="flex justify-between">
-                      <span>stores</span> <span className="text-slate-400 font-mono text-[10px]">FK</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>departments</span> <span className="text-slate-400 font-mono text-[10px]">FK</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>store_users</span> <span className="text-slate-400 font-mono text-[10px]">M:N</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    Compliance & Security
-                  </p>
-                  <ul className="text-xs space-y-2 text-slate-700 font-medium">
-                    <li className="flex justify-between">
-                      <span>audit_logs</span> <span className="text-slate-400 font-mono text-[10px]">JSONB</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>permissions</span> <span className="text-slate-400 font-mono text-[10px]">FK</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span>role_permissions</span> <span className="text-slate-400 font-mono text-[10px]">M:N</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Implementation Roadmap */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-bold text-slate-900 text-sm">Επιχειρησιακό Roadmap (Φάσεις 1 & 2)</h2>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">
-                {assignedStores.length} Σημεία Πρόσβασης
-              </span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              <div className="flex items-center px-6 py-4 gap-4">
-                <div className="w-5 h-5 border-2 border-indigo-600 rounded flex items-center justify-center text-white bg-indigo-600 shrink-0">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-900">Multi-Tenant Isolation & Security Matrix</p>
-                  <p className="text-[11px] text-slate-500">
-                    Row-level isolation, JWT Auth, RBAC permissions & αμετάβλητα audit logs.
-                  </p>
-                </div>
-                <div className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                  COMPLETED
-                </div>
-              </div>
-
-              <div className="flex items-center px-6 py-4 gap-4">
-                <div className="w-5 h-5 border-2 border-indigo-600 rounded flex items-center justify-center text-white bg-indigo-600 shrink-0">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-900">Βάρδιες & Οδηγός Κλεισίματος Ταμείου (Phase 2)</p>
-                  <p className="text-[11px] text-slate-500">
-                    Έναρξη/Κλείσιμο βάρδιας, εισπράξεις ΟΠΑΠ/VLTs/FnB, καταμέτρηση EUR, έξοδα & πιστώσεις.
-                  </p>
-                </div>
-                <div className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                  COMPLETED
-                </div>
-              </div>
-
-              <div className="flex items-center px-6 py-4 gap-4 bg-slate-50/50">
-                <div className="w-5 h-5 border-2 border-indigo-600 rounded flex items-center justify-center text-white bg-indigo-600 shrink-0">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-slate-900">Έλεγχος Αποκλίσεων & Έγκριση Διευθυντή</p>
-                  <p className="text-[11px] text-slate-500">
-                    Αυτοματοποιημένος υπολογισμός discrepancies, όρια συναγερμού & ροή αιτήσεων διόρθωσης.
-                  </p>
-                </div>
-                <div className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                  COMPLETED
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Network Summary */}
+          {/* Quick Actions Panel */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="font-bold text-slate-900 text-sm">Γρήγορες Ενέργειες & Λειτουργίες</h2>
+                <p className="text-xs text-slate-500">Άμεση μετάβαση στις βασικές ενότητες καθημερινής διαχείρισης</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => onNavigate('shifts')}
+                className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-300 transition-all text-left group cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Βάρδιες & Ταμείο</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Έναρξη, κλείσιμο, καταμέτρηση μετρητών & έλεγχος Z</p>
+              </button>
+
+              <button
+                onClick={() => onNavigate('expenses')}
+                className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Έξοδα & Δαπάνες</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Καταχώρηση πληρωμών, τιμολογίων & μικροεξόδων</p>
+              </button>
+
+              <button
+                onClick={() => onNavigate('opap')}
+                className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                    <Ticket className="w-4 h-4" />
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Παιχνίδια ΟΠΑΠ & VLTs</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Εισπράξεις, ακυρώσεις & υπόλοιπα τερματικών</p>
+              </button>
+
+              <button
+                onClick={() => onNavigate('reports')}
+                className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Αναφορές & Analytics</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Στατιστικά πωλήσεων, αποκλίσεις & οικονομικά Z</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Network Stores Summary */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Δίκτυο Καταστημάτων Οργανισμού</h3>
                 <p className="text-xs text-slate-500">Εγγεγραμμένα σημεία και τύποι λειτουργίας</p>
@@ -211,45 +214,55 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Right 4-col Sidebar Column */}
+        {/* Right Column: Operational Checklist & Audit Controls */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Phase Progress Card (Indigo Dark Card from Sleek Theme) */}
-          <div className="bg-indigo-900 rounded-xl p-6 text-white shadow-md">
-            <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-widest mb-4">
-              Πρόοδος Φάσης 2 (Βάρδιες & Ταμείο)
-            </h3>
-            <div className="flex items-end gap-2 mb-2">
-              <span className="text-4xl font-extrabold tracking-tight">100%</span>
-              <span className="text-xs text-indigo-300 mb-1">Ολοκληρωμένο</span>
-            </div>
-            <div className="w-full bg-indigo-950/60 h-2 rounded-full mb-6">
-              <div className="bg-emerald-400 h-2 rounded-full w-full"></div>
+          {/* Active Store Focus Card */}
+          <div className="bg-indigo-900 rounded-xl p-6 text-white shadow-md space-y-4">
+            <div className="flex items-center justify-between border-b border-indigo-800/80 pb-3">
+              <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-widest">
+                Οδηγός Βάρδιας
+              </h3>
+              <span className="px-2 py-0.5 bg-indigo-800 rounded text-[10px] text-indigo-200 font-bold">
+                Shift Status
+              </span>
             </div>
 
-            <div className="space-y-3 pt-2 border-t border-indigo-800/80 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-indigo-200">Έναρξη / Κλείσιμο Βάρδιας</span>
-                <span className="font-bold text-emerald-400">100%</span>
+            <p className="text-xs text-indigo-100 leading-relaxed">
+              Για να διασφαλίσετε την ορθότητα του ταμείου, ακολουθήστε τα βήματα καταμέτρησης πριν το κλείσιμο της βάρδιας.
+            </p>
+
+            <div className="space-y-2.5 pt-1 text-xs">
+              <div className="flex items-center gap-2 text-indigo-100">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Έλεγχος αρχικού ταμείου (Float)</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-indigo-200">Υπολογιστής Ταμείου & Cash Counter</span>
-                <span className="font-bold text-emerald-400">100%</span>
+              <div className="flex items-center gap-2 text-indigo-100">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Καταγραφή εισπράξεων ΟΠΑΠ & VLT</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-indigo-200">Έξοδα, Πιστώσεις & Υπόλοιπα</span>
-                <span className="font-bold text-emerald-400">100%</span>
+              <div className="flex items-center gap-2 text-indigo-100">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Καταχώρηση παραστατικών εξόδων</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-indigo-200">Έγκριση / Reopen & Audit Logging</span>
-                <span className="font-bold text-emerald-400">100%</span>
+              <div className="flex items-center gap-2 text-indigo-100">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Υπολογισμός τελικής απόκλισης</span>
               </div>
             </div>
+
+            <button
+              onClick={() => onNavigate('shifts')}
+              className="w-full mt-2 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center justify-center space-x-2"
+            >
+              <span>Μετάβαση στο Ταμείο</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Multi-Tenant Strategy Card */}
+          {/* Security & Audit Card */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">
-              Στρατηγική Ασφαλείας
+              Έλεγχος & Ασφάλεια
             </h3>
             <div className="space-y-3 text-xs">
               <div className="flex items-start gap-3">
@@ -257,7 +270,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div>
                   <p className="font-bold text-slate-900">Tenant Isolation</p>
                   <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
-                    Strict Organization scoping enforced on every API query and route middleware.
+                    Αυστηρός διαχωρισμός δεδομένων ανά οργανισμό και κατάστημα.
                   </p>
                 </div>
               </div>
@@ -267,7 +280,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div>
                   <p className="font-bold text-slate-900">Audit Logging</p>
                   <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
-                    Synchronous logging of actions, before/after states and user tokens to audit_logs.
+                    Αμετάβλητες καταγραφές όλων των ενεργειών ταμείου & εγκρίσεων.
                   </p>
                 </div>
               </div>

@@ -43,13 +43,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   ];
 
   const operationalModules = [
-    { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, badge: 'Phase 2' },
-    { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, badge: 'Phase 2' },
-    { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket, badge: 'Phase 2' },
-    { id: 'vlt', label: 'Τερματικά PLAY VLT', icon: Gamepad2, badge: 'Phase 2' },
-    { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, badge: 'Phase 2' },
-    { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, badge: 'Phase 2' },
-    { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, badge: 'Phase 2' },
+    { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock },
+    { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt },
+    { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket },
+    { id: 'vlt', label: 'Τερματικά PLAY VLT', icon: Gamepad2 },
+    { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee },
+    { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle },
+    { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3 },
   ];
 
   return (
@@ -65,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         </div>
         <div>
           <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Phase 2: Shifts & Cashier</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Διαχείριση Ταμείου & Βαρδιών</p>
         </div>
       </div>
 
@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
 
         <div>
           <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Λειτουργικά Modules (Phase 2)
+            Λειτουργικές Ενότητες
           </p>
           <div className="space-y-1">
             {operationalModules.map((mod) => {
@@ -138,15 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
                     <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
                     <span>{mod.label}</span>
                   </div>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
-                      isActive
-                        ? 'bg-indigo-100 text-indigo-800'
-                        : 'bg-emerald-50 text-emerald-700'
-                    }`}
-                  >
-                    Active
-                  </span>
+                  {isActive && <ChevronRight className="w-4 h-4 text-indigo-600" />}
                 </button>
               );
             })}
