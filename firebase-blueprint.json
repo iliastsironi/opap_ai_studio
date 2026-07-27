@@ -137,6 +137,30 @@
         "created_at": { "type": "string" }
       },
       "required": ["to", "message"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Represents a store supplier.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "organization_id": { "type": "string" },
+        "code": { "type": "string", "maxLength": 50 },
+        "company_name": { "type": "string", "maxLength": 200 },
+        "trade_name": { "type": "string", "maxLength": 200 },
+        "vat_number": { "type": "string", "maxLength": 50 },
+        "tax_office": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 300 },
+        "category": { "type": "string" },
+        "balance": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "organization_id", "code", "company_name"]
     }
   },
   "firestore": {
@@ -179,6 +203,10 @@
     "/mail/{mailId}": {
       "schema": "MailTrigger",
       "description": "Trigger Email extension documents"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers documents"
     }
   }
 }

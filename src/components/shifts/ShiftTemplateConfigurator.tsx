@@ -491,10 +491,6 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                           <span>{field.description}</span>
                         </p>
                       )}
-
-                      <div className="text-[11px] font-mono text-slate-400">
-                        Key: <code className="text-slate-600 font-bold">{field.key}</code>
-                      </div>
                     </div>
 
                     {/* Actions & Toggles */}

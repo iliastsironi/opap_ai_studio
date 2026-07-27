@@ -5,6 +5,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   onSnapshot,
@@ -24,6 +25,7 @@ export const INITIAL_DEMO_STORES: Store[] = [
     address: 'Λεωφ. Κηφισίας 100, Αθήνα',
     phone: '+30 210 1234567',
     operating_hours: '08:00 - 23:30',
+    pos_count: 3,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -37,6 +39,7 @@ export const INITIAL_DEMO_STORES: Store[] = [
     address: 'Λεωφ. Ποσειδώνος 45, Γλυφάδα',
     phone: '+30 210 8945612',
     operating_hours: '10:00 - 02:00',
+    pos_count: 5,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -50,6 +53,7 @@ export const INITIAL_DEMO_STORES: Store[] = [
     address: 'Παναγή Τσαλδάρη 12, Περιστέρι',
     phone: '+30 210 5712345',
     operating_hours: '08:30 - 23:30',
+    pos_count: 2,
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -113,6 +117,16 @@ export async function updateStoreInFirestore(storeId: string, updateData: Partia
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${STORES_COLLECTION}/${storeId}`);
+    throw error;
+  }
+}
+
+export async function deleteStoreFromFirestore(storeId: string): Promise<void> {
+  try {
+    const ref = doc(db, STORES_COLLECTION, storeId);
+    await deleteDoc(ref);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${STORES_COLLECTION}/${storeId}`);
     throw error;
   }
 }

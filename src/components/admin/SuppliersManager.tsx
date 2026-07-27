@@ -69,7 +69,7 @@ export const SuppliersManager: React.FC = () => {
     setFormCompanyName('');
     setFormTradeName('');
     setFormVat('');
-    setFormTaxOffice('ΔΟΥ ΑΘΗΝΩΝ');
+    setFormTaxOffice('');
     setFormPhone('');
     setFormEmail('');
     setFormAddress('');
@@ -103,10 +103,6 @@ export const SuppliersManager: React.FC = () => {
 
     if (!formCompanyName.trim()) {
       setFormError('Παρακαλώ εισάγετε επωνυμία εταιρείας.');
-      return;
-    }
-    if (!formVat.trim()) {
-      setFormError('Παρακαλώ εισάγετε ΑΦΜ προμηθευτή.');
       return;
     }
 
@@ -291,8 +287,14 @@ export const SuppliersManager: React.FC = () => {
                     </td>
 
                     <td className="p-4">
-                      <p className="font-mono font-bold text-slate-800">ΑΦΜ: {sup.vat_number}</p>
-                      <p className="text-[11px] text-slate-400">{sup.tax_office || 'ΔΟΥ N/A'}</p>
+                      {sup.vat_number ? (
+                        <p className="font-mono font-bold text-slate-800">ΑΦΜ: {sup.vat_number}</p>
+                      ) : (
+                        <p className="text-slate-400 font-mono text-[11px]">-</p>
+                      )}
+                      {sup.tax_office && (
+                        <p className="text-[11px] text-slate-400">{sup.tax_office}</p>
+                      )}
                     </td>
 
                     <td className="p-4">
@@ -420,18 +422,17 @@ export const SuppliersManager: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ (Προαιρετικό)</label>
                   <input
                     type="text"
                     value={formVat}
                     onChange={(e) => setFormVat(e.target.value)}
                     placeholder="094012345"
-                    required
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔOΥ</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔOΥ (Προαιρετικό)</label>
                   <input
                     type="text"
                     value={formTaxOffice}
@@ -444,7 +445,7 @@ export const SuppliersManager: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>
                   <input
                     type="text"
                     value={formPhone}
@@ -454,7 +455,7 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email (Προαιρετικό)</label>
                   <input
                     type="email"
                     value={formEmail}
@@ -463,6 +464,17 @@ export const SuppliersManager: React.FC = () => {
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Διεύθυνση (Προαιρετικό)</label>
+                <input
+                  type="text"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Λεωφ. Αθηνών 112, Αθήνα"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                />
               </div>
 
               <div>

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Play, AlertCircle, X, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useTenant } from '../../context/TenantContext.tsx';
+import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 import { ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore } from '../../services/shiftService.ts';
 
@@ -8,7 +10,7 @@ interface ShiftOpeningModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (shiftId: string) => void;
-  stores: Array<{ id: string; name: string; code: string }>;
+  stores?: Array<{ id: string; name: string; code: string }>;
 }
 
 export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
@@ -18,8 +20,30 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   stores,
 }) => {
   const { token, user, organization } = useAuth();
-  const [selectedStoreId, setSelectedStoreId] = useState<string>(stores[0]?.id || '');
-  const [registerId, setRegisterId] = useState<string>('REG-01');
+  const { stores: tenantStores } = useTenant();
+
+  const effectiveStores =
+    stores && stores.length > 0
+      ? stores
+      : tenantStores && tenantStores.length > 0
+      ? tenantStores.map((s) => ({ id: s.id, name: s.name, code: s.code }))
+      : INITIAL_DEMO_STORES.map((s) => ({ id: s.id, name: s.name, code: s.code }));
+
+  const [selectedStoreId, setSelectedStoreId] = useState<string>(
+    effectiveStores[0]?.id || 'store_opap_01'
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      if (!selectedStoreId || !effectiveStores.some((s) => s.id === selectedStoreId)) {
+        if (effectiveStores.length > 0) {
+          setSelectedStoreId(effectiveStores[0].id);
+        }
+      }
+    }
+  }, [isOpen, effectiveStores, selectedStoreId]);
+
+  const [registerId, setRegisterId] = useState<string>('Ταμείο 1');
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
   const [openingCash, setOpeningCash] = useState<string>('200.00');
   const [openingNotes, setOpeningNotes] = useState<string>('');
@@ -33,7 +57,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (!selectedStoreId) {
+    const activeStore = effectiveStores.find((s) => s.id === selectedStoreId) || effectiveStores[0];
+    const targetStoreId = activeStore?.id || selectedStoreId || 'store_opap_01';
+
+    if (!targetStoreId) {
       setError('Παρακαλώ επιλέξτε κατάστημα.');
       return;
     }
@@ -46,12 +73,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
     setLoading(true);
     try {
-      const targetStore = stores.find((s) => s.id === selectedStoreId);
       const fsShift = await createShiftInFirestore({
         organization_id: organization?.id || 'org_opap_demo',
-        store_id: selectedStoreId,
-        store_name: targetStore?.name || 'OPAP Agency',
-        store_code: targetStore?.code || 'STR-01',
+        store_id: targetStoreId,
+        store_name: activeStore?.name || 'OPAP Agency',
+        store_code: activeStore?.code || 'STR-01',
         register_id: registerId,
         shift_type: shiftType,
         status: 'OPEN' as ShiftStatus,
@@ -157,7 +183,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               required
             >
               <option value="">-- Επιλέξτε Κατάστημα --</option>
-              {stores.map((s) => (
+              {effectiveStores.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.code})
                 </option>
@@ -176,9 +202,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 onChange={(e) => setRegisterId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="REG-01">Ταμείο 1 (REG-01)</option>
-                <option value="REG-02">Ταμείο 2 (REG-02)</option>
-                <option value="REG-03">Ταμείο 3 (REG-03)</option>
+                <option value="Ταμείο 1">Ταμείο 1</option>
+                <option value="Ταμείο 2">Ταμείο 2</option>
+                <option value="Ταμείο 3">Ταμείο 3</option>
               </select>
             </div>
 

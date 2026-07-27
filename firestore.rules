@@ -77,6 +77,12 @@ service cloud.firestore {
       allow write: if isValidId(mailId);
     }
 
+    // Suppliers
+    match /suppliers/{supplierId} {
+      allow read: if true;
+      allow write: if isValidId(supplierId);
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

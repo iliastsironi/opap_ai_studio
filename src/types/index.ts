@@ -47,6 +47,7 @@ export interface Store {
   address?: string;
   phone?: string;
   operating_hours?: string;
+  pos_count?: number;
   is_active: boolean;
   pos_terminals?: PosTerminal[];
   created_at: string;
@@ -60,7 +61,7 @@ export interface Supplier {
   code: string;
   company_name: string;
   trade_name?: string;
-  vat_number: string;
+  vat_number?: string;
   tax_office?: string;
   phone?: string;
   email?: string;

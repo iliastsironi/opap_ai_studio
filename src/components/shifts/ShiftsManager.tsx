@@ -28,9 +28,33 @@ import {
   subscribeToShifts,
 } from '../../services/shiftService.ts';
 
+import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
+
 export const ShiftsManager: React.FC = () => {
   const { token, organization, hasPermission, assignedStores } = useAuth();
-  const { currentStore, setStoreId } = useTenant();
+  const { currentStore, stores: tenantStores, setStoreId } = useTenant();
+
+  const availableStores =
+    assignedStores && assignedStores.length > 0
+      ? assignedStores.map((s) => ({
+          id: s.store_id,
+          name: s.store_name || s.store_code,
+          code: s.store_code || '',
+        }))
+      : tenantStores.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+        }));
+
+  const effectiveStores =
+    availableStores.length > 0
+      ? availableStores
+      : INITIAL_DEMO_STORES.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+        }));
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
@@ -227,9 +251,9 @@ export const ShiftsManager: React.FC = () => {
             className="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-800 bg-white"
           >
             <option value="ALL">Όλα τα Καταστήματα</option>
-            {assignedStores.map((s) => (
-              <option key={s.store_id} value={s.store_id}>
-                {s.store_name || s.store_code}
+            {effectiveStores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.code})
               </option>
             ))}
           </select>
@@ -287,7 +311,9 @@ export const ShiftsManager: React.FC = () => {
                   <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-4 py-3.5">
                       <div className="font-bold text-slate-900">{s.store_name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{s.register_id}</div>
+                      <div className="text-[10px] text-slate-400 font-medium">
+                        {s.register_id === 'REG-01' ? 'Ταμείο 1' : s.register_id}
+                      </div>
                     </td>
 
                     <td className="px-4 py-3.5">
@@ -393,11 +419,7 @@ export const ShiftsManager: React.FC = () => {
         onSuccess={(shiftId) => {
           fetchShifts();
         }}
-        stores={assignedStores.map((s) => ({
-          id: s.store_id,
-          name: s.store_name || s.store_code,
-          code: s.store_code || '',
-        }))}
+        stores={effectiveStores}
       />
 
       {/* Shift Details Modal */}
