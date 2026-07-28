@@ -48,10 +48,9 @@ const DEFAULT_ORG: Organization = {
 
 export const EMPLOYEE_PERMISSIONS = [
   'shifts.view',
+  'shift.create',
   'expenses.view',
   'suppliers.view',
-  'opap.view',
-  'vlt.view',
   'fnb.view',
   'incidents.view',
 ];
@@ -61,10 +60,11 @@ export const MANAGER_PERMISSIONS = [
   'store.view',
   'users.view',
   'shifts.view',
+  'shift.create',
+  'shift.approve',
+  'shift.reopen',
   'expenses.view',
   'suppliers.view',
-  'opap.view',
-  'vlt.view',
   'fnb.view',
   'incidents.view',
   'reports.view',

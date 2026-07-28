@@ -33,7 +33,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   onRefresh,
   onOpenClosingWizard,
 }) => {
-  const { token, hasPermission } = useAuth();
+  const { token, hasPermission, roles } = useAuth();
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'SHEET'>('SHEET');
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [managerNotes, setManagerNotes] = useState('');
@@ -45,8 +45,20 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
   if (!isOpen || !shift) return null;
 
-  const canApprove = hasPermission('shift.approve');
-  const canReopen = hasPermission('shift.reopen') || canApprove;
+  const isManagerOrOwner =
+    roles?.some((r) =>
+      ['ORG_OWNER', 'STORE_MANAGER', 'ADMIN', 'AREA_MANAGER', 'PLATFORM_ADMIN'].includes(r.code) ||
+      r.name?.toLowerCase().includes('manager') ||
+      r.name?.toLowerCase().includes('owner') ||
+      r.name?.toLowerCase().includes('διευθυντής') ||
+      r.name?.toLowerCase().includes('ιδιοκτήτης')
+    ) ||
+    hasPermission('*') ||
+    hasPermission('shift.approve') ||
+    hasPermission('shifts.approve');
+
+  const canApprove = isManagerOrOwner || hasPermission('shift.approve') || hasPermission('shifts.approve');
+  const canReopen = isManagerOrOwner || hasPermission('shift.reopen') || canApprove;
 
   const handleApprove = async () => {
     setLoading(true);

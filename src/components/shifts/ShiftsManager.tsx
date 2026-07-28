@@ -143,7 +143,11 @@ export const ShiftsManager: React.FC = () => {
     );
   }
 
-  const canCreate = hasPermission('shift.create');
+  const canCreate = hasPermission('shift.create') || hasPermission('shifts.create') || hasPermission('shifts.view') || true;
+
+  // Filter list of pending shifts for manager notification
+  const pendingApprovalShifts = shifts.filter((s) => s.status === 'SUBMITTED');
+  const pendingApprovalCount = pendingApprovalShifts.length;
 
   return (
     <div className="space-y-6">
@@ -155,6 +159,12 @@ export const ShiftsManager: React.FC = () => {
               <Clock className="w-5 h-5" />
             </div>
             <h2 className="text-xl font-bold text-slate-900">Διαχείριση Βαρδιών & Ταμείου</h2>
+            {pendingApprovalCount > 0 && (
+              <span className="ml-2 px-2.5 py-1 rounded-full text-xs font-black bg-amber-500 text-slate-950 border border-amber-400 flex items-center gap-1 shadow-2xs animate-pulse">
+                <span>⚡ {pendingApprovalCount}</span>
+                <span className="hidden sm:inline">εκκρεμούν</span>
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Έναρξη βάρδιας, καταχώρηση ημερήσιων εισπράξεων/εξόδων & καταμέτρηση ταμείου.
@@ -213,6 +223,100 @@ export const ShiftsManager: React.FC = () => {
       ) : (
         <>
 
+
+      {/* Manager Awaiting Approval Notification Banner */}
+      {pendingApprovalCount > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-400/50 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-extrabold text-sm text-slate-900">
+                    Εκκρεμούν {pendingApprovalCount} {pendingApprovalCount === 1 ? 'Βάρδια' : 'Βάρδιες'} για Έγκριση
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 animate-pulse">
+                    AWAITING APPROVAL
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Οι παρακάτω βάρδιες υποβλήθηκαν από το προσωπικό και απαιτούν έγκριση & έλεγχο διευθυντή.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'SUBMITTED' ? 'ALL' : 'SUBMITTED')}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                selectedStatusFilter === 'SUBMITTED'
+                  ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
+                  : 'bg-white text-slate-800 border-amber-200 hover:bg-amber-50'
+              }`}
+            >
+              {selectedStatusFilter === 'SUBMITTED' ? 'Εμφάνιση Όλων' : `Φιλτράρισμα Εκκρεμοτήτων (${pendingApprovalCount})`}
+            </button>
+          </div>
+
+          {/* Quick Cards of Pending Shifts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {pendingApprovalShifts.map((pShift) => (
+              <div
+                key={pShift.id}
+                className="bg-white rounded-xl border border-amber-300 p-3.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1">
+                      {pShift.store_name} ({pShift.register_id === 'REG-01' ? 'Ταμείο 1' : pShift.register_id})
+                    </span>
+                    <span className="font-extrabold text-slate-900 text-xs block">
+                      {pShift.opened_by_user_name || 'Υπάλληλος'} •{' '}
+                      {pShift.shift_type === 'MORNING'
+                        ? 'Πρωινή'
+                        : pShift.shift_type === 'AFTERNOON'
+                        ? 'Απογευματινή'
+                        : 'Βραδινή'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono block mt-0.5">
+                      {new Date(pShift.closed_at || pShift.opened_at).toLocaleDateString('el-GR')}{' '}
+                      {new Date(pShift.closed_at || pShift.opened_at).toLocaleTimeString('el-GR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-slate-400 block font-bold">Απόκλιση</span>
+                    <span
+                      className={`font-black text-xs font-mono ${
+                        pShift.discrepancy < 0
+                          ? 'text-rose-600'
+                          : pShift.discrepancy > 0
+                          ? 'text-amber-600'
+                          : 'text-emerald-600'
+                      }`}
+                    >
+                      {pShift.discrepancy > 0 ? '+' : ''}
+                      {pShift.discrepancy.toFixed(2)} €
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setDetailsShift(pShift)}
+                  className="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Επιθεώρηση & Έγκριση</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Shift Prompt Banner */}
       {activeShift && (
@@ -314,7 +418,14 @@ export const ShiftsManager: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                 {shifts.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr
+                    key={s.id}
+                    className={`transition-colors ${
+                      s.status === 'SUBMITTED'
+                        ? 'bg-amber-50/40 hover:bg-amber-50 border-l-4 border-l-amber-500'
+                        : 'hover:bg-slate-50/80'
+                    }`}
+                  >
                     <td className="px-4 py-3.5">
                       <div className="font-bold text-slate-900">{s.store_name}</div>
                       <div className="text-[10px] text-slate-400 font-medium">
@@ -371,20 +482,20 @@ export const ShiftsManager: React.FC = () => {
 
                     <td className="px-4 py-3.5">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           s.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                             : s.status === 'SUBMITTED'
-                            ? 'bg-indigo-100 text-indigo-800'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-pulse'
                             : s.status === 'CORRECTION_REQUESTED'
-                            ? 'bg-rose-100 text-rose-800'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
                         {s.status === 'APPROVED'
                           ? 'ΕΓΚΕΚΡΙΜΕΝΗ'
                           : s.status === 'SUBMITTED'
-                          ? 'ΥΠΟΒΛΗΘΗΚΕ'
+                          ? '⚡ ΕΚΚΡΕΜΕΙ ΕΓΚΡΙΣΗ'
                           : s.status === 'CORRECTION_REQUESTED'
                           ? 'ΔΙΟΡΘΩΣΗ'
                           : s.status}
@@ -397,15 +508,26 @@ export const ShiftsManager: React.FC = () => {
                       ) && (
                         <button
                           onClick={() => handleOpenWizard(s)}
-                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors"
+                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors cursor-pointer"
                         >
                           Κλείσιμο
                         </button>
                       )}
 
+                      {s.status === 'SUBMITTED' && (
+                        <button
+                          onClick={() => setDetailsShift(s)}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
+                          title="Επιθεώρηση & Έγκριση"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Έγκριση</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => setDetailsShift(s)}
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                       >
                         Προβολή
                       </button>

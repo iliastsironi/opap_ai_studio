@@ -259,19 +259,23 @@ export interface Shift {
   // Detailed OPAP Ledger Specific Fields (Matching report CSV)
   tora_pos_1?: number;
   tora_pos_2?: number;
-  number_games_sales?: number;
-  number_games_cancellations?: number;
-  number_games_payouts?: number;
-  number_games_vouchers?: number;
-  fnb_expenses?: number;
-  opap_expenses?: number;
-  customer_returns?: number;
+  starting_cash?: number;
   starting_cash_notes?: number;
   starting_coin_notes?: number;
   starting_addition_1?: number;
   starting_addition_2?: number;
+  register_pos_1?: number;
+  register_pos_2?: number;
+  opap_expenses?: number;
+  fnb_expenses?: number;
+  customer_returns?: number;
+  number_games_sales?: number;
+  number_games_cancellations?: number;
+  number_games_payouts?: number;
+  number_games_vouchers?: number;
   safe_drop?: number;
-  custom_field_values?: Record<string, number | string>;
+  custom_field_values?: Record<string, any>;
+  actual_cash?: number;
 
   created_at: string;
   updated_at: string;

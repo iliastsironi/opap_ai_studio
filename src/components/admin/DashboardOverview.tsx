@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Store as StoreIcon, Clock, Receipt, BarChart3, ShieldCheck, ArrowRight, Wallet, CheckCircle2, AlertTriangle, Building2, Ticket, Gamepad2, Coffee } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
+import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
+import { Shift } from '../../types/index.ts';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -10,6 +12,15 @@ interface DashboardProps {
 export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { organization, roles, assignedStores } = useAuth();
   const { stores, activeStoreId } = useTenant();
+
+  const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
+
+  useEffect(() => {
+    const orgId = organization?.id || 'org_opap_demo';
+    fetchShiftsFromFirestore(orgId, activeStoreId, 'SUBMITTED')
+      .then((data) => setPendingShifts(data))
+      .catch((err) => console.error('Error loading pending shifts for dashboard:', err));
+  }, [organization?.id, activeStoreId]);
 
   const activeStoreName = activeStoreId === 'ALL'
     ? 'Όλα τα Καταστήματα'
@@ -100,6 +111,39 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* Pending Shift Approval Banner */}
+      {pendingShifts.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-400/50 p-5 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-extrabold text-sm text-slate-900">
+                  Εκκρεμότητες Εγκρίσεων: {pendingShifts.length} {pendingShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'}
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 animate-pulse">
+                  AWAITING APPROVAL
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Υπάρχουν βάρδιες που έχουν υποβληθεί από το προσωπικό και αναμένουν την τελική έγκρισή σας.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigate('shifts')}
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow-2xs transition-all cursor-pointer flex items-center space-x-1.5 shrink-0"
+          >
+            <Clock className="w-4 h-4" />
+            <span>Μετάβαση στις Βάρδιες ({pendingShifts.length})</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Main Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
