@@ -1,5 +1,6 @@
 import { doc, setDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from 'firebase/auth';
+import { db, auth } from './firebase.ts';
 
 export interface EmailPayload {
   to: string;
@@ -98,6 +99,12 @@ export async function sendUserInviteEmail(user: {
 }
 
 export async function sendPasswordResetEmail(email: string) {
+  try {
+    await firebaseSendPasswordResetEmail(auth, email);
+  } catch (err) {
+    console.warn('Firebase sendPasswordResetEmail error:', err);
+  }
+
   return sendSystemEmailNotification({
     to: email,
     type: 'PASSWORD_RESET',

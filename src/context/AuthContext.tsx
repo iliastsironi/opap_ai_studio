@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithPopup,
   signOut,
   User as FirebaseUser,
@@ -408,6 +409,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       if (cred.user) {
+        // Send email verification link automatically via Firebase Authentication
+        try {
+          await sendEmailVerification(cred.user);
+        } catch (emailErr) {
+          console.warn('Could not send Firebase verification email automatically:', emailErr);
+        }
+
         const userRef = doc(db, 'users', cred.user.uid);
         await setDoc(userRef, {
           id: cred.user.uid,
