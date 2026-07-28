@@ -46,6 +46,32 @@ const DEFAULT_ORG: Organization = {
   updated_at: new Date().toISOString(),
 };
 
+export const EMPLOYEE_PERMISSIONS = [
+  'shifts.view',
+  'expenses.view',
+  'suppliers.view',
+  'opap.view',
+  'vlt.view',
+  'fnb.view',
+  'incidents.view',
+];
+
+export const MANAGER_PERMISSIONS = [
+  'dashboard.view',
+  'store.view',
+  'users.view',
+  'shifts.view',
+  'expenses.view',
+  'suppliers.view',
+  'opap.view',
+  'vlt.view',
+  'fnb.view',
+  'incidents.view',
+  'reports.view',
+];
+
+export const OWNER_PERMISSIONS = ['*'];
+
 const DEFAULT_OWNER_ROLE: Role = {
   id: 'role_owner',
   code: 'ORG_OWNER',
@@ -59,14 +85,14 @@ const DEFAULT_MANAGER_ROLE: Role = {
   id: 'role_manager',
   code: 'STORE_MANAGER',
   name: 'Διευθυντής Καταστήματος',
-  description: 'Διαχείριση βαρδιών και ταμείων καταστήματος',
+  description: 'Διαχείριση βαρδιών, ταμείων & αναφορών καταστήματος',
   is_system: true,
   created_at: new Date().toISOString(),
 };
 
 const DEFAULT_EMPLOYEE_ROLE: Role = {
   id: 'role_employee',
-  code: 'SHIFT_OPERATOR',
+  code: 'EMPLOYEE',
   name: 'Υπάλληλος Βάρδιας',
   description: 'Άνοιγμα & κλείσιμο βαρδιών, καταχώρηση εσόδων/εξόδων',
   is_system: true,
@@ -95,10 +121,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userSnap = await getDoc(userRef);
 
       let activeRole = DEFAULT_OWNER_ROLE;
-      if (fbUser.email?.includes('manager')) {
-        activeRole = DEFAULT_MANAGER_ROLE;
-      } else if (fbUser.email?.includes('employee')) {
+      let activePerms = OWNER_PERMISSIONS;
+
+      let detectedRoleCode = '';
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        if (uData.role_code) {
+          detectedRoleCode = uData.role_code;
+        }
+      }
+
+      if (!detectedRoleCode) {
+        if (fbUser.email?.includes('employee') || fbUser.email?.includes('cashier')) {
+          detectedRoleCode = 'EMPLOYEE';
+        } else if (fbUser.email?.includes('manager') || fbUser.email?.includes('leader')) {
+          detectedRoleCode = 'STORE_MANAGER';
+        } else {
+          detectedRoleCode = 'ORG_OWNER';
+        }
+      }
+
+      if (detectedRoleCode === 'EMPLOYEE' || detectedRoleCode === 'CASHIER' || detectedRoleCode === 'SHIFT_OPERATOR') {
         activeRole = DEFAULT_EMPLOYEE_ROLE;
+        activePerms = EMPLOYEE_PERMISSIONS;
+      } else if (detectedRoleCode === 'STORE_MANAGER' || detectedRoleCode === 'SHIFT_SUPERVISOR' || detectedRoleCode === 'SHIFT_LEADER' || detectedRoleCode === 'AREA_MANAGER') {
+        activeRole = DEFAULT_MANAGER_ROLE;
+        activePerms = MANAGER_PERMISSIONS;
+      } else {
+        activeRole = DEFAULT_OWNER_ROLE;
+        activePerms = OWNER_PERMISSIONS;
       }
 
       // Check if user is a demo account
@@ -203,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setRoles([activeRole]);
       setOrganization(activeOrg);
-      setPermissions(['*']);
+      setPermissions(activePerms);
     } catch (err) {
       console.error('Error syncing user profile with Firebase:', err);
     }
@@ -447,10 +498,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (permissionCode: string): boolean => {
-    if (roles.some((r) => r.code === 'ORG_OWNER' || r.code === 'PLATFORM_ADMIN')) {
+    if (!permissionCode) return true;
+    if (roles.some((r) => r.code === 'ORG_OWNER' || r.code === 'PLATFORM_ADMIN' || r.code === 'ORG_ADMIN')) {
       return true;
     }
-    return permissions.includes(permissionCode) || permissions.includes('*');
+    return permissions.includes('*') || permissions.includes(permissionCode);
   };
 
   return (

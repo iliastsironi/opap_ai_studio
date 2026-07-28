@@ -155,7 +155,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                {shift.store_name} ({shift.register_id}) • ID: {shift.id}
+                {shift.store_name} ({shift.register_id})
               </p>
             </div>
           </div>

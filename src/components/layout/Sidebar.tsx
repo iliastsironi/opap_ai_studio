@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   const primaryRole = roles[0]?.name || 'Χρήστης';
 
   const navItems = [
-    { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'org.view' },
+    { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
     { id: 'stores', label: 'Καταστήματα & Τμήματα', icon: StoreIcon, perm: 'store.view' },
     { id: 'users', label: 'Χρήστες & Αναθέσεις', icon: Users, perm: 'users.view' },
     { id: 'roles', label: 'Ρόλοι & Δικαιώματα', icon: ShieldCheck, perm: 'roles.manage' },
@@ -44,15 +44,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   ];
 
   const operationalModules = [
-    { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock },
-    { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt },
-    { id: 'suppliers', label: 'Προμηθευτές (Suppliers)', icon: Truck },
-    { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket },
-    { id: 'vlt', label: 'Τερματικά PLAY VLT', icon: Gamepad2 },
-    { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee },
-    { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle },
-    { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3 },
+    { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
+    { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
+    { id: 'suppliers', label: 'Προμηθευτές (Suppliers)', icon: Truck, perm: 'suppliers.view' },
+    { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
+    { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
+    { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
   ];
+
+  const visibleNavItems = navItems.filter((item) => !item.perm || hasPermission(item.perm));
+  const visibleOperationalModules = operationalModules.filter((mod) => !mod.perm || hasPermission(mod.perm));
 
   return (
     <aside
@@ -82,45 +83,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
 
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
-        <div>
-          <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Διαχείριση & Ασφάλεια
-          </p>
-          <div className="space-y-1">
-            {navItems.map((item) => {
-              if (item.perm && !hasPermission(item.perm)) return null;
-              const Icon = item.icon;
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setCurrentTab(item.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 font-bold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {isActive && <ChevronRight className="w-4 h-4 text-indigo-600" />}
-                </button>
-              );
-            })}
+        {visibleNavItems.length > 0 && (
+          <div>
+            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Διαχείριση & Ασφάλεια
+            </p>
+            <div className="space-y-1">
+              {visibleNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentTab(item.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
+                      <span>{item.label}</span>
+                    </div>
+                    {isActive && <ChevronRight className="w-4 h-4 text-indigo-600" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Λειτουργικές Ενότητες
           </p>
           <div className="space-y-1">
-            {operationalModules.map((mod) => {
+            {visibleOperationalModules.map((mod) => {
               const Icon = mod.icon;
               const isActive = currentTab === mod.id;
               return (

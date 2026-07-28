@@ -198,11 +198,26 @@ export interface Shift {
   closed_by_user_name?: string;
   closed_at?: string;
 
-  // Opening
+  // Opening Breakdown
   opening_cash: number;
+  opening_cash_notes?: number;
+  opening_cash_coins?: number;
   opening_operational_notes?: string;
 
-  // OPAP & Terminals
+  // Granular OPAP Reports
+  arithmo_gross?: number;
+  arithmo_cancels?: number;
+  arithmo_payouts?: number;
+  arithmo_vouchers?: number;
+  pame_stoixima_balance?: number;
+  scratch_sales?: number;
+  scratch_payouts?: number;
+  tora_pos1?: number;
+  tora_pos2?: number;
+  clever_point_total?: number;
+  ippodromos_balance?: number;
+
+  // OPAP & Terminals Summary
   opap_gross_sales: number;
   opap_payouts: number;
   opap_net_sales: number;
@@ -244,9 +259,6 @@ export interface Shift {
   // Detailed OPAP Ledger Specific Fields (Matching report CSV)
   tora_pos_1?: number;
   tora_pos_2?: number;
-  clever_point_total?: number;
-  ippodromos_balance?: number;
-  pame_stoixima_balance?: number;
   number_games_sales?: number;
   number_games_cancellations?: number;
   number_games_payouts?: number;

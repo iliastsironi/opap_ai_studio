@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth, EMPLOYEE_PERMISSIONS, MANAGER_PERMISSIONS, OWNER_PERMISSIONS } from '../../context/AuthContext.tsx';
 import { sendPasswordResetEmail } from '../../services/emailService.ts';
 
 export const LoginForm: React.FC = () => {
@@ -70,14 +70,29 @@ export const LoginForm: React.FC = () => {
     try {
       await loginWithEmail(demoEmail, 'password123');
     } catch (err: any) {
+      const isOwner = demoEmail.includes('owner');
+      const isManager = demoEmail.includes('manager');
+
+      const roleObj = isOwner
+        ? { id: 'r_owner', code: 'ORG_OWNER', name: 'Ιδιοκτήτης (Owner)', description: 'Owner', is_system: true, created_at: '' }
+        : isManager
+        ? { id: 'r_manager', code: 'STORE_MANAGER', name: 'Διευθυντής Καταστήματος', description: 'Manager', is_system: true, created_at: '' }
+        : { id: 'r_employee', code: 'EMPLOYEE', name: 'Υπάλληλος Βάρδιας', description: 'Employee', is_system: true, created_at: '' };
+
+      const perms = isOwner
+        ? OWNER_PERMISSIONS
+        : isManager
+        ? MANAGER_PERMISSIONS
+        : EMPLOYEE_PERMISSIONS;
+
       // Fallback demo login if network or config is restricted
       login(
         `demo_token_${Date.now()}`,
         {
           id: `usr_${demoEmail.split('@')[0]}`,
           email: demoEmail,
-          first_name: demoEmail.includes('owner') ? 'Γιώργος' : demoEmail.includes('manager') ? 'Δημήτρης' : 'Κώστας',
-          last_name: demoEmail.includes('owner') ? 'Παπαδόπουλος' : demoEmail.includes('manager') ? 'Νικολάου' : 'Βασιλείου',
+          first_name: isOwner ? 'Γιώργος' : isManager ? 'Δημήτρης' : 'Κώστας',
+          last_name: isOwner ? 'Παπαδόπουλος' : isManager ? 'Νικολάου' : 'Βασιλείου',
           status: 'ACTIVE',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -96,8 +111,8 @@ export const LoginForm: React.FC = () => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
-        [{ id: 'r1', code: 'ORG_OWNER', name: 'Ιδιοκτήτης', description: 'Owner', is_system: true, created_at: '' }],
-        ['*'],
+        [roleObj],
+        perms,
         []
       );
     } finally {

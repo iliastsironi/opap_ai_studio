@@ -31,8 +31,12 @@ import {
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 
 export const ShiftsManager: React.FC = () => {
-  const { token, organization, hasPermission, assignedStores } = useAuth();
+  const { token, organization, roles, hasPermission, assignedStores } = useAuth();
   const { currentStore, stores: tenantStores, setStoreId } = useTenant();
+
+  const isOwnerOrAdmin =
+    roles?.some((r) => ['ORG_OWNER', 'ORG_ADMIN', 'PLATFORM_ADMIN'].includes(r.code)) ||
+    hasPermission('roles.manage');
 
   const availableStores =
     assignedStores && assignedStores.length > 0
@@ -158,29 +162,31 @@ export const ShiftsManager: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setManagerTab('SHIFTS')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                managerTab === 'SHIFTS'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Λίστα Βαρδιών
-            </button>
-            <button
-              onClick={() => setManagerTab('TEMPLATE')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                managerTab === 'TEMPLATE'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Διαμόρφωση Φόρμας</span>
-            </button>
-          </div>
+          {isOwnerOrAdmin && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setManagerTab('SHIFTS')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  managerTab === 'SHIFTS'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Λίστα Βαρδιών
+              </button>
+              <button
+                onClick={() => setManagerTab('TEMPLATE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  managerTab === 'TEMPLATE'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Διαμόρφωση Φόρμας</span>
+              </button>
+            </div>
+          )}
 
           <button
             onClick={fetchShifts}
@@ -202,7 +208,7 @@ export const ShiftsManager: React.FC = () => {
         </div>
       </div>
 
-      {managerTab === 'TEMPLATE' ? (
+      {managerTab === 'TEMPLATE' && isOwnerOrAdmin ? (
         <ShiftTemplateConfigurator />
       ) : (
         <>

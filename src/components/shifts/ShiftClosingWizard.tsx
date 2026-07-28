@@ -26,7 +26,9 @@ import {
   calculateDiscrepancy,
   calculateExpectedCash,
   safeNum,
+  roundCurrency,
 } from '../../services/financialCalculator.ts';
+import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { sendShiftSummaryEmail } from '../../services/emailService.ts';
@@ -45,14 +47,74 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const { token } = useAuth();
   const [currentStep, setCurrentStep] = useState<number>(1);
 
-  // Form State
-  const [opapGross, setOpapGross] = useState<string>(String(shift.opap_gross_sales || ''));
-  const [opapPayouts, setOpapPayouts] = useState<string>(String(shift.opap_payouts || ''));
+  // Step 1 - Opening Cash Breakdown State (Banknotes + Coins)
+  const initialOpeningCash = Number(shift.opening_cash || 200);
+  const [openingNotesAmount, setOpeningNotesAmount] = useState<string>(
+    shift.opening_cash_notes !== undefined
+      ? String(shift.opening_cash_notes)
+      : String(Math.floor(initialOpeningCash))
+  );
+  const [openingCoinsAmount, setOpeningCoinsAmount] = useState<string>(
+    shift.opening_cash_coins !== undefined
+      ? String(shift.opening_cash_coins)
+      : String(roundCurrency(initialOpeningCash - Math.floor(initialOpeningCash)))
+  );
+
+  const openingCashTotal = safeNum(openingNotesAmount) + safeNum(openingCoinsAmount);
+
+  // Step 2 - Granular OPAP Reports State
+  // 1. Ελληνικά Λαχεία | Σκρατς
+  const [scratchSales, setScratchSales] = useState<string>(
+    shift.scratch_sales !== undefined
+      ? String(shift.scratch_sales)
+      : String(shift.scratch_lotto_sales || '')
+  );
+  const [scratchPayouts, setScratchPayouts] = useState<string>(
+    shift.scratch_payouts !== undefined ? String(shift.scratch_payouts) : ''
+  );
+
+  // 2. Tora Direct POS
+  const [toraPos1, setToraPos1] = useState<string>(
+    shift.tora_pos1 !== undefined ? String(shift.tora_pos1) : String(shift.card_payments || '')
+  );
+  const [toraPos2, setToraPos2] = useState<string>(
+    shift.tora_pos2 !== undefined ? String(shift.tora_pos2) : ''
+  );
+
+  // 3. Clever Point
+  const [cleverPointTotal, setCleverPointTotal] = useState<string>(
+    shift.clever_point_total !== undefined ? String(shift.clever_point_total) : ''
+  );
+
+  // 4. Ιππόδρομος
+  const [ippodromosBalance, setIppodromosBalance] = useState<string>(
+    shift.ippodromos_balance !== undefined ? String(shift.ippodromos_balance) : ''
+  );
+
+  // 5. VLTs
   const [vltsIn, setVltsIn] = useState<string>(String(shift.vlts_cash_in || ''));
   const [vltsOut, setVltsOut] = useState<string>(String(shift.vlts_cash_out || ''));
-  const [scratchLotto, setScratchLotto] = useState<string>(String(shift.scratch_lotto_sales || ''));
-  const [cardPayments, setCardPayments] = useState<string>(String(shift.card_payments || ''));
 
+  // 6. Pame Stoixima | Virtuals
+  const [pameStoiximaBalance, setPameStoiximaBalance] = useState<string>(
+    shift.pame_stoixima_balance !== undefined ? String(shift.pame_stoixima_balance) : ''
+  );
+
+  // 7. Αριθμοπαιχνίδια (KINO, Τζόκερ, κλπ.)
+  const [arithmoGross, setArithmoGross] = useState<string>(
+    shift.arithmo_gross !== undefined ? String(shift.arithmo_gross) : String(shift.opap_gross_sales || '')
+  );
+  const [arithmoCancels, setArithmoCancels] = useState<string>(
+    shift.arithmo_cancels !== undefined ? String(shift.arithmo_cancels) : ''
+  );
+  const [arithmoPayouts, setArithmoPayouts] = useState<string>(
+    shift.arithmo_payouts !== undefined ? String(shift.arithmo_payouts) : String(shift.opap_payouts || '')
+  );
+  const [arithmoVouchers, setArithmoVouchers] = useState<string>(
+    shift.arithmo_vouchers !== undefined ? String(shift.arithmo_vouchers) : ''
+  );
+
+  // FnB State
   const [fnbSales, setFnbSales] = useState<string>(String(shift.fnb_sales || ''));
   const [fnbCash, setFnbCash] = useState<string>(String(shift.fnb_cash || ''));
   const [fnbCard, setFnbCard] = useState<string>(String(shift.fnb_card || ''));
@@ -88,6 +150,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Computed Section Totals
+  const totalScratchNet = safeNum(scratchSales) - safeNum(scratchPayouts);
+  const totalToraPos = safeNum(toraPos1) + safeNum(toraPos2);
+  const totalArithmoNet =
+    safeNum(arithmoGross) - safeNum(arithmoCancels) - safeNum(arithmoPayouts) + safeNum(arithmoVouchers);
+
+  const opapGrossTotal =
+    safeNum(arithmoGross) -
+    safeNum(arithmoCancels) +
+    safeNum(pameStoiximaBalance) +
+    safeNum(cleverPointTotal) +
+    safeNum(ippodromosBalance);
+
+  const opapPayoutsTotal = safeNum(arithmoPayouts) - safeNum(arithmoVouchers);
+
   // Calculated figures using isolated Financial Calculator service
   const expensesCashTotal = expenses.reduce(
     (acc, exp) => acc + (exp.payment_method === 'CASH' ? safeNum(exp.amount) : 0),
@@ -105,15 +182,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   );
 
   const expectedCash = calculateExpectedCash({
-    opening_cash: shift.opening_cash,
-    opap_gross_sales: opapGross,
-    opap_payouts: opapPayouts,
+    opening_cash: openingCashTotal,
+    opap_gross_sales: opapGrossTotal,
+    opap_payouts: opapPayoutsTotal,
     vlts_cash_in: vltsIn,
     vlts_cash_out: vltsOut,
-    scratch_lotto_sales: scratchLotto,
+    scratch_lotto_sales: totalScratchNet,
     fnb_cash: fnbCash,
     customer_credit_collected: creditCollectedTotal,
-    card_payments: cardPayments,
+    card_payments: totalToraPos,
     expenses_paid_cash: expensesCashTotal,
     customer_credit_granted: creditGrantedTotal,
     bank_deposits: bankDeposits,
@@ -128,17 +205,33 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     try {
       const draftPayload = {
         status: 'DRAFT_CLOSING' as any,
-        opap_gross_sales: safeNum(opapGross),
-        opap_payouts: safeNum(opapPayouts),
-        opap_net_sales: safeNum(opapGross) - safeNum(opapPayouts),
+        opening_cash: openingCashTotal,
+        opening_cash_notes: safeNum(openingNotesAmount),
+        opening_cash_coins: safeNum(openingCoinsAmount),
+
+        arithmo_gross: safeNum(arithmoGross),
+        arithmo_cancels: safeNum(arithmoCancels),
+        arithmo_payouts: safeNum(arithmoPayouts),
+        arithmo_vouchers: safeNum(arithmoVouchers),
+        pame_stoixima_balance: safeNum(pameStoiximaBalance),
+        scratch_sales: safeNum(scratchSales),
+        scratch_payouts: safeNum(scratchPayouts),
+        tora_pos1: safeNum(toraPos1),
+        tora_pos2: safeNum(toraPos2),
+        clever_point_total: safeNum(cleverPointTotal),
+        ippodromos_balance: safeNum(ippodromosBalance),
+
+        opap_gross_sales: opapGrossTotal,
+        opap_payouts: opapPayoutsTotal,
+        opap_net_sales: opapGrossTotal - opapPayoutsTotal,
         vlts_cash_in: safeNum(vltsIn),
         vlts_cash_out: safeNum(vltsOut),
         vlts_net: safeNum(vltsIn) - safeNum(vltsOut),
-        scratch_lotto_sales: safeNum(scratchLotto),
+        scratch_lotto_sales: totalScratchNet,
         fnb_sales: safeNum(fnbSales),
         fnb_cash: safeNum(fnbCash),
         fnb_card: safeNum(fnbCard),
-        card_payments: safeNum(cardPayments),
+        card_payments: totalToraPos,
         expenses_paid_cash: expensesCashTotal,
         customer_credit_granted: creditGrantedTotal,
         customer_credit_collected: creditCollectedTotal,
@@ -250,17 +343,33 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       const submitPayload = {
         status: 'SUBMITTED' as any,
         closed_at: new Date().toISOString(),
-        opap_gross_sales: safeNum(opapGross),
-        opap_payouts: safeNum(opapPayouts),
-        opap_net_sales: safeNum(opapGross) - safeNum(opapPayouts),
+        opening_cash: openingCashTotal,
+        opening_cash_notes: safeNum(openingNotesAmount),
+        opening_cash_coins: safeNum(openingCoinsAmount),
+
+        arithmo_gross: safeNum(arithmoGross),
+        arithmo_cancels: safeNum(arithmoCancels),
+        arithmo_payouts: safeNum(arithmoPayouts),
+        arithmo_vouchers: safeNum(arithmoVouchers),
+        pame_stoixima_balance: safeNum(pameStoiximaBalance),
+        scratch_sales: safeNum(scratchSales),
+        scratch_payouts: safeNum(scratchPayouts),
+        tora_pos1: safeNum(toraPos1),
+        tora_pos2: safeNum(toraPos2),
+        clever_point_total: safeNum(cleverPointTotal),
+        ippodromos_balance: safeNum(ippodromosBalance),
+
+        opap_gross_sales: opapGrossTotal,
+        opap_payouts: opapPayoutsTotal,
+        opap_net_sales: opapGrossTotal - opapPayoutsTotal,
         vlts_cash_in: safeNum(vltsIn),
         vlts_cash_out: safeNum(vltsOut),
         vlts_net: safeNum(vltsIn) - safeNum(vltsOut),
-        scratch_lotto_sales: safeNum(scratchLotto),
+        scratch_lotto_sales: totalScratchNet,
         fnb_sales: safeNum(fnbSales),
         fnb_cash: safeNum(fnbCash),
         fnb_card: safeNum(fnbCard),
-        card_payments: safeNum(cardPayments),
+        card_payments: totalToraPos,
         expenses_paid_cash: expensesCashTotal,
         customer_credit_granted: creditGrantedTotal,
         customer_credit_collected: creditCollectedTotal,
@@ -423,27 +532,60 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       {/* STEP 1: OPENING & OPERATIONAL SUMMARY */}
       {currentStep === 1 && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-              <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">1</span>
-              <span>Έναρξη Βάρδιας & Αρχικό Ταμείο</span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Ελέγξτε το ποσό που παραλάβατε στο ταμείο κατά την έναρξη.
-            </p>
+          <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
+                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">1</span>
+                <span>Έναρξη Βάρδιας & Αρχικό Ταμείο</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Ελέγξτε & επιβεβαιώστε την κατανομή μετρητών + κερμάτων στο αρχικό ταμείο.
+              </p>
+            </div>
+            <span className="text-sm font-black text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+              Αρχικό Σύνολο: {openingCashTotal.toFixed(2)} €
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-2">
+            {/* Banknotes + Coins breakdown */}
+            <div className="p-5 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3">
               <span className="text-xs font-extrabold text-indigo-900 uppercase tracking-wider block">
-                💵 Αρχικό Ταμείο (Float)
+                💵 Κατανομή Αρχικού Ταμείου (Float)
               </span>
-              <p className="text-3xl font-black text-indigo-950">
-                {Number(shift.opening_cash).toFixed(2)} €
-              </p>
-              <p className="text-xs text-indigo-700/80 font-medium">
-                Τα μετρητά που υπήρχαν στο συρτάρι όταν ξεκίνησε η βάρδια.
-              </p>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Χαρτονομίσματα (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={openingNotesAmount}
+                    onChange={(e) => setOpeningNotesAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Κέρματα / Ψιλά (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={openingCoinsAmount}
+                    onChange={(e) => setOpeningCoinsAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-600">Σύνολο Αρχικών Μετρητών:</span>
+                <span className="font-black text-indigo-900 text-sm">{openingCashTotal.toFixed(2)} €</span>
+              </div>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
@@ -459,6 +601,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </p>
               <p className="text-xs text-slate-500 font-mono">
                 Έναρξη: {new Date(shift.opened_at).toLocaleString('el-GR')}
+              </p>
+              <p className="text-xs text-slate-500">
+                Ταμείο: <strong>{shift.register_id}</strong>
               </p>
             </div>
           </div>
@@ -483,126 +628,270 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         </div>
       )}
 
-      {/* STEP 2: OPAP TRANSACTION CATEGORIES */}
+      {/* STEP 2: OPAP TRANSACTION CATEGORIES & GRANULAR REPORTS */}
       {currentStep === 2 && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-              <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">2</span>
-              <span>Παιχνίδια ΟΠΑΠ & Τερματικά VLTs</span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Εισάγετε τα ποσά από την ημερήσια αναφορά του τερματικού ΟΠΑΠ & POS.
-            </p>
+          <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
+                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">2</span>
+                <span>Αναφορές ΟΠΑΠ, VLTs & Υπηρεσιών</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Εισάγετε τα ποσά ανά κατηγορία από την ημερήσια αναφορά του τερματικού ΟΠΑΠ & POS.
+              </p>
+            </div>
+            <div className="bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
+              Καθαρό Σύνολο ΟΠΑΠ: {(opapGrossTotal - opapPayoutsTotal).toFixed(2)} €
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* OPAP Gross Sales */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1.5">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                1. Ακαθάριστες Πωλήσεις ΟΠΑΠ (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={opapGross}
-                onChange={(e) => setOpapGross(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 text-xl font-black text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-[11px] text-slate-500">
-                Συνολικές εισπράξεις παιχνιδιών ΟΠΑΠ (KINO, Τζόκερ, Πάμε Στοίχημα κλπ.).
-              </p>
+          <div className="space-y-6">
+            {/* 1. Ελληνικά Λαχεία | Σκρατς */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+                  <span>🎫 Ελληνικά Λαχεία | Σκρατς</span>
+                </h4>
+                <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                  Σύνολο: {totalScratchNet.toFixed(2)} €
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Πωλήσεις (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={scratchSales}
+                    onChange={(e) => setScratchSales(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-rose-800 mb-1">
+                    Εξαργυρώσεις (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={scratchPayouts}
+                    onChange={(e) => setScratchPayouts(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-bold text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* OPAP Payouts */}
-            <div className="p-4 rounded-2xl bg-rose-50/40 border border-rose-100 space-y-1.5">
-              <label className="block text-xs font-bold text-rose-900 uppercase tracking-wider">
-                2. Πληρωμές Κερδών Δελτίων (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={opapPayouts}
-                onChange={(e) => setOpapPayouts(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-rose-200 text-xl font-black text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
-              />
-              <p className="text-[11px] text-rose-600/80 font-medium">
-                Χρήματα που πληρώσατε στους παίκτες για εξαργύρωση νικηφόρων δελτίων.
-              </p>
+            {/* 2. Tora Direct / POS */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+                  <span>💳 Tora Direct (POS)</span>
+                </h4>
+                <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                  Σύνολο: {totalToraPos.toFixed(2)} €
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pos #1 (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={toraPos1}
+                    onChange={(e) => setToraPos1(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pos #2 (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={toraPos2}
+                    onChange={(e) => setToraPos2(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* VLTs Cash In */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1.5">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                3. PLAY VLTs Cash-In (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={vltsIn}
-                onChange={(e) => setVltsIn(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 text-xl font-black text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-[11px] text-slate-500">
-                Εισπράξεις μετρητών που μπήκαν στις παιχνιδομηχανές VLTs.
-              </p>
+            {/* 3. Clever Point, 4. Ιππόδρομος & 6. Pame Stoixima | Virtuals */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Clever Point */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  📍 Clever Point
+                </label>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500">Σύνολο (€)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={cleverPointTotal}
+                    onChange={(e) => setCleverPointTotal(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Ιππόδρομος */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  🏇 Ιππόδρομος
+                </label>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={ippodromosBalance}
+                    onChange={(e) => setIppodromosBalance(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Pame Stoixima | Virtuals */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  ⚽ Pame Stoixima | Virtuals
+                </label>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={pameStoiximaBalance}
+                    onChange={(e) => setPameStoiximaBalance(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* VLTs Cash Out */}
-            <div className="p-4 rounded-2xl bg-rose-50/40 border border-rose-100 space-y-1.5">
-              <label className="block text-xs font-bold text-rose-900 uppercase tracking-wider">
-                4. PLAY VLTs Cash-Out (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={vltsOut}
-                onChange={(e) => setVltsOut(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-rose-200 text-xl font-black text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
-              />
-              <p className="text-[11px] text-rose-600/80 font-medium">
-                Εξαργυρώσεις εισιτηρίων (tickets) VLTs στους παίκτες.
-              </p>
+            {/* 5. VLTs (PLAY) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+                  <span>🎰 PLAY VLTs</span>
+                </h4>
+                <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                  Καθαρό: {(safeNum(vltsIn) - safeNum(vltsOut)).toFixed(2)} €
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Μετρητά στα VLTs (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={vltsIn}
+                    onChange={(e) => setVltsIn(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-rose-800 mb-1">
+                    Ροή Μετρητών (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={vltsOut}
+                    onChange={(e) => setVltsOut(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-bold text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Scratch & Lotto */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-1.5">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                5. Σκρατς & Λαχεία (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={scratchLotto}
-                onChange={(e) => setScratchLotto(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 text-xl font-black text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-[11px] text-slate-500">
-                Πωλήσεις Σκρατς, Εθνικού, Λαϊκού λαχείου.
-              </p>
-            </div>
+            {/* 7. Αριθμοπαιχνίδια (KINO, Τζόκερ, Λόττο κλπ.) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100 space-y-3">
+              <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
+                <h4 className="font-extrabold text-sm text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
+                  <span>🎯 Αριθμοπαιχνίδια (KINO, Τζόκερ, Λόττο)</span>
+                </h4>
+                <span className="text-xs font-black text-indigo-900 bg-indigo-100 px-2.5 py-1 rounded-lg">
+                  Σύνολο: {totalArithmoNet.toFixed(2)} €
+                </span>
+              </div>
 
-            {/* POS Card Payments */}
-            <div className="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100 space-y-1.5">
-              <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider">
-                6. Πληρωμές με Κάρτα POS (€)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={cardPayments}
-                onChange={(e) => setCardPayments(e.target.value)}
-                placeholder="0.00"
-                className="w-full px-4 py-3 rounded-xl border border-indigo-200 text-xl font-black text-indigo-800 bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-[11px] text-indigo-700/80 font-medium">
-                Σύνολο εισπράξεων με κάρτα (αφαιρούνται από τα μετρητά του ταμείου).
-              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Πωλήσεις (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={arithmoGross}
+                    onChange={(e) => setArithmoGross(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 mb-1">
+                    Ακυρώσεις (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={arithmoCancels}
+                    onChange={(e) => setArithmoCancels(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-amber-200 text-base font-bold text-amber-800 bg-white focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-rose-800 mb-1">
+                    Εξαργυρώσεις (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={arithmoPayouts}
+                    onChange={(e) => setArithmoPayouts(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-bold text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Vouchers (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={arithmoVouchers}
+                    onChange={(e) => setArithmoVouchers(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -887,60 +1176,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
-          {/* Denomination Counter Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {EUR_DENOMINATIONS.map((denom) => {
-              const count = denominations[denom.key] || 0;
-              const subtotal = (count * denom.value).toFixed(2);
-
-              return (
-                <div
-                  key={denom.key}
-                  className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between space-y-3 hover:border-indigo-300 transition-all shadow-2xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-base font-extrabold text-slate-900">{denom.label}</span>
-                    <span className="text-xs font-black text-indigo-700 bg-indigo-100/70 px-2.5 py-1 rounded-lg font-mono">
-                      {subtotal} €
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => updateDenomCount(denom.key, -1)}
-                      className="w-9 h-9 rounded-xl bg-white border border-slate-300 font-black text-slate-800 hover:bg-slate-100 active:scale-95 transition-all text-base flex items-center justify-center shadow-2xs cursor-pointer"
-                    >
-                      -
-                    </button>
-
-                    <input
-                      type="number"
-                      value={count || ''}
-                      onChange={(e) => setDenomDirect(denom.key, e.target.value)}
-                      placeholder="0"
-                      className="flex-1 px-2 py-2 text-center text-base font-black text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => updateDenomCount(denom.key, 1)}
-                      className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 active:scale-95 transition-all text-base flex items-center justify-center shadow-2xs cursor-pointer"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateDenomCount(denom.key, 5)}
-                      className="px-2.5 py-2 rounded-xl bg-slate-200 text-slate-800 font-extrabold hover:bg-slate-300 text-xs transition-colors cursor-pointer"
-                    >
-                      +5
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {/* Cash Denomination Counter Component */}
+          <CashDenominationCounter
+            denominations={denominations}
+            onChange={setDenominations}
+            theme="light"
+          />
         </div>
       )}
 
@@ -1030,15 +1271,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <div className="divide-y divide-slate-100 bg-white">
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">Αρχικό Ταμείο</span>
-                <span className="font-bold text-slate-900">{shift.opening_cash.toFixed(2)} €</span>
+                <span className="font-bold text-slate-900">{openingCashTotal.toFixed(2)} €</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) Πωλήσεις ΟΠΑΠ</span>
-                <span className="font-bold text-emerald-700">+{safeNum(opapGross).toFixed(2)} €</span>
+                <span className="font-bold text-emerald-700">+{opapGrossTotal.toFixed(2)} €</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(-) Πληρωμές Κερδών ΟΠΑΠ</span>
-                <span className="font-bold text-rose-600">-{safeNum(opapPayouts).toFixed(2)} €</span>
+                <span className="font-bold text-rose-600">-{opapPayoutsTotal.toFixed(2)} €</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) PLAY VLTs Net</span>
@@ -1049,13 +1290,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) Μετρητά FnB & Σκρατς</span>
                 <span className="font-bold text-emerald-700">
-                  +{(safeNum(fnbCash) + safeNum(scratchLotto)).toFixed(2)} €
+                  +{(safeNum(fnbCash) + totalScratchNet).toFixed(2)} €
                 </span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(-) Πληρωμές Καρτών POS & Έξοδα</span>
                 <span className="font-bold text-rose-600">
-                  -{(safeNum(cardPayments) + expensesCashTotal).toFixed(2)} €
+                  -{(totalToraPos + expensesCashTotal).toFixed(2)} €
                 </span>
               </div>
               <div className="px-4 py-3 flex justify-between bg-slate-50 font-black border-t border-slate-200 text-sm">

@@ -45,8 +45,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
   const [registerId, setRegisterId] = useState<string>('Ταμείο 1');
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
-  const [openingCash, setOpeningCash] = useState<string>('200.00');
+  const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
+  const [openingCoins, setOpeningCoins] = useState<string>('50.00');
   const [openingNotes, setOpeningNotes] = useState<string>('');
+
+  const banknotesNum = parseFloat(openingBanknotes.replace(',', '.')) || 0;
+  const coinsNum = parseFloat(openingCoins.replace(',', '.')) || 0;
+  const totalOpeningCash = banknotesNum + coinsNum;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +70,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       return;
     }
 
-    const cashNum = parseFloat(openingCash.replace(',', '.'));
+    const cashNum = totalOpeningCash;
     if (isNaN(cashNum) || cashNum < 0) {
       setError('Παρακαλώ εισάγετε έγκυρο αρχικό ποσό ταμείου.');
       return;
@@ -85,6 +90,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         opened_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Χρήστης',
         opened_at: new Date().toISOString(),
         opening_cash: cashNum,
+        opening_cash_notes: banknotesNum,
+        opening_cash_coins: coinsNum,
         opening_operational_notes: openingNotes,
         opap_gross_sales: 0,
         opap_payouts: 0,
@@ -226,26 +233,59 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
           </div>
 
-          {/* Opening Cash Float */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Αρχικό Ταμείο (Opening Cash Float €) <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={openingCash}
-                onChange={(e) => setOpeningCash(e.target.value)}
-                placeholder="200.00"
-                className="w-full pl-3.5 pr-12 py-2.5 rounded-xl border border-slate-200 text-lg font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                required
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">
-                €
+          {/* Opening Cash Float Breakdown */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Αρχικό Ταμείο (Float €) <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                Σύνολο: {totalOpeningCash.toFixed(2)} €
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Το ποσό των ψιλών που παραδίδεται στο ταμείο κατά την έναρξη.
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  💵 Χαρτονομίσματα (€)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={openingBanknotes}
+                    onChange={(e) => setOpeningBanknotes(e.target.value)}
+                    placeholder="150.00"
+                    className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    €
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  🪙 Κέρματα (€)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={openingCoins}
+                    onChange={(e) => setOpeningCoins(e.target.value)}
+                    placeholder="50.00"
+                    className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    required
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    €
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500">
+              Εισάγετε ξεχωριστά τα χαρτονομίσματα και τα κέρματα (ψιλά) που παραδόθηκαν κατά την έναρξη.
             </p>
           </div>
 

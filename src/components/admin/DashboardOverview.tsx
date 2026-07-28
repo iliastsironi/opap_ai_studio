@@ -144,17 +144,17 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               </button>
 
               <button
-                onClick={() => onNavigate('opap')}
+                onClick={() => onNavigate('incidents')}
                 className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
-                    <Ticket className="w-4 h-4" />
+                    <AlertTriangle className="w-4 h-4" />
                   </div>
                   <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm">Παιχνίδια ΟΠΑΠ & VLTs</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Εισπράξεις, ακυρώσεις & υπόλοιπα τερματικών</p>
+                <h3 className="font-bold text-slate-900 text-sm">Συμβάντα & Αποκλίσεις</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Καταγραφή συμβάντων, διαφορών & ελέγχων</p>
               </button>
 
               <button
@@ -238,7 +238,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               </div>
               <div className="flex items-center gap-2 text-indigo-100">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Καταγραφή εισπράξεων ΟΠΑΠ & VLT</span>
+                <span>Καταγραφή εσόδων & πωλήσεων</span>
               </div>
               <div className="flex items-center gap-2 text-indigo-100">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
