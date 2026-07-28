@@ -104,13 +104,24 @@ Email: ${to}
   }
 
   try {
-    const response = await resend.emails.send({
+    let response = await resend.emails.send({
       from: `ShiftLedger System <${senderEmail}>`,
       to,
       subject,
       html: htmlContent,
       text: textContent,
     });
+
+    if (response.error && senderEmail !== 'onboarding@resend.dev') {
+      console.warn('[Resend] Custom sender error, falling back to onboarding@resend.dev:', response.error.message);
+      response = await resend.emails.send({
+        from: 'ShiftLedger System <onboarding@resend.dev>',
+        to,
+        subject,
+        html: htmlContent,
+        text: textContent,
+      });
+    }
 
     if (response.error) {
       console.error('[Resend Error]', response.error);

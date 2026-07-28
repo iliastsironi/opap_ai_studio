@@ -18,11 +18,13 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
 
   if (resendApiKey) {
     try {
-      const sender = process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr'
+      const customSender = process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr'
         ? `ShiftLedger System <${process.env.EMAIL_FROM}>`
-        : 'ShiftLedger <onboarding@resend.dev>';
+        : null;
+      const fallbackSender = 'ShiftLedger <onboarding@resend.dev>';
+      const sender = customSender || fallbackSender;
 
-      const response = await fetch('https://api.resend.com/emails', {
+      let response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -36,6 +38,26 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
           text: textContent,
         }),
       });
+
+      // If customSender failed (e.g., unverified domain like gmail.com), fallback to onboarding@resend.dev
+      if (!response.ok && customSender) {
+        console.warn('[Email Service - Resend] Custom sender failed, retrying with onboarding@resend.dev fallback...');
+        response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${resendApiKey}`,
+          },
+          body: JSON.stringify({
+            from: fallbackSender,
+            to: [to],
+            subject,
+            html: htmlContent,
+            text: textContent,
+          }),
+        });
+      }
+
       if (response.ok) {
         console.log(`[Email Service - Resend] Email successfully sent to ${to}`);
         return { success: true, provider: 'resend' };

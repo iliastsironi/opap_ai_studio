@@ -77,9 +77,16 @@ export async function sendUserInviteEmail(user: {
   temp_password?: string;
   organization_name?: string;
 }) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://ais-dev-whgodmemmilp4vacr23lio-628114198839.europe-west2.run.app';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const inviteToken = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const inviteLink = `${origin}?action=accept_invite&token=${inviteToken}&email=${encodeURIComponent(user.email)}`;
+
+  // Also trigger Firebase built-in password reset / invitation email to deliver directly to user inbox via Firebase Auth
+  try {
+    await firebaseSendPasswordResetEmail(auth, user.email);
+  } catch (err) {
+    console.warn('[sendUserInviteEmail] Firebase sendPasswordResetEmail notice:', err);
+  }
 
   return sendSystemEmailNotification({
     to: user.email,
