@@ -12,9 +12,51 @@ const sendEmailSchema = z.object({
 
 // Helper function to send email via external provider (Resend/SendGrid) or log formatted HTML
 async function sendSystemEmail(to: string, subject: string, htmlContent: string, textContent: string) {
+  const brevoApiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
   const resendApiKey = process.env.RESEND_API_KEY;
   const sendgridApiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.EMAIL_FROM || 'no-reply@shiftledger.gr';
+
+  if (brevoApiKey) {
+    try {
+      const senderEmail = (process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr')
+        ? process.env.EMAIL_FROM
+        : 'hliastsironis@gmail.com';
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'ShiftLedger System', email: senderEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent,
+          textContent,
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`[Email Service - Brevo] Email successfully sent to ${to}`);
+        return { success: true, provider: 'brevo' };
+      } else {
+        const errorText = await response.text();
+        console.warn(`[Email Service - Brevo API Error ${response.status}]`, errorText);
+        let parsedMessage = errorText;
+        try {
+          const jsonErr = JSON.parse(errorText);
+          parsedMessage = jsonErr.message || errorText;
+        } catch (_) {}
+        return { success: false, provider: 'brevo', error: parsedMessage };
+      }
+    } catch (e: any) {
+      console.warn('[Email Service - Brevo Error]', e?.message || e);
+      return { success: false, provider: 'brevo', error: e?.message || 'Brevo connection error' };
+    }
+  }
 
   if (resendApiKey) {
     try {
@@ -64,9 +106,16 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
       } else {
         const errorText = await response.text();
         console.warn(`[Email Service - Resend API Error ${response.status}]`, errorText);
+        let parsedMessage = errorText;
+        try {
+          const jsonErr = JSON.parse(errorText);
+          parsedMessage = jsonErr.message || errorText;
+        } catch (_) {}
+        return { success: false, provider: 'resend', error: parsedMessage };
       }
     } catch (e: any) {
       console.warn('[Email Service - Resend Error]', e?.message || e);
+      return { success: false, provider: 'resend', error: e?.message || 'Resend connection error' };
     }
   }
 
@@ -216,11 +265,13 @@ router.post('/email', async (req: Request, res: Response) => {
 
     const result = await sendSystemEmail(to, subject, htmlContent, textContent);
     return res.json({
-      status: 'sent',
+      status: result.success ? 'sent' : 'error',
+      success: result.success,
       to,
       type,
       subject,
       provider: result.provider,
+      error: result.error,
     });
   } catch (err: any) {
     return res.status(500).json({ error: 'Σφάλμα επεξεργασίας αποστολής email: ' + err.message });

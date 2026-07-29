@@ -56,9 +56,11 @@ export async function sendSystemEmailNotification(params: EmailPayload): Promise
       }),
     });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Αποτυχία αποστολής email από τον διακομιστή');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      const errDetail = data.error || 'Αποτυχία αποστολής email';
+      console.warn('[emailService] Resend/Server response notice:', errDetail);
+      return { success: false, message: errDetail };
     }
 
     return { success: true, message: 'Το email στάλθηκε επιτυχώς!' };
