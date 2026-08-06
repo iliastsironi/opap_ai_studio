@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Store as StoreIcon, User as UserIcon, LogOut, Menu, ChevronDown, Check, Shield } from 'lucide-react';
+import { Store as StoreIcon, User as UserIcon, LogOut, Menu, PanelLeft, ChevronDown, Check, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 
 interface TopbarProps {
+  sidebarOpen?: boolean;
   onToggleSidebar: () => void;
 }
 
-export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
+export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) => {
   const { user, logout, roles } = useAuth();
   const { stores, activeStoreId, setActiveStoreId } = useTenant();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -23,10 +24,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       <div className="flex items-center space-x-4">
         <button
           onClick={onToggleSidebar}
-          className="p-2 text-slate-600 hover:text-slate-900 md:hidden rounded-lg hover:bg-slate-100"
+          className="p-2 text-slate-600 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Toggle sidebar"
+          title={sidebarOpen ? "Απόκρυψη πλευρικού πάνελ" : "Εμφάνιση πλευρικού πάνελ"}
         >
-          <Menu className="w-5 h-5" />
+          <PanelLeft className="w-5 h-5" />
         </button>
 
         {/* Store Selector Dropdown */}

@@ -214,74 +214,102 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             <ShiftLedgerSheet shift={shift} readOnly={true} />
           ) : (
             <>
-              {/* User Timestamps Card */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
-                <div>
-                  <span className="text-slate-400 font-bold uppercase block mb-1">Έναρξη</span>
-                  <p className="font-bold text-slate-900">{shift.opened_by_user_name || 'Υπάλληλος'}</p>
-                  <p className="text-slate-500 font-mono">
-                    {new Date(shift.opened_at).toLocaleString('el-GR')}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-bold uppercase block mb-1">Κλείσιμο</span>
-                  <p className="font-bold text-slate-900">
-                    {shift.closed_by_user_name || (shift.closed_at ? 'Υπάλληλος' : '-')}
-                  </p>
-                  <p className="text-slate-500 font-mono">
-                    {shift.closed_at ? new Date(shift.closed_at).toLocaleString('el-GR') : 'Σε εξέλιξη'}
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const posTotal = shift.card_payments || (shift.custom_field_values?.tora_pos_items || []).reduce((acc: number, item: any) => acc + (parseFloat(item.amount) || 0), 0) || 0;
+                const expensesTotal = (shift.expenses || []).reduce((acc: number, e: any) => acc + (e.amount || 0), 0) || (shift.expenses_paid_cash || 0);
+                const creditGranted = shift.customer_credit_granted || 0;
+                const creditCollected = shift.customer_credit_collected || 0;
+                const totalReconciliationCount = shift.custom_field_values?.total_reconciliation_count !== undefined
+                  ? Number(shift.custom_field_values.total_reconciliation_count)
+                  : (shift.counted_cash || 0) + posTotal + expensesTotal + creditGranted - creditCollected - (shift.opening_cash || 0);
 
+                return (
+                  <>
+                    {/* User Timestamps Card */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase block mb-1">Έναρξη</span>
+                        <p className="font-bold text-slate-900">{shift.opened_by_user_name || 'Υπάλληλος'}</p>
+                        <p className="text-slate-500 font-mono">
+                          {new Date(shift.opened_at).toLocaleString('el-GR')}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase block mb-1">Κλείσιμο</span>
+                        <p className="font-bold text-slate-900">
+                          {shift.closed_by_user_name || (shift.closed_at ? 'Υπάλληλος' : '-')}
+                        </p>
+                        <p className="text-slate-500 font-mono">
+                          {shift.closed_at ? new Date(shift.closed_at).toLocaleString('el-GR') : 'Σε εξέλιξη'}
+                        </p>
+                      </div>
+                    </div>
 
-          {/* Summary Figures Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                Αρχικό Ταμείο
-              </span>
-              <span className="text-lg font-black text-slate-900">
-                {shift.opening_cash.toFixed(2)} €
-              </span>
-            </div>
+                    {/* Σύνολο Καταμέτρησης Banner */}
+                    <div className="bg-indigo-900 text-white p-4 rounded-2xl border border-indigo-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
+                      <div>
+                        <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider block">
+                          Σύνολο Καταμέτρησης
+                        </span>
+                        <p className="text-[11px] text-indigo-200/80 mt-0.5">
+                          (Μετρημένα στο συρτάρι + Πωλήσεις POS + Έξοδα + Πιστώσεις - Επιστροφές) - Αρχικό
+                        </p>
+                      </div>
+                      <span className="text-2xl font-black text-emerald-400 font-mono">
+                        {totalReconciliationCount.toFixed(2)} €
+                      </span>
+                    </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                Αναμενόμενο Ταμείο
-              </span>
-              <span className="text-lg font-black text-emerald-700">
-                {shift.expected_cash.toFixed(2)} €
-              </span>
-            </div>
+                    {/* Summary Figures Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Αρχικό Ταμείο
+                        </span>
+                        <span className="text-lg font-black text-slate-900">
+                          {shift.opening_cash.toFixed(2)} €
+                        </span>
+                      </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                Καταμετρημένο
-              </span>
-              <span className="text-lg font-black text-indigo-700">
-                {shift.counted_cash.toFixed(2)} €
-              </span>
-            </div>
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Αναμενόμενο Ταμείο
+                        </span>
+                        <span className="text-lg font-black text-emerald-700">
+                          {shift.expected_cash.toFixed(2)} €
+                        </span>
+                      </div>
 
-            <div
-              className={`p-3.5 rounded-xl border ${
-                shift.is_unbalanced ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'
-              }`}
-            >
-              <span className="text-[10px] font-bold uppercase block text-slate-700">
-                Απόκλιση
-              </span>
-              <span
-                className={`text-lg font-black ${
-                  shift.discrepancy < 0 ? 'text-rose-700' : 'text-emerald-700'
-                }`}
-              >
-                {shift.discrepancy > 0 ? '+' : ''}
-                {shift.discrepancy.toFixed(2)} €
-              </span>
-            </div>
-          </div>
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                          Μετρητά Συρταριού
+                        </span>
+                        <span className="text-lg font-black text-indigo-700">
+                          {shift.counted_cash.toFixed(2)} €
+                        </span>
+                      </div>
+
+                      <div
+                        className={`p-3.5 rounded-xl border ${
+                          shift.is_unbalanced ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase block text-slate-700">
+                          Απόκλιση
+                        </span>
+                        <span
+                          className={`text-lg font-black ${
+                            shift.discrepancy < 0 ? 'text-rose-700' : 'text-emerald-700'
+                          }`}
+                        >
+                          {shift.discrepancy > 0 ? '+' : ''}
+                          {shift.discrepancy.toFixed(2)} €
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
           {/* Breakdown Table */}
           <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">

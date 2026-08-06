@@ -145,12 +145,23 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>(
     shift.custom_field_values || {}
   );
+  const [showScratchDetails, setShowScratchDetails] = useState<boolean>(false);
+  const savedScratchItems = Array.isArray(shift.custom_field_values?.scratch_ticket_items)
+    ? shift.custom_field_values.scratch_ticket_items
+    : [];
+  const savedToraPosItems = Array.isArray(shift.custom_field_values?.tora_pos_items)
+    ? shift.custom_field_values.tora_pos_items
+    : null;
 
   // -------------------------------------------------------------
   // AUTOMATIC CALCULATIONS
   // -------------------------------------------------------------
   const scratchTotal = roundCurrency(safeNum(scratchSales) - safeNum(scratchPayouts));
-  const toraTotal = roundCurrency(safeNum(toraPos1) + safeNum(toraPos2));
+  const toraTotal = roundCurrency(
+    savedToraPosItems && savedToraPosItems.length > 0
+      ? savedToraPosItems.reduce((sum: number, item: any) => sum + safeNum(item.amount), 0)
+      : safeNum(toraPos1) + safeNum(toraPos2)
+  );
   const numberGamesNet = roundCurrency(
     safeNum(numberSales) - safeNum(numberCancellations) - safeNum(numberPayouts) + safeNum(numberVouchers)
   );
@@ -473,27 +484,82 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             </div>
 
             {/* Scratch / Lotto */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-slate-800 block">Σκρατς & Λαχεία</span>
-                <span className="text-[10px] text-slate-400">
-                  Πωλήσεις: {safeNum(scratchSales).toFixed(2)}€ • Εξαργυρώσεις: -{safeNum(scratchPayouts).toFixed(2)}€
+            <div className="py-2.5 space-y-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-slate-800">Σκρατς & Λαχεία</span>
+                    {savedScratchItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowScratchDetails(!showScratchDetails)}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 transition-colors"
+                      >
+                        {showScratchDetails ? 'Απόκρυψη Αριθμών' : 'Αναλυτικοί Αριθμοί (Αρχικό - Τελικό)'}
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    Πωλήσεις: {safeNum(scratchSales).toFixed(2)}€ • Εξαργυρώσεις: -{safeNum(scratchPayouts).toFixed(2)}€
+                  </span>
+                </div>
+                <span className="font-bold font-mono text-slate-900">
+                  {scratchTotal.toFixed(2)} €
                 </span>
               </div>
-              <span className="font-bold font-mono text-slate-900">
-                {scratchTotal.toFixed(2)} €
-              </span>
+
+              {/* Expandable Breakdown of Scratch Serial Numbers */}
+              {showScratchDetails && savedScratchItems.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] space-y-1.5 font-mono">
+                  <div className="grid grid-cols-5 text-slate-500 font-bold uppercase text-[9px] pb-1 border-b border-slate-200">
+                    <span className="col-span-2">Τύπος Σκρατς</span>
+                    <span className="text-center">Αρχικό</span>
+                    <span className="text-center">Τελικό</span>
+                    <span className="text-right">Σύνολο (€)</span>
+                  </div>
+                  {savedScratchItems.map((item: any, idx: number) => {
+                    const start = parseInt(item.startNo, 10);
+                    const end = parseInt(item.endNo, 10);
+                    const qty = (!isNaN(start) && !isNaN(end) && end >= start) ? (end - start) : (parseInt(item.manualQty, 10) || 0);
+                    const rowTotal = qty * (item.price || 0);
+
+                    return (
+                      <div key={item.id || idx} className="grid grid-cols-5 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
+                        <span className="col-span-2 font-bold font-sans text-slate-900">{item.name} ({item.price}€)</span>
+                        <span className="text-center text-slate-600">{item.startNo !== '' ? item.startNo : '-'}</span>
+                        <span className="text-center text-slate-600">{item.endNo !== '' ? item.endNo : '-'}</span>
+                        <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? `${rowTotal.toFixed(2)}€` : '-'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Tora POS */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-slate-800 block">Tora POS & Υπηρεσίες</span>
-                <span className="text-[10px] text-slate-400">Πληρωμές λογαριασμών & Tora</span>
+            <div className="py-2.5 space-y-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-slate-800 block">Tora POS & Υπηρεσίες</span>
+                  <span className="text-[10px] text-slate-400">Πληρωμές λογαριασμών & Tora (Ορίζονται από Manager)</span>
+                </div>
+                <span className="font-bold font-mono text-slate-900">
+                  {toraTotal.toFixed(2)} €
+                </span>
               </div>
-              <span className="font-bold font-mono text-slate-900">
-                {toraTotal.toFixed(2)} €
-              </span>
+              {savedToraPosItems && savedToraPosItems.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {savedToraPosItems.map((posItem: any, idx: number) => (
+                    <span
+                      key={posItem.id || idx}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-mono border border-slate-200"
+                    >
+                      <span className="font-sans font-bold text-slate-800 mr-1">{posItem.name}:</span>
+                      {safeNum(posItem.amount).toFixed(2)} €
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* VLTs / PLAY */}
@@ -628,20 +694,74 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
 
       {/* CUSTOM FIELDS / NOTES */}
       {shift.custom_field_values && Object.keys(shift.custom_field_values).length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
-          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            Σημειώσεις & Ειδικές Καταχωρήσεις Βάρδιας
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-            {Object.entries(shift.custom_field_values).map(([key, val]) => (
-              <div key={key} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">{key}</span>
-                <span className="font-medium text-slate-800">{String(val)}</span>
+        (() => {
+          const entries = Object.entries(shift.custom_field_values).filter(
+            ([key, val]) =>
+              key !== 'scratch_ticket_items' &&
+              key !== 'tora_pos_items' &&
+              val !== null &&
+              val !== undefined &&
+              val !== ''
+          );
+
+          if (entries.length === 0) return null;
+
+          const formatCustomLabel = (rawKey: string) => {
+            const labelsMap: Record<string, string> = {
+              custom_safe_drop: 'Κατάθεση Safe Drop',
+              custom_cleaning_expense: 'Έξοδα Καθαριότητας',
+              custom_courier_vouchers: 'Vouchers Courier',
+              custom_sanitization_check: 'Έλεγχος Καθαριότητας / Απολύμανσης',
+              custom_shift_note: 'Σημείωση Βάρδιας',
+            };
+            if (labelsMap[rawKey]) return labelsMap[rawKey];
+            return rawKey
+              .replace(/^custom_/, '')
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+          };
+
+          const formatCustomValue = (val: any) => {
+            if (typeof val === 'boolean') {
+              return val ? (
+                <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  ✓ Ναι (Επιβεβαιώθηκε)
+                </span>
+              ) : (
+                <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  ✗ Όχι (Εκκρεμεί)
+                </span>
+              );
+            }
+            if (typeof val === 'object') {
+              try {
+                return <span className="font-mono text-slate-700">{JSON.stringify(val)}</span>;
+              } catch {
+                return String(val);
+              }
+            }
+            return <span className="font-bold text-slate-900">{String(val)}</span>;
+          };
+
+          return (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Σημειώσεις & Ειδικές Καταχωρήσεις Βάρδιας
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                {entries.map(([key, val]) => (
+                  <div key={key} className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between space-y-1">
+                    <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-wide">
+                      {formatCustomLabel(key)}
+                    </span>
+                    <div>{formatCustomValue(val)}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );

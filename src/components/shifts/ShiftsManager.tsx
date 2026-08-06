@@ -38,6 +38,19 @@ export const ShiftsManager: React.FC = () => {
     roles?.some((r) => ['ORG_OWNER', 'ORG_ADMIN', 'PLATFORM_ADMIN'].includes(r.code)) ||
     hasPermission('roles.manage');
 
+  const canApprove =
+    roles?.some(
+      (r) =>
+        ['ORG_OWNER', 'STORE_MANAGER', 'ADMIN', 'AREA_MANAGER', 'PLATFORM_ADMIN', 'SHIFT_LEADER'].includes(r.code) ||
+        r.name?.toLowerCase().includes('manager') ||
+        r.name?.toLowerCase().includes('owner') ||
+        r.name?.toLowerCase().includes('διευθυντής') ||
+        r.name?.toLowerCase().includes('ιδιοκτήτης')
+    ) ||
+    hasPermission('*') ||
+    hasPermission('shift.approve') ||
+    hasPermission('shifts.approve');
+
   const availableStores =
     assignedStores && assignedStores.length > 0
       ? assignedStores.map((s) => ({
@@ -152,31 +165,25 @@ export const ShiftsManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
         <div>
           <div className="flex items-center space-x-2">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
               <Clock className="w-5 h-5" />
             </div>
             <h2 className="text-xl font-bold text-slate-900">Διαχείριση Βαρδιών & Ταμείου</h2>
-            {pendingApprovalCount > 0 && (
-              <span className="ml-2 px-2.5 py-1 rounded-full text-xs font-black bg-amber-500 text-slate-950 border border-amber-400 flex items-center gap-1 shadow-2xs animate-pulse">
-                <span>⚡ {pendingApprovalCount}</span>
-                <span className="hidden sm:inline">εκκρεμούν</span>
-              </span>
-            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Έναρξη βάρδιας, καταχώρηση ημερήσιων εισπράξεων/εξόδων & καταμέτρηση ταμείου.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {isOwnerOrAdmin && (
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 max-w-full overflow-x-auto">
               <button
                 onClick={() => setManagerTab('SHIFTS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   managerTab === 'SHIFTS'
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -186,7 +193,7 @@ export const ShiftsManager: React.FC = () => {
               </button>
               <button
                 onClick={() => setManagerTab('TEMPLATE')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                   managerTab === 'TEMPLATE'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -200,7 +207,7 @@ export const ShiftsManager: React.FC = () => {
 
           <button
             onClick={fetchShifts}
-            className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors"
+            className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
             title="Aνανέωση"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
@@ -209,7 +216,7 @@ export const ShiftsManager: React.FC = () => {
           {canCreate && (
             <button
               onClick={() => setShowOpeningModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-all"
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center space-x-2 shadow-sm transition-all whitespace-nowrap cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Έναρξη Νέας Βάρδιας</span>
@@ -225,7 +232,7 @@ export const ShiftsManager: React.FC = () => {
 
 
       {/* Manager Awaiting Approval Notification Banner */}
-      {pendingApprovalCount > 0 && (
+      {canApprove && pendingApprovalCount > 0 && (
         <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-400/50 rounded-2xl p-5 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
@@ -353,12 +360,12 @@ export const ShiftsManager: React.FC = () => {
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center space-x-3 flex-1 min-w-[240px]">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1 min-w-0">
           <Filter className="w-4 h-4 text-slate-400 shrink-0" />
           <select
             value={selectedStoreFilter}
             onChange={(e) => setSelectedStoreFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-800 bg-white"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-800 bg-white max-w-full"
           >
             <option value="ALL">Όλα τα Καταστήματα</option>
             {effectiveStores.map((s) => (
@@ -371,7 +378,7 @@ export const ShiftsManager: React.FC = () => {
           <select
             value={selectedStatusFilter}
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-800 bg-white"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-800 bg-white max-w-full"
           >
             <option value="ALL">Όλες οι Καταστάσεις</option>
             <option value="OPEN">Ανοικτές (OPEN)</option>
@@ -480,24 +487,28 @@ export const ShiftsManager: React.FC = () => {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 whitespace-nowrap">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                           s.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
                             : s.status === 'SUBMITTED'
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-pulse'
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
                             : s.status === 'CORRECTION_REQUESTED'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : 'bg-amber-100 text-amber-800'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                            : s.status === 'OPEN'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200/80'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
                         {s.status === 'APPROVED'
-                          ? 'ΕΓΚΕΚΡΙΜΕΝΗ'
+                          ? 'Εγκεκριμένη'
                           : s.status === 'SUBMITTED'
-                          ? '⚡ ΕΚΚΡΕΜΕΙ ΕΓΚΡΙΣΗ'
+                          ? 'Εκκρεμεί έγκριση'
                           : s.status === 'CORRECTION_REQUESTED'
-                          ? 'ΔΙΟΡΘΩΣΗ'
+                          ? 'Αίτημα διόρθωσης'
+                          : s.status === 'OPEN'
+                          ? 'Ανοιχτή'
                           : s.status}
                       </span>
                     </td>
@@ -514,7 +525,7 @@ export const ShiftsManager: React.FC = () => {
                         </button>
                       )}
 
-                      {s.status === 'SUBMITTED' && (
+                      {s.status === 'SUBMITTED' && canApprove && (
                         <button
                           onClick={() => setDetailsShift(s)}
                           className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"

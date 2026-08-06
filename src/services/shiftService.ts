@@ -182,6 +182,48 @@ export async function fetchActiveShiftFromFirestore(
   }
 }
 
+export async function fetchLatestShiftForRegister(
+  orgId: string,
+  storeId: string,
+  registerId: string = 'Ταμείο 1'
+): Promise<Shift | null> {
+  try {
+    const shiftsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      shiftsRef,
+      where('organization_id', '==', orgId),
+      where('store_id', '==', storeId)
+    );
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+
+    const matchedShifts: Shift[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as Shift;
+      if (
+        data.register_id === registerId &&
+        ['SUBMITTED', 'APPROVED', 'DRAFT_CLOSING', 'OPEN'].includes(data.status)
+      ) {
+        matchedShifts.push(data);
+      }
+    });
+
+    if (matchedShifts.length === 0) return null;
+
+    matchedShifts.sort((a, b) => {
+      const timeA = new Date(a.closed_at || a.opened_at).getTime();
+      const timeB = new Date(b.closed_at || b.opened_at).getTime();
+      return timeB - timeA;
+    });
+
+    return matchedShifts[0] || null;
+  } catch (error) {
+    console.warn('Error fetching latest shift for register:', error);
+    return null;
+  }
+}
+
 export async function createShiftInFirestore(shiftData: Omit<Shift, 'id'>): Promise<Shift> {
   try {
     const newId = `shift_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;

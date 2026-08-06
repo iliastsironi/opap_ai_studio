@@ -113,19 +113,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sync profile when Firebase User changes
   const syncUserProfile = async (fbUser: FirebaseUser) => {
     try {
-      const idToken = await fbUser.getIdToken();
-      setToken(idToken);
-      localStorage.setItem('shiftledger_token', idToken);
+      try {
+        const idToken = await fbUser.getIdToken();
+        setToken(idToken);
+        localStorage.setItem('shiftledger_token', idToken);
+      } catch (tokenErr) {
+        console.warn('Could not retrieve idToken:', tokenErr);
+      }
 
-      // Check if user exists in Firestore
-      const userRef = doc(db, 'users', fbUser.uid);
-      const userSnap = await getDoc(userRef);
+      const nameParts = fbUser.displayName ? fbUser.displayName.split(' ') : ['Χρήστης', 'ShiftLedger'];
+      const firstName = nameParts[0] || 'Χρήστης';
+      const lastName = nameParts.slice(1).join(' ') || 'ShiftLedger';
+      const defaultUserObj: User = {
+        id: fbUser.uid,
+        email: fbUser.email || '',
+        first_name: firstName,
+        last_name: lastName,
+        status: 'ACTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
       let activeRole = DEFAULT_OWNER_ROLE;
       let activePerms = OWNER_PERMISSIONS;
+      let activeOrg = DEFAULT_ORG;
+
+      let userSnap = null;
+      try {
+        const userRef = doc(db, 'users', fbUser.uid);
+        userSnap = await getDoc(userRef);
+      } catch (fsErr) {
+        console.warn('Firestore offline or read timeout, falling back to cached user state:', fsErr);
+      }
 
       let detectedRoleCode = '';
-      if (userSnap.exists()) {
+      if (userSnap && userSnap.exists()) {
         const uData = userSnap.data();
         if (uData.role_code) {
           detectedRoleCode = uData.role_code;
@@ -162,17 +184,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fbUser.email === 'employee@shiftledger.gr'
       );
 
-      let activeOrg = DEFAULT_ORG;
-
-      if (userSnap.exists()) {
+      if (userSnap && userSnap.exists()) {
         const uData = userSnap.data();
         const userOrgId = uData.organization_id || (isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`);
 
         setUser({
           id: fbUser.uid,
           email: fbUser.email || uData.email || '',
-          first_name: uData.first_name || fbUser.displayName?.split(' ')[0] || 'Χρήστης',
-          last_name: uData.last_name || fbUser.displayName?.split(' ').slice(1).join(' ') || 'ShiftLedger',
+          first_name: uData.first_name || firstName,
+          last_name: uData.last_name || lastName,
           status: 'ACTIVE',
           created_at: uData.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -198,27 +218,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               };
-              await setDoc(doc(db, 'organizations', userOrgId), activeOrg);
+              setDoc(doc(db, 'organizations', userOrgId), activeOrg).catch(() => {});
             }
           } catch (orgErr) {
             console.warn('Error fetching custom org:', orgErr);
           }
         }
       } else {
-        const nameParts = fbUser.displayName ? fbUser.displayName.split(' ') : ['Χρήστης', 'ShiftLedger'];
-        const firstName = nameParts[0] || 'Χρήστης';
-        const lastName = nameParts.slice(1).join(' ') || 'ShiftLedger';
         const newOrgId = isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`;
-
-        const newUserObj: User = {
-          id: fbUser.uid,
-          email: fbUser.email || '',
-          first_name: firstName,
-          last_name: lastName,
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+        setUser(defaultUserObj);
 
         if (!isDemoUser) {
           activeOrg = {
@@ -235,22 +243,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          await setDoc(doc(db, 'organizations', newOrgId), activeOrg);
+          setDoc(doc(db, 'organizations', newOrgId), activeOrg).catch(() => {});
         }
 
-        // Write user profile to Firestore
-        await setDoc(userRef, {
-          id: newUserObj.id,
-          email: newUserObj.email,
-          first_name: newUserObj.first_name,
-          last_name: newUserObj.last_name,
+        // Write user profile to Firestore (async non-blocking)
+        const userRef = doc(db, 'users', fbUser.uid);
+        setDoc(userRef, {
+          id: defaultUserObj.id,
+          email: defaultUserObj.email,
+          first_name: defaultUserObj.first_name,
+          last_name: defaultUserObj.last_name,
           organization_id: newOrgId,
           status: 'ACTIVE',
-          created_at: newUserObj.created_at,
-          updated_at: newUserObj.updated_at,
-        });
-
-        setUser(newUserObj);
+          created_at: defaultUserObj.created_at,
+          updated_at: defaultUserObj.updated_at,
+        }).catch(() => {});
       }
 
       setRoles([activeRole]);

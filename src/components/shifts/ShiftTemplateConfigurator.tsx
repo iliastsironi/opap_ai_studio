@@ -16,7 +16,7 @@ import {
   ArrowUp,
   ArrowDown,
   Eye,
-  DollarSign,
+  Euro,
   Hash,
   CheckSquare,
   FileText,
@@ -269,7 +269,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
       case 'CURRENCY':
         return (
           <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <DollarSign className="w-3 h-3 text-emerald-600" />
+            <Euro className="w-3 h-3 text-emerald-600" />
             <span>Ποσό σε Ευρώ (€)</span>
           </span>
         );
@@ -311,40 +311,51 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
-              <Sliders className="w-5 h-5" />
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <span className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+              <Sliders className="w-6 h-6" />
             </span>
             <div>
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                Διαμορφωτής Φόρμας Κλεισίματος Βάρδιας (Shift Form Builder)
+                Διαμόρφωση Φόρμας Βάρδιας
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Ορίστε ποια πεδία & ενότητες συμπληρώνουν οι υπάλληλοι, προσθέστε προσαρμοσμένα πεδία (αριθμούς, € ποσά, switches, κείμενο) και διαχειριστείτε τα υπολογιζόμενα συστημικά πεδία.
+                Απλή διαχείριση ενοτήτων & πρόσθετων πεδίων για τους υπαλλήλους του καταστήματος.
               </p>
             </div>
           </div>
+
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={handleResetDefaults}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+            >
+              <RefreshCcw className="w-3.5 h-3.5" />
+              <span>Επαναφορά</span>
+            </button>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !canEdit}
+              className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2.5">
-          <button
-            onClick={handleResetDefaults}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-all cursor-pointer"
-          >
-            <RefreshCcw className="w-3.5 h-3.5" />
-            <span>Επαναφορά</span>
-          </button>
-
-          <button
-            onClick={handleSave}
-            disabled={saving || !canEdit}
-            className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
-          >
-            <Save className="w-4 h-4" />
-            <span>{saving ? 'Αποθήκευση...' : 'Αποθήκευση Προτύπου'}</span>
-          </button>
+        {/* Automatic Math Reassurance Badge */}
+        <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-xl p-3 text-xs text-indigo-950 flex items-start space-x-2.5">
+          <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-extrabold text-indigo-900">⚡ Σταθεροί & Αυτόματοι Υπολογισμοί: </span>
+            <span className="text-indigo-800">
+              Οι μαθηματικοί τύποι (Καθαρά ΟΠΑΠ, Σκρατς, VLTs, Αποκλίσεις Ταμείου & Καταμετρήσεις) υπολογίζονται <strong>αυτόματα</strong> από το σύστημα. Εσείς απλά επιλέγετε ποιες ενότητες και ποια προαιρετικά πεδία θα είναι διαθέσιμα στη φόρμα.
+            </span>
+          </div>
         </div>
       </div>
 
@@ -364,8 +375,8 @@ export const ShiftTemplateConfigurator: React.FC = () => {
       )}
 
       {/* Main Mode Navigation Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('FIELDS')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
@@ -375,22 +386,10 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             }`}
           >
             <Calculator className="w-4 h-4" />
-            <span>Πεδία Φόρμας & Προσαρμοσμένα (Fields)</span>
-            <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[10px]">
+            <span>📋 Πεδία Φόρμας</span>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[10px] font-mono">
               {customFieldsList.length}
             </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('PREVIEW')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeTab === 'PREVIEW'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Eye className="w-4 h-4" />
-            <span>Ζωντανή Προεπισκόπηση Υπαλλήλου (Live Preview)</span>
           </button>
 
           <button
@@ -402,17 +401,29 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Υποσυστήματα OPAP (Modules)</span>
+            <span>⚙️ Ενότητες OPAP</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('PREVIEW')}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              activeTab === 'PREVIEW'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            <span>👁️ Προεπισκόπηση Υπαλλήλου</span>
           </button>
         </div>
 
         {activeTab === 'FIELDS' && (
           <button
             onClick={handleOpenAddField}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
-            <span>Νέο Προσαρμοσμένο Πεδίο</span>
+            <span>Προσθήκη Πεδίου</span>
           </button>
         )}
       </div>
@@ -425,11 +436,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <div className="flex items-center space-x-1.5 overflow-x-auto text-xs">
               <span className="text-slate-400 font-bold px-2">Φίλτρο:</span>
               {[
-                { id: 'ALL', label: 'Όλα τα Πεδία' },
-                { id: 'SYSTEM', label: '🔒 Συστημικά (Υπολογιζόμενα)' },
-                { id: 'CUSTOM', label: '⚙️ Προσαρμοσμένα Υπαλλήλων' },
-                { id: 'REPORTS', label: '📊 Αναφορές (Left)' },
-                { id: 'COUNTING', label: '💵 Καταμέτρηση (Right)' },
+                { id: 'ALL', label: 'Όλα' },
+                { id: 'SYSTEM', label: '🔒 Αυτόματα (Συστημικά)' },
+                { id: 'CUSTOM', label: '✍️ Υπαλλήλων (Προς συμπλήρωση)' },
+                { id: 'REPORTS', label: '📊 Αναφορές (Αριστερά)' },
+                { id: 'COUNTING', label: '💵 Καταμέτρηση (Δεξιά)' },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -606,9 +617,9 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* LEFT COLUMN: REPORTS */}
             <div className="space-y-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
-              <h4 className="text-xs font-extrabold uppercase text-indigo-400 tracking-wider flex items-center space-x-2">
+              <h4 className="text-xs font-extrabold text-indigo-400 tracking-wider flex items-center space-x-2">
                 <Calculator className="w-4 h-4" />
-                <span>Αναφορές & Πωλήσεις (Left Column)</span>
+                <span>ΑΝΑΦΟΡΕΣ & ΠΩΛΗΣΕΙΣ (LEFT COLUMN)</span>
               </h4>
 
               {customFieldsList
@@ -693,9 +704,9 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
             {/* RIGHT COLUMN: COUNTING & OUTFLOWS */}
             <div className="space-y-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
-              <h4 className="text-xs font-extrabold uppercase text-emerald-400 tracking-wider flex items-center space-x-2">
-                <DollarSign className="w-4 h-4" />
-                <span>Καταμέτρηση & Έξοδα (Right Column)</span>
+              <h4 className="text-xs font-extrabold text-emerald-400 tracking-wider flex items-center space-x-2">
+                <Euro className="w-4 h-4" />
+                <span>ΚΑΤΑΜΕΤΡΗΣΗ & ΕΞΟΔΑ (RIGHT COLUMN)</span>
               </h4>
 
               {customFieldsList

@@ -9,9 +9,41 @@ import {
   where,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase.ts';
-import { Supplier } from '../types/index.ts';
+import { Supplier, SupplierOrder } from '../types/index.ts';
 
 const SUPPLIERS_COLLECTION = 'suppliers';
+const SUPPLIER_ORDERS_COLLECTION = 'supplier_orders';
+
+export const INITIAL_DEMO_ORDERS: SupplierOrder[] = [
+  {
+    id: 'ord_demo_01',
+    organization_id: 'org_opap_demo',
+    supplier_id: 'sup_coca_cola',
+    supplier_name: 'Coca-Cola 3Ε Ελλάδος Α.Β.Ε.Ε.',
+    order_number: 'ORD-2026-089',
+    order_date: '2026-07-28',
+    expected_delivery: '2026-08-01',
+    status: 'PENDING',
+    total_amount: 320.00,
+    items_description: '24x Κιβώτια Coca-Cola 330ml, 10x Κιβώτια Amita Motion 250ml',
+    notes: 'Παράδοση πρωινές ώρες (09:00 - 12:00)',
+    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+  },
+  {
+    id: 'ord_demo_02',
+    organization_id: 'org_opap_demo',
+    supplier_id: 'sup_opap_heq',
+    supplier_name: 'ΟΠΑΠ Α.Ε. - Κεντρικά',
+    order_number: 'ORD-2026-074',
+    order_date: '2026-07-20',
+    expected_delivery: '2026-07-22',
+    status: 'DELIVERED',
+    total_amount: 1450.00,
+    items_description: '10x Ρολά Θερμικού Χαρτιού Τερματικών, 5x Πακέτα Δελτίων Στοίχημα',
+    notes: 'Παραλήφθηκε & πιστοποιήθηκε από υπεύθυνο βάρδιας',
+    created_at: new Date(Date.now() - 86400000 * 11).toISOString(),
+  },
+];
 
 export const INITIAL_DEMO_SUPPLIERS: Supplier[] = [
   {
@@ -126,6 +158,55 @@ export async function deleteSupplierInFirestore(supplierId: string): Promise<voi
     await deleteDoc(ref);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${SUPPLIERS_COLLECTION}/${supplierId}`);
+    throw error;
+  }
+}
+
+export async function fetchSupplierOrdersFromFirestore(orgId: string): Promise<SupplierOrder[]> {
+  try {
+    const q = query(collection(db, SUPPLIER_ORDERS_COLLECTION), where('organization_id', '==', orgId));
+    const snap = await getDocs(q);
+    const result: SupplierOrder[] = [];
+    snap.forEach((d) => result.push(d.data() as SupplierOrder));
+    if (result.length === 0) {
+      if (orgId === 'org_opap_demo') {
+        for (const ord of INITIAL_DEMO_ORDERS) {
+          await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, ord.id), ord);
+        }
+        return INITIAL_DEMO_ORDERS;
+      }
+      return [];
+    }
+    return result;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, SUPPLIER_ORDERS_COLLECTION);
+    return orgId === 'org_opap_demo' ? INITIAL_DEMO_ORDERS : [];
+  }
+}
+
+export async function createSupplierOrderInFirestore(orderData: Omit<SupplierOrder, 'id' | 'created_at'>): Promise<SupplierOrder> {
+  try {
+    const newId = `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const nowIso = new Date().toISOString();
+    const newOrder: SupplierOrder = {
+      ...orderData,
+      id: newId,
+      created_at: nowIso,
+    };
+    await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, newId), newOrder);
+    return newOrder;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, SUPPLIER_ORDERS_COLLECTION);
+    throw error;
+  }
+}
+
+export async function updateSupplierOrderStatusInFirestore(orderId: string, status: SupplierOrder['status']): Promise<void> {
+  try {
+    const ref = doc(db, SUPPLIER_ORDERS_COLLECTION, orderId);
+    await updateDoc(ref, { status });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${SUPPLIER_ORDERS_COLLECTION}/${orderId}`);
     throw error;
   }
 }

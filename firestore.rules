@@ -77,10 +77,21 @@ service cloud.firestore {
       allow write: if isValidId(mailId);
     }
 
+    // Test connection endpoint
+    match /test/{testId} {
+      allow read, write: if true;
+    }
+
     // Suppliers
     match /suppliers/{supplierId} {
       allow read: if true;
       allow write: if isValidId(supplierId);
+    }
+
+    // Supplier Orders
+    match /supplier_orders/{orderId} {
+      allow read: if true;
+      allow write: if isValidId(orderId);
     }
 
     // Default deny catch-all

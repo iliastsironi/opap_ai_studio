@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, AlertCircle, X, CheckCircle2 } from 'lucide-react';
+import { Clock, Play, AlertCircle, X, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
-import { ShiftType, ShiftStatus } from '../../types/index.ts';
-import { createShiftInFirestore } from '../../services/shiftService.ts';
+import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
+import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../services/shiftService.ts';
+import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 
 interface ShiftOpeningModalProps {
   isOpen: boolean;
@@ -49,12 +50,70 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
   const [openingNotes, setOpeningNotes] = useState<string>('');
 
+  const [previousShift, setPreviousShift] = useState<Shift | null>(null);
+  const [isAutoFetched, setIsAutoFetched] = useState<boolean>(false);
+  const [fetchingPrev, setFetchingPrev] = useState<boolean>(false);
+
   const banknotesNum = parseFloat(openingBanknotes.replace(',', '.')) || 0;
   const coinsNum = parseFloat(openingCoins.replace(',', '.')) || 0;
   const totalOpeningCash = banknotesNum + coinsNum;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Automatically fetch previous shift details and carry over cash/coins for non-morning shifts
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    async function loadPrevShift() {
+      setFetchingPrev(true);
+      try {
+        const prev = await fetchLatestShiftForRegister(
+          organization?.id || 'org_opap_demo',
+          selectedStoreId,
+          registerId
+        );
+
+        if (!isMounted) return;
+        setPreviousShift(prev);
+
+        if (shiftType !== 'MORNING' && prev) {
+          // Calculate physical cash breakdown from previous shift
+          let prevNotes = 0;
+          let prevCoins = 0;
+
+          if (prev.counted_denominations && Object.keys(prev.counted_denominations).length > 0) {
+            const parsed = calculateBanknotesAndCoins(prev.counted_denominations);
+            prevNotes = parsed.banknotes;
+            prevCoins = parsed.coins;
+          } else if (prev.counted_cash > 0) {
+            prevNotes = Math.floor(prev.counted_cash);
+            prevCoins = roundCurrency(prev.counted_cash - prevNotes);
+          } else if (prev.opening_cash > 0) {
+            prevNotes = prev.opening_cash_notes ?? Math.floor(prev.opening_cash);
+            prevCoins = prev.opening_cash_coins ?? roundCurrency(prev.opening_cash - prevNotes);
+          }
+
+          setOpeningBanknotes(prevNotes.toFixed(2));
+          setOpeningCoins(prevCoins.toFixed(2));
+          setIsAutoFetched(true);
+        } else if (shiftType === 'MORNING') {
+          setIsAutoFetched(false);
+        }
+      } catch (e) {
+        console.warn('Error loading previous shift:', e);
+      } finally {
+        if (isMounted) setFetchingPrev(false);
+      }
+    }
+
+    loadPrevShift();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, selectedStoreId, registerId, shiftType, organization?.id]);
 
   if (!isOpen) return null;
 
@@ -92,7 +151,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         opening_cash: cashNum,
         opening_cash_notes: banknotesNum,
         opening_cash_coins: coinsNum,
-        opening_operational_notes: openingNotes,
+        opening_operational_notes: openingNotes
+          ? openingNotes
+          : shiftType !== 'MORNING' && isAutoFetched
+          ? `Αυτόματη μεταφορά από προηγούμενη βάρδια (${banknotesNum.toFixed(2)}€ χαρτ. + ${coinsNum.toFixed(2)}€ κέρμ.)`
+          : 'Αρχικό ταμείο διαχειριστή',
         opap_gross_sales: 0,
         opap_payouts: 0,
         opap_net_sales: 0,
@@ -149,8 +212,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -159,7 +222,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base">Έναρξη Νέας Βάρδιας</h3>
-              <p className="text-xs text-slate-300">Καταχώρηση αρχικού ταμείου & στοιχείων</p>
+              <p className="text-xs text-slate-300">
+                {shiftType === 'MORNING'
+                  ? 'Ορισμός αρχικού ταμείου από διαχειριστή'
+                  : 'Αυτόματη μεταφορά ταμείου από προηγούμενη βάρδια'}
+              </p>
             </div>
           </div>
           <button
@@ -170,7 +237,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start space-x-2.5">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
@@ -225,19 +292,56 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 onChange={(e) => setShiftType(e.target.value as ShiftType)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="MORNING">Πρωινή (08:00 - 16:00)</option>
-                <option value="AFTERNOON">Απογευματινή (16:00 - 00:00)</option>
-                <option value="NIGHT">Βραδινή (00:00 - 08:00)</option>
-                <option value="CUSTOM">Ειδική / Έκτακτη</option>
+                <option value="MORNING">☀️ Πρωινή (Ορισμός Ταμείου)</option>
+                <option value="AFTERNOON">🌤️ Απογευματινή (Αυτόματο)</option>
+                <option value="NIGHT">🌙 Βραδινή (Αυτόματο)</option>
+                <option value="CUSTOM">⚡ Ειδική / Έκτακτη (Αυτόματο)</option>
               </select>
             </div>
           </div>
 
+          {/* Shift Type Notice Banner */}
+          {shiftType === 'MORNING' ? (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">☀️ Πρωινή Βάρδια — Αρχικό Ταμείο Διαχειριστή</span>
+                <span className="text-[11px] text-amber-800 font-medium">
+                  Στην πρωινή βάρδια το αρχικό κεφάλαιο/ταμείο ορίζεται χειροκίνητα από τον διαχειριστή ή υπεύθυνο.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs flex items-start space-x-2.5">
+              <RefreshCw className={`w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ${fetchingPrev ? 'animate-spin' : ''}`} />
+              <div>
+                <span className="font-bold flex items-center gap-1.5">
+                  🔄 Αυτόματη Μεταφορά από Προηγούμενη Βάρδια
+                  {isAutoFetched && (
+                    <span className="px-1.5 py-0.2 text-[9px] font-black bg-indigo-200 text-indigo-950 rounded-md uppercase">
+                      AUTO
+                    </span>
+                  )}
+                </span>
+                <span className="text-[11px] text-indigo-800 font-medium block mt-0.5">
+                  {previousShift
+                    ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.opened_by_user_name || 'Προηγούμενη'}).`
+                    : 'Δεν βρέθηκε προηγούμενη βάρδια. Εμφανίζονται τα προεπιλεγμένα ποσά.'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Opening Cash Float Breakdown */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Αρχικό Ταμείο (Float €) <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span>Αρχικό Ταμείο (Float €)</span>
+                {shiftType !== 'MORNING' && (
+                  <span className="text-[10px] text-indigo-600 font-normal border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                    Από προηγούμενη
+                  </span>
+                )}
               </label>
               <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
                 Σύνολο: {totalOpeningCash.toFixed(2)} €
@@ -246,8 +350,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  💵 Χαρτονομίσματα (€)
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                  <span>💵 Χαρτονομίσματα (€)</span>
+                  {shiftType !== 'MORNING' && (
+                    <span className="text-[9px] text-slate-400 font-mono">Αυτόματο</span>
+                  )}
                 </label>
                 <div className="relative">
                   <input
@@ -255,7 +362,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
-                    className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    disabled={shiftType !== 'MORNING' && isAutoFetched}
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold text-slate-900 ${
+                      shiftType !== 'MORNING' && isAutoFetched
+                        ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
+                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -265,8 +377,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  🪙 Κέρματα (€)
+                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                  <span>🪙 Κέρματα (€)</span>
+                  {shiftType !== 'MORNING' && (
+                    <span className="text-[9px] text-slate-400 font-mono">Αυτόματο</span>
+                  )}
                 </label>
                 <div className="relative">
                   <input
@@ -274,7 +389,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
-                    className="w-full pl-3 pr-8 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    disabled={shiftType !== 'MORNING' && isAutoFetched}
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold text-slate-900 ${
+                      shiftType !== 'MORNING' && isAutoFetched
+                        ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
+                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
@@ -285,7 +405,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-500">
-              Εισάγετε ξεχωριστά τα χαρτονομίσματα και τα κέρματα (ψιλά) που παραδόθηκαν κατά την έναρξη.
+              {shiftType === 'MORNING'
+                ? 'Ορίστε τα χαρτονομίσματα και τα κέρματα που παραδίδονται στο ταμείο.'
+                : 'Τα ποσά χαρτονομισμάτων και κερμάτων προέρχονται αυτόματα από τα υπόλοιπα της προηγούμενης βάρδιας.'}
             </p>
           </div>
 
@@ -297,7 +419,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             <textarea
               value={openingNotes}
               onChange={(e) => setOpeningNotes(e.target.value)}
-              placeholder="Π.χ. Παραδόθηκαν 200€ σε ψιλά, όλα τα τερματικά λειτουργικά..."
+              placeholder={
+                shiftType === 'MORNING'
+                  ? 'Π.χ. Παραδόθηκαν 200€ από τον διαχειριστή, όλα τα τερματικά λειτουργικά...'
+                  : 'Π.χ. Παραλαβή ταμείου από προηγούμενη βάρδια...'
+              }
               rows={2}
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
@@ -313,7 +439,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || fetchingPrev}
               className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition-all flex items-center space-x-2 disabled:opacity-50"
             >
               {loading ? (

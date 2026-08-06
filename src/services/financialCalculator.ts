@@ -132,3 +132,53 @@ export function calculateDiscrepancy(
     isExceedingThreshold,
   };
 }
+
+export interface TotalReconciliationInput {
+  countedCashInDrawer: number | string | null | undefined;
+  posSalesTotal: number | string | null | undefined;
+  expensesTotal: number | string | null | undefined;
+  customerCreditsGranted: number | string | null | undefined;
+  customerReturns: number | string | null | undefined;
+  openingCash: number | string | null | undefined;
+}
+
+/**
+  Calculates "Σύνολο Καταμέτρησης" (Grand Reconciliation Total):
+  (Μετρημένα στο συρτάρι) + (Πωλήσεις POS) + (Όλα τα Έξοδα) + (Πιστώσεις Πελατών) - (Επιστροφές Πελατών) - (Αρχικό Κεφάλαιο)
+ */
+export function calculateTotalReconciliationCount(input: TotalReconciliationInput): number {
+  const drawerCash = safeNum(input.countedCashInDrawer);
+  const posSales = safeNum(input.posSalesTotal);
+  const expenses = safeNum(input.expensesTotal);
+  const credits = safeNum(input.customerCreditsGranted);
+  const returns = safeNum(input.customerReturns);
+  const opening = safeNum(input.openingCash);
+
+  return roundCurrency(drawerCash + posSales + expenses + credits - returns - opening);
+}
+
+/**
+  Calculates separate totals for banknotes and coins from a denomination count object.
+ */
+export function calculateBanknotesAndCoins(
+  denominations?: Record<string, number | string | null | undefined>
+): { banknotes: number; coins: number; total: number } {
+  if (!denominations || typeof denominations !== 'object') {
+    return { banknotes: 0, coins: 0, total: 0 };
+  }
+  let banknotes = 0;
+  let coins = 0;
+  for (const denom of EUR_DENOMINATIONS) {
+    const count = Math.max(0, Math.floor(safeNum(denominations[denom.key])));
+    if (denom.value >= 5) {
+      banknotes += count * denom.value;
+    } else {
+      coins += count * denom.value;
+    }
+  }
+  return {
+    banknotes: roundCurrency(banknotes),
+    coins: roundCurrency(coins),
+    total: roundCurrency(banknotes + coins),
+  };
+}

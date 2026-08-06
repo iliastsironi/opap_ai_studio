@@ -15,7 +15,12 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
   const { token, isLoading } = useAuth();
   const { isLoadingStores } = useTenant();
   const [currentTab, setCurrentTab] = useState('shifts');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
 
   if (isLoading) {
     return (
@@ -42,8 +47,8 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-        <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <div className={`flex-1 transition-all duration-200 ease-in-out ${sidebarOpen ? 'md:ml-64' : 'md:ml-0'} flex flex-col min-h-screen w-full`}>
+        <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
           {isLoadingStores ? (
             <GlobalLoadingSkeleton />

@@ -74,6 +74,21 @@ export interface Supplier {
   updated_at?: string;
 }
 
+export interface SupplierOrder {
+  id: string;
+  organization_id: string;
+  supplier_id: string;
+  supplier_name: string;
+  order_number: string;
+  order_date: string;
+  expected_delivery?: string;
+  status: 'PENDING' | 'DELIVERED' | 'CANCELLED';
+  total_amount: number;
+  items_description?: string;
+  notes?: string;
+  created_at: string;
+}
+
 export interface Department {
   id: string;
   organization_id: string;
