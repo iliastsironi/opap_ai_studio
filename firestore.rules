@@ -94,6 +94,11 @@ service cloud.firestore {
       allow write: if isValidId(orderId);
     }
 
+    // Copilot Threads
+    match /copilot_threads/{threadId} {
+      allow read, write: if isValidId(threadId);
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

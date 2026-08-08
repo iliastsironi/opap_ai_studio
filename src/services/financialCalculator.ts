@@ -79,24 +79,19 @@ export function calculateCountedCash(
   sales inflows, payouts, card deductions, expenses, and credit movements.
  */
 export function calculateExpectedCash(input: ExpectedCashInput): number {
-  const opening = safeNum(input.opening_cash);
-  const opapGross = safeNum(input.opap_gross_sales);
-  const opapPayouts = safeNum(input.opap_payouts);
+  const scratchLotto = safeNum(input.scratch_lotto_sales);
+  const cardPayments = safeNum(input.card_payments);
   const vltsIn = safeNum(input.vlts_cash_in);
   const vltsOut = safeNum(input.vlts_cash_out);
-  const scratchLotto = safeNum(input.scratch_lotto_sales);
+  const opapGross = safeNum(input.opap_gross_sales);
+  const opapPayouts = safeNum(input.opap_payouts);
   const fnbCash = safeNum(input.fnb_cash);
-  const creditCollected = safeNum(input.customer_credit_collected);
 
-  const cardDeductions = safeNum(input.card_payments);
-  const expensesCash = safeNum(input.expenses_paid_cash);
-  const creditGranted = safeNum(input.customer_credit_granted);
-  const deposits = safeNum(input.bank_deposits);
+  // OPAP Number Games Net (KINO, Joker, Lotto etc.) = Gross Sales - Payouts
+  const numberGamesNet = opapGross - opapPayouts;
 
-  const inflows = opening + opapGross + vltsIn + scratchLotto + fnbCash + creditCollected;
-  const outflows = opapPayouts + vltsOut + cardDeductions + expensesCash + creditGranted + deposits;
-
-  const expected = inflows - outflows;
+  // Expected Turnover / Revenue = scratch_lotto_sales + card_payments + vlts_cash_in - vlts_cash_out + number_games_net + fnb_cash
+  const expected = scratchLotto + cardPayments + vltsIn - vltsOut + numberGamesNet + fnbCash;
   return roundCurrency(expected);
 }
 
@@ -134,27 +129,31 @@ export function calculateDiscrepancy(
 }
 
 export interface TotalReconciliationInput {
+  openingCash: number | string | null | undefined;
   countedCashInDrawer: number | string | null | undefined;
   posSalesTotal: number | string | null | undefined;
   expensesTotal: number | string | null | undefined;
+  bankDeposits?: number | string | null | undefined;
   customerCreditsGranted: number | string | null | undefined;
   customerReturns: number | string | null | undefined;
-  openingCash: number | string | null | undefined;
 }
 
 /**
   Calculates "Σύνολο Καταμέτρησης" (Grand Reconciliation Total):
-  (Μετρημένα στο συρτάρι) + (Πωλήσεις POS) + (Όλα τα Έξοδα) + (Πιστώσεις Πελατών) - (Επιστροφές Πελατών) - (Αρχικό Κεφάλαιο)
+  opening_cash + (Καταμετρητής Χαρτονομισμάτων & Κερμάτων) + (POS ανεξάρτητο) + expenses_paid_cash + bank_deposits + customer_credit_granted - customer_credit_collected
  */
 export function calculateTotalReconciliationCount(input: TotalReconciliationInput): number {
+  const opening = safeNum(input.openingCash);
   const drawerCash = safeNum(input.countedCashInDrawer);
   const posSales = safeNum(input.posSalesTotal);
   const expenses = safeNum(input.expensesTotal);
-  const credits = safeNum(input.customerCreditsGranted);
-  const returns = safeNum(input.customerReturns);
-  const opening = safeNum(input.openingCash);
+  const deposits = safeNum(input.bankDeposits);
+  const creditsGranted = safeNum(input.customerCreditsGranted);
+  const creditCollected = safeNum(input.customerReturns);
 
-  return roundCurrency(drawerCash + posSales + expenses + credits - returns - opening);
+  return roundCurrency(
+    opening + drawerCash + posSales + expenses + deposits + creditsGranted - creditCollected
+  );
 }
 
 /**

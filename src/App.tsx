@@ -17,6 +17,8 @@ import { VltManager } from './components/modules/VltManager.tsx';
 import { FnbManager } from './components/modules/FnbManager.tsx';
 import { IncidentsManager } from './components/modules/IncidentsManager.tsx';
 import { ReportsManager } from './components/modules/ReportsManager.tsx';
+import { InstructionsPage } from './components/instructions/InstructionsPage.tsx';
+import { CopilotPage } from './components/copilot/CopilotPage.tsx';
 import { ShieldAlert, Clock } from 'lucide-react';
 
 const TAB_PERMISSIONS: Record<string, string> = {
@@ -35,6 +37,8 @@ const TAB_PERMISSIONS: Record<string, string> = {
   fnb: 'fnb.view',
   incidents: 'incidents.view',
   reports: 'reports.view',
+  instructions: 'shifts.view',
+  copilot: 'shifts.view',
 };
 
 function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurrentTab: (t: string) => void }) {
@@ -84,6 +88,10 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <IncidentsManager />;
     case 'reports':
       return <ReportsManager />;
+    case 'instructions':
+      return <InstructionsPage />;
+    case 'copilot':
+      return <CopilotPage />;
     case 'stores':
       return <StoresManager />;
     case 'users':

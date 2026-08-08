@@ -10,6 +10,7 @@ import shiftsRoutes from './src/server/routes/shifts.js';
 import storesRoutes from './src/server/routes/stores.js';
 import usersRoutes from './src/server/routes/users.js';
 import notificationsRoutes from './src/server/routes/notifications.js';
+import copilotRoutes from './src/server/routes/copilot.js';
 
 
 async function startServer() {
@@ -38,6 +39,7 @@ async function startServer() {
   app.use('/api/v1/shifts', shiftsRoutes);
   app.use('/api/v1/audit', auditRoutes);
   app.use('/api/v1/notifications', notificationsRoutes);
+  app.use('/api/v1/copilot', copilotRoutes);
 
 
   // Vite Middleware for Dev / Static serving for Prod

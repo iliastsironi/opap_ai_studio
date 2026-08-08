@@ -351,12 +351,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // Formula requested by user for Σύνολο Καταμέτρησης:
   // (Μετρημένα στο συρτάρι) + (Πωλήσεις POS #x Καταστήματος) + (Όλα τα έξοδα) + (Πιστώσεις Πελατών) - (Επιστροφές Πελατών) - (Αρχικό Κεφάλαιο)
   const totalReconciliationCount = calculateTotalReconciliationCount({
+    openingCash: openingCashTotal,
     countedCashInDrawer: countedCash,
     posSalesTotal: totalStorePos,
     expensesTotal: expensesTotal,
+    bankDeposits: bankDeposits,
     customerCreditsGranted: creditGrantedTotal,
     customerReturns: creditCollectedTotal,
-    openingCash: openingCashTotal,
   });
 
   // Autosave Draft function

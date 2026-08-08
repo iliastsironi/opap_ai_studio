@@ -18,6 +18,8 @@ import {
   ChevronRight,
   BarChart3,
   Truck,
+  BookOpen,
+  Sparkles,
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -51,6 +53,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
     { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
     { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
     { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
+  ];
+
+  const helpModules = [
+    { id: 'instructions', label: 'Οδηγίες Χρήσης', icon: BookOpen },
+    { id: 'copilot', label: 'AI Copilot', icon: Sparkles },
   ];
 
   const visibleNavItems = navItems.filter((item) => !item.perm || hasPermission(item.perm));
@@ -166,6 +173,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
                   <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
                     <span className="truncate">{mod.label}</span>
+                  </div>
+                  {isActive && <ChevronRight className="w-4 h-4 text-indigo-600 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
+            ΒΟΗΘΕΙΑ & AI
+          </p>
+          <div className="space-y-1">
+            {helpModules.map((hMod) => {
+              const Icon = hMod.icon;
+              const isActive = currentTab === hMod.id;
+              return (
+                <button
+                  key={hMod.id}
+                  onClick={() => {
+                    setCurrentTab(hMod.id);
+                    if (window.innerWidth < 768) {
+                      setIsOpen(false);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700 font-bold'
+                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-indigo-500'}`} />
+                    <span className="truncate">{hMod.label}</span>
                   </div>
                   {isActive && <ChevronRight className="w-4 h-4 text-indigo-600 shrink-0" />}
                 </button>
