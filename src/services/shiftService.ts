@@ -11,7 +11,7 @@ import {
   onSnapshot,
   Timestamp,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 import { Shift, ShiftStatus, ShiftType } from '../types/index.ts';
 
 const COLLECTION_NAME = 'shifts';
@@ -237,7 +237,7 @@ export async function createShiftInFirestore(shiftData: Omit<Shift, 'id'>): Prom
     };
 
     const docRef = doc(db, COLLECTION_NAME, newId);
-    await setDoc(docRef, newShift);
+    await setDoc(docRef, cleanFirestoreData(newShift));
     return newShift;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, COLLECTION_NAME);
@@ -251,10 +251,10 @@ export async function updateShiftInFirestore(
 ): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION_NAME, shiftId);
-    const payload = {
+    const payload = cleanFirestoreData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    };
+    });
     await updateDoc(docRef, payload);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${shiftId}`);

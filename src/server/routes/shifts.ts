@@ -3,6 +3,7 @@ import {
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
+  calculateTotalReconciliationCount,
   safeNum,
 } from '../../services/financialCalculator.js';
 import { query, queryOne, execute } from '../../db/index.js';
@@ -300,8 +301,8 @@ router.put('/:id/draft', authenticateToken, requirePermission('shift.create'), a
     }
 
     const body = req.body;
-    const opapGross = safeNum(body.opap_gross_sales);
-    const opapPayouts = safeNum(body.opap_payouts);
+    const opapGross = safeNum(body.arithmo_gross ?? body.opap_gross_sales);
+    const opapPayouts = safeNum(body.arithmo_payouts ?? body.opap_payouts);
     const opapNet = opapGross - opapPayouts;
 
     const vltsIn = safeNum(body.vlts_cash_in);
@@ -321,10 +322,17 @@ router.put('/:id/draft', authenticateToken, requirePermission('shift.create'), a
     const countedDenominations = body.counted_denominations || {};
     const countedCash = calculateCountedCash(countedDenominations);
 
+    const toraPos = safeNum(body.tora_pos ?? ((body.tora_pos1 || body.tora_pos2) ? safeNum(body.tora_pos1) + safeNum(body.tora_pos2) : (body.tora_pos_1 || body.tora_pos_2 ? safeNum(body.tora_pos_1) + safeNum(body.tora_pos_2) : 0)));
+
     const expectedCash = calculateExpectedCash({
       opening_cash: shift.opening_cash,
       opap_gross_sales: opapGross,
       opap_payouts: opapPayouts,
+      vouchers: safeNum(body.arithmo_vouchers ?? body.vouchers),
+      cancellations: safeNum(body.arithmo_cancels ?? body.cancellations),
+      pame_stoixima: safeNum(body.pame_stoixima_balance ?? body.pame_stoixima),
+      tora_pos: toraPos,
+      clever_point: safeNum(body.clever_point_total ?? body.clever_point),
       vlts_cash_in: vltsIn,
       vlts_cash_out: vltsOut,
       scratch_lotto_sales: scratchLotto,
@@ -336,7 +344,17 @@ router.put('/:id/draft', authenticateToken, requirePermission('shift.create'), a
       bank_deposits: bankDeposits,
     });
 
-    const disc = calculateDiscrepancy(countedCash, expectedCash, body.discrepancy_threshold || 10.0);
+    const totalReconciliationCount = calculateTotalReconciliationCount({
+      openingCash: safeNum(body.opening_cash) || safeNum(shift.opening_cash) || 0,
+      countedCashInDrawer: countedCash,
+      posSalesTotal: cardPayments,
+      expensesTotal: expensesCash,
+      bankDeposits: bankDeposits,
+      customerCreditsGranted: creditGranted,
+      customerReturns: creditCollected,
+    });
+
+    const disc = calculateDiscrepancy(totalReconciliationCount, expectedCash, body.discrepancy_threshold || 10.0);
 
     await execute(
       `UPDATE shifts SET
@@ -390,8 +408,8 @@ router.post('/:id/submit', authenticateToken, requirePermission('shift.submit'),
     }
 
     const body = req.body;
-    const opapGross = safeNum(body.opap_gross_sales);
-    const opapPayouts = safeNum(body.opap_payouts);
+    const opapGross = safeNum(body.arithmo_gross ?? body.opap_gross_sales);
+    const opapPayouts = safeNum(body.arithmo_payouts ?? body.opap_payouts);
     const opapNet = opapGross - opapPayouts;
 
     const vltsIn = safeNum(body.vlts_cash_in);
@@ -411,10 +429,17 @@ router.post('/:id/submit', authenticateToken, requirePermission('shift.submit'),
     const countedDenominations = body.counted_denominations || {};
     const countedCash = calculateCountedCash(countedDenominations);
 
+    const draftToraPos = safeNum(body.tora_pos ?? ((body.tora_pos1 || body.tora_pos2) ? safeNum(body.tora_pos1) + safeNum(body.tora_pos2) : (body.tora_pos_1 || body.tora_pos_2 ? safeNum(body.tora_pos_1) + safeNum(body.tora_pos_2) : 0)));
+
     const expectedCash = calculateExpectedCash({
       opening_cash: shift.opening_cash,
       opap_gross_sales: opapGross,
       opap_payouts: opapPayouts,
+      vouchers: safeNum(body.arithmo_vouchers ?? body.vouchers),
+      cancellations: safeNum(body.arithmo_cancels ?? body.cancellations),
+      pame_stoixima: safeNum(body.pame_stoixima_balance ?? body.pame_stoixima),
+      tora_pos: draftToraPos,
+      clever_point: safeNum(body.clever_point_total ?? body.clever_point),
       vlts_cash_in: vltsIn,
       vlts_cash_out: vltsOut,
       scratch_lotto_sales: scratchLotto,
@@ -426,8 +451,18 @@ router.post('/:id/submit', authenticateToken, requirePermission('shift.submit'),
       bank_deposits: bankDeposits,
     });
 
+    const totalReconciliationCount = calculateTotalReconciliationCount({
+      openingCash: safeNum(body.opening_cash) || safeNum(shift.opening_cash) || 0,
+      countedCashInDrawer: countedCash,
+      posSalesTotal: cardPayments,
+      expensesTotal: expensesCash,
+      bankDeposits: bankDeposits,
+      customerCreditsGranted: creditGranted,
+      customerReturns: creditCollected,
+    });
+
     const threshold = safeNum(body.discrepancy_threshold) || 10.0;
-    const disc = calculateDiscrepancy(countedCash, expectedCash, threshold);
+    const disc = calculateDiscrepancy(totalReconciliationCount, expectedCash, threshold);
 
     // Save associated expenses array if present
     if (Array.isArray(body.expenses)) {

@@ -8,7 +8,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 import { User, Role } from '../types/index.ts';
 
 const USERS_COLLECTION = 'users';
@@ -103,7 +103,7 @@ export async function createUserInFirestore(userData: any): Promise<any> {
       created_at: nowIso,
       updated_at: nowIso,
     };
-    await setDoc(doc(db, USERS_COLLECTION, id), newUser);
+    await setDoc(doc(db, USERS_COLLECTION, id), cleanFirestoreData(newUser));
     return newUser;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, USERS_COLLECTION);
@@ -114,10 +114,10 @@ export async function createUserInFirestore(userData: any): Promise<any> {
 export async function updateUserInFirestore(userId: string, updateData: any): Promise<void> {
   try {
     const ref = doc(db, USERS_COLLECTION, userId);
-    await updateDoc(ref, {
+    await updateDoc(ref, cleanFirestoreData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    });
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${USERS_COLLECTION}/${userId}`);
     throw error;

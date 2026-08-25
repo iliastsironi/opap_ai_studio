@@ -814,8 +814,8 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               },
               {
                 key: 'show_tora' as keyof ShiftTemplateConfig,
-                title: 'Tora POS Terminals',
-                desc: 'Πληρωμές τερματικών Tora (Pos #1, Pos #2)',
+                title: 'TORA DIRECT Terminals',
+                desc: 'Πληρωμές τερματικών TORA DIRECT (#1, #2)',
               },
               {
                 key: 'show_clever_point' as keyof ShiftTemplateConfig,

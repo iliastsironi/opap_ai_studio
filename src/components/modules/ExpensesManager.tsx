@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
+import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
+import { Shift, ShiftExpense } from '../../types/index.ts';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -15,6 +17,7 @@ export const ExpensesManager: React.FC = () => {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [targetStoreId, setTargetStoreId] = useState(stores[0]?.id || 'store_opap_01');
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [category, setCategory] = useState('CLEANING');
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
@@ -41,23 +44,88 @@ export const ExpensesManager: React.FC = () => {
     loadExpenses();
   }, [selectedStoreId, orgId]);
 
+  useEffect(() => {
+    const checkActiveShift = async () => {
+      if (!targetStoreId || targetStoreId === 'ALL') return;
+      try {
+        const active = await fetchActiveShiftFromFirestore(orgId, targetStoreId);
+        setActiveShift(active);
+      } catch (e) {
+        console.warn('Could not fetch active shift for store', e);
+      }
+    };
+    checkActiveShift();
+  }, [targetStoreId, orgId, showModal]);
+
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || isNaN(Number(amount))) return;
     setSubmitting(true);
     try {
-      await createExpenseInFirestore({
+      const numAmount = parseFloat(amount);
+      const expensePayload: any = {
         organization_id: orgId,
         store_id: targetStoreId,
         category,
-        amount: parseFloat(amount),
+        amount: numAmount,
         payment_method: paymentMethod,
         recipient: recipient || 'Προμηθευτής',
-        receipt_number: receiptNumber,
-        notes,
         created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
         date: new Date().toISOString().split('T')[0],
-      });
+      };
+      if (activeShift?.id) expensePayload.shift_id = activeShift.id;
+      if (receiptNumber) expensePayload.receipt_number = receiptNumber;
+      if (notes) expensePayload.notes = notes;
+
+      const createdRecord = await createExpenseInFirestore(expensePayload);
+
+      // Automatically sync this expense directly to the active shift!
+      if (activeShift) {
+        const newShiftExpense: ShiftExpense = {
+          id: createdRecord.id,
+          shift_id: activeShift.id,
+          organization_id: orgId,
+          store_id: targetStoreId,
+          category: category,
+          amount: numAmount,
+          payment_method: paymentMethod === 'CARD' ? 'CARD' : 'CASH',
+          description: recipient ? `${recipient}${notes ? ` - ${notes}` : ''}` : (notes || category),
+          receipt_url: '',
+          created_by_user_id: user?.id || 'usr_employee',
+          created_at: createdRecord.created_at,
+        };
+
+        const existingShiftExpenses: ShiftExpense[] = Array.isArray(activeShift.expenses) ? [...activeShift.expenses] : [];
+        if (!existingShiftExpenses.some((ex) => ex.id === createdRecord.id)) {
+          existingShiftExpenses.push(newShiftExpense);
+        }
+
+        const totalCashExpenses = existingShiftExpenses.reduce(
+          (sum, item) => sum + (item.payment_method !== 'CARD' ? (Number(item.amount) || 0) : 0),
+          0
+        );
+
+        await updateShiftInFirestore(activeShift.id, {
+          expenses: existingShiftExpenses,
+          expenses_paid_cash: totalCashExpenses,
+        });
+
+        if (typeof window !== 'undefined') {
+          try {
+            const draftKey = `shift_draft_${activeShift.id}`;
+            const rawDraft = localStorage.getItem(draftKey);
+            if (rawDraft) {
+              const parsed = JSON.parse(rawDraft);
+              parsed.expenses = existingShiftExpenses;
+              parsed.expenses_paid_cash = totalCashExpenses;
+              localStorage.setItem(draftKey, JSON.stringify(parsed));
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+
       await loadExpenses();
       setShowModal(false);
       setAmount('');
@@ -266,7 +334,7 @@ export const ExpensesManager: React.FC = () => {
                 <select
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                  className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                 >
                   {stores.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -275,19 +343,43 @@ export const ExpensesManager: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* Active Shift Indicator */}
+              <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2">
+                <Clock className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-tight">
+                  {activeShift ? (
+                    <>
+                      <p className="font-bold text-indigo-950">
+                        ⚡ Ενεργή Βάρδια: {activeShift.register_id || 'Ταμείο 1'} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
+                      </p>
+                      <p className="text-indigo-700 mt-0.5">
+                        Το έξοδο θα καταχωρηθεί και θα μεταφερθεί <strong>αυτόματα</strong> στο κλείσιμο της βάρδιας!
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-slate-600">
+                      Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή. Το έξοδο θα καταγραφεί στο γενικό αρχείο εξόδων.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                    className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                   >
+                    <option value="EXPENSES_GP">Έξοδα ΓΠ (Γενικά Πληρωμών)</option>
+                    <option value="EXPENSES_FNB">Έξοδα FnB (Κυλικείο)</option>
+                    <option value="SUPPLIES">Αναλώσιμα / Χαρτί</option>
                     <option value="CLEANING">Καθαριότητα</option>
-                    <option value="MAINTENANCE">Συντήρηση</option>
-                    <option value="SUPPLIES">Αναλώσιμα</option>
-                    <option value="UTILITIES">Utilities</option>
-                    <option value="OTHER">Διάφορα</option>
+                    <option value="MAINTENANCE">Συντήρηση / Βλάβες</option>
+                    <option value="UTILITIES">Λογαριασμοί / Utilities</option>
+                    <option value="OTHER">Λοιπά Έξοδα</option>
                   </select>
                 </div>
                 <div>
@@ -299,7 +391,7 @@ export const ExpensesManager: React.FC = () => {
                     required
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold"
+                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-slate-900 bg-white"
                   />
                 </div>
               </div>

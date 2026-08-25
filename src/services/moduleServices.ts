@@ -10,7 +10,7 @@ import {
   orderBy,
   onSnapshot,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 
 // ----------------------------------------------------
 // EXPENSES SERVICE
@@ -58,7 +58,7 @@ export async function createExpenseInFirestore(record: Omit<ExpenseRecord, 'id' 
       id,
       created_at: nowIso,
     };
-    await setDoc(doc(db, EXPENSES_COLLECTION, id), newRecord);
+    await setDoc(doc(db, EXPENSES_COLLECTION, id), cleanFirestoreData(newRecord));
     return newRecord;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, EXPENSES_COLLECTION);
@@ -112,7 +112,7 @@ export async function createIncidentInFirestore(record: Omit<IncidentRecord, 'id
       created_at: nowIso,
       updated_at: nowIso,
     };
-    await setDoc(doc(db, INCIDENTS_COLLECTION, id), newRecord);
+    await setDoc(doc(db, INCIDENTS_COLLECTION, id), cleanFirestoreData(newRecord));
     return newRecord;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, INCIDENTS_COLLECTION);
@@ -123,11 +123,11 @@ export async function createIncidentInFirestore(record: Omit<IncidentRecord, 'id
 export async function updateIncidentStatusInFirestore(id: string, status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED', resolution_notes?: string): Promise<void> {
   try {
     const ref = doc(db, INCIDENTS_COLLECTION, id);
-    await updateDoc(ref, {
+    await updateDoc(ref, cleanFirestoreData({
       status,
       resolution_notes: resolution_notes || '',
       updated_at: new Date().toISOString(),
-    });
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${INCIDENTS_COLLECTION}/${id}`);
     throw error;
@@ -177,7 +177,7 @@ export async function createFnbInFirestore(record: Omit<FnbRecord, 'id' | 'creat
       id,
       created_at: nowIso,
     };
-    await setDoc(doc(db, FNB_COLLECTION, id), newRecord);
+    await setDoc(doc(db, FNB_COLLECTION, id), cleanFirestoreData(newRecord));
     return newRecord;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, FNB_COLLECTION);

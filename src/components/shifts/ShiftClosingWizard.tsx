@@ -19,13 +19,18 @@ import {
   CreditCard,
   Building,
   ShieldCheck,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { fetchExpensesFromFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
 import {
   ScratchCalculatorTable,
   DEFAULT_SCRATCH_PRESETS,
   ScratchTicketRow,
   calculateRowTotal,
+  getSavedScratchCatalog,
+  saveScratchCatalog,
 } from './ScratchCalculatorTable.tsx';
 
 export interface ToraPosItem {
@@ -33,12 +38,70 @@ export interface ToraPosItem {
   name: string;
   amount: string;
 }
+
+function getSavedStorePosConfig(storeId?: string): ToraPosItem[] {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(`shiftledger_store_pos_${storeId || 'default'}`) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((p: any) => ({ ...p, amount: '' }));
+      }
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  return [
+    { id: 'store_pos_1', name: 'Pos #1', amount: '' },
+    { id: 'store_pos_2', name: 'Pos #2', amount: '' },
+  ];
+}
+
+function saveStorePosConfig(storeId: string | undefined, items: ToraPosItem[]): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const clean = items.map((p) => ({ id: p.id, name: p.name, amount: '' }));
+    localStorage.setItem(`shiftledger_store_pos_${storeId || 'default'}`, JSON.stringify(clean));
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+function getSavedToraPosConfig(storeId?: string): ToraPosItem[] {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(`shiftledger_tora_pos_${storeId || 'default'}`) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((p: any) => ({ ...p, amount: '' }));
+      }
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  return [
+    { id: 'tora_1', name: 'TORA DIRECT #1', amount: '' },
+    { id: 'tora_2', name: 'TORA DIRECT #2', amount: '' },
+  ];
+}
+
+function saveToraPosConfig(storeId: string | undefined, items: ToraPosItem[]): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const clean = items.map((p) => ({ id: p.id, name: p.name, amount: '' }));
+    localStorage.setItem(`shiftledger_tora_pos_${storeId || 'default'}`, JSON.stringify(clean));
+  } catch (e) {
+    console.warn(e);
+  }
+}
 import {
   EUR_DENOMINATIONS,
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
   calculateTotalReconciliationCount,
+  calculateReconciliationBreakdown,
+  calculateBanknotesAndCoins,
   safeNum,
   roundCurrency,
 } from '../../services/financialCalculator.ts';
@@ -53,12 +116,22 @@ interface ShiftClosingWizardProps {
   onSubmitted: () => void;
 }
 
+function getLocalDraft(shiftId?: string): any {
+  if (typeof window === 'undefined' || !shiftId) return null;
+  try {
+    const raw = localStorage.getItem(`shift_draft_${shiftId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   shift,
   onBack,
   onSubmitted,
 }) => {
-  const { token, roles, permissions } = useAuth();
+  const { token, roles, permissions, user, organization } = useAuth();
   const canManage =
     roles.some(
       (r) =>
@@ -73,7 +146,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [managerUnlockedPos, setManagerUnlockedPos] = useState<boolean>(canManage);
   const [currentStep, setCurrentStep] = useState<number>(1);
 
-  // Step 1 - Opening Cash Breakdown State (Banknotes + Coins)
+  // Step 1 - Opening Cash Breakdown State (Banknotes + Coins + Top-ups)
   const initialOpeningCash = Number(shift.opening_cash || 200);
   const [openingNotesAmount, setOpeningNotesAmount] = useState<string>(
     shift.opening_cash_notes !== undefined
@@ -85,23 +158,48 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       ? String(shift.opening_cash_coins)
       : String(roundCurrency(initialOpeningCash - Math.floor(initialOpeningCash)))
   );
+  const [openingTopUp1, setOpeningTopUp1] = useState<string>(
+    shift.custom_field_values?.opening_topup_1 ? String(shift.custom_field_values.opening_topup_1) : ''
+  );
+  const [openingTopUp2, setOpeningTopUp2] = useState<string>(
+    shift.custom_field_values?.opening_topup_2 ? String(shift.custom_field_values.opening_topup_2) : ''
+  );
 
-  const openingCashTotal = safeNum(openingNotesAmount) + safeNum(openingCoinsAmount);
+  const openingCashTotal =
+    safeNum(openingNotesAmount) +
+    safeNum(openingCoinsAmount) +
+    safeNum(openingTopUp1) +
+    safeNum(openingTopUp2);
 
   // Step 2 - Granular OPAP Reports State
   // 1. Ελληνικά Λαχεία | Σκρατς
   const [scratchRows, setScratchRows] = useState<ScratchTicketRow[]>(() => {
+    const catalog = getSavedScratchCatalog();
     const saved = shift.custom_field_values?.scratch_ticket_items;
     if (Array.isArray(saved) && saved.length > 0) {
-      if (saved.length <= 6) {
-        return DEFAULT_SCRATCH_PRESETS.map((preset) => {
-          const match = saved.find((s: any) => s.id === preset.id || s.name === preset.name);
-          return match ? { ...preset, startNo: match.startNo || '', endNo: match.endNo || '' } : preset;
-        });
+      const merged: ScratchTicketRow[] = [];
+      for (const item of catalog) {
+        const match = saved.find((s: any) => s.id === item.id || s.name === item.name);
+        if (match) {
+          merged.push({
+            ...item,
+            startNo: match.startNo || '',
+            endNo: match.endNo || '',
+            manualQty: match.manualQty !== undefined ? match.manualQty : '',
+          });
+        } else {
+          merged.push(item);
+        }
       }
-      return saved;
+      // Add custom items from saved that might not exist in catalog
+      for (const s of saved) {
+        if (!merged.some((m) => m.id === s.id || m.name === s.name)) {
+          merged.push(s);
+        }
+      }
+      return merged;
     }
-    return DEFAULT_SCRATCH_PRESETS;
+    return catalog;
   });
 
   const [scratchSales, setScratchSales] = useState<string>(() => {
@@ -113,7 +211,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     }
     const initialCalc = (Array.isArray(shift.custom_field_values?.scratch_ticket_items)
       ? shift.custom_field_values.scratch_ticket_items
-      : DEFAULT_SCRATCH_PRESETS
+      : getSavedScratchCatalog()
     ).reduce((sum, r) => sum + calculateRowTotal(r), 0);
     return initialCalc > 0 ? String(initialCalc) : '';
   });
@@ -124,6 +222,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const handleScratchRowsChange = (newRows: ScratchTicketRow[]) => {
     setScratchRows(newRows);
+    saveScratchCatalog(newRows);
     const calc = newRows.reduce((sum, r) => sum + calculateRowTotal(r), 0);
     setScratchSales(calc.toFixed(2));
   };
@@ -134,41 +233,40 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     if (Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
-    return [
-      {
-        id: 'store_pos_1',
-        name: 'Pos #1',
-        amount: shift.card_payments ? String(shift.card_payments) : '',
-      },
-      {
-        id: 'store_pos_2',
-        name: 'Pos #2',
-        amount: '',
-      },
-    ];
+    const config = getSavedStorePosConfig(shift.store_id);
+    if (shift.card_payments && config.length > 0) {
+      config[0].amount = String(shift.card_payments);
+    }
+    return config;
   });
 
   const handleUpdateStorePosItem = (id: string, field: 'name' | 'amount', value: string) => {
-    setStorePosItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
+    setStorePosItems((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, [field]: value } : item));
+      if (field === 'name') {
+        saveStorePosConfig(shift.store_id, updated);
+      }
+      return updated;
+    });
   };
 
   const handleAddStorePosItem = () => {
     const newPosNumber = storePosItems.length + 1;
-    setStorePosItems((prev) => [
-      ...prev,
-      {
-        id: `store_pos_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-        name: `Pos #${newPosNumber}`,
-        amount: '',
-      },
-    ]);
+    const newItem: ToraPosItem = {
+      id: `store_pos_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      name: `Pos #${newPosNumber}`,
+      amount: '',
+    };
+    const updated = [...storePosItems, newItem];
+    setStorePosItems(updated);
+    saveStorePosConfig(shift.store_id, updated);
   };
 
   const handleRemoveStorePosItem = (id: string) => {
     if (storePosItems.length <= 1) return;
-    setStorePosItems((prev) => prev.filter((item) => item.id !== id));
+    const updated = storePosItems.filter((item) => item.id !== id);
+    setStorePosItems(updated);
+    saveStorePosConfig(shift.store_id, updated);
   };
 
   // 2b. Tora Direct POS Items (Υπηρεσίες Tora Direct)
@@ -177,41 +275,43 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     if (Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
-    return [
-      {
-        id: 'tora_1',
-        name: 'Tora #1',
-        amount: shift.tora_pos1 !== undefined && shift.tora_pos1 !== 0 ? String(shift.tora_pos1) : '',
-      },
-      {
-        id: 'tora_2',
-        name: 'Tora #2',
-        amount: shift.tora_pos2 !== undefined && shift.tora_pos2 !== 0 ? String(shift.tora_pos2) : '',
-      },
-    ];
+    const config = getSavedToraPosConfig(shift.store_id);
+    if (shift.tora_pos1 !== undefined && shift.tora_pos1 !== 0 && config.length > 0) {
+      config[0].amount = String(shift.tora_pos1);
+    }
+    if (shift.tora_pos2 !== undefined && shift.tora_pos2 !== 0 && config.length > 1) {
+      config[1].amount = String(shift.tora_pos2);
+    }
+    return config;
   });
 
   const handleUpdatePosItem = (id: string, field: 'name' | 'amount', value: string) => {
-    setToraPosItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
+    setToraPosItems((prev) => {
+      const updated = prev.map((item) => (item.id === id ? { ...item, [field]: value } : item));
+      if (field === 'name') {
+        saveToraPosConfig(shift.store_id, updated);
+      }
+      return updated;
+    });
   };
 
   const handleAddPosItem = () => {
     const newPosNumber = toraPosItems.length + 1;
-    setToraPosItems((prev) => [
-      ...prev,
-      {
-        id: `tora_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-        name: `Tora #${newPosNumber}`,
-        amount: '',
-      },
-    ]);
+    const newItem: ToraPosItem = {
+      id: `tora_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      name: `TORA DIRECT #${newPosNumber}`,
+      amount: '',
+    };
+    const updated = [...toraPosItems, newItem];
+    setToraPosItems(updated);
+    saveToraPosConfig(shift.store_id, updated);
   };
 
   const handleRemovePosItem = (id: string) => {
     if (toraPosItems.length <= 1) return;
-    setToraPosItems((prev) => prev.filter((item) => item.id !== id));
+    const updated = toraPosItems.filter((item) => item.id !== id);
+    setToraPosItems(updated);
+    saveToraPosConfig(shift.store_id, updated);
   };
 
   // 3. Clever Point
@@ -269,17 +369,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   );
 
   // Expenses & Credits lists
-  const [expenses, setExpenses] = useState<Array<Partial<ShiftExpense>>>(
-    shift.expenses && shift.expenses.length > 0
-      ? shift.expenses
-      : []
-  );
+  const [expenses, setExpenses] = useState<Array<Partial<ShiftExpense>>>(() => {
+    if (shift.expenses && shift.expenses.length > 0) return shift.expenses;
+    const local = getLocalDraft(shift.id);
+    if (local?.expenses && Array.isArray(local.expenses) && local.expenses.length > 0) {
+      return local.expenses;
+    }
+    return [];
+  });
 
-  const [customerCredits, setCustomerCredits] = useState<Array<Partial<CustomerCredit>>>(
-    shift.customer_credits && shift.customer_credits.length > 0
-      ? shift.customer_credits
-      : []
-  );
+  const [customerCredits, setCustomerCredits] = useState<Array<Partial<CustomerCredit>>>(() => {
+    if (shift.customer_credits && shift.customer_credits.length > 0) return shift.customer_credits;
+    const local = getLocalDraft(shift.id);
+    if (local?.customer_credits && Array.isArray(local.customer_credits) && local.customer_credits.length > 0) {
+      return local.customer_credits;
+    }
+    return [];
+  });
 
   const [employeeNotes, setEmployeeNotes] = useState<string>(shift.employee_notes || '');
 
@@ -288,6 +394,74 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-sync expenses state
+  const [isSyncingExpenses, setIsSyncingExpenses] = useState<boolean>(false);
+  const [syncNotification, setSyncNotification] = useState<string | null>(null);
+
+  const syncExpensesFromStore = async (isManual = false) => {
+    setIsSyncingExpenses(true);
+    try {
+      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+      const storeExpenses = await fetchExpensesFromFirestore(orgId, shift.store_id);
+
+      const shiftOpenTime = new Date(shift.opened_at).getTime();
+      const relevant = storeExpenses.filter((e) => {
+        if (e.shift_id && e.shift_id === shift.id) return true;
+        if (!e.shift_id) {
+          const expTime = new Date(e.created_at).getTime();
+          if (expTime >= shiftOpenTime - 3600 * 1000) return true;
+        }
+        return false;
+      });
+
+      if (relevant.length > 0) {
+        setExpenses((prevExpenses) => {
+          const updated = [...prevExpenses];
+          let addedCount = 0;
+          for (const item of relevant) {
+            const exists = updated.some(
+              (u) => u.id === item.id || (u.description && u.description.includes(item.id))
+            );
+            if (!exists) {
+              updated.push({
+                id: item.id,
+                shift_id: shift.id,
+                organization_id: orgId,
+                store_id: shift.store_id,
+                category: item.category || 'EXPENSES_GP',
+                amount: Number(item.amount) || 0,
+                payment_method: item.payment_method === 'CARD' ? 'CARD' : 'CASH',
+                description: item.recipient
+                  ? `${item.recipient}${item.notes ? ` - ${item.notes}` : ''}`
+                  : (item.notes || item.category),
+                receipt_url: '',
+                created_by_user_id: user?.id || 'usr_employee',
+                created_at: item.created_at,
+              });
+              addedCount++;
+            }
+          }
+          if (isManual) {
+            setSyncNotification(`Συγχρονίστηκαν ${relevant.length} έξοδα από τη βάση!`);
+          } else if (addedCount > 0) {
+            setSyncNotification(`Ανακτήθηκαν αυτόματα ${addedCount} νέα έξοδα από την ενότητα Εξόδων!`);
+          }
+          return updated;
+        });
+      } else if (isManual) {
+        setSyncNotification('Όλα τα έξοδα είναι ήδη πλήρως ενημερωμένα.');
+      }
+    } catch (err) {
+      console.warn('Error syncing expenses in wizard:', err);
+    } finally {
+      setIsSyncingExpenses(false);
+    }
+  };
+
+  useEffect(() => {
+    syncExpensesFromStore(false);
+  }, [shift.id, shift.store_id]);
 
   // Computed Section Totals
   const totalScratchNet = safeNum(scratchSales) - safeNum(scratchPayouts);
@@ -305,11 +479,33 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const opapPayoutsTotal = safeNum(arithmoPayouts) - safeNum(arithmoVouchers);
 
+  // Helper to distinguish F&B expenses from General Store expenses (ΓΠ)
+  const isFnbExpense = (category?: string) => {
+    const cat = (category || '').toUpperCase();
+    return (
+      cat === 'FNB' ||
+      cat === 'EXPENSES_FNB' ||
+      cat === 'BEVERAGES_FNB' ||
+      cat === 'BEVERAGES' ||
+      cat === 'ΚΥΛΙΚΕΙΟ' ||
+      cat === 'ΕΞΟΔΑ FNB'
+    );
+  };
+
   // Calculated figures using isolated Financial Calculator service
-  const expensesCashTotal = expenses.reduce(
-    (acc, exp) => acc + (exp.payment_method === 'CASH' ? safeNum(exp.amount) : 0),
+  const expensesGpCashTotal = expenses.reduce(
+    (acc, exp) =>
+      acc + (exp.payment_method !== 'CARD' && !isFnbExpense(exp.category) ? safeNum(exp.amount) : 0),
     0
   );
+
+  const expensesFnbCashTotal = expenses.reduce(
+    (acc, exp) =>
+      acc + (exp.payment_method !== 'CARD' && isFnbExpense(exp.category) ? safeNum(exp.amount) : 0),
+    0
+  );
+
+  const expensesCashTotal = expensesGpCashTotal + expensesFnbCashTotal;
 
   const expensesTotal = expenses.reduce(
     (acc, exp) => acc + safeNum(exp.amount),
@@ -328,37 +524,43 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const effectiveVltsOutflow = vltsOutType === 'NEGATIVE' ? safeNum(vltsOut) : 0;
   const effectiveVltsInflow = vltsOutType === 'POSITIVE' ? safeNum(vltsOut) : 0;
-  const signedVltsOut = vltsOutType === 'NEGATIVE' ? safeNum(vltsOut) : -safeNum(vltsOut);
+  const signedVltsOut = vltsOutType === 'NEGATIVE' ? -safeNum(vltsOut) : safeNum(vltsOut);
 
   const expectedCash = calculateExpectedCash({
     opening_cash: openingCashTotal,
-    opap_gross_sales: opapGrossTotal,
-    opap_payouts: opapPayoutsTotal,
-    vlts_cash_in: safeNum(vltsIn) + effectiveVltsInflow,
-    vlts_cash_out: effectiveVltsOutflow,
+    opap_gross_sales: safeNum(arithmoGross),
+    opap_payouts: safeNum(arithmoPayouts),
+    vouchers: safeNum(arithmoVouchers),
+    cancellations: safeNum(arithmoCancels),
+    pame_stoixima: safeNum(pameStoiximaBalance),
     scratch_lotto_sales: totalScratchNet,
-    fnb_cash: fnbCash,
-    customer_credit_collected: creditCollectedTotal,
-    card_payments: totalStorePos,
-    expenses_paid_cash: expensesCashTotal,
-    customer_credit_granted: creditGrantedTotal,
-    bank_deposits: bankDeposits,
+    tora_pos: totalToraPos,
+    clever_point: safeNum(cleverPointTotal),
+    vlts_cash_in: safeNum(vltsIn),
+    vlts_cash_out: signedVltsOut,
+    fnb_cash: safeNum(fnbCash) || safeNum(fnbSales),
   });
 
   const countedCash = calculateCountedCash(denominations);
-  const discResult = calculateDiscrepancy(countedCash, expectedCash, safeNum(discrepancyThreshold));
+  const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
-  // Formula requested by user for Σύνολο Καταμέτρησης:
-  // (Μετρημένα στο συρτάρι) + (Πωλήσεις POS #x Καταστήματος) + (Όλα τα έξοδα) + (Πιστώσεις Πελατών) - (Επιστροφές Πελατών) - (Αρχικό Κεφάλαιο)
-  const totalReconciliationCount = calculateTotalReconciliationCount({
+  const reconciliationBreakdown = calculateReconciliationBreakdown({
     openingCash: openingCashTotal,
     countedCashInDrawer: countedCash,
     posSalesTotal: totalStorePos,
-    expensesTotal: expensesTotal,
+    expensesTotal: expensesCashTotal,
     bankDeposits: bankDeposits,
     customerCreditsGranted: creditGrantedTotal,
     customerReturns: creditCollectedTotal,
   });
+
+  const totalReconciliationCount = reconciliationBreakdown.netTotal;
+
+  const discResult = calculateDiscrepancy(
+    totalReconciliationCount,
+    expectedCash,
+    safeNum(discrepancyThreshold)
+  );
 
   // Autosave Draft function
   const saveDraft = async () => {
@@ -406,14 +608,27 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         discrepancy_threshold: safeNum(discrepancyThreshold),
         is_unbalanced: discResult.isUnbalanced,
         employee_notes: employeeNotes,
+        expenses: expenses as any,
+        customer_credits: customerCredits as any,
         custom_field_values: {
           ...(shift.custom_field_values || {}),
+          opening_topup_1: safeNum(openingTopUp1),
+          opening_topup_2: safeNum(openingTopUp2),
           scratch_ticket_items: scratchRows,
           store_pos_items: storePosItems,
           tora_pos_items: toraPosItems,
           total_reconciliation_count: totalReconciliationCount,
+          reconciliation_gross_total: reconciliationBreakdown.grossTotal,
         },
       };
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`shift_draft_${shift.id}`, JSON.stringify(draftPayload));
+        } catch (e) {
+          // ignore
+        }
+      }
 
       await updateShiftInFirestore(shift.id, draftPayload);
 
@@ -551,12 +766,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         discrepancy_threshold: safeNum(discrepancyThreshold),
         is_unbalanced: discResult.isUnbalanced,
         employee_notes: employeeNotes,
+        expenses: expenses as any,
+        customer_credits: customerCredits as any,
         custom_field_values: {
           ...(shift.custom_field_values || {}),
+          opening_topup_1: safeNum(openingTopUp1),
+          opening_topup_2: safeNum(openingTopUp2),
           scratch_ticket_items: scratchRows,
           store_pos_items: storePosItems,
           tora_pos_items: toraPosItems,
           total_reconciliation_count: totalReconciliationCount,
+          reconciliation_gross_total: reconciliationBreakdown.grossTotal,
         },
       };
 
@@ -756,10 +976,38 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Προσαύξηση #1 (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={openingTopUp1}
+                    onChange={(e) => setOpeningTopUp1(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Προσαύξηση #2 (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={openingTopUp2}
+                    onChange={(e) => setOpeningTopUp2(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
 
               <div className="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-600">Σύνολο Αρχικών Μετρητών:</span>
+                <span className="font-bold text-slate-600">Σύνολο Αρχικού Κεφαλαίου:</span>
                 <span className="font-black text-indigo-900 text-sm">{openingCashTotal.toFixed(2)} €</span>
               </div>
             </div>
@@ -936,9 +1184,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         value={item.amount}
                         onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 font-bold font-mono text-base"
+                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                       />
-                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
                     </div>
                   </div>
                 ))}
@@ -952,45 +1200,26 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
                     <span>📱 Tora Direct (Υπηρεσίες Tora)</span>
                   </h4>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-[10px] font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3 text-indigo-600 shrink-0" />
-                      Ορίζονται & Διαχειρίζονται από Manager/Admin
-                    </span>
-                    {!canManage && !managerUnlockedPos && (
-                      <button
-                        type="button"
-                        onClick={() => setManagerUnlockedPos(true)}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
-                      >
-                        (Ξεκλείδωμα Manager)
-                      </button>
-                    )}
-                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                    Εισάγετε τα ποσά από τα τερματικά Tora Direct (προστίθενται στο ταμείο)
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {(canManage || managerUnlockedPos) && (
                     <button
                       type="button"
                       onClick={handleAddPosItem}
-                      className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1"
+                      className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Προσθήκη Tora POS</span>
+                      <span>Προσθήκη TORA</span>
                     </button>
                   )}
-                  <span className="text-xs font-black text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
-                    Σύνολο Tora: {totalToraPos.toFixed(2)} €
+                  <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
+                    Σύνολο TORA DIRECT: {totalToraPos.toFixed(2)} €
                   </span>
                 </div>
               </div>
-
-              {!canManage && !managerUnlockedPos && (
-                <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5 text-amber-800 text-xs flex items-center gap-2 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Τα ποσά και τα τερματικά Tora Direct ορίζονται από τον Manager. Πατήστε "(Ξεκλείδωμα Manager)" αν απαιτείται τροποποίηση.</span>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {toraPosItems.map((item) => (
@@ -1011,8 +1240,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemovePosItem(item.id)}
-                          className="text-slate-300 hover:text-rose-600 p-0.5 transition-colors"
-                          title="Διαγραφή Tora POS"
+                          className="text-slate-300 hover:text-rose-600 p-0.5 transition-colors cursor-pointer"
+                          title="Διαγραφή TORA DIRECT"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1023,17 +1252,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <input
                         type="number"
                         step="0.01"
-                        disabled={!canManage && !managerUnlockedPos}
                         value={item.amount}
                         onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
                         placeholder="0.00"
-                        className={`w-full px-3 py-2 rounded-lg border text-base font-bold font-mono focus:ring-2 ${
-                          canManage || managerUnlockedPos
-                            ? 'border-indigo-300 text-slate-900 bg-white focus:ring-indigo-500'
-                            : 'border-slate-200 text-slate-700 bg-slate-100/80 cursor-not-allowed'
-                        }`}
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                       />
-                      <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
                     </div>
                   </div>
                 ))}
@@ -1104,7 +1328,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span>🎰 PLAY VLTs</span>
                 </h4>
                 <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                  Καθαρό: {(safeNum(vltsIn) - signedVltsOut).toFixed(2)} €
+                  Καθαρό: {(safeNum(vltsIn) + signedVltsOut).toFixed(2)} €
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1313,7 +1537,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
           {/* Daily Expenses */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h4 className="text-base font-extrabold text-slate-900 flex items-center space-x-2">
                   <Receipt className="w-5 h-5 text-indigo-600" />
@@ -1321,15 +1545,52 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </h4>
                 <p className="text-xs text-slate-500">Πληρωμές σε προμηθευτές ή αναλώσιμα από το ταμείο.</p>
               </div>
-              <button
-                type="button"
-                onClick={handleAddExpense}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Προσθήκη Εξόδου</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold">
+                  <span className="text-slate-600">ΓΠ: <span className="text-slate-900 font-mono">{expensesGpCashTotal.toFixed(2)}€</span></span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-slate-600">FnB: <span className="text-slate-900 font-mono">{expensesFnbCashTotal.toFixed(2)}€</span></span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-indigo-700">Σύνολο: <span className="font-mono">{expensesCashTotal.toFixed(2)}€</span></span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => syncExpensesFromStore(true)}
+                  disabled={isSyncingExpenses}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="Ανάκτηση εξόδων που καταχωρήθηκαν στην ενότητα Έξοδα & Δαπάνες"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingExpenses ? 'animate-spin text-indigo-600' : ''}`} />
+                  <span>{isSyncingExpenses ? 'Συγχρονισμός...' : '🔄 Συγχρονισμός'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddExpense}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Προσθήκη Εξόδου</span>
+                </button>
+              </div>
             </div>
+
+            {syncNotification && (
+              <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold animate-fadeIn">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>{syncNotification}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSyncNotification(null)}
+                  className="text-indigo-400 hover:text-indigo-700 text-xs ml-2 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {expenses.length === 0 ? (
               <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400 font-medium">
@@ -1344,7 +1605,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   >
                     <div className="sm:col-span-3">
                       <select
-                        value={exp.category || 'SUPPLIES'}
+                        value={exp.category || 'EXPENSES_GP'}
                         onChange={(e) => {
                           const updated = [...expenses];
                           updated[idx].category = e.target.value;
@@ -1352,11 +1613,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         }}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white"
                       >
-                        <option value="SUPPLIES">Αναλώσιμα / Χαρτί</option>
-                        <option value="UTILITIES">Λογαριασμοί / ΔΕΗ</option>
-                        <option value="CLEANING">Καθαριότητα</option>
-                        <option value="MAINTENANCE">Συντήρηση</option>
-                        <option value="OTHER">Άλλο Έξοδο</option>
+                        <option value="EXPENSES_GP">Έξοδα ΓΠ (Γενικά Πληρωμών)</option>
+                        <option value="EXPENSES_FNB">Έξοδα FnB (Κυλικείο)</option>
+                        <option value="SUPPLIES">Αναλώσιμα / Χαρτί (ΓΠ)</option>
+                        <option value="UTILITIES">Λογαριασμοί / ΔΕΗ (ΓΠ)</option>
+                        <option value="CLEANING">Καθαριότητα (ΓΠ)</option>
+                        <option value="MAINTENANCE">Συντήρηση (ΓΠ)</option>
+                        <option value="OTHER">Άλλα Έξοδα (ΓΠ)</option>
                       </select>
                     </div>
 
@@ -1651,46 +1914,365 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
-          {/* Breakdown Table for Σύνολο Καταμέτρησης */}
-          <div className="border border-indigo-200 rounded-2xl overflow-hidden text-xs shadow-xs">
-            <div className="bg-indigo-950 text-white px-4 py-3 font-extrabold text-sm flex items-center justify-between">
-              <span className="flex items-center space-x-2">
-                <span>📊 Αναλυτικός Υπολογισμός: Σύνολο Καταμέτρησης</span>
-              </span>
-              <span className="font-mono text-emerald-400 font-black text-base">
-                {totalReconciliationCount.toFixed(2)} €
-              </span>
+          {/* 📋 Πλήρες Φύλλο Ισοσκελισμού Βάρδιας (Ακριβές Πρότυπο Excel) */}
+          <div className="bg-slate-900 text-white rounded-3xl p-5 sm:p-6 border border-slate-800 shadow-xl space-y-5">
+            {/* Excel Top Header */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 text-xs">
+              <div className="space-y-1.5 border-b md:border-b-0 md:border-r border-slate-700/60 pb-3 md:pb-0 md:pr-4">
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-400 font-bold">Κατάστημα:</span>
+                  <span className="font-mono font-bold text-white bg-slate-900/60 px-2.5 py-0.5 rounded border border-slate-700/40">
+                    {shift.store_code || shift.store_id || '100343'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-400 font-bold">Ημερομηνία:</span>
+                  <span className="font-mono font-bold text-white">
+                    {shift.opened_at ? new Date(shift.opened_at).toLocaleDateString('el-GR') : new Date().toLocaleDateString('el-GR')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-400 font-bold">Βάρδια:</span>
+                  <span className="font-mono font-bold text-indigo-300">
+                    {shift.shift_type === 'MORNING' ? 'A (Πρωινή)' : shift.shift_type === 'AFTERNOON' ? 'B (Απογευματινή)' : (shift.shift_type || 'B')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 flex flex-col justify-between">
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-400 font-bold">Όνομα Χρήστη:</span>
+                  <span className="font-bold text-white">
+                    {shift.opened_by_user_name || shift.opened_by_user_id || 'Περικλής Βέττας'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center bg-slate-950/80 px-3.5 py-2 rounded-xl border border-slate-700/80">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-300">
+                    Αποτέλεσμα Ταμείου:
+                  </span>
+                  <span
+                    className={`font-mono text-base font-black px-2.5 py-0.5 rounded-lg ${
+                      discResult.discrepancy === 0
+                        ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-500/30'
+                        : Math.abs(discResult.discrepancy) <= safeNum(discrepancyThreshold)
+                        ? 'text-amber-300 bg-amber-950/60 border border-amber-500/30'
+                        : 'text-rose-400 bg-rose-950/60 border border-rose-500/30'
+                    }`}
+                  >
+                    {discResult.discrepancy >= 0 ? '+' : ''}
+                    {discResult.discrepancy.toFixed(2)} €
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="divide-y divide-slate-100 bg-white">
-              <div className="px-4 py-2.5 flex justify-between items-center">
-                <span className="text-slate-700 font-medium">1. Μετρημένα στο Συρτάρι</span>
-                <span className="font-bold text-slate-900 font-mono">{countedCash.toFixed(2)} €</span>
+
+            {/* 2-Column Excel Sheet Replica */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              {/* LEFT COLUMN: Αναφορές */}
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/60 overflow-hidden flex flex-col justify-between">
+                {/* Column Banner */}
+                <div className="bg-blue-900/90 text-white text-center py-2 text-xs font-black uppercase tracking-wider border-b border-blue-800 shadow-xs">
+                  Αναφορές
+                </div>
+
+                <div className="p-3.5 space-y-3.5 text-xs">
+                  {/* 1. Ελληνικά Λαχεία | Σκρατς */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Ελληνικά Λαχεία | Σκρατς
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Πωλήσεις:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(scratchSales).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Εξαργυρώσεις:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(scratchPayouts).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{totalScratchNet.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 2. Tora */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Tora
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Pos #1:</span>
+                      <span className="font-mono font-bold text-white">{toraPosItems[0] ? safeNum(toraPosItems[0].amount).toFixed(2) + ' €' : totalToraPos.toFixed(2) + ' €'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Pos #2:</span>
+                      <span className="font-mono font-bold text-white">{toraPosItems[1] ? safeNum(toraPosItems[1].amount).toFixed(2) + ' €' : '0.00 €'}</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{totalToraPos.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 3. Clever Point */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Clever Point
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold pt-0.5">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{safeNum(cleverPointTotal).toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 4. Ιππόδρομος */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Ιππόδρομος
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Υπόλοιπο Ταμείου:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(ippodromosBalance).toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 5. VLTs */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      VLTs
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Μετρητά στα VLTs:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(vltsIn).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Ροή Μετρητών:</span>
+                      <span className={`font-mono font-bold ${signedVltsOut < 0 ? 'text-rose-400' : signedVltsOut > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                        {signedVltsOut !== 0 ? (signedVltsOut < 0 ? '-' + Math.abs(signedVltsOut).toFixed(2) + ' €' : '+' + signedVltsOut.toFixed(2) + ' €') : '0.00 €'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 6. Pame Stoixima | Virtuals */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Pame Stoixima | Virtuals
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Υπόλοιπο Ταμείου:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(pameStoiximaBalance).toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 7. Αριθμοπαιχνίδια */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Αριθμοπαιχνίδια
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Πωλήσεις:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(arithmoGross).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Ακυρώσεις:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(arithmoCancels).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Εξαργυρώσεις:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(arithmoPayouts).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Vouchers:</span>
+                      <span className={`font-mono font-bold ${safeNum(arithmoVouchers) < 0 ? 'text-rose-400' : 'text-white'}`}>
+                        {safeNum(arithmoVouchers) !== 0 ? (safeNum(arithmoVouchers) < 0 ? '-' + Math.abs(safeNum(arithmoVouchers)).toFixed(2) + ' €' : safeNum(arithmoVouchers).toFixed(2) + ' €') : '0.00 €'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{totalArithmoNet.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* 8. Ταμείο FnB */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Ταμείο FnB
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Μετρητά:</span>
+                      <span className="font-mono font-bold text-white">{(safeNum(fnbCash) > 0 ? safeNum(fnbCash) : safeNum(fnbSales)).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Pos:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(fnbCard).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{(safeNum(fnbCash) + safeNum(fnbCard) > 0 ? safeNum(fnbCash) + safeNum(fnbCard) : safeNum(fnbSales)).toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Left Blue Bar */}
+                <div className="bg-blue-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
+                  <span>Σύνολο Ταμείου (Αναφορές):</span>
+                  <span className="font-mono text-sm">{expectedCash.toFixed(2)} €</span>
+                </div>
               </div>
-              <div className="px-4 py-2.5 flex justify-between items-center bg-slate-50/60">
-                <span className="text-slate-700 font-medium">(+) Πωλήσεις από POS #x (Χειροκίνητες)</span>
-                <span className="font-bold text-emerald-700 font-mono">+{totalToraPos.toFixed(2)} €</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between items-center">
-                <span className="text-slate-700 font-medium">(+) Όλα τα Έξοδα</span>
-                <span className="font-bold text-emerald-700 font-mono">+{expensesTotal.toFixed(2)} €</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between items-center bg-slate-50/60">
-                <span className="text-slate-700 font-medium">(+) Πιστώσεις Πελατών (Χρεώσεις)</span>
-                <span className="font-bold text-emerald-700 font-mono">+{creditGrantedTotal.toFixed(2)} €</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between items-center">
-                <span className="text-slate-700 font-medium">(-) Επιστροφές Πελατών (Εισπράξεις / Επιστροφές)</span>
-                <span className="font-bold text-rose-600 font-mono">-{creditCollectedTotal.toFixed(2)} €</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between items-center bg-amber-50/40">
-                <span className="text-amber-950 font-semibold">(-) Αρχικό Κεφάλαιο (Float)</span>
-                <span className="font-bold text-rose-700 font-mono">-{openingCashTotal.toFixed(2)} €</span>
-              </div>
-              <div className="px-4 py-3.5 flex justify-between items-center bg-indigo-50 font-black border-t-2 border-indigo-200 text-sm">
-                <span className="text-indigo-950 uppercase tracking-wider text-xs font-black">
-                  (=) Σύνολο Καταμέτρησης
-                </span>
-                <span className="text-indigo-950 font-mono text-base">{totalReconciliationCount.toFixed(2)} €</span>
+
+              {/* RIGHT COLUMN: Καταμέτρηση */}
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/60 overflow-hidden flex flex-col justify-between">
+                {/* Column Banner */}
+                <div className="bg-blue-900/90 text-white text-center py-2 text-xs font-black uppercase tracking-wider border-b border-blue-800 shadow-xs">
+                  Καταμέτρηση
+                </div>
+
+                <div className="p-3.5 space-y-3.5 text-xs">
+                  {/* Block 1: Αρχικό κεφάλαιο */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Αρχικό κεφάλαιο
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Μετρητά:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(openingNotesAmount).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Κέρματα:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(openingCoinsAmount).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Προσαύξηση #1:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(openingTopUp1).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Προσαύξηση #2:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(openingTopUp2).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{openingCashTotal.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* Block 2: Κέρματα Ταμείου */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Κέρματα Ταμείου
+                    </div>
+                    <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                      {[
+                        { label: '2x', key: 'eur_2', val: 2 },
+                        { label: '1x', key: 'eur_1', val: 1 },
+                        { label: '0.5x', key: 'eur_050', val: 0.5 },
+                        { label: '0.2x', key: 'eur_020', val: 0.2 },
+                        { label: '0.1x', key: 'eur_010', val: 0.1 },
+                        { label: '0.05x', key: 'eur_005', val: 0.05 },
+                        { label: '0.02x', key: 'eur_002', val: 0.02 },
+                        { label: '0.01x', key: 'eur_001', val: 0.01 },
+                      ].map((c) => {
+                        const qty = Math.floor(safeNum(denominations[c.key]));
+                        const subtotal = roundCurrency(qty * c.val);
+                        return (
+                          <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
+                            <span className="font-mono text-slate-300 font-bold w-12">{c.label}</span>
+                            <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty}</span>
+                            <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* Block 3: Μετρητά Ταμείου */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Μετρητά Ταμείου
+                    </div>
+                    <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                      {[
+                        { label: '5x', key: 'eur_5', val: 5 },
+                        { label: '10x', key: 'eur_10', val: 10 },
+                        { label: '20x', key: 'eur_20', val: 20 },
+                        { label: '50x', key: 'eur_50', val: 50 },
+                        { label: '100x', key: 'eur_100', val: 100 },
+                        { label: '200x', key: 'eur_200', val: 200 },
+                        { label: '500x', key: 'eur_500', val: 500 },
+                      ].map((n) => {
+                        const qty = Math.floor(safeNum(denominations[n.key]));
+                        const subtotal = roundCurrency(qty * n.val);
+                        return (
+                          <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
+                            <span className="font-mono text-slate-300 font-bold w-12">{n.label}</span>
+                            <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty}</span>
+                            <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* Block 4: Ταμείο */}
+                  <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                      Ταμείο
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Μετρητά:</span>
+                      <span className="font-mono font-bold text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Κέρματα:</span>
+                      <span className="font-mono font-bold text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Χρηματοκιβώτιο:</span>
+                      <span className="font-mono font-bold text-white">{safeNum(bankDeposits).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Pos #1:</span>
+                      <span className="font-mono font-bold text-white">{storePosItems[0] ? safeNum(storePosItems[0].amount).toFixed(2) + ' €' : totalStorePos.toFixed(2) + ' €'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Pos #2:</span>
+                      <span className="font-mono font-bold text-white">{storePosItems[1] ? safeNum(storePosItems[1].amount).toFixed(2) + ' €' : '0.00 €'}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Έξοδα ΓΠ:</span>
+                      <span className="font-mono font-bold text-white">{expensesGpCashTotal.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Έξοδα FnB:</span>
+                      <span className="font-mono font-bold text-white">{expensesFnbCashTotal.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Πιστώσεις:</span>
+                      <span className="font-mono font-bold text-white">{creditGrantedTotal.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300 py-0.5">
+                      <span>Επιστροφές:</span>
+                      <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + creditCollectedTotal.toFixed(2) + ' €' : '0.00 €'}</span>
+                    </div>
+                    <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
+                      <span>Σύνολο:</span>
+                      <span className="font-mono text-white">{reconciliationBreakdown.grossTotal.toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Right Blue Bar */}
+                <div className="bg-blue-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
+                  <span>Σύνολο Καταμέτρησης:</span>
+                  <span className="font-mono text-sm text-emerald-300">{totalReconciliationCount.toFixed(2)} €</span>
+                </div>
               </div>
             </div>
           </div>

@@ -209,11 +209,11 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   className={`text-xs font-black font-mono px-3 py-1 rounded-lg border shadow-2xs ${
                     subtotal > 0
                       ? isDark
-                        ? 'bg-indigo-950/90 text-indigo-300 border-indigo-800/80'
-                        : 'bg-indigo-100/80 text-indigo-800 border-indigo-200'
+                        ? 'bg-indigo-950 text-indigo-300 border-indigo-700'
+                        : 'bg-indigo-100 text-indigo-950 border-indigo-200'
                       : isDark
-                      ? 'bg-slate-950/60 text-slate-500 border-slate-800'
-                      : 'bg-indigo-50/60 text-indigo-600/80 border-indigo-100/60'
+                      ? 'bg-slate-900 text-slate-400 border-slate-700'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                 >
                   {subtotal.toFixed(2)} €
@@ -224,8 +224,8 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               <div
                 className={`flex items-center p-1.5 rounded-xl border shadow-2xs transition-all gap-1 ${
                   isDark
-                    ? 'bg-slate-950 border-slate-800 focus-within:border-indigo-500'
-                    : 'bg-white border-slate-200 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100'
+                    ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
+                    : 'bg-white border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
                 }`}
               >
                 <button
@@ -234,8 +234,8 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   onClick={() => updateCount(denom.key, -1)}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 active:scale-95 transition-all select-none ${
                     readOnly || qty <= 0
-                      ? isDark ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                      : isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700 cursor-pointer' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer'
+                      ? isDark ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700 cursor-pointer' : 'bg-slate-100 text-slate-900 hover:bg-slate-200 cursor-pointer'
                   }`}
                   title="Μείωση κατά 1"
                 >
@@ -247,11 +247,16 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   min="0"
                   step="1"
                   disabled={readOnly}
-                  value={qty === 0 ? '' : qty}
+                  value={qty === 0 ? '0' : qty}
+                  onFocus={(e) => {
+                    if (e.target.value === '0') {
+                      e.target.select();
+                    }
+                  }}
                   onChange={(e) => setDirectCount(denom.key, e.target.value)}
                   placeholder="0"
-                  className={`flex-1 min-w-0 px-1 text-center font-black text-base sm:text-lg bg-transparent border-none focus:outline-none focus:ring-0 ${
-                    isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-900 placeholder:text-slate-300'
+                  className={`flex-1 min-w-0 px-1 text-center font-black font-mono text-base sm:text-lg bg-transparent border-none focus:outline-none focus:ring-0 ${
+                    isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-950 placeholder:text-slate-500'
                   }`}
                 />
 

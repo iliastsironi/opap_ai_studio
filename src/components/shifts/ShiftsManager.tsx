@@ -133,8 +133,13 @@ export const ShiftsManager: React.FC = () => {
 
     const recalculatedExpected = calculateExpectedCash({
       opening_cash: opening,
-      opap_gross_sales: opapGross,
-      opap_payouts: opapPayouts,
+      opap_gross_sales: s.arithmo_gross !== undefined ? safeNum(s.arithmo_gross) : opapGross,
+      opap_payouts: s.arithmo_payouts !== undefined ? safeNum(s.arithmo_payouts) : opapPayouts,
+      vouchers: safeNum(s.arithmo_vouchers),
+      cancellations: safeNum(s.arithmo_cancels),
+      pame_stoixima: safeNum(s.pame_stoixima_balance),
+      tora_pos: (s.tora_pos1 || s.tora_pos2) ? safeNum(s.tora_pos1) + safeNum(s.tora_pos2) : (s.tora_pos_1 || s.tora_pos_2 ? safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2) : 0),
+      clever_point: safeNum(s.clever_point_total),
       vlts_cash_in: vltsIn,
       vlts_cash_out: vltsOut,
       scratch_lotto_sales: scratchLotto,
@@ -147,7 +152,6 @@ export const ShiftsManager: React.FC = () => {
     });
 
     const countedCash = calculateCountedCash(s.counted_denominations || {});
-    const discResult = calculateDiscrepancy(countedCash, recalculatedExpected, s.discrepancy_threshold || 10.0);
 
     const totalReconciliationCount = calculateTotalReconciliationCount({
       openingCash: opening,
@@ -158,6 +162,8 @@ export const ShiftsManager: React.FC = () => {
       customerCreditsGranted: creditGranted,
       customerReturns: creditCollected,
     });
+
+    const discResult = calculateDiscrepancy(totalReconciliationCount, recalculatedExpected, s.discrepancy_threshold || 10.0);
 
     return {
       shift_metadata: {

@@ -2,10 +2,17 @@ export interface ExpectedCashInput {
   opening_cash?: number | string | null;
   opap_gross_sales?: number | string | null;
   opap_payouts?: number | string | null;
+  vouchers?: number | string | null;
+  cancellations?: number | string | null;
+  pame_stoixima?: number | string | null;
+  pame_stoixima_balance?: number | string | null;
   vlts_cash_in?: number | string | null;
   vlts_cash_out?: number | string | null;
   scratch_lotto_sales?: number | string | null;
+  tora_pos?: number | string | null;
+  clever_point?: number | string | null;
   fnb_cash?: number | string | null;
+  fnb_sales?: number | string | null;
   customer_credit_collected?: number | string | null;
   card_payments?: number | string | null;
   expenses_paid_cash?: number | string | null;
@@ -75,28 +82,30 @@ export function calculateCountedCash(
 }
 
 /**
-  Calculates the expected cash remaining in the cash register based on opening float,
-  sales inflows, payouts, card deductions, expenses, and credit movements.
+  Calculates the expected revenue / cash requirement for shift closing.
+  Formula requested:
+  Αναμενόμενο = (Αριθμοπαιχνίδια ΟΠΑΠ - OPAP Payouts) + Scratch & Λαχεία + TORA DIRECT + Cleverpoint + VLTs Cash-In + VLTs Cash-Out + FnB
  */
 export function calculateExpectedCash(input: ExpectedCashInput): number {
-  const scratchLotto = safeNum(input.scratch_lotto_sales);
-  const cardPayments = safeNum(input.card_payments);
+  const arithmoNet = safeNum(input.opap_gross_sales) 
+    - safeNum(input.opap_payouts) 
+    + safeNum(input.vouchers) 
+    - safeNum(input.cancellations);
+  const scratch = safeNum(input.scratch_lotto_sales);
+  const tora = safeNum(input.tora_pos);
+  const clever = safeNum(input.clever_point);
   const vltsIn = safeNum(input.vlts_cash_in);
   const vltsOut = safeNum(input.vlts_cash_out);
-  const opapGross = safeNum(input.opap_gross_sales);
-  const opapPayouts = safeNum(input.opap_payouts);
-  const fnbCash = safeNum(input.fnb_cash);
+  const pameStoixima = safeNum(input.pame_stoixima) || safeNum(input.pame_stoixima_balance);
+  const fnb = safeNum(input.fnb_cash) || safeNum(input.fnb_sales);
 
-  // OPAP Number Games Net (KINO, Joker, Lotto etc.) = Gross Sales - Payouts
-  const numberGamesNet = opapGross - opapPayouts;
-
-  // Expected Turnover / Revenue = scratch_lotto_sales + card_payments + vlts_cash_in - vlts_cash_out + number_games_net + fnb_cash
-  const expected = scratchLotto + cardPayments + vltsIn - vltsOut + numberGamesNet + fnbCash;
+  const expected = arithmoNet + scratch + tora + clever + vltsIn + vltsOut + pameStoixima + fnb;
   return roundCurrency(expected);
 }
 
 /**
   Computes cash discrepancy, discrepancy percentage, and threshold alert status.
+  Formula: Διαφορά = Σύνολο Καταμέτρησης - Σύνολο Αναφοράς (Expected Cash)
  */
 export function calculateDiscrepancy(
   countedCash: number | string | null | undefined,
@@ -129,7 +138,7 @@ export function calculateDiscrepancy(
 }
 
 export interface TotalReconciliationInput {
-  openingCash: number | string | null | undefined;
+  openingCash?: number | string | null | undefined;
   countedCashInDrawer: number | string | null | undefined;
   posSalesTotal: number | string | null | undefined;
   expensesTotal: number | string | null | undefined;
@@ -138,22 +147,57 @@ export interface TotalReconciliationInput {
   customerReturns: number | string | null | undefined;
 }
 
+export interface ReconciliationBreakdownResult {
+  drawerCash: number;
+  posSales: number;
+  expenses: number;
+  deposits: number;
+  creditsGranted: number;
+  creditCollected: number;
+  grossTotal: number;
+  openingCash: number;
+  netTotal: number;
+}
+
 /**
-  Calculates "Σύνολο Καταμέτρησης" (Grand Reconciliation Total):
-  opening_cash + (Καταμετρητής Χαρτονομισμάτων & Κερμάτων) + (POS ανεξάρτητο) + expenses_paid_cash + bank_deposits + customer_credit_granted - customer_credit_collected
+  Calculates full reconciliation breakdown:
+  - grossTotal (Σύνολο Ταμείου): Μετρητά + POS + Έξοδα + Χρηματοκιβώτιο/Καταθέσεις + Πιστώσεις - Επιστροφές
+  - netTotal (Σύνολο Καταμέτρησης): grossTotal - Αρχικό Κεφάλαιο
  */
-export function calculateTotalReconciliationCount(input: TotalReconciliationInput): number {
-  const opening = safeNum(input.openingCash);
+export function calculateReconciliationBreakdown(input: TotalReconciliationInput): ReconciliationBreakdownResult {
   const drawerCash = safeNum(input.countedCashInDrawer);
   const posSales = safeNum(input.posSalesTotal);
   const expenses = safeNum(input.expensesTotal);
   const deposits = safeNum(input.bankDeposits);
   const creditsGranted = safeNum(input.customerCreditsGranted);
   const creditCollected = safeNum(input.customerReturns);
+  const opening = safeNum(input.openingCash);
 
-  return roundCurrency(
-    opening + drawerCash + posSales + expenses + deposits + creditsGranted - creditCollected
+  const grossTotal = roundCurrency(
+    drawerCash + posSales + expenses + deposits + creditsGranted - creditCollected
   );
+  const netTotal = roundCurrency(grossTotal - opening);
+
+  return {
+    drawerCash,
+    posSales,
+    expenses,
+    deposits,
+    creditsGranted,
+    creditCollected,
+    grossTotal,
+    openingCash: opening,
+    netTotal,
+  };
+}
+
+/**
+  Calculates "Σύνολο Καταμέτρησης" (Grand Reconciliation Total):
+  (Καταμετρητής Χαρτονομισμάτων & Κερμάτων) + (POS) + expenses_paid_cash + bank_deposits + customer_credit_granted - customer_credit_collected - opening_cash
+ */
+export function calculateTotalReconciliationCount(input: TotalReconciliationInput): number {
+  const breakdown = calculateReconciliationBreakdown(input);
+  return breakdown.netTotal;
 }
 
 /**

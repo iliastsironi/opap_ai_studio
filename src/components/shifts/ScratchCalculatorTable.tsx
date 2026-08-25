@@ -47,6 +47,47 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: 20, startNo: '', endNo: '' },
 ];
 
+export const SCRATCH_CATALOG_STORAGE_KEY = 'shiftledger_scratch_catalog_v2';
+
+export function getSavedScratchCatalog(): ScratchTicketRow[] {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(SCRATCH_CATALOG_STORAGE_KEY) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Merge with defaults in case defaults have keys not present
+        const merged = [...parsed];
+        for (const def of DEFAULT_SCRATCH_PRESETS) {
+          if (!merged.some((m) => m.id === def.id || (m.name === def.name && m.category === def.category))) {
+            merged.push(def);
+          }
+        }
+        return merged;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse scratch catalog from localStorage', e);
+  }
+  return DEFAULT_SCRATCH_PRESETS;
+}
+
+export function saveScratchCatalog(rows: ScratchTicketRow[]): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const cleanDefinitions = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      category: r.category || 'Άλλα Σκρατς',
+      price: Number(r.price) || 0,
+      startNo: '',
+      endNo: '',
+    }));
+    localStorage.setItem(SCRATCH_CATALOG_STORAGE_KEY, JSON.stringify(cleanDefinitions));
+  } catch (e) {
+    console.warn('Failed to save scratch catalog to localStorage', e);
+  }
+}
+
 export function calculateRowQty(row: ScratchTicketRow): number {
   if (row.manualQty !== undefined && row.manualQty !== '') {
     const q = parseInt(row.manualQty, 10);
@@ -106,25 +147,32 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     if (readOnly) return;
     const updated = rows.map((r) => (r.id === id ? { ...r, [field]: value } : r));
     onChangeRows(updated);
+    if (field === 'name' || field === 'price' || field === 'category') {
+      saveScratchCatalog(updated);
+    }
   };
 
   const handleAddRow = (categoryName = 'Σκρατς 5€') => {
     if (readOnly) return;
     const newRow: ScratchTicketRow = {
       id: `custom_scr_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-      name: 'Νέο Παιχνίδι',
+      name: 'Νέο Παιχνίδι Σκρατς',
       category: categoryName,
       price: 5,
       startNo: '',
       endNo: '',
     };
-    onChangeRows([...rows, newRow]);
+    const updated = [...rows, newRow];
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
     setEditingRowId(newRow.id);
   };
 
   const handleRemoveRow = (id: string) => {
     if (readOnly) return;
-    onChangeRows(rows.filter((r) => r.id !== id));
+    const updated = rows.filter((r) => r.id !== id);
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
   };
 
   const handleReset = () => {
@@ -213,11 +261,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>
                           {cat}
                         </span>
-                        {catQty > 0 && (
-                          <span className="text-[11px] font-bold text-slate-600 font-mono">
-                            {catQty} τμχ • <span className="text-emerald-700 font-black">{catTotal.toFixed(2)} €</span>
-                          </span>
-                        )}
+                        <span className="text-[11px] font-bold text-slate-700 font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                          {catQty} τμχ • <span className="text-emerald-700 font-black">{catTotal.toFixed(2)} €</span>
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -268,10 +314,10 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               onChange={(e) =>
                                 handleUpdateRow(row.id, 'price', parseFloat(e.target.value) || 0)
                               }
-                              className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                              className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
                             />
                           ) : (
-                            <span className="font-bold text-slate-700 font-mono">
+                            <span className="font-extrabold text-slate-900 font-mono text-xs">
                               {row.price.toFixed(2)} €
                             </span>
                           )}
@@ -285,7 +331,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             value={row.startNo}
                             onChange={(e) => handleUpdateRow(row.id, 'startNo', e.target.value)}
                             placeholder="000"
-                            className="w-full max-w-[85px] mx-auto text-center px-2 py-1 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                            className="w-full max-w-[90px] mx-auto text-center px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
                           />
                         </td>
 
@@ -297,17 +343,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             value={row.endNo}
                             onChange={(e) => handleUpdateRow(row.id, 'endNo', e.target.value)}
                             placeholder="000"
-                            className="w-full max-w-[85px] mx-auto text-center px-2 py-1 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50"
+                            className="w-full max-w-[90px] mx-auto text-center px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
                           />
                         </td>
 
                         {/* Calculated Quantity */}
                         <td className="p-2 text-center">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded-md text-xs font-black font-mono ${
+                            className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black font-mono shadow-2xs ${
                               qty > 0
-                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                : 'bg-slate-100 text-slate-400'
+                                ? 'bg-indigo-100 text-indigo-900 border border-indigo-200'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
                           >
                             {qty}
@@ -316,8 +362,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Calculated Row Total */}
                         <td className="p-2 text-right font-black font-mono text-xs">
-                          <span className={total > 0 ? 'text-emerald-700' : 'text-slate-400'}>
-                            {total > 0 ? `${total.toFixed(2)} €` : '- €'}
+                          <span className={total > 0 ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200' : 'text-slate-600'}>
+                            {total > 0 ? `${total.toFixed(2)} €` : '0.00 €'}
                           </span>
                         </td>
 

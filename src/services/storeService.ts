@@ -10,7 +10,7 @@ import {
   where,
   onSnapshot,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 import { Store } from '../types/index.ts';
 
 const STORES_COLLECTION = 'stores';
@@ -104,7 +104,7 @@ export async function createStoreInFirestore(storeData: Omit<Store, 'id'>): Prom
       updated_at: nowIso,
     };
     const ref = doc(db, STORES_COLLECTION, newId);
-    await setDoc(ref, newStore);
+    await setDoc(ref, cleanFirestoreData(newStore));
     return newStore;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, STORES_COLLECTION);
@@ -115,10 +115,10 @@ export async function createStoreInFirestore(storeData: Omit<Store, 'id'>): Prom
 export async function updateStoreInFirestore(storeId: string, updateData: Partial<Store>): Promise<void> {
   try {
     const ref = doc(db, STORES_COLLECTION, storeId);
-    await updateDoc(ref, {
+    await updateDoc(ref, cleanFirestoreData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    });
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${STORES_COLLECTION}/${storeId}`);
     throw error;

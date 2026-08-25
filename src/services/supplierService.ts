@@ -8,7 +8,7 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase.ts';
+import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 import { Supplier, SupplierOrder } from '../types/index.ts';
 
 const SUPPLIERS_COLLECTION = 'suppliers';
@@ -131,7 +131,7 @@ export async function createSupplierInFirestore(supData: Omit<Supplier, 'id'>): 
       created_at: nowIso,
       updated_at: nowIso,
     };
-    await setDoc(doc(db, SUPPLIERS_COLLECTION, newId), newSupplier);
+    await setDoc(doc(db, SUPPLIERS_COLLECTION, newId), cleanFirestoreData(newSupplier));
     return newSupplier;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, SUPPLIERS_COLLECTION);
@@ -142,10 +142,10 @@ export async function createSupplierInFirestore(supData: Omit<Supplier, 'id'>): 
 export async function updateSupplierInFirestore(supplierId: string, updateData: Partial<Supplier>): Promise<void> {
   try {
     const ref = doc(db, SUPPLIERS_COLLECTION, supplierId);
-    await updateDoc(ref, {
+    await updateDoc(ref, cleanFirestoreData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    });
+    }));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${SUPPLIERS_COLLECTION}/${supplierId}`);
     throw error;
@@ -171,7 +171,7 @@ export async function fetchSupplierOrdersFromFirestore(orgId: string): Promise<S
     if (result.length === 0) {
       if (orgId === 'org_opap_demo') {
         for (const ord of INITIAL_DEMO_ORDERS) {
-          await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, ord.id), ord);
+          await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, ord.id), cleanFirestoreData(ord));
         }
         return INITIAL_DEMO_ORDERS;
       }
@@ -193,7 +193,7 @@ export async function createSupplierOrderInFirestore(orderData: Omit<SupplierOrd
       id: newId,
       created_at: nowIso,
     };
-    await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, newId), newOrder);
+    await setDoc(doc(db, SUPPLIER_ORDERS_COLLECTION, newId), cleanFirestoreData(newOrder));
     return newOrder;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, SUPPLIER_ORDERS_COLLECTION);

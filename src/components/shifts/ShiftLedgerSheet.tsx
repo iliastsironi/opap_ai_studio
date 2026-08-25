@@ -540,8 +540,8 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             <div className="py-2.5 space-y-2 border-b border-slate-100 pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-slate-800 block">Tora POS & Υπηρεσίες</span>
-                  <span className="text-[10px] text-slate-400">Πληρωμές λογαριασμών & Tora (Ορίζονται από Manager)</span>
+                  <span className="font-bold text-slate-800 block">TORA DIRECT</span>
+                  <span className="text-[10px] text-slate-400">Πληρωμές λογαριασμών & TORA DIRECT (Ορίζονται από Manager)</span>
                 </div>
                 <span className="font-bold font-mono text-slate-900">
                   {toraTotal.toFixed(2)} €

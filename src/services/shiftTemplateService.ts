@@ -33,13 +33,13 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
     {
       id: 'sys_tora_total',
       key: 'tora_total',
-      label: 'Σύνολο Tora POS (#1 + #2)',
+      label: 'Σύνολο TORA DIRECT (#1 + #2)',
       section: 'REPORTS',
       type: 'SYSTEM_MANAGED',
       isSystemManaged: true,
       enabled: true,
       required: false,
-      description: 'Υπολογίζεται αυτόματα: Tora POS 1 + Tora POS 2',
+      description: 'Υπολογίζεται αυτόματα: TORA DIRECT 1 + TORA DIRECT 2',
       order: 2,
     },
     {

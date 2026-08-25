@@ -46,32 +46,25 @@ describe('Shift Opening & Closing Workflow Core Business Logic', () => {
         opap_gross_sales: 2000.0,
         opap_payouts: 500.0,
         vlts_cash_in: 3000.0,
-        vlts_cash_out: 1500.0,
+        vlts_cash_out: -1500.0,
         scratch_lotto_sales: 100.0,
         fnb_cash: 150.0,
-        customer_credit_collected: 50.0,
-        card_payments: 600.0,
-        expenses_paid_cash: 80.0,
-        customer_credit_granted: 40.0,
-        bank_deposits: 2000.0,
+        tora_pos: 200.0,
+        clever_point: 50.0,
       };
 
       const expectedCash = calculateExpectedCash(shiftData);
-      // Inflows = 250 + 2000 + 3000 + 100 + 150 + 50 = 5550.0
-      // Outflows = 500 + 1500 + 600 + 80 + 40 + 2000 = 4720.0
-      // Expected Cash = 5550 - 4720 = 830.00
-      expect(expectedCash).toBe(830.0);
+      // Expected = (2000 - 500) + 100 + 200 + 50 + 3000 + (-1500) + 150 = 3500.0
+      expect(expectedCash).toBe(3500.0);
 
       const countedDenominations = {
-        '100': 5, // 500
-        '50': 5,  // 250
-        '20': 3,  // 60
-        '10': 2,  // 20
+        '500': 6, // 3000
+        '100': 4, // 400
+        '50': 2,  // 100
       };
-      const countedCash = calculateCountedCash(countedDenominations);
-      expect(countedCash).toBe(830.0);
+      const countedDrawerCash = calculateCountedCash(countedDenominations); // 3500.0
 
-      const disc = calculateDiscrepancy(countedCash, expectedCash, 10.0);
+      const disc = calculateDiscrepancy(countedDrawerCash, expectedCash, 10.0);
       expect(disc.discrepancy).toBe(0.0);
       expect(disc.discrepancyPercentage).toBe(0.0);
       expect(disc.isUnbalanced).toBe(false);
