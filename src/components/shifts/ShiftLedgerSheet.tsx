@@ -64,31 +64,43 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       : shift.shift_type || 'Βάρδια A';
 
   // SECTION 1: REPORTS (System Inputs / Calculated)
-  const [scratchSales, setScratchSales] = useState<string>(String(shift.scratch_lotto_sales ?? 0));
+  const [scratchSales, setScratchSales] = useState<string>(
+    String(shift.scratch_sales ?? shift.scratch_lotto_sales ?? 0)
+  );
   const [scratchPayouts, setScratchPayouts] = useState<string>(String(shift.scratch_payouts ?? 0));
 
-  const [toraPos1, setToraPos1] = useState<string>(String(shift.tora_pos_1 ?? 0));
-  const [toraPos2, setToraPos2] = useState<string>(String(shift.tora_pos_2 ?? 0));
+  const [toraPos1, setToraPos1] = useState<string>(
+    String(shift.tora_pos1 ?? shift.tora_pos_1 ?? 0)
+  );
+  const [toraPos2, setToraPos2] = useState<string>(
+    String(shift.tora_pos2 ?? shift.tora_pos_2 ?? 0)
+  );
 
   const [cleverPoint, setCleverPoint] = useState<string>(String(shift.clever_point_total ?? 0));
   const [ippodromos, setIppodromos] = useState<string>(String(shift.ippodromos_balance ?? 0));
 
   const [vltsCashIn, setVltsCashIn] = useState<string>(String(shift.vlts_cash_in ?? 0));
-  const [vltsCashflow, setVltsCashflow] = useState<string>(String(shift.vlts_net ?? 0));
+  const [vltsCashflow, setVltsCashflow] = useState<string>(
+    String(
+      shift.vlts_net !== undefined
+        ? shift.vlts_net
+        : (shift.vlts_cash_in || 0) + (shift.vlts_cash_out || 0)
+    )
+  );
 
   const [pameStoixima, setPameStoixima] = useState<string>(String(shift.pame_stoixima_balance ?? 0));
 
   const [numberSales, setNumberSales] = useState<string>(
-    String(shift.number_games_sales ?? shift.opap_gross_sales ?? 0)
+    String(shift.number_games_sales ?? shift.arithmo_gross ?? shift.opap_gross_sales ?? 0)
   );
   const [numberCancellations, setNumberCancellations] = useState<string>(
-    String(shift.number_games_cancellations ?? 0)
+    String(shift.number_games_cancellations ?? shift.arithmo_cancels ?? 0)
   );
   const [numberPayouts, setNumberPayouts] = useState<string>(
-    String(shift.number_games_payouts ?? shift.opap_payouts ?? 0)
+    String(shift.number_games_payouts ?? shift.arithmo_payouts ?? shift.opap_payouts ?? 0)
   );
   const [numberVouchers, setNumberVouchers] = useState<string>(
-    String(shift.number_games_vouchers ?? 0)
+    String(shift.number_games_vouchers ?? shift.arithmo_vouchers ?? 0)
   );
 
   const [fnbCash, setFnbCash] = useState<string>(String(shift.fnb_cash ?? 0));
@@ -96,11 +108,17 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
 
   // SECTION 2: PHYSICAL COUNT & FLOAT
   const [floatCashNotes, setFloatCashNotes] = useState<string>(
-    String(shift.starting_cash_notes ?? shift.starting_cash ?? 0)
+    String(shift.opening_cash_notes ?? shift.starting_cash_notes ?? shift.starting_cash ?? 0)
   );
-  const [floatCoins, setFloatCoins] = useState<string>(String(shift.starting_coin_notes ?? 0));
-  const [floatAdd1, setFloatAdd1] = useState<string>(String(shift.starting_addition_1 ?? 0));
-  const [floatAdd2, setFloatAdd2] = useState<string>(String(shift.starting_addition_2 ?? 0));
+  const [floatCoins, setFloatCoins] = useState<string>(
+    String(shift.opening_cash_coins ?? shift.starting_coin_notes ?? 0)
+  );
+  const [floatAdd1, setFloatAdd1] = useState<string>(
+    String(shift.custom_field_values?.opening_topup_1 ?? shift.starting_addition_1 ?? 0)
+  );
+  const [floatAdd2, setFloatAdd2] = useState<string>(
+    String(shift.custom_field_values?.opening_topup_2 ?? shift.starting_addition_2 ?? 0)
+  );
 
   // Coin & Banknote Denominations
   const [coinsCount, setCoinsCount] = useState<Record<string, number>>({
@@ -127,18 +145,22 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   });
 
   // Physical Counts & Outflows
-  const [safeDrop, setSafeDrop] = useState<string>(String(shift.safe_drop ?? 0));
+  const [safeDrop, setSafeDrop] = useState<string>(
+    String(shift.safe_drop ?? shift.bank_deposits ?? 0)
+  );
   const [registerPos1, setRegisterPos1] = useState<string>(
-    String(shift.card_payments ?? shift.register_pos_1 ?? 0)
+    String(shift.register_pos_1 ?? (shift.card_payments && !shift.register_pos_2 ? shift.card_payments : 0))
   );
   const [registerPos2, setRegisterPos2] = useState<string>(String(shift.register_pos_2 ?? 0));
-  const [opapExpenses, setOpapExpenses] = useState<string>(String(shift.opap_expenses ?? 0));
+  const [opapExpenses, setOpapExpenses] = useState<string>(
+    String(shift.opap_expenses ?? shift.expenses_paid_cash ?? 0)
+  );
   const [fnbExpenses, setFnbExpenses] = useState<string>(String(shift.fnb_expenses ?? 0));
   const [creditsGranted, setCreditsGranted] = useState<string>(
     String(shift.customer_credit_granted ?? 0)
   );
   const [customerReturns, setCustomerReturns] = useState<string>(
-    String(shift.customer_returns ?? 0)
+    String(shift.customer_credit_collected ?? shift.customer_returns ?? 0)
   );
 
   const activeTemplate = template || DEFAULT_OPAP_SHIFT_TEMPLATE;
@@ -152,6 +174,44 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   const savedToraPosItems = Array.isArray(shift.custom_field_values?.tora_pos_items)
     ? shift.custom_field_values.tora_pos_items
     : null;
+  const savedStorePosItems = Array.isArray(shift.custom_field_values?.store_pos_items)
+    ? shift.custom_field_values.store_pos_items
+    : null;
+
+  // Sync state if shift prop updates externally
+  useEffect(() => {
+    setScratchSales(String(shift.scratch_sales ?? shift.scratch_lotto_sales ?? 0));
+    setScratchPayouts(String(shift.scratch_payouts ?? 0));
+    setToraPos1(String(shift.tora_pos1 ?? shift.tora_pos_1 ?? 0));
+    setToraPos2(String(shift.tora_pos2 ?? shift.tora_pos_2 ?? 0));
+    setCleverPoint(String(shift.clever_point_total ?? 0));
+    setIppodromos(String(shift.ippodromos_balance ?? 0));
+    setVltsCashIn(String(shift.vlts_cash_in ?? 0));
+    setVltsCashflow(
+      String(
+        shift.vlts_net !== undefined
+          ? shift.vlts_net
+          : (shift.vlts_cash_in || 0) + (shift.vlts_cash_out || 0)
+      )
+    );
+    setPameStoixima(String(shift.pame_stoixima_balance ?? 0));
+    setNumberSales(String(shift.number_games_sales ?? shift.arithmo_gross ?? shift.opap_gross_sales ?? 0));
+    setNumberCancellations(String(shift.number_games_cancellations ?? shift.arithmo_cancels ?? 0));
+    setNumberPayouts(String(shift.number_games_payouts ?? shift.arithmo_payouts ?? shift.opap_payouts ?? 0));
+    setNumberVouchers(String(shift.number_games_vouchers ?? shift.arithmo_vouchers ?? 0));
+    setFnbCash(String(shift.fnb_cash ?? 0));
+    setFnbCard(String(shift.fnb_card ?? 0));
+    setSafeDrop(String(shift.safe_drop ?? shift.bank_deposits ?? 0));
+    setRegisterPos1(
+      String(shift.register_pos_1 ?? (shift.card_payments && !shift.register_pos_2 ? shift.card_payments : 0))
+    );
+    setRegisterPos2(String(shift.register_pos_2 ?? 0));
+    setOpapExpenses(String(shift.opap_expenses ?? shift.expenses_paid_cash ?? 0));
+    setFnbExpenses(String(shift.fnb_expenses ?? 0));
+    setCreditsGranted(String(shift.customer_credit_granted ?? 0));
+    setCustomerReturns(String(shift.customer_credit_collected ?? shift.customer_returns ?? 0));
+    setCustomFieldValues(shift.custom_field_values || {});
+  }, [shift]);
 
   // -------------------------------------------------------------
   // AUTOMATIC CALCULATIONS
@@ -652,11 +712,22 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <CreditCard className="w-4 h-4 text-indigo-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Πληρωμές με Κάρτα (POS)</span>
-                  <span className="text-[10px] text-slate-400">Τραπεζικές εισπράξεις POS</span>
+                  <span className="text-[10px] text-slate-400">
+                    {savedStorePosItems && savedStorePosItems.length > 0
+                      ? savedStorePosItems
+                          .map((p) => `${p.name}: ${safeNum(p.amount).toFixed(2)}€`)
+                          .join(' | ')
+                      : 'Τραπεζικές εισπράξεις POS'}
+                  </span>
                 </div>
               </div>
               <span className="font-bold font-mono text-slate-900">
-                {(safeNum(registerPos1) + safeNum(registerPos2)).toFixed(2)} €
+                {(
+                  savedStorePosItems && savedStorePosItems.length > 0
+                    ? savedStorePosItems.reduce((acc, p) => acc + safeNum(p.amount), 0)
+                    : safeNum(registerPos1) + safeNum(registerPos2)
+                ).toFixed(2)}{' '}
+                €
               </span>
             </div>
 

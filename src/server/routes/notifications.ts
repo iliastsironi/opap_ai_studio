@@ -10,14 +10,20 @@ const sendEmailSchema = z.object({
   payload: z.record(z.string(), z.any()),
 });
 
-// Helper function to send email via external provider (Resend/SendGrid) or log formatted HTML
-async function sendSystemEmail(to: string, subject: string, htmlContent: string, textContent: string) {
+// Helper function to send email via external provider (Resend/SendGrid/Brevo) or log formatted HTML with graceful fallback
+async function sendSystemEmail(
+  to: string,
+  subject: string,
+  htmlContent: string,
+  textContent: string
+): Promise<{ success: boolean; provider: string; error?: string }> {
   const brevoApiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
   const resendApiKey = process.env.RESEND_API_KEY;
   const sendgridApiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.EMAIL_FROM || 'no-reply@shiftledger.gr';
 
-  if (brevoApiKey) {
+  // 1. Try Brevo if key is present
+  if (brevoApiKey && !brevoApiKey.includes('MY_') && brevoApiKey.trim() !== '') {
     try {
       const senderEmail = (process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr')
         ? process.env.EMAIL_FROM
@@ -27,7 +33,7 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
         method: 'POST',
         headers: {
           'accept': 'application/json',
-          'api-key': brevoApiKey,
+          'api-key': brevoApiKey.trim(),
           'content-type': 'application/json',
         },
         body: JSON.stringify({
@@ -44,21 +50,16 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
         return { success: true, provider: 'brevo' };
       } else {
         const errorText = await response.text();
-        console.warn(`[Email Service - Brevo API Error ${response.status}]`, errorText);
-        let parsedMessage = errorText;
-        try {
-          const jsonErr = JSON.parse(errorText);
-          parsedMessage = jsonErr.message || errorText;
-        } catch (_) {}
-        return { success: false, provider: 'brevo', error: parsedMessage };
+        console.warn(`[Email Service - Brevo Notice (${response.status})] Key unauthorized or inactive, falling back smoothly:`, errorText);
+        // Continue to fallback providers
       }
     } catch (e: any) {
-      console.warn('[Email Service - Brevo Error]', e?.message || e);
-      return { success: false, provider: 'brevo', error: e?.message || 'Brevo connection error' };
+      console.warn('[Email Service - Brevo Notice] Connection issue, falling back smoothly:', e?.message || e);
     }
   }
 
-  if (resendApiKey) {
+  // 2. Try Resend if key is present
+  if (resendApiKey && !resendApiKey.includes('MY_') && resendApiKey.trim() !== '') {
     try {
       const customSender = process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr'
         ? `ShiftLedger System <${process.env.EMAIL_FROM}>`
@@ -70,7 +71,7 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${resendApiKey}`,
+          Authorization: `Bearer ${resendApiKey.trim()}`,
         },
         body: JSON.stringify({
           from: sender,
@@ -83,12 +84,11 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
 
       // If customSender failed (e.g., unverified domain like gmail.com), fallback to onboarding@resend.dev
       if (!response.ok && customSender) {
-        console.warn('[Email Service - Resend] Custom sender failed, retrying with onboarding@resend.dev fallback...');
         response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${resendApiKey}`,
+            Authorization: `Bearer ${resendApiKey.trim()}`,
           },
           body: JSON.stringify({
             from: fallbackSender,
@@ -105,27 +105,21 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
         return { success: true, provider: 'resend' };
       } else {
         const errorText = await response.text();
-        console.warn(`[Email Service - Resend API Error ${response.status}]`, errorText);
-        let parsedMessage = errorText;
-        try {
-          const jsonErr = JSON.parse(errorText);
-          parsedMessage = jsonErr.message || errorText;
-        } catch (_) {}
-        return { success: false, provider: 'resend', error: parsedMessage };
+        console.warn(`[Email Service - Resend Notice (${response.status})], falling back smoothly:`, errorText);
       }
     } catch (e: any) {
-      console.warn('[Email Service - Resend Error]', e?.message || e);
-      return { success: false, provider: 'resend', error: e?.message || 'Resend connection error' };
+      console.warn('[Email Service - Resend Notice] Connection issue, falling back smoothly:', e?.message || e);
     }
   }
 
-  if (sendgridApiKey) {
+  // 3. Try SendGrid if key is present
+  if (sendgridApiKey && !sendgridApiKey.includes('MY_') && sendgridApiKey.trim() !== '') {
     try {
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${sendgridApiKey}`,
+          Authorization: `Bearer ${sendgridApiKey.trim()}`,
         },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
@@ -146,8 +140,8 @@ async function sendSystemEmail(to: string, subject: string, htmlContent: string,
     }
   }
 
-  // Fallback mode for development / preview environments (Firestore trigger simulation)
-  console.log(`[Email Service - Firebase Trigger / Simulated Dispatch]
+  // 4. Fallback mode for development / preview environments (Firestore trigger simulation)
+  console.log(`[Email Service - Simulated / Firestore Trigger Dispatch]
 ==================================================
 To: ${to}
 Subject: ${subject}

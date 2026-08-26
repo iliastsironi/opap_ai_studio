@@ -207,6 +207,26 @@
     "/suppliers/{supplierId}": {
       "schema": "Supplier",
       "description": "Suppliers documents"
+    },
+    "/fixed_expenses/{id}": {
+      "schema": "Shift",
+      "description": "Store monthly fixed expense records"
+    },
+    "/corporate_expenses/{id}": {
+      "schema": "Shift",
+      "description": "Corporate expense and loan obligation records"
+    },
+    "/payroll_records/{id}": {
+      "schema": "Shift",
+      "description": "Employee payroll and compensation adjustments"
+    },
+    "/vlt_reconciliations/{id}": {
+      "schema": "Shift",
+      "description": "VLT Opapnet vs cash drawer reconciliation entries"
+    },
+    "/roster_schedules/{id}": {
+      "schema": "Shift",
+      "description": "Weekly store employee shift rosters"
     }
   }
 }

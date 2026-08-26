@@ -23,6 +23,7 @@ import {
   ArrowDownRight,
   Activity,
   Vault,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -135,11 +136,14 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            <span>Σύστημα σε Λειτουργία</span>
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => onNavigate('reports')}
+            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>P&L, KPIs & Excel</span>
+          </button>
           <button
             onClick={() => onNavigate('shifts')}
             className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center space-x-2"

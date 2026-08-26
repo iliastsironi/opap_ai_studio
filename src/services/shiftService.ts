@@ -5,6 +5,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -258,6 +259,16 @@ export async function updateShiftInFirestore(
     await updateDoc(docRef, payload);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${shiftId}`);
+    throw error;
+  }
+}
+
+export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, shiftId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${COLLECTION_NAME}/${shiftId}`);
     throw error;
   }
 }

@@ -15,13 +15,9 @@ import {
   ShieldCheck,
   RefreshCw,
   Sliders,
-  Bug,
-  Code,
-  Copy,
-  Check,
-  Terminal,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
@@ -33,6 +29,7 @@ import { ShiftTemplateConfigurator } from './ShiftTemplateConfigurator.tsx';
 import {
   fetchShiftsFromFirestore,
   subscribeToShifts,
+  deleteShiftFromFirestore,
 } from '../../services/shiftService.ts';
 
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
@@ -102,124 +99,30 @@ export const ShiftsManager: React.FC = () => {
   const [showOpeningModal, setShowOpeningModal] = useState(false);
   const [wizardShift, setWizardShift] = useState<Shift | null>(null);
   const [detailsShift, setDetailsShift] = useState<Shift | null>(null);
-
-  // Diagnostic Tool state & calculation
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [selectedDiagnosticShiftId, setSelectedDiagnosticShiftId] = useState<string | null>(null);
-  const [copiedDebug, setCopiedDebug] = useState(false);
-
-  const diagShift =
-    shifts.find((s) => s.id === selectedDiagnosticShiftId) || activeShift || shifts[0] || null;
-
-  const getDiagnosticData = (s: Shift | null) => {
-    if (!s) return null;
-
-    const opening = safeNum(s.opening_cash);
-    const opapGross = safeNum(s.opap_gross_sales);
-    const opapPayouts = safeNum(s.opap_payouts);
-    const vltsIn = safeNum(s.vlts_cash_in);
-    const vltsOut = safeNum(s.vlts_cash_out);
-    const scratchLotto = safeNum(s.scratch_lotto_sales);
-    const fnbCash = safeNum(s.fnb_cash);
-    const creditCollected = safeNum(s.customer_credit_collected);
-
-    const cardPayments = safeNum(s.card_payments);
-    const expensesCash = safeNum(s.expenses_paid_cash);
-    const creditGranted = safeNum(s.customer_credit_granted);
-    const deposits = safeNum(s.bank_deposits);
-
-    const subtotalInflows = opening + opapGross + vltsIn + scratchLotto + fnbCash + creditCollected;
-    const subtotalOutflows = opapPayouts + vltsOut + cardPayments + expensesCash + creditGranted + deposits;
-
-    const recalculatedExpected = calculateExpectedCash({
-      opening_cash: opening,
-      opap_gross_sales: s.arithmo_gross !== undefined ? safeNum(s.arithmo_gross) : opapGross,
-      opap_payouts: s.arithmo_payouts !== undefined ? safeNum(s.arithmo_payouts) : opapPayouts,
-      vouchers: safeNum(s.arithmo_vouchers),
-      cancellations: safeNum(s.arithmo_cancels),
-      pame_stoixima: safeNum(s.pame_stoixima_balance),
-      tora_pos: (s.tora_pos1 || s.tora_pos2) ? safeNum(s.tora_pos1) + safeNum(s.tora_pos2) : (s.tora_pos_1 || s.tora_pos_2 ? safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2) : 0),
-      clever_point: safeNum(s.clever_point_total),
-      vlts_cash_in: vltsIn,
-      vlts_cash_out: vltsOut,
-      scratch_lotto_sales: scratchLotto,
-      fnb_cash: fnbCash,
-      customer_credit_collected: creditCollected,
-      card_payments: cardPayments,
-      expenses_paid_cash: expensesCash,
-      customer_credit_granted: creditGranted,
-      bank_deposits: deposits,
-    });
-
-    const countedCash = calculateCountedCash(s.counted_denominations || {});
-
-    const totalReconciliationCount = calculateTotalReconciliationCount({
-      openingCash: opening,
-      countedCashInDrawer: countedCash,
-      posSalesTotal: cardPayments,
-      expensesTotal: expensesCash,
-      bankDeposits: deposits,
-      customerCreditsGranted: creditGranted,
-      customerReturns: creditCollected,
-    });
-
-    const discResult = calculateDiscrepancy(totalReconciliationCount, recalculatedExpected, s.discrepancy_threshold || 10.0);
-
-    return {
-      shift_metadata: {
-        shift_id: s.id,
-        store_id: s.store_id,
-        store_name: s.store_name,
-        register_id: s.register_id,
-        status: s.status,
-        opened_at: s.opened_at,
-        closed_at: s.closed_at,
-        opened_by: s.opened_by_user_name,
-      },
-      cash_reconciliation_variables: {
-        opening_cash: opening,
-        inflows: {
-          opap_gross_sales: opapGross,
-          vlts_cash_in: vltsIn,
-          scratch_lotto_sales: scratchLotto,
-          fnb_cash: fnbCash,
-          customer_credit_collected: creditCollected,
-          subtotal_inflows: subtotalInflows,
-        },
-        outflows: {
-          opap_payouts: opapPayouts,
-          vlts_cash_out: vltsOut,
-          card_payments_store_pos: cardPayments,
-          expenses_paid_cash: expensesCash,
-          customer_credit_granted: creditGranted,
-          bank_deposits: deposits,
-          subtotal_outflows: subtotalOutflows,
-        },
-      },
-      computed_results: {
-        stored_expected_cash: s.expected_cash,
-        recalculated_expected_cash: recalculatedExpected,
-        stored_counted_cash: s.counted_cash,
-        recalculated_counted_cash: countedCash,
-        stored_discrepancy: s.discrepancy,
-        recalculated_discrepancy: discResult.discrepancy,
-        discrepancy_percentage: discResult.discrepancyPercentage,
-        is_unbalanced: discResult.isUnbalanced,
-        is_exceeding_threshold: discResult.isExceedingThreshold,
-        discrepancy_threshold: s.discrepancy_threshold || 10.0,
-        total_reconciliation_count: totalReconciliationCount,
-      },
-      formulas: {
-        expected_cash: "scratch_lotto_sales + card_payments + vlts_cash_in - vlts_cash_out + (opap_gross_sales - opap_payouts) + fnb_cash",
-        discrepancy: "recalculated_counted_cash - recalculated_expected_cash",
-        grand_reconciliation_total: "opening_cash + (Καταμετρητής Χαρτονομισμάτων & Κερμάτων) + POS_ανεξάρτητο + expenses_paid_cash + bank_deposits + customer_credit_granted - customer_credit_collected"
-      },
-      custom_field_values: s.custom_field_values || {},
-      counted_denominations: s.counted_denominations || {},
-    };
-  };
+  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
+  const [isDeletingShift, setIsDeletingShift] = useState(false);
 
   const orgId = organization?.id || 'org_opap_demo';
+
+  // Delete draft shift handler (Owner / Manager privilege)
+  const handleDeleteShift = async (shiftToDel: Shift) => {
+    setIsDeletingShift(true);
+    try {
+      await deleteShiftFromFirestore(shiftToDel.id);
+      if (activeShift?.id === shiftToDel.id) {
+        setActiveShift(null);
+      }
+      if (detailsShift?.id === shiftToDel.id) {
+        setDetailsShift(null);
+      }
+      setShiftToDelete(null);
+      await fetchShifts();
+    } catch (err: any) {
+      alert(err.message || 'Σφάλμα κατά τη διαγραφή του προχείρου βάρδιας');
+    } finally {
+      setIsDeletingShift(false);
+    }
+  };
 
   // Fetch list of shifts
   const fetchShifts = useCallback(async () => {
@@ -336,19 +239,6 @@ export const ShiftsManager: React.FC = () => {
           )}
 
           <button
-            onClick={() => setShowDiagnostics(!showDiagnostics)}
-            className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs ${
-              showDiagnostics
-                ? 'bg-slate-900 text-emerald-400 border-slate-900 ring-2 ring-emerald-500/30'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            }`}
-            title="Διαγνωστικό Εργαλείο Cash Reconciliation Math JSON"
-          >
-            <Bug className="w-4 h-4 text-emerald-500" />
-            <span>Διαγνωστικό Math (JSON)</span>
-          </button>
-
-          <button
             onClick={fetchShifts}
             className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
             title="Aνανέωση"
@@ -372,228 +262,6 @@ export const ShiftsManager: React.FC = () => {
         <ShiftTemplateConfigurator />
       ) : (
         <>
-          {/* Diagnostic Cash Reconciliation Debug Panel */}
-          {showDiagnostics && (
-            <div className="bg-slate-900 border-2 border-slate-700 text-slate-100 rounded-2xl p-5 shadow-xl space-y-4 font-sans">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                    <Terminal className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-extrabold text-base text-white tracking-wide flex items-center gap-2">
-                        <span>🛠️ Cash Reconciliation Diagnostic Tool & Variables</span>
-                      </h3>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                        MATH VERIFICATION
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Επιλέξτε βάρδια για έλεγχο όλων των μεταβλητών, τύπων υπολογισμού & JSON debug output.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={selectedDiagnosticShiftId || diagShift?.id || ''}
-                    onChange={(e) => setSelectedDiagnosticShiftId(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 px-3 py-2 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-                  >
-                    {shifts.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.store_name} ({s.register_id}) - {s.status} - {new Date(s.opened_at).toLocaleDateString('el-GR')}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    onClick={() => {
-                      const data = getDiagnosticData(diagShift);
-                      if (data) {
-                        navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-                        setCopiedDebug(true);
-                        setTimeout(() => setCopiedDebug(false), 2000);
-                      }
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black text-xs flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer shrink-0"
-                  >
-                    {copiedDebug ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedDebug ? 'Αντιγράφηκε!' : 'Copy JSON'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {diagShift ? (
-                <div className="space-y-4">
-                  {/* Quick Key Variable Metrics */}
-                  {(() => {
-                    const diag = getDiagnosticData(diagShift);
-                    if (!diag) return null;
-                    const { computed_results, cash_reconciliation_variables } = diag;
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">1. Opening Float (Αρχικό)</span>
-                          <span className="text-lg font-black text-slate-100 font-mono mt-0.5 block">
-                            {cash_reconciliation_variables.opening_cash.toFixed(2)} €
-                          </span>
-                        </div>
-
-                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">2. Expected Cash (Αναμενόμενο)</span>
-                          <span className="text-lg font-black text-emerald-400 font-mono mt-0.5 block">
-                            {computed_results.recalculated_expected_cash.toFixed(2)} €
-                          </span>
-                          <span className="text-[9px] text-slate-500">Form: Inflows - Outflows</span>
-                        </div>
-
-                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">3. Counted Cash (Καταμετρημένο)</span>
-                          <span className="text-lg font-black text-indigo-400 font-mono mt-0.5 block">
-                            {computed_results.recalculated_counted_cash.toFixed(2)} €
-                          </span>
-                          <span className="text-[9px] text-slate-500">Sum Denominations</span>
-                        </div>
-
-                        <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">4. Discrepancy (Απόκλιση)</span>
-                          <span
-                            className={`text-lg font-black font-mono mt-0.5 block ${
-                              computed_results.recalculated_discrepancy < 0
-                                ? 'text-rose-400'
-                                : computed_results.recalculated_discrepancy > 0
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
-                            }`}
-                          >
-                            {computed_results.recalculated_discrepancy > 0 ? '+' : ''}
-                            {computed_results.recalculated_discrepancy.toFixed(2)} €
-                          </span>
-                          <span className="text-[9px] text-slate-500">Counted - Expected</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* JSON Code Viewer & Detailed Inflows/Outflows Comparison */}
-                  {(() => {
-                    const diag = getDiagnosticData(diagShift);
-                    if (!diag) return null;
-                    const { cash_reconciliation_variables, computed_results } = diag;
-                    const { inflows, outflows, opening_cash } = cash_reconciliation_variables;
-
-                    return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* INFLOWS COLUMN */}
-                        <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-4">
-                          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2 mb-3">
-                            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <span>🟢 INFLOWS (Εισροές Μετρητών)</span>
-                            </span>
-                            <span className="text-xs font-mono font-extrabold text-emerald-400">
-                              +{inflows.subtotal_inflows.toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 text-xs font-mono">
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">1. Opening Float (opening_cash)</span>
-                              <span className="font-bold text-slate-200">+{opening_cash.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">2. OPAP Gross Cash (opap_gross_sales)</span>
-                              <span className="font-bold text-emerald-400">+{inflows.opap_gross_sales.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">3. VLTs Cash In (vlts_cash_in)</span>
-                              <span className="font-bold text-emerald-400">+{inflows.vlts_cash_in.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">4. Scratch & Lotto (scratch_lotto_sales)</span>
-                              <span className="font-bold text-emerald-400">+{inflows.scratch_lotto_sales.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">5. F&B Cash Sales (fnb_cash)</span>
-                              <span className="font-bold text-emerald-400">+{inflows.fnb_cash.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">6. Credit Collected (customer_credit_collected)</span>
-                              <span className="font-bold text-emerald-400">+{inflows.customer_credit_collected.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-extrabold mt-2">
-                              <span>TOTAL INFLOWS</span>
-                              <span>+{inflows.subtotal_inflows.toFixed(2)} €</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* OUTFLOWS COLUMN */}
-                        <div className="bg-slate-950/80 border border-rose-500/30 rounded-xl p-4">
-                          <div className="flex items-center justify-between border-b border-rose-500/20 pb-2 mb-3">
-                            <span className="text-xs font-black text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <span>🔴 OUTFLOWS (Εκροές Μετρητών)</span>
-                            </span>
-                            <span className="text-xs font-mono font-extrabold text-rose-400">
-                              -{outflows.subtotal_outflows.toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="space-y-1.5 text-xs font-mono">
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">1. OPAP Payouts (opap_payouts)</span>
-                              <span className="font-bold text-rose-400">-{outflows.opap_payouts.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">2. VLT Cash Out (vlts_cash_out)</span>
-                              <span className="font-bold text-rose-400">-{outflows.vlts_cash_out.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">3. POS Card Payments (card_payments)</span>
-                              <span className="font-bold text-amber-400">-{outflows.card_payments_store_pos.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">4. Paid Out Expenses (expenses_paid_cash)</span>
-                              <span className="font-bold text-rose-400">-{outflows.expenses_paid_cash.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">5. New Credit Granted (customer_credit_granted)</span>
-                              <span className="font-bold text-rose-400">-{outflows.customer_credit_granted.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-1.5 rounded-lg bg-slate-900/60 text-slate-300">
-                              <span className="text-slate-400">6. Bank Drops / Safe (bank_deposits)</span>
-                              <span className="font-bold text-rose-400">-{outflows.bank_deposits.toFixed(2)} €</span>
-                            </div>
-                            <div className="flex justify-between p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 font-extrabold mt-2">
-                              <span>TOTAL OUTFLOWS</span>
-                              <span>-{outflows.subtotal_outflows.toFixed(2)} €</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* JSON Code Viewer */}
-                  <div className="relative">
-                    <div className="flex items-center justify-between bg-slate-950 px-4 py-2 rounded-t-xl border border-slate-800 border-b-0 text-[11px] font-mono text-slate-400">
-                      <div className="flex items-center space-x-2">
-                        <Code className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>shift_cash_reconciliation_debug.json</span>
-                      </div>
-                      <span className="text-slate-500">ID: {diagShift.id}</span>
-                    </div>
-                    <pre className="bg-slate-950 text-emerald-400 p-4 rounded-b-xl font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed max-h-96">
-                      {JSON.stringify(getDiagnosticData(diagShift), null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">Δεν υπάρχει επιλεγμένη βάρδια για διάγνωση.</p>
-              )}
-            </div>
-          )}
-
-
       {/* Manager Awaiting Approval Notification Banner */}
       {canApprove && pendingApprovalCount > 0 && (
         <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-400/50 rounded-2xl p-5 shadow-xs space-y-4">
@@ -711,13 +379,25 @@ export const ShiftsManager: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => handleOpenWizard(activeShift)}
-            className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center justify-center space-x-2 shadow-sm transition-all shrink-0"
-          >
-            <span>Οδηγός Κλεισίματος Ταμείου</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handleOpenWizard(activeShift)}
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center justify-center space-x-2 shadow-sm transition-all shrink-0 cursor-pointer"
+            >
+              <span>Οδηγός Κλεισίματος Ταμείου</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            {(isOwnerOrAdmin || canApprove) && (
+              <button
+                onClick={() => setShiftToDelete(activeShift)}
+                className="px-3.5 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center space-x-1.5 transition-all shrink-0 cursor-pointer"
+                title="Διαγραφή Προχείρου Βάρδιας (Μόνο Διαχειριστής/Ιδιοκτήτης)"
+              >
+                <Trash2 className="w-4 h-4 text-rose-400" />
+                <span className="hidden sm:inline">Διαγραφή Προχείρου</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -905,6 +585,17 @@ export const ShiftsManager: React.FC = () => {
                       >
                         Προβολή
                       </button>
+
+                      {(isOwnerOrAdmin || canApprove) && ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(s.status) && (
+                        <button
+                          onClick={() => setShiftToDelete(s)}
+                          className="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer inline-flex items-center space-x-1"
+                          title="Διαγραφή Προχείρου Βάρδιας (Μόνο Ιδιοκτήτης / Διαχειριστής)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="hidden xl:inline">Διαγραφή</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -931,7 +622,82 @@ export const ShiftsManager: React.FC = () => {
         onClose={() => setDetailsShift(null)}
         onRefresh={fetchShifts}
         onOpenClosingWizard={(s) => setWizardShift(s)}
+        onDeleteRequest={(s) => {
+          setDetailsShift(null);
+          setShiftToDelete(s);
+        }}
       />
+
+      {/* Delete Draft Shift Confirmation Modal */}
+      {shiftToDelete && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Προχείρου Βάρδιας</h4>
+                <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                  ΕΝΕΡΓΕΙΑ ΙΔΙΟΚΤΗΤΗ / ΔΙΑΧΕΙΡΙΣΤΗ
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
+              <p className="font-bold">
+                Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας;
+              </p>
+              <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-[11px] border border-rose-200">
+                <div>
+                  <strong>Κατάστημα:</strong> {shiftToDelete.store_name} ({shiftToDelete.register_id})
+                </div>
+                <div>
+                  <strong>Υπάλληλος Έναρξης:</strong> {shiftToDelete.opened_by_user_name || 'Υπάλληλος'}
+                </div>
+                <div>
+                  <strong>Ημερομηνία:</strong> {new Date(shiftToDelete.opened_at).toLocaleString('el-GR')}
+                </div>
+                <div>
+                  <strong>Κατάσταση:</strong> {shiftToDelete.status}
+                </div>
+              </div>
+              <p className="text-[11px] text-rose-700">
+                ⚠️ Τα δεδομένα του προχείρου (καταμετρήσεις, πρόχειρες καταχωρήσεις) θα διαγραφούν οριστικά από τη βάση δεδομένων.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingShift}
+                onClick={() => setShiftToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingShift}
+                onClick={() => handleDeleteShift(shiftToDelete)}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingShift ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Οριστική Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
+import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import {
   ScratchCalculatorTable,
   DEFAULT_SCRATCH_PRESETS,
@@ -146,23 +147,38 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [managerUnlockedPos, setManagerUnlockedPos] = useState<boolean>(canManage);
   const [currentStep, setCurrentStep] = useState<number>(1);
 
+  // Load any local draft for initial hydration fallback
+  const localDraft = getLocalDraft(shift.id);
+
   // Step 1 - Opening Cash Breakdown State (Banknotes + Coins + Top-ups)
-  const initialOpeningCash = Number(shift.opening_cash || 200);
+  const initialOpeningCash = Number(shift.opening_cash ?? localDraft?.opening_cash ?? 200);
   const [openingNotesAmount, setOpeningNotesAmount] = useState<string>(
     shift.opening_cash_notes !== undefined
       ? String(shift.opening_cash_notes)
+      : localDraft?.opening_cash_notes !== undefined
+      ? String(localDraft.opening_cash_notes)
       : String(Math.floor(initialOpeningCash))
   );
   const [openingCoinsAmount, setOpeningCoinsAmount] = useState<string>(
     shift.opening_cash_coins !== undefined
       ? String(shift.opening_cash_coins)
+      : localDraft?.opening_cash_coins !== undefined
+      ? String(localDraft.opening_cash_coins)
       : String(roundCurrency(initialOpeningCash - Math.floor(initialOpeningCash)))
   );
   const [openingTopUp1, setOpeningTopUp1] = useState<string>(
-    shift.custom_field_values?.opening_topup_1 ? String(shift.custom_field_values.opening_topup_1) : ''
+    shift.custom_field_values?.opening_topup_1 !== undefined
+      ? String(shift.custom_field_values.opening_topup_1)
+      : localDraft?.custom_field_values?.opening_topup_1 !== undefined
+      ? String(localDraft.custom_field_values.opening_topup_1)
+      : ''
   );
   const [openingTopUp2, setOpeningTopUp2] = useState<string>(
-    shift.custom_field_values?.opening_topup_2 ? String(shift.custom_field_values.opening_topup_2) : ''
+    shift.custom_field_values?.opening_topup_2 !== undefined
+      ? String(shift.custom_field_values.opening_topup_2)
+      : localDraft?.custom_field_values?.opening_topup_2 !== undefined
+      ? String(localDraft.custom_field_values.opening_topup_2)
+      : ''
   );
 
   const openingCashTotal =
@@ -175,7 +191,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // 1. Ελληνικά Λαχεία | Σκρατς
   const [scratchRows, setScratchRows] = useState<ScratchTicketRow[]>(() => {
     const catalog = getSavedScratchCatalog();
-    const saved = shift.custom_field_values?.scratch_ticket_items;
+    const saved =
+      shift.custom_field_values?.scratch_ticket_items ||
+      localDraft?.custom_field_values?.scratch_ticket_items;
     if (Array.isArray(saved) && saved.length > 0) {
       const merged: ScratchTicketRow[] = [];
       for (const item of catalog) {
@@ -209,15 +227,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     if (shift.scratch_lotto_sales !== undefined && shift.scratch_lotto_sales > 0) {
       return String(shift.scratch_lotto_sales);
     }
-    const initialCalc = (Array.isArray(shift.custom_field_values?.scratch_ticket_items)
-      ? shift.custom_field_values.scratch_ticket_items
-      : getSavedScratchCatalog()
+    if (localDraft?.scratch_sales !== undefined && localDraft.scratch_sales > 0) {
+      return String(localDraft.scratch_sales);
+    }
+    const initialCalc = (
+      Array.isArray(shift.custom_field_values?.scratch_ticket_items)
+        ? shift.custom_field_values.scratch_ticket_items
+        : getSavedScratchCatalog()
     ).reduce((sum, r) => sum + calculateRowTotal(r), 0);
     return initialCalc > 0 ? String(initialCalc) : '';
   });
 
   const [scratchPayouts, setScratchPayouts] = useState<string>(
-    shift.scratch_payouts !== undefined ? String(shift.scratch_payouts) : ''
+    shift.scratch_payouts !== undefined
+      ? String(shift.scratch_payouts)
+      : localDraft?.scratch_payouts !== undefined
+      ? String(localDraft.scratch_payouts)
+      : ''
   );
 
   const handleScratchRowsChange = (newRows: ScratchTicketRow[]) => {
@@ -229,13 +255,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // 2a. Store POS Items (Πωλήσεις POS Καταστήματος / POS Καταμέτρησης - Manager controllable)
   const [storePosItems, setStorePosItems] = useState<ToraPosItem[]>(() => {
-    const saved = shift.custom_field_values?.store_pos_items;
+    const saved =
+      shift.custom_field_values?.store_pos_items ||
+      localDraft?.custom_field_values?.store_pos_items;
     if (Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
     const config = getSavedStorePosConfig(shift.store_id);
-    if (shift.card_payments && config.length > 0) {
-      config[0].amount = String(shift.card_payments);
+    const reg1 = shift.register_pos_1 ?? localDraft?.register_pos_1;
+    const reg2 = shift.register_pos_2 ?? localDraft?.register_pos_2;
+    const cardPay = shift.card_payments ?? localDraft?.card_payments;
+
+    if (reg1 !== undefined && reg1 !== 0 && config.length > 0) {
+      config[0].amount = String(reg1);
+    } else if (cardPay && config.length > 0) {
+      config[0].amount = String(cardPay);
+    }
+    if (reg2 !== undefined && reg2 !== 0 && config.length > 1) {
+      config[1].amount = String(reg2);
     }
     return config;
   });
@@ -271,16 +308,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // 2b. Tora Direct POS Items (Υπηρεσίες Tora Direct)
   const [toraPosItems, setToraPosItems] = useState<ToraPosItem[]>(() => {
-    const saved = shift.custom_field_values?.tora_pos_items;
+    const saved =
+      shift.custom_field_values?.tora_pos_items ||
+      localDraft?.custom_field_values?.tora_pos_items;
     if (Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
     const config = getSavedToraPosConfig(shift.store_id);
-    if (shift.tora_pos1 !== undefined && shift.tora_pos1 !== 0 && config.length > 0) {
-      config[0].amount = String(shift.tora_pos1);
+    const p1 = shift.tora_pos1 ?? shift.tora_pos_1 ?? localDraft?.tora_pos1 ?? localDraft?.tora_pos_1;
+    const p2 = shift.tora_pos2 ?? shift.tora_pos_2 ?? localDraft?.tora_pos2 ?? localDraft?.tora_pos_2;
+
+    if (p1 !== undefined && p1 !== 0 && config.length > 0) {
+      config[0].amount = String(p1);
     }
-    if (shift.tora_pos2 !== undefined && shift.tora_pos2 !== 0 && config.length > 1) {
-      config[1].amount = String(shift.tora_pos2);
+    if (p2 !== undefined && p2 !== 0 && config.length > 1) {
+      config[1].amount = String(p2);
     }
     return config;
   });
@@ -316,82 +358,159 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // 3. Clever Point
   const [cleverPointTotal, setCleverPointTotal] = useState<string>(
-    shift.clever_point_total !== undefined ? String(shift.clever_point_total) : ''
+    shift.clever_point_total !== undefined
+      ? String(shift.clever_point_total)
+      : localDraft?.clever_point_total !== undefined
+      ? String(localDraft.clever_point_total)
+      : ''
   );
 
   // 4. Ιππόδρομος
   const [ippodromosBalance, setIppodromosBalance] = useState<string>(
-    shift.ippodromos_balance !== undefined ? String(shift.ippodromos_balance) : ''
+    shift.ippodromos_balance !== undefined
+      ? String(shift.ippodromos_balance)
+      : localDraft?.ippodromos_balance !== undefined
+      ? String(localDraft.ippodromos_balance)
+      : ''
   );
 
   // 5. VLTs
-  const initialVltsOut = shift.vlts_cash_out !== undefined ? Number(shift.vlts_cash_out) : 0;
-  const [vltsIn, setVltsIn] = useState<string>(String(shift.vlts_cash_in || ''));
-  const [vltsOut, setVltsOut] = useState<string>(
-    initialVltsOut !== 0 ? String(Math.abs(initialVltsOut)) : ''
+  const initialVltsIn =
+    shift.vlts_cash_in !== undefined && shift.vlts_cash_in !== 0
+      ? shift.vlts_cash_in
+      : localDraft?.vlts_cash_in;
+  const initialVltsOut =
+    shift.vlts_cash_out !== undefined && shift.vlts_cash_out !== 0
+      ? shift.vlts_cash_out
+      : localDraft?.vlts_cash_out;
+  const savedVltsType =
+    shift.custom_field_values?.vlts_cash_out_type ||
+    localDraft?.custom_field_values?.vlts_cash_out_type;
+  const savedVltsRaw =
+    shift.custom_field_values?.vlts_cash_out_raw ??
+    localDraft?.custom_field_values?.vlts_cash_out_raw;
+
+  const [vltsIn, setVltsIn] = useState<string>(
+    initialVltsIn !== undefined && initialVltsIn !== '' ? String(initialVltsIn) : ''
   );
-  const [vltsOutType, setVltsOutType] = useState<'NEGATIVE' | 'POSITIVE'>(
-    initialVltsOut < 0 ? 'POSITIVE' : 'NEGATIVE'
-  );
+  const rawVltsOutNum =
+    initialVltsOut !== undefined && initialVltsOut !== '' ? Number(initialVltsOut) : 0;
+  const [vltsOut, setVltsOut] = useState<string>(() => {
+    if (savedVltsRaw !== undefined && savedVltsRaw !== '') return String(savedVltsRaw);
+    return rawVltsOutNum !== 0 ? String(Math.abs(rawVltsOutNum)) : '';
+  });
+  const [vltsOutType, setVltsOutType] = useState<'NEGATIVE' | 'POSITIVE'>(() => {
+    if (savedVltsType === 'NEGATIVE' || savedVltsType === 'POSITIVE') return savedVltsType;
+    return rawVltsOutNum > 0 ? 'POSITIVE' : 'NEGATIVE';
+  });
 
   // 6. Pame Stoixima | Virtuals
   const [pameStoiximaBalance, setPameStoiximaBalance] = useState<string>(
-    shift.pame_stoixima_balance !== undefined ? String(shift.pame_stoixima_balance) : ''
+    shift.pame_stoixima_balance !== undefined
+      ? String(shift.pame_stoixima_balance)
+      : localDraft?.pame_stoixima_balance !== undefined
+      ? String(localDraft.pame_stoixima_balance)
+      : ''
   );
 
   // 7. Αριθμοπαιχνίδια (KINO, Τζόκερ, κλπ.)
   const [arithmoGross, setArithmoGross] = useState<string>(
-    shift.arithmo_gross !== undefined ? String(shift.arithmo_gross) : String(shift.opap_gross_sales || '')
+    shift.arithmo_gross !== undefined
+      ? String(shift.arithmo_gross)
+      : shift.opap_gross_sales !== undefined && shift.opap_gross_sales !== 0
+      ? String(shift.opap_gross_sales)
+      : localDraft?.arithmo_gross !== undefined
+      ? String(localDraft.arithmo_gross)
+      : ''
   );
   const [arithmoCancels, setArithmoCancels] = useState<string>(
-    shift.arithmo_cancels !== undefined ? String(shift.arithmo_cancels) : ''
+    shift.arithmo_cancels !== undefined
+      ? String(shift.arithmo_cancels)
+      : localDraft?.arithmo_cancels !== undefined
+      ? String(localDraft.arithmo_cancels)
+      : ''
   );
   const [arithmoPayouts, setArithmoPayouts] = useState<string>(
-    shift.arithmo_payouts !== undefined ? String(shift.arithmo_payouts) : String(shift.opap_payouts || '')
+    shift.arithmo_payouts !== undefined
+      ? String(shift.arithmo_payouts)
+      : shift.opap_payouts !== undefined && shift.opap_payouts !== 0
+      ? String(shift.opap_payouts)
+      : localDraft?.arithmo_payouts !== undefined
+      ? String(localDraft.arithmo_payouts)
+      : ''
   );
   const [arithmoVouchers, setArithmoVouchers] = useState<string>(
-    shift.arithmo_vouchers !== undefined ? String(shift.arithmo_vouchers) : ''
+    shift.arithmo_vouchers !== undefined
+      ? String(shift.arithmo_vouchers)
+      : localDraft?.arithmo_vouchers !== undefined
+      ? String(localDraft.arithmo_vouchers)
+      : ''
   );
 
   // FnB State
-  const [fnbSales, setFnbSales] = useState<string>(String(shift.fnb_sales || ''));
-  const [fnbCash, setFnbCash] = useState<string>(String(shift.fnb_cash || ''));
-  const [fnbCard, setFnbCard] = useState<string>(String(shift.fnb_card || ''));
+  const [fnbSales, setFnbSales] = useState<string>(
+    shift.fnb_sales !== undefined
+      ? String(shift.fnb_sales)
+      : localDraft?.fnb_sales !== undefined
+      ? String(localDraft.fnb_sales)
+      : ''
+  );
+  const [fnbCash, setFnbCash] = useState<string>(
+    shift.fnb_cash !== undefined
+      ? String(shift.fnb_cash)
+      : localDraft?.fnb_cash !== undefined
+      ? String(localDraft.fnb_cash)
+      : ''
+  );
+  const [fnbCard, setFnbCard] = useState<string>(
+    shift.fnb_card !== undefined
+      ? String(shift.fnb_card)
+      : localDraft?.fnb_card !== undefined
+      ? String(localDraft.fnb_card)
+      : ''
+  );
 
-  const [bankDeposits, setBankDeposits] = useState<string>(String(shift.bank_deposits || ''));
+  const [bankDeposits, setBankDeposits] = useState<string>(
+    shift.bank_deposits !== undefined
+      ? String(shift.bank_deposits)
+      : localDraft?.bank_deposits !== undefined
+      ? String(localDraft.bank_deposits)
+      : ''
+  );
   const [discrepancyThreshold, setDiscrepancyThreshold] = useState<string>(
-    String(shift.discrepancy_threshold || 10.0)
+    String(shift.discrepancy_threshold || localDraft?.discrepancy_threshold || 10.0)
   );
 
   // Denominations State
   const [denominations, setDenominations] = useState<Record<string, number>>(
-    shift.counted_denominations || {}
+    shift.counted_denominations || localDraft?.counted_denominations || {}
   );
 
   // Expenses & Credits lists
   const [expenses, setExpenses] = useState<Array<Partial<ShiftExpense>>>(() => {
     if (shift.expenses && shift.expenses.length > 0) return shift.expenses;
-    const local = getLocalDraft(shift.id);
-    if (local?.expenses && Array.isArray(local.expenses) && local.expenses.length > 0) {
-      return local.expenses;
+    if (localDraft?.expenses && Array.isArray(localDraft.expenses) && localDraft.expenses.length > 0) {
+      return localDraft.expenses;
     }
     return [];
   });
 
   const [customerCredits, setCustomerCredits] = useState<Array<Partial<CustomerCredit>>>(() => {
     if (shift.customer_credits && shift.customer_credits.length > 0) return shift.customer_credits;
-    const local = getLocalDraft(shift.id);
-    if (local?.customer_credits && Array.isArray(local.customer_credits) && local.customer_credits.length > 0) {
-      return local.customer_credits;
+    if (localDraft?.customer_credits && Array.isArray(localDraft.customer_credits) && localDraft.customer_credits.length > 0) {
+      return localDraft.customer_credits;
     }
     return [];
   });
 
-  const [employeeNotes, setEmployeeNotes] = useState<string>(shift.employee_notes || '');
+  const [employeeNotes, setEmployeeNotes] = useState<string>(
+    shift.employee_notes || localDraft?.employee_notes || ''
+  );
 
   // UI state
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -562,65 +681,162 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     safeNum(discrepancyThreshold)
   );
 
-  // Autosave Draft function
+  // Helper to build a complete and fully persisted Shift payload
+  const buildCurrentPayload = (targetStatus: 'DRAFT_CLOSING' | 'SUBMITTED') => {
+    return {
+      status: targetStatus as any,
+      ...(targetStatus === 'SUBMITTED'
+        ? {
+            closed_at: new Date().toISOString(),
+            closed_by_user_id: user?.id,
+            closed_by_user_name:
+              `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Υπάλληλος Βάρδιας',
+          }
+        : {}),
+      opening_cash: openingCashTotal,
+      opening_cash_notes: safeNum(openingNotesAmount),
+      opening_cash_coins: safeNum(openingCoinsAmount),
+
+      arithmo_gross: safeNum(arithmoGross),
+      arithmo_cancels: safeNum(arithmoCancels),
+      arithmo_payouts: safeNum(arithmoPayouts),
+      arithmo_vouchers: safeNum(arithmoVouchers),
+      number_games_sales: safeNum(arithmoGross),
+      number_games_cancellations: safeNum(arithmoCancels),
+      number_games_payouts: safeNum(arithmoPayouts),
+      number_games_vouchers: safeNum(arithmoVouchers),
+
+      pame_stoixima_balance: safeNum(pameStoiximaBalance),
+      scratch_sales: safeNum(scratchSales),
+      scratch_payouts: safeNum(scratchPayouts),
+      scratch_lotto_sales: totalScratchNet,
+
+      // POS & TORA fields (supporting all key conventions)
+      tora_pos1: safeNum(toraPosItems[0]?.amount),
+      tora_pos2: safeNum(toraPosItems[1]?.amount),
+      tora_pos_1: safeNum(toraPosItems[0]?.amount),
+      tora_pos_2: safeNum(toraPosItems[1]?.amount),
+      tora_total: totalToraPos,
+      register_pos_1: safeNum(storePosItems[0]?.amount),
+      register_pos_2: safeNum(storePosItems[1]?.amount),
+      card_payments: totalStorePos,
+
+      clever_point_total: safeNum(cleverPointTotal),
+      ippodromos_balance: safeNum(ippodromosBalance),
+
+      opap_gross_sales: opapGrossTotal,
+      opap_payouts: opapPayoutsTotal,
+      opap_net_sales: opapGrossTotal - opapPayoutsTotal,
+
+      // VLTs
+      vlts_cash_in: safeNum(vltsIn),
+      vlts_cash_out: signedVltsOut,
+      vlts_net: safeNum(vltsIn) + signedVltsOut,
+
+      fnb_sales: safeNum(fnbSales),
+      fnb_cash: safeNum(fnbCash),
+      fnb_card: safeNum(fnbCard),
+
+      expenses_paid_cash: expensesCashTotal,
+      customer_credit_granted: creditGrantedTotal,
+      customer_credit_collected: creditCollectedTotal,
+      bank_deposits: safeNum(bankDeposits),
+      safe_drop: safeNum(bankDeposits),
+
+      counted_denominations: denominations,
+      counted_cash: countedCash,
+      actual_cash: countedCash,
+      expected_cash: expectedCash,
+      discrepancy: discResult.discrepancy,
+      discrepancy_percentage: discResult.discrepancyPercentage,
+      discrepancy_threshold: safeNum(discrepancyThreshold),
+      is_unbalanced: discResult.isUnbalanced,
+
+      employee_notes: employeeNotes,
+      expenses: expenses as any,
+      customer_credits: customerCredits as any,
+
+      custom_field_values: {
+        ...(shift.custom_field_values || {}),
+        ...(localDraft?.custom_field_values || {}),
+        opening_topup_1: safeNum(openingTopUp1),
+        opening_topup_2: safeNum(openingTopUp2),
+        scratch_ticket_items: scratchRows,
+        store_pos_items: storePosItems,
+        tora_pos_items: toraPosItems,
+        vlts_cash_out_type: vltsOutType,
+        vlts_cash_out_raw: safeNum(vltsOut),
+        total_reconciliation_count: totalReconciliationCount,
+        reconciliation_gross_total: reconciliationBreakdown.grossTotal,
+      },
+    };
+  };
+
+  // Debounced Silent Autosave Effect to prevent ANY data loss
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const payload = buildCurrentPayload('DRAFT_CLOSING');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`shift_draft_${shift.id}`, JSON.stringify(payload));
+        }
+        await updateShiftInFirestore(shift.id, payload);
+        const timeStr = new Date().toLocaleTimeString('el-GR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        setDraftSavedAt(timeStr);
+        setIsAutoSaved(true);
+        setTimeout(() => setIsAutoSaved(false), 2500);
+      } catch (err) {
+        console.warn('Silent autosave error:', err);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [
+    openingNotesAmount,
+    openingCoinsAmount,
+    openingTopUp1,
+    openingTopUp2,
+    scratchRows,
+    scratchSales,
+    scratchPayouts,
+    storePosItems,
+    toraPosItems,
+    cleverPointTotal,
+    ippodromosBalance,
+    vltsIn,
+    vltsOut,
+    vltsOutType,
+    pameStoiximaBalance,
+    arithmoGross,
+    arithmoCancels,
+    arithmoPayouts,
+    arithmoVouchers,
+    fnbSales,
+    fnbCash,
+    fnbCard,
+    bankDeposits,
+    discrepancyThreshold,
+    denominations,
+    expenses,
+    customerCredits,
+    employeeNotes,
+  ]);
+
+  // Manual Autosave Draft function
   const saveDraft = async () => {
     setIsSavingDraft(true);
     try {
-      const draftPayload = {
-        // draft payload
-        status: 'DRAFT_CLOSING' as any,
-        opening_cash: openingCashTotal,
-        opening_cash_notes: safeNum(openingNotesAmount),
-        opening_cash_coins: safeNum(openingCoinsAmount),
-
-        arithmo_gross: safeNum(arithmoGross),
-        arithmo_cancels: safeNum(arithmoCancels),
-        arithmo_payouts: safeNum(arithmoPayouts),
-        arithmo_vouchers: safeNum(arithmoVouchers),
-        pame_stoixima_balance: safeNum(pameStoiximaBalance),
-        scratch_sales: safeNum(scratchSales),
-        scratch_payouts: safeNum(scratchPayouts),
-        tora_pos1: safeNum(toraPosItems[0]?.amount),
-        tora_pos2: safeNum(toraPosItems[1]?.amount),
-        clever_point_total: safeNum(cleverPointTotal),
-        ippodromos_balance: safeNum(ippodromosBalance),
-
-        opap_gross_sales: opapGrossTotal,
-        opap_payouts: opapPayoutsTotal,
-        opap_net_sales: opapGrossTotal - opapPayoutsTotal,
-        vlts_cash_in: safeNum(vltsIn),
-        vlts_cash_out: signedVltsOut,
-        vlts_net: safeNum(vltsIn) - signedVltsOut,
-        scratch_lotto_sales: totalScratchNet,
-        fnb_sales: safeNum(fnbSales),
-        fnb_cash: safeNum(fnbCash),
-        fnb_card: safeNum(fnbCard),
-        card_payments: totalStorePos,
-        expenses_paid_cash: expensesCashTotal,
-        customer_credit_granted: creditGrantedTotal,
-        customer_credit_collected: creditCollectedTotal,
-        bank_deposits: safeNum(bankDeposits),
-        counted_denominations: denominations,
-        counted_cash: countedCash,
-        expected_cash: expectedCash,
-        discrepancy: discResult.discrepancy,
-        discrepancy_percentage: discResult.discrepancyPercentage,
-        discrepancy_threshold: safeNum(discrepancyThreshold),
-        is_unbalanced: discResult.isUnbalanced,
-        employee_notes: employeeNotes,
-        expenses: expenses as any,
-        customer_credits: customerCredits as any,
-        custom_field_values: {
-          ...(shift.custom_field_values || {}),
-          opening_topup_1: safeNum(openingTopUp1),
-          opening_topup_2: safeNum(openingTopUp2),
-          scratch_ticket_items: scratchRows,
-          store_pos_items: storePosItems,
-          tora_pos_items: toraPosItems,
-          total_reconciliation_count: totalReconciliationCount,
-          reconciliation_gross_total: reconciliationBreakdown.grossTotal,
-        },
-      };
+      const draftPayload = buildCurrentPayload('DRAFT_CLOSING');
 
       if (typeof window !== 'undefined') {
         try {
@@ -645,7 +861,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // server endpoint optional fallback
       }
 
-      setDraftSavedAt(new Date().toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }));
+      const timeStr = new Date().toLocaleTimeString('el-GR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      setDraftSavedAt(timeStr);
+      setIsAutoSaved(true);
+      setTimeout(() => setIsAutoSaved(false), 2500);
     } catch (e) {
       console.warn('Draft autosave warning:', e);
     } finally {
@@ -724,61 +947,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     setIsSubmitting(true);
 
     try {
-      const submitPayload = {
-        status: 'SUBMITTED' as any,
-        closed_at: new Date().toISOString(),
-        opening_cash: openingCashTotal,
-        opening_cash_notes: safeNum(openingNotesAmount),
-        opening_cash_coins: safeNum(openingCoinsAmount),
-
-        arithmo_gross: safeNum(arithmoGross),
-        arithmo_cancels: safeNum(arithmoCancels),
-        arithmo_payouts: safeNum(arithmoPayouts),
-        arithmo_vouchers: safeNum(arithmoVouchers),
-        pame_stoixima_balance: safeNum(pameStoiximaBalance),
-        scratch_sales: safeNum(scratchSales),
-        scratch_payouts: safeNum(scratchPayouts),
-        tora_pos1: safeNum(toraPosItems[0]?.amount),
-        tora_pos2: safeNum(toraPosItems[1]?.amount),
-        clever_point_total: safeNum(cleverPointTotal),
-        ippodromos_balance: safeNum(ippodromosBalance),
-
-        opap_gross_sales: opapGrossTotal,
-        opap_payouts: opapPayoutsTotal,
-        opap_net_sales: opapGrossTotal - opapPayoutsTotal,
-        vlts_cash_in: safeNum(vltsIn),
-        vlts_cash_out: signedVltsOut,
-        vlts_net: safeNum(vltsIn) - signedVltsOut,
-        scratch_lotto_sales: totalScratchNet,
-        fnb_sales: safeNum(fnbSales),
-        fnb_cash: safeNum(fnbCash),
-        fnb_card: safeNum(fnbCard),
-        card_payments: totalStorePos,
-        expenses_paid_cash: expensesCashTotal,
-        customer_credit_granted: creditGrantedTotal,
-        customer_credit_collected: creditCollectedTotal,
-        bank_deposits: safeNum(bankDeposits),
-        counted_denominations: denominations,
-        counted_cash: countedCash,
-        expected_cash: expectedCash,
-        discrepancy: discResult.discrepancy,
-        discrepancy_percentage: discResult.discrepancyPercentage,
-        discrepancy_threshold: safeNum(discrepancyThreshold),
-        is_unbalanced: discResult.isUnbalanced,
-        employee_notes: employeeNotes,
-        expenses: expenses as any,
-        customer_credits: customerCredits as any,
-        custom_field_values: {
-          ...(shift.custom_field_values || {}),
-          opening_topup_1: safeNum(openingTopUp1),
-          opening_topup_2: safeNum(openingTopUp2),
-          scratch_ticket_items: scratchRows,
-          store_pos_items: storePosItems,
-          tora_pos_items: toraPosItems,
-          total_reconciliation_count: totalReconciliationCount,
-          reconciliation_gross_total: reconciliationBreakdown.grossTotal,
-        },
-      };
+      const submitPayload = buildCurrentPayload('SUBMITTED');
 
       await updateShiftInFirestore(shift.id, submitPayload);
 
@@ -818,6 +987,26 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     }
   };
 
+  const [showDeleteDraftConfirm, setShowDeleteDraftConfirm] = useState(false);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+
+  const handleDeleteDraft = async () => {
+    setIsDeletingDraft(true);
+    try {
+      try {
+        localStorage.removeItem(`shift_draft_${shift.id}`);
+      } catch (e) {}
+
+      await deleteShiftFromFirestore(shift.id);
+      onBack();
+    } catch (err: any) {
+      alert(err.message || 'Σφάλμα κατά τη διαγραφή του προχείρου');
+    } finally {
+      setIsDeletingDraft(false);
+      setShowDeleteDraftConfirm(false);
+    }
+  };
+
   const steps = [
     { num: 1, name: 'Έναρξη', icon: Building2 },
     { num: 2, name: 'ΟΠΑΠ & VLTs', icon: Ticket },
@@ -832,18 +1021,40 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs"
+          className="flex items-center space-x-2 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-2xs cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Επιστροφή στις Βάρδιες</span>
         </button>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
           {draftSavedAt && (
-            <span className="text-xs text-slate-500 hidden sm:inline-block">
-              Πρόχειρο αποθηκεύτηκε {draftSavedAt}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-xl border font-medium flex items-center space-x-1.5 transition-all duration-300 ${
+                isAutoSaved
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}
+            >
+              <CheckCircle2
+                className={`w-3.5 h-3.5 ${isAutoSaved ? 'text-emerald-600' : 'text-slate-400'}`}
+              />
+              <span className="hidden sm:inline">Αποθηκεύτηκε: {draftSavedAt}</span>
+              <span className="sm:hidden">{draftSavedAt}</span>
             </span>
           )}
+
+          {canManage && (
+            <button
+              onClick={() => setShowDeleteDraftConfirm(true)}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 shadow-2xs transition-colors cursor-pointer"
+              title="Διαγραφή αυτού του προχείρου βάρδιας (Μόνο Ιδιοκτήτης/Διαχειριστής)"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Διαγραφή Προχείρου</span>
+            </button>
+          )}
+
           <button
             onClick={saveDraft}
             disabled={isSavingDraft}
@@ -854,6 +1065,63 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteDraftConfirm && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Προχείρου Βάρδιας</h4>
+                <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                  ΕΝΕΡΓΕΙΑ ΙΔΙΟΚΤΗΤΗ / ΔΙΑΧΕΙΡΙΣΤΗ
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
+              <p className="font-bold">
+                Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας ({shift.store_name} - {shift.register_id});
+              </p>
+              <p className="text-[11px] text-rose-700">
+                ⚠️ Όλα τα πρόχειρα καταγεγραμμένα στοιχεία της βάρδιας θα διαγραφούν οριστικά.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingDraft}
+                onClick={() => setShowDeleteDraftConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingDraft}
+                onClick={handleDeleteDraft}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingDraft ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Οριστική Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header Banner */}
       <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800">
