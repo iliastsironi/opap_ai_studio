@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, AlertCircle, X, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight } from 'lucide-react';
+import { Clock, Play, AlertCircle, X, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../services/shiftService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
+import {
+  carryOverScratchInventory,
+  getLatestStoreScratchInventory,
+} from './ScratchCalculatorTable.tsx';
 
 interface ShiftOpeningModalProps {
   isOpen: boolean;
@@ -137,6 +142,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
     setLoading(true);
     try {
+      // Calculate carry-over scratch inventory from previous shift
+      const prevScratchItems =
+        previousShift?.custom_field_values?.scratch_ticket_items ||
+        getLatestStoreScratchInventory(targetStoreId);
+      const initialScratchInventory = carryOverScratchInventory(prevScratchItems);
+
       const fsShift = await createShiftInFirestore({
         organization_id: organization?.id || 'org_opap_demo',
         store_id: targetStoreId,
@@ -178,6 +189,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         discrepancy_percentage: 0,
         discrepancy_threshold: 15,
         is_unbalanced: false,
+        custom_field_values: {
+          scratch_ticket_items: initialScratchInventory,
+        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -217,11 +231,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         {/* Header */}
         <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
               <Play className="w-5 h-5 ml-0.5 fill-white" />
             </div>
             <div>
-              <h3 className="font-bold text-base">Έναρξη Νέας Βάρδιας</h3>
+              <h3 className="font-extrabold text-base tracking-tight">
+                {toGreekUpper('Εναρξη Νεας Βαρδιας')}
+              </h3>
               <p className="text-xs text-slate-300">
                 {shiftType === 'MORNING'
                   ? 'Ορισμός αρχικού ταμείου από διαχειριστή'
@@ -231,92 +247,100 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
           {error && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start space-x-2.5">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Store Selection */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Κατάστημα <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={selectedStoreId}
-              onChange={(e) => setSelectedStoreId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              required
-            >
-              <option value="">-- Επιλέξτε Κατάστημα --</option>
-              {effectiveStores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.code})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Group 1: Store & Register Setup (Responsive Grid on Tablet) */}
+          <div className="space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+              {toGreekUpper('1. Στοιχεια Καταστηματος & Ταμειου')}
+            </span>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Cash Register */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Ταμείο / Register
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                {toGreekUpper('Καταστημα')} <span className="text-rose-500">*</span>
               </label>
               <select
-                value={registerId}
-                onChange={(e) => setRegisterId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                value={selectedStoreId}
+                onChange={(e) => setSelectedStoreId(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
               >
-                <option value="Ταμείο 1">Ταμείο 1</option>
-                <option value="Ταμείο 2">Ταμείο 2</option>
-                <option value="Ταμείο 3">Ταμείο 3</option>
+                <option value="">-- Επιλέξτε Κατάστημα --</option>
+                {effectiveStores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* Shift Type */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Τύπος Βάρδιας
-              </label>
-              <select
-                value={shiftType}
-                onChange={(e) => setShiftType(e.target.value as ShiftType)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="MORNING">☀️ Πρωινή (Ορισμός Ταμείου)</option>
-                <option value="AFTERNOON">🌤️ Απογευματινή (Αυτόματο)</option>
-                <option value="NIGHT">🌙 Βραδινή (Αυτόματο)</option>
-                <option value="CUSTOM">⚡ Ειδική / Έκτακτη (Αυτόματο)</option>
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Cash Register */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  {toGreekUpper('Ταμειο / Register')}
+                </label>
+                <select
+                  value={registerId}
+                  onChange={(e) => setRegisterId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="Ταμείο 1">Ταμείο 1</option>
+                  <option value="Ταμείο 2">Ταμείο 2</option>
+                  <option value="Ταμείο 3">Ταμείο 3</option>
+                </select>
+              </div>
+
+              {/* Shift Type */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  {toGreekUpper('Τυπος Βαρδιας')}
+                </label>
+                <select
+                  value={shiftType}
+                  onChange={(e) => setShiftType(e.target.value as ShiftType)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="MORNING">☀️ Πρωινή (Ορισμός Ταμείου)</option>
+                  <option value="AFTERNOON">🌤️ Απογευματινή (Αυτόματο)</option>
+                  <option value="NIGHT">🌙 Βραδινή (Αυτόματο)</option>
+                  <option value="CUSTOM">⚡ Ειδική / Έκτακτη (Αυτόματο)</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Shift Type Notice Banner */}
           {shiftType === 'MORNING' ? (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold block">☀️ Πρωινή Βάρδια — Αρχικό Ταμείο Διαχειριστή</span>
+                <span className="font-bold block">
+                  ☀️ {toGreekUpper('Πρωινη Βαρδια — Αρχικο Ταμειο Διαχειριστη')}
+                </span>
                 <span className="text-[11px] text-amber-800 font-medium">
                   Στην πρωινή βάρδια το αρχικό κεφάλαιο/ταμείο ορίζεται χειροκίνητα από τον διαχειριστή ή υπεύθυνο.
                 </span>
               </div>
             </div>
           ) : (
-            <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs flex items-start space-x-2.5">
+            <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs flex items-start space-x-2.5">
               <RefreshCw className={`w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ${fetchingPrev ? 'animate-spin' : ''}`} />
               <div>
                 <span className="font-bold flex items-center gap-1.5">
-                  🔄 Αυτόματη Μεταφορά από Προηγούμενη Βάρδια
+                  🔄 {toGreekUpper('Αυτοματη Μεταφορα απο Προηγουμενη Βαρδια')}
                   {isAutoFetched && (
                     <span className="px-1.5 py-0.2 text-[9px] font-black bg-indigo-200 text-indigo-950 rounded-md uppercase">
                       AUTO
@@ -332,28 +356,28 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
           )}
 
-          {/* Opening Cash Float Breakdown */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          {/* Group 2: Opening Cash Float Breakdown */}
+          <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span>Αρχικό Ταμείο (Float €)</span>
+              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span>{toGreekUpper('2. Αρχικο Ταμειο (Float €)')}</span>
                 {shiftType !== 'MORNING' && (
-                  <span className="text-[10px] text-indigo-600 font-normal border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
-                    Από προηγούμενη
+                  <span className="text-[10px] text-indigo-700 font-bold border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                    {toGreekUpper('Απο Προηγουμενη')}
                   </span>
                 )}
-              </label>
+              </span>
               <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                Σύνολο: {totalOpeningCash.toFixed(2)} €
+                {toGreekUpper('Συνολο')}: {totalOpeningCash.toFixed(2)} €
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                  <span>💵 Χαρτονομίσματα (€)</span>
+                  <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-[9px] text-slate-400 font-mono">Αυτόματο</span>
+                    <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -378,9 +402,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
-                  <span>🪙 Κέρματα (€)</span>
+                  <span>🪙 {toGreekUpper('Κερματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-[9px] text-slate-400 font-mono">Αυτόματο</span>
+                    <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -411,10 +435,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </p>
           </div>
 
-          {/* Operational Notes */}
+          {/* Group 3: Operational Notes */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Σημειώσεις Έναρξης (Προαιρετικό)
+            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+              {toGreekUpper('Σημειωσεις Εναρξης (Προαιρετικο)')}
             </label>
             <textarea
               value={openingNotes}
@@ -425,32 +449,33 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   : 'Π.χ. Παραλαβή ταμείου από προηγούμενη βάρδια...'
               }
               rows={2}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
 
-          <div className="pt-3 flex items-center justify-end space-x-3 border-t border-slate-100">
+          {/* Modal Actions */}
+          <div className="pt-3 flex items-center justify-end space-x-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              Ακύρωση
+              {toGreekUpper('Ακυρωση')}
             </button>
             <button
               type="submit"
               disabled={loading || fetchingPrev}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-sm transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Άνοιγμα...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Επιβεβαίωση & Έναρξη</span>
+                  <span>{toGreekUpper('Επιβεβαιωση & Εναρξη')}</span>
                 </>
               )}
             </button>

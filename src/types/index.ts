@@ -231,6 +231,10 @@ export interface Shift {
   tora_pos2?: number;
   clever_point_total?: number;
   ippodromos_balance?: number;
+  vlts_in?: number;
+  vlts_out?: number;
+  vlts_out_type?: 'NEGATIVE' | 'POSITIVE';
+  vouchers?: number;
 
   // OPAP & Terminals Summary
   opap_gross_sales: number;
@@ -347,14 +351,47 @@ export interface ShiftExpense {
   created_at: string;
 }
 
+export type CreditScoreTier = 'A+' | 'A' | 'B' | 'C';
+
+export interface CreditTierConfig {
+  tier: CreditScoreTier;
+  label: string;
+  defaultLimit: number;
+  isUnlimited: boolean;
+  description: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+}
+
+export interface Customer {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  name: string;
+  phone?: string;
+  tier: CreditScoreTier;
+  custom_limit?: number | null;
+  current_debt: number;
+  total_granted: number;
+  total_collected: number;
+  notes?: string;
+  status: 'ACTIVE' | 'BLOCKED' | 'VIP';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CustomerCredit {
   id: string;
   shift_id: string;
   organization_id: string;
   store_id: string;
+  customer_id?: string;
   customer_name: string;
+  customer_tier?: CreditScoreTier;
   type: 'GRANTED' | 'COLLECTED';
   amount: number;
+  remaining_debt_after?: number;
   notes?: string;
   created_by_user_id: string;
   created_at: string;

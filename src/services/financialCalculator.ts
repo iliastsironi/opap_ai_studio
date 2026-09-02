@@ -42,9 +42,6 @@ export const EUR_DENOMINATIONS = [
   { key: '0.50', value: 0.5, label: '0,50 €' },
   { key: '0.20', value: 0.2, label: '0,20 €' },
   { key: '0.10', value: 0.1, label: '0,10 €' },
-  { key: '0.05', value: 0.05, label: '0,05 €' },
-  { key: '0.02', value: 0.02, label: '0,02 €' },
-  { key: '0.01', value: 0.01, label: '0,01 €' },
 ] as const;
 
 /**

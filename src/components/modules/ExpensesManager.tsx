@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle, Building2 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, createExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
+import { fetchExpensesFromFirestore, createExpenseInFirestore, deleteExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore, INITIAL_DEMO_SUPPLIERS } from '../../services/supplierService.ts';
 import { Shift, ShiftExpense, Supplier } from '../../types/index.ts';
+import { Trash2 } from 'lucide-react';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -197,6 +199,47 @@ export const ExpensesManager: React.FC = () => {
     }
   };
 
+  const handleDeleteExpense = async (id: string, shiftId?: string) => {
+    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το έξοδο;')) return;
+    try {
+      await deleteExpenseInFirestore(id);
+
+      // If active shift has this expense, remove it and update shift totals
+      if (activeShift) {
+        const currentExpenses = Array.isArray(activeShift.expenses) ? [...activeShift.expenses] : [];
+        const updatedExpenses = currentExpenses.filter((e) => e.id !== id);
+        const totalCashExpenses = updatedExpenses.reduce(
+          (sum, item) => sum + (item.payment_method !== 'CARD' ? (Number(item.amount) || 0) : 0),
+          0
+        );
+
+        await updateShiftInFirestore(activeShift.id, {
+          expenses: updatedExpenses,
+          expenses_paid_cash: totalCashExpenses,
+        });
+
+        if (typeof window !== 'undefined') {
+          try {
+            const draftKey = `shift_draft_${activeShift.id}`;
+            const rawDraft = localStorage.getItem(draftKey);
+            if (rawDraft) {
+              const parsed = JSON.parse(rawDraft);
+              parsed.expenses = updatedExpenses;
+              parsed.expenses_paid_cash = totalCashExpenses;
+              localStorage.setItem(draftKey, JSON.stringify(parsed));
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+
+      await loadExpenses();
+    } catch (err) {
+      console.error('Delete expense error:', err);
+    }
+  };
+
   const filteredExpenses = expenses.filter((e) => {
     const matchesSearch =
       (e.notes || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -334,19 +377,20 @@ export const ExpensesManager: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
-                <th className="px-4 py-3">ID / Ημερομηνία</th>
-                <th className="px-4 py-3">Προμηθευτής / Παραλήπτης</th>
-                <th className="px-4 py-3">Κατηγορία</th>
-                <th className="px-4 py-3">Σημειώσεις / Περιγραφή</th>
-                <th className="px-4 py-3 text-right">Ποσό (€)</th>
-                <th className="px-4 py-3">Τρόπος Πληρωμής</th>
-                <th className="px-4 py-3">Καταχωρήθηκε από</th>
+                <th className="px-4 py-3">{toGreekUpper('ID / Ημερομηνια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Προμηθευτης / Παραληπτης')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Κατηγορια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Σημειωσεις / Περιγραφη')}</th>
+                <th className="px-4 py-3 text-right">{toGreekUpper('Ποσο (€)')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Τροπος Πληρωμης')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Καταχωρηθηκε απο')}</th>
+                <th className="px-4 py-3 text-right">{toGreekUpper('Ενεργειες')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic">
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400 italic">
                     Δεν βρέθηκαν καταχωρημένα έξοδα.
                   </td>
                 </tr>
@@ -365,6 +409,15 @@ export const ExpensesManager: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{exp.payment_method}</td>
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDeleteExpense(exp.id, exp.shift_id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Διαγραφή εξόδου και αμφίδρομη ενημέρωση βάρδιας"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

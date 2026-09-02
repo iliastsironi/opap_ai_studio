@@ -1,5 +1,19 @@
-import React from 'react';
-import { Plus, Trash2, RotateCcw, Sparkles, Hash, Edit2, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Plus,
+  Trash2,
+  RotateCcw,
+  Sparkles,
+  Hash,
+  Edit2,
+  ShieldCheck,
+  Lock,
+  Unlock,
+  PackagePlus,
+  Info,
+  ArrowRight,
+  Check,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
 export interface ScratchTicketRow {
@@ -10,6 +24,8 @@ export interface ScratchTicketRow {
   startNo: string;
   endNo: string;
   manualQty?: string;
+  isNewPack?: boolean;
+  packCode?: string;
 }
 
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
@@ -48,6 +64,7 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
 ];
 
 export const SCRATCH_CATALOG_STORAGE_KEY = 'shiftledger_scratch_catalog_v2';
+export const SCRATCH_STORE_INVENTORY_PREFIX = 'shiftledger_scratch_inv_';
 
 export function getSavedScratchCatalog(): ScratchTicketRow[] {
   try {
@@ -86,6 +103,90 @@ export function saveScratchCatalog(rows: ScratchTicketRow[]): void {
   } catch (e) {
     console.warn('Failed to save scratch catalog to localStorage', e);
   }
+}
+
+/**
+ * Creates carry-over scratch inventory from previous shift's ending numbers
+ * previous shift endNo -> next shift startNo (endNo is cleared for new shift)
+ */
+export function carryOverScratchInventory(
+  previousRows?: ScratchTicketRow[] | any[],
+  baseCatalog: ScratchTicketRow[] = getSavedScratchCatalog()
+): ScratchTicketRow[] {
+  if (!previousRows || !Array.isArray(previousRows) || previousRows.length === 0) {
+    return baseCatalog.map((r) => ({ ...r, startNo: r.startNo || '', endNo: '' }));
+  }
+
+  const result: ScratchTicketRow[] = [];
+
+  for (const base of baseCatalog) {
+    const prev = previousRows.find((p: any) => p.id === base.id || (p.name === base.name && p.category === base.category));
+    if (prev) {
+      // If previous had an end number, that becomes the start number for this shift!
+      const nextStart = prev.endNo && String(prev.endNo).trim() !== ''
+        ? String(prev.endNo).trim()
+        : prev.startNo && String(prev.startNo).trim() !== ''
+        ? String(prev.startNo).trim()
+        : '';
+
+      result.push({
+        ...base,
+        price: Number(prev.price) || base.price,
+        startNo: nextStart,
+        endNo: '',
+        manualQty: '',
+      });
+    } else {
+      result.push({ ...base, endNo: '' });
+    }
+  }
+
+  // Include any custom items added in the previous shift
+  for (const prev of previousRows) {
+    if (!result.some((r) => r.id === prev.id || (r.name === prev.name && r.category === prev.category))) {
+      const nextStart = prev.endNo && String(prev.endNo).trim() !== ''
+        ? String(prev.endNo).trim()
+        : prev.startNo && String(prev.startNo).trim() !== ''
+        ? String(prev.startNo).trim()
+        : '';
+      result.push({
+        id: prev.id,
+        name: prev.name,
+        category: prev.category || 'Άλλα Σκρατς',
+        price: Number(prev.price) || 5,
+        startNo: nextStart,
+        endNo: '',
+        manualQty: '',
+      });
+    }
+  }
+
+  return result;
+}
+
+export function saveLatestStoreScratchInventory(storeId: string, rows: ScratchTicketRow[]): void {
+  try {
+    if (typeof window === 'undefined' || !storeId) return;
+    localStorage.setItem(`${SCRATCH_STORE_INVENTORY_PREFIX}${storeId}`, JSON.stringify(rows));
+  } catch (e) {
+    console.warn('Failed to save store scratch inventory to localStorage', e);
+  }
+}
+
+export function getLatestStoreScratchInventory(storeId: string): ScratchTicketRow[] | null {
+  try {
+    if (typeof window === 'undefined' || !storeId) return null;
+    const raw = localStorage.getItem(`${SCRATCH_STORE_INVENTORY_PREFIX}${storeId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load store scratch inventory from localStorage', e);
+  }
+  return null;
 }
 
 export function calculateRowQty(row: ScratchTicketRow): number {
@@ -142,6 +243,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     permissions.includes('store.view');
 
   const [editingRowId, setEditingRowId] = React.useState<string | null>(null);
+  const [managerOverrideEnabled, setManagerOverrideEnabled] = useState(false);
+  const [newPackModalRowId, setNewPackModalRowId] = useState<string | null>(null);
+  const [newPackStartNo, setNewPackStartNo] = useState<string>('0');
 
   const handleUpdateRow = (id: string, field: keyof ScratchTicketRow, value: any) => {
     if (readOnly) return;
@@ -152,6 +256,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     }
   };
 
+  const handleApplyNewPack = (rowId: string) => {
+    const updated = rows.map((r) => {
+      if (r.id === rowId) {
+        return {
+          ...r,
+          startNo: newPackStartNo,
+          endNo: '',
+          isNewPack: true,
+        };
+      }
+      return r;
+    });
+    onChangeRows(updated);
+    setNewPackModalRowId(null);
+  };
+
   const handleAddRow = (categoryName = 'Σκρατς 5€') => {
     if (readOnly) return;
     const newRow: ScratchTicketRow = {
@@ -159,7 +279,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       name: 'Νέο Παιχνίδι Σκρατς',
       category: categoryName,
       price: 5,
-      startNo: '',
+      startNo: '0',
       endNo: '',
     };
     const updated = [...rows, newRow];
@@ -177,7 +297,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
   const handleReset = () => {
     if (readOnly) return;
-    const reset = rows.map((r) => ({ ...r, startNo: '', endNo: '', manualQty: '' }));
+    const reset = rows.map((r) => ({ ...r, endNo: '', manualQty: '' }));
     onChangeRows(reset);
   };
 
@@ -191,44 +311,75 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
   return (
     <div className="space-y-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
-          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-            <Hash className="w-4 h-4 text-indigo-600" />
-            <span>Έλληνικά Λαχεία & Σκρατς (#Αρχικό - #Τελικό Νούμερο)</span>
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+            <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+              <Hash className="w-4 h-4 text-indigo-600" />
+              <span>Έλληνικά Λαχεία & Σκρατς (#Αρχικό - #Τελικό Βάρδιας)</span>
+            </h4>
             {canManage && (
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 flex items-center gap-1">
+              <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-indigo-600" />
-                Διαχειριστής (Προσθήκη/Αφαίρεση)
+                Διαχειριστής (Πρόσβαση σε Αρχικό & Νέα Πακέτα)
               </span>
             )}
-          </h4>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Εισάγετε το αρχικό & τελικό νούμερο βάρδιας για να υπολογιστούν αυτόματα οι πωλήσεις και η αξία.
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Το <strong className="text-slate-700"># Αρχικό</strong> μεταφέρεται αυτόματα από το <strong className="text-slate-700"># Τελικό</strong> της προηγούμενης βάρδιας. Ο υπάλληλος συμπληρώνει μόνο το # Τελικό στο κλείσιμο.
           </p>
         </div>
 
         {!readOnly && (
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-1">
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setManagerOverrideEnabled(!managerOverrideEnabled)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  managerOverrideEnabled
+                    ? 'bg-amber-500 text-slate-950 border border-amber-600 shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                }`}
+                title="Επιτρέπει την τροποποίηση του αρχικού αριθμού ή άνοιγμα νέου πακέτου"
+              >
+                {managerOverrideEnabled ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                <span>{managerOverrideEnabled ? 'Αλλαγή Αρχικού (Ενεργή)' : 'Επεξεργασία Αρχικού / Νέο Πακέτο'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleReset}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1"
-              title="Καθαρισμός αριθμών"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+              title="Καθαρισμός τελικών αριθμών"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Καθαρισμός</span>
+              <span>Καθαρισμός Τελικών</span>
             </button>
-            <button
-              type="button"
-              onClick={() => handleAddRow()}
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition-all flex items-center space-x-1"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Προσθήκη Παιχνιδιού</span>
-            </button>
+
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => handleAddRow()}
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Προσθήκη Παιχνιδιού</span>
+              </button>
+            )}
           </div>
         )}
+      </div>
+
+      {/* Info notice about handover & daily settlement */}
+      <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-[11px] text-indigo-900">
+        <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+        <div className="space-y-0.5">
+          <p>
+            <strong>Μηχανισμός Διαδοχής & Αποφυγής Διπλομέτρησης:</strong> Οι πωλήσεις κάθε βάρδιας υπολογίζονται ως <code className="font-mono bg-white px-1 py-0.5 rounded border border-indigo-200 font-bold">Τελικό - Αρχικό</code>. Στο ημερήσιο κλείσιμο αθροίζονται οι πραγματικές πωλήσεις ανά βάρδια, εξασφαλίζοντας μηδενικό σφάλμα διπλοεγγραφής.
+          </p>
+        </div>
       </div>
 
       {/* Table grid */}
@@ -236,13 +387,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
-              <th className="p-2.5 min-w-[150px]">Παιχνίδι / Κωδικός</th>
+              <th className="p-2.5 min-w-[160px]">Παιχνίδι / Κωδικός</th>
               <th className="p-2.5 w-20 text-right">Τιμή (€)</th>
-              <th className="p-2.5 w-28 text-center"># Αρχικό</th>
-              <th className="p-2.5 w-28 text-center"># Τελικό</th>
+              <th className="p-2.5 w-32 text-center">
+                <div className="flex items-center justify-center space-x-1">
+                  <span># Αρχικό</span>
+                  {(!canManage || !managerOverrideEnabled) && (
+                    <span title="Κλειδωμένο (Αυτόματη μεταφορά από προηγούμενη βάρδια)">
+                      <Lock className="w-3 h-3 text-slate-400" />
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th className="p-2.5 w-32 text-center"># Τελικό Βάρδιας</th>
               <th className="p-2.5 w-24 text-center">Πωλήσεις (Τμχ)</th>
               <th className="p-2.5 w-28 text-right">Αξία (€)</th>
-              {!readOnly && <th className="p-2.5 w-12 text-center"></th>}
+              {!readOnly && canManage && <th className="p-2.5 w-20 text-center">Ενέργειες</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
@@ -255,7 +415,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 <React.Fragment key={cat}>
                   {/* Category Header Row */}
                   <tr className="bg-slate-50/90 border-t border-b border-slate-200">
-                    <td colSpan={readOnly ? 6 : 7} className="px-3 py-1.5">
+                    <td colSpan={readOnly || !canManage ? 6 : 7} className="px-3 py-1.5">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-slate-800 text-xs tracking-wide uppercase flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>
@@ -273,6 +433,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const qty = calculateRowQty(row);
                     const total = calculateRowTotal(row);
                     const isEditing = editingRowId === row.id;
+                    const canEditStart = !readOnly && canManage && managerOverrideEnabled;
 
                     return (
                       <tr key={row.id} className="hover:bg-indigo-50/30 transition-colors">
@@ -289,12 +450,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             </div>
                           ) : (
                             <div className="flex items-center justify-between group">
-                              <span>{row.name}</span>
+                              <div className="flex items-center space-x-1.5">
+                                <span>{row.name}</span>
+                                {row.isNewPack && (
+                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
+                                    Νέο Πακέτο
+                                  </span>
+                                )}
+                              </div>
                               {!readOnly && canManage && (
                                 <button
                                   type="button"
                                   onClick={() => setEditingRowId(row.id)}
-                                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition-opacity p-0.5"
+                                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition-opacity p-0.5 cursor-pointer"
                                   title="Επεξεργασία ονόματος/τιμής"
                                 >
                                   <Edit2 className="w-3 h-3" />
@@ -323,19 +491,35 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           )}
                         </td>
 
-                        {/* Start Number */}
+                        {/* Start Number (Locked for regular employee, editable by manager when override active) */}
                         <td className="p-2 text-center">
-                          <input
-                            type="number"
-                            disabled={readOnly}
-                            value={row.startNo}
-                            onChange={(e) => handleUpdateRow(row.id, 'startNo', e.target.value)}
-                            placeholder="000"
-                            className="w-full max-w-[90px] mx-auto text-center px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
-                          />
+                          <div className="relative inline-block w-full max-w-[100px]">
+                            <input
+                              type="number"
+                              disabled={!canEditStart}
+                              value={row.startNo}
+                              onChange={(e) => handleUpdateRow(row.id, 'startNo', e.target.value)}
+                              placeholder="000"
+                              className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                canEditStart
+                                  ? 'bg-amber-50 text-amber-950 border-2 border-amber-400 focus:ring-2 focus:ring-amber-500'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200 cursor-not-allowed opacity-90'
+                              }`}
+                              title={
+                                canEditStart
+                                  ? 'Διαχειριστής: Μπορείτε να ορίσετε νέο αρχικό νούμερο'
+                                  : 'Κλειδωμένο: Αυτόματη μεταφορά από την προηγούμενη βάρδια'
+                              }
+                            />
+                            {!canEditStart && (
+                              <div className="absolute right-1.5 top-2.5 pointer-events-none text-slate-400">
+                                <Lock className="w-3 h-3" />
+                              </div>
+                            )}
+                          </div>
                         </td>
 
-                        {/* End Number */}
+                        {/* End Number (Always editable by employee at shift close) */}
                         <td className="p-2 text-center">
                           <input
                             type="number"
@@ -343,7 +527,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             value={row.endNo}
                             onChange={(e) => handleUpdateRow(row.id, 'endNo', e.target.value)}
                             placeholder="000"
-                            className="w-full max-w-[90px] mx-auto text-center px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
+                            className="w-full max-w-[100px] mx-auto text-center px-2 py-1.5 border-2 border-indigo-200 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
                           />
                         </td>
 
@@ -367,23 +551,37 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           </span>
                         </td>
 
-                        {/* Actions */}
-                        {!readOnly && (
+                        {/* Actions (Manager features) */}
+                        {!readOnly && canManage && (
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center space-x-1">
+                              {/* Open New Pack button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewPackModalRowId(row.id);
+                                  setNewPackStartNo('0');
+                                }}
+                                className="p-1 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer"
+                                title="Άνοιγμα Νέου Πακέτου (Reset Αρχικού σε 0 ή άλλο αριθμό)"
+                              >
+                                <PackagePlus className="w-3.5 h-3.5" />
+                              </button>
+
                               {isEditing && (
                                 <button
                                   type="button"
                                   onClick={() => setEditingRowId(null)}
-                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-1 py-0.5"
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-1 py-0.5 cursor-pointer"
                                 >
                                   OK
                                 </button>
                               )}
+
                               <button
                                 type="button"
                                 onClick={() => handleRemoveRow(row.id)}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                                className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
                                 title="Διαγραφή παιχνιδιού"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -401,16 +599,64 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         </table>
       </div>
 
+      {/* New Pack Modal for Managers */}
+      {newPackModalRowId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-2 text-indigo-900 border-b border-slate-100 pb-3">
+              <PackagePlus className="w-5 h-5 text-indigo-600" />
+              <h4 className="font-extrabold text-sm">Άνοιγμα Νέου Πακέτου Σκρατς</h4>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Το προηγούμενο πακέτο ολοκληρώθηκε. Ορίστε το αρχικό νούμερο του νέου πακέτου (συνήθως 0):
+            </p>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                Αρχικός Αριθμός Νέου Πακέτου:
+              </label>
+              <input
+                type="number"
+                value={newPackStartNo}
+                onChange={(e) => setNewPackStartNo(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500"
+                placeholder="0"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setNewPackModalRowId(null)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyNewPack(newPackModalRowId)}
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Εφαρμογή Νέου Πακέτου</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer Summary Card */}
-      <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 flex items-center justify-between text-xs flex-wrap gap-2">
+      <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 flex items-center justify-between text-xs flex-wrap gap-2">
         <div className="flex items-center space-x-2 text-indigo-900">
           <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
           <span className="font-bold">
-            Σύνολο Πωληθέντων: <span className="font-black text-indigo-800 font-mono">{totalTicketsSold} τεμάχια</span>
+            Σύνολο Πωληθέντων Βάρδιας: <span className="font-black text-indigo-800 font-mono">{totalTicketsSold} τεμάχια</span>
           </span>
         </div>
         <div className="text-right">
-          <span className="text-[11px] text-slate-600 font-semibold mr-2">Σύνολο Αξίας Πωλήσεων:</span>
+          <span className="text-[11px] text-slate-600 font-semibold mr-2">Σύνολο Αξίας Πωλήσεων Σκρατς:</span>
           <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200">
             {grandTotalSales.toFixed(2)} €
           </span>
@@ -419,3 +665,4 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     </div>
   );
 };
+

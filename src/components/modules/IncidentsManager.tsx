@@ -8,6 +8,7 @@ import {
   updateIncidentStatusInFirestore,
   IncidentRecord,
 } from '../../services/moduleServices.ts';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 export const IncidentsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -134,13 +135,13 @@ export const IncidentsManager: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
-                <th className="px-4 py-3">ID / Ημερομηνία</th>
-                <th className="px-4 py-3">Τίτλος / Κατηγορία</th>
-                <th className="px-4 py-3">Σοβαρότητα</th>
-                <th className="px-4 py-3">Περιγραφή</th>
-                <th className="px-4 py-3">Αναφέρθηκε από</th>
-                <th className="px-4 py-3">Κατάσταση</th>
-                <th className="px-4 py-3 text-right">Ενέργεια</th>
+                <th className="px-4 py-3">{toGreekUpper('ID / Ημερομηνια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Τιτλος / Κατηγορια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Σοβαροτητα')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Περιγραφη')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Αναφερθηκε απο')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Κατασταση')}</th>
+                <th className="px-4 py-3 text-right">{toGreekUpper('Ενεργεια')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

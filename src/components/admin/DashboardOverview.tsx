@@ -44,6 +44,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
 import { Shift } from '../../types/index.ts';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -159,7 +160,9 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 1: Gross Revenue */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Συνολικά Έσοδα (€)</p>
+            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+              {toGreekUpper('Συνολικα Εσοδα (€)')}
+            </p>
             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
               <Euro className="w-4 h-4" />
             </div>
@@ -180,7 +183,9 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 2: Total Expenses */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">ΕΞΟΔΑ & ΠΛΗΡΩΜΕΣ (€)</p>
+            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+              {toGreekUpper('Εξοδα & Πληρωμες (€)')}
+            </p>
             <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
               <Receipt className="w-4 h-4" />
             </div>
@@ -201,7 +206,9 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 3: Cash Discrepancies */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">ΑΠΟΚΛΙΣΕΙΣ ΤΑΜΕΙΟΥ (€)</p>
+            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+              {toGreekUpper('Αποκλισεις Ταμειου (€)')}
+            </p>
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
                 totalDiscrepanciesCalculated < 0
@@ -238,7 +245,9 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 4: Safe Drop & Cash In Vault */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">ΚΑΤΑΘΕΣΕΙΣ SAFE DROP (€)</p>
+            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+              {toGreekUpper('Καταθεσεις Safe Drop (€)')}
+            </p>
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
               <Vault className="w-4 h-4" />
             </div>

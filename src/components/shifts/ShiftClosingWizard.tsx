@@ -21,10 +21,13 @@ import {
   ShieldCheck,
   RefreshCw,
   Sparkles,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
+import { fetchExpensesFromFirestore, deleteExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
+import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 import {
   ScratchCalculatorTable,
   DEFAULT_SCRATCH_PRESETS,
@@ -32,7 +35,12 @@ import {
   calculateRowTotal,
   getSavedScratchCatalog,
   saveScratchCatalog,
+  carryOverScratchInventory,
+  getLatestStoreScratchInventory,
+  saveLatestStoreScratchInventory,
 } from './ScratchCalculatorTable.tsx';
+import { CustomerCreditSection } from './CustomerCreditSection.tsx';
+import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 
 export interface ToraPosItem {
   id: string;
@@ -144,6 +152,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     permissions.includes('*') ||
     permissions.includes('store.view');
 
+  const isOwnerOrManager = canManage;
+
   const [managerUnlockedPos, setManagerUnlockedPos] = useState<boolean>(canManage);
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -204,6 +214,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             startNo: match.startNo || '',
             endNo: match.endNo || '',
             manualQty: match.manualQty !== undefined ? match.manualQty : '',
+            isNewPack: match.isNewPack || false,
           });
         } else {
           merged.push(item);
@@ -217,6 +228,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       }
       return merged;
     }
+
+    // Try carry-over from latest store inventory
+    const storeLatest = getLatestStoreScratchInventory(shift.store_id);
+    if (storeLatest && Array.isArray(storeLatest) && storeLatest.length > 0) {
+      return carryOverScratchInventory(storeLatest, catalog);
+    }
+
     return catalog;
   });
 
@@ -249,6 +267,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const handleScratchRowsChange = (newRows: ScratchTicketRow[]) => {
     setScratchRows(newRows);
     saveScratchCatalog(newRows);
+    saveLatestStoreScratchInventory(shift.store_id, newRows);
     const calc = newRows.reduce((sum, r) => sum + calculateRowTotal(r), 0);
     setScratchSales(calc.toFixed(2));
   };
@@ -507,7 +526,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     shift.employee_notes || localDraft?.employee_notes || ''
   );
 
-  // UI state
+  // UI state & Print Receipt state
+  const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
@@ -680,6 +700,88 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     expectedCash,
     safeNum(discrepancyThreshold)
   );
+
+  const receiptData: ShiftReceiptData = {
+    shift: {
+      ...shift,
+      store_name: shift.store_name,
+      store_code: shift.store_code || shift.store_id,
+      register_id: shift.register_id || 'POS-01',
+      shift_type: shift.shift_type,
+      opened_at: shift.opened_at,
+      closed_at: new Date().toISOString(),
+      closed_by_user_name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || shift.closed_by_user_name || 'Υπάλληλος Βάρδιας',
+      opened_by_user_name: shift.opened_by_user_name,
+      counted_denominations: denominations,
+    },
+    storeName: shift.store_name || 'OPAP AGENCY',
+    storeCode: shift.store_code || shift.store_id || '100343',
+    registerId: shift.register_id || 'POS-01',
+    cashierName: `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || shift.closed_by_user_name || shift.opened_by_user_name || 'Υπάλληλος Βάρδιας',
+    shiftType: shift.shift_type || 'MORNING',
+    openedAt: shift.opened_at,
+    closedAt: new Date().toISOString(),
+    denominations: denominations,
+
+    openingNotes: safeNum(openingNotesAmount),
+    openingCoins: safeNum(openingCoinsAmount),
+    openingTopUp1: safeNum(openingTopUp1),
+    openingTopUp2: safeNum(openingTopUp2),
+    openingCashTotal: openingCashTotal,
+
+    arithmoGross: safeNum(arithmoGross),
+    arithmoCancels: safeNum(arithmoCancels),
+    arithmoPayouts: safeNum(arithmoPayouts),
+    arithmoVouchers: safeNum(arithmoVouchers),
+    arithmoNet: totalArithmoNet,
+
+    scratchSales: safeNum(scratchSales),
+    scratchPayouts: safeNum(scratchPayouts),
+    scratchNet: totalScratchNet,
+
+    vltsIn: safeNum(vltsIn),
+    vltsOut: signedVltsOut,
+    vltsNet: safeNum(vltsIn) + signedVltsOut,
+
+    pameStoiximaBalance: safeNum(pameStoiximaBalance),
+    cleverPointTotal: safeNum(cleverPointTotal),
+    ippodromosBalance: safeNum(ippodromosBalance),
+
+    fnbCash: safeNum(fnbCash),
+    fnbCard: safeNum(fnbCard),
+    fnbTotal: safeNum(fnbSales),
+
+    expensesGpCash: expensesGpCashTotal,
+    expensesFnbCash: expensesFnbCashTotal,
+    expensesTotalCash: expensesCashTotal,
+    expensesList: expenses.map((e) => ({
+      id: e.id,
+      category: e.category,
+      recipient: e.description || e.category,
+      amount: safeNum(e.amount),
+      notes: e.description,
+    })),
+
+    safeDrop: safeNum(bankDeposits),
+    storePos1: safeNum(storePosItems[0]?.amount),
+    storePos2: safeNum(storePosItems[1]?.amount),
+    totalStorePos: totalStorePos,
+    toraPos1: safeNum(toraPosItems[0]?.amount),
+    toraPos2: safeNum(toraPosItems[1]?.amount),
+    totalToraPos: totalToraPos,
+
+    creditGranted: creditGrantedTotal,
+    creditCollected: creditCollectedTotal,
+
+    banknotesTotal: banknotesAndCoins.banknotes,
+    coinsTotal: banknotesAndCoins.coins,
+    drawerCashTotal: banknotesAndCoins.banknotes + banknotesAndCoins.coins,
+    totalCountedCash: countedCash,
+    totalExpectedCash: expectedCash,
+    discrepancy: discResult.discrepancy,
+    isUnbalanced: discResult.isUnbalanced,
+    employeeNotes: employeeNotes,
+  };
 
   // Helper to build a complete and fully persisted Shift payload
   const buildCurrentPayload = (targetStatus: 'DRAFT_CLOSING' | 'SUBMITTED') => {
@@ -898,6 +1000,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     ]);
   };
 
+  // Remove Expense item and delete from Firestore if saved
+  const handleRemoveExpense = async (index: number) => {
+    const exp = expenses[index];
+    if (exp?.id && !exp.id.startsWith('temp_')) {
+      try {
+        await deleteExpenseInFirestore(exp.id);
+      } catch (err) {
+        console.warn('Could not delete expense from Firestore:', err);
+      }
+    }
+    setExpenses(expenses.filter((_, i) => i !== index));
+  };
+
   // File receipt uploader to base64
   const handleFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -950,6 +1065,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       const submitPayload = buildCurrentPayload('SUBMITTED');
 
       await updateShiftInFirestore(shift.id, submitPayload);
+
+      // Apply customer credit debt balances to store directory
+      try {
+        applyShiftCustomerCredits(customerCredits, shift.store_id);
+      } catch (custErr) {
+        console.warn('Customer credit sync warning:', custErr);
+      }
 
       // Trigger automated shift closing summary email to owner/manager
       try {
@@ -1393,71 +1515,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-bold text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* 2a. Πωλήσεις POS Καταστήματος (POS Καταμέτρησης) */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/40 border border-indigo-200/80 space-y-4">
-              <div className="flex items-center justify-between border-b border-indigo-100 pb-3 flex-wrap gap-2">
-                <div>
-                  <h4 className="font-extrabold text-sm text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
-                    <span>💳 Πωλήσεις POS Καταστήματος (POS Καταμέτρησης)</span>
-                  </h4>
-                  <p className="text-[11px] font-medium text-indigo-700/80 mt-0.5">
-                    Τερματικά POS για πωλήσεις κάρτας — Υπολογίζονται στο Σύνολο Καταμέτρησης
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={handleAddStorePosItem}
-                    className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Προσθήκη POS</span>
-                  </button>
-                  <span className="text-xs font-black text-indigo-800 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs font-mono">
-                    Σύνολο POS Καταστήματος: {totalStorePos.toFixed(2)} €
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {storePosItems.map((item) => (
-                  <div key={item.id} className="bg-white p-3 rounded-xl border border-indigo-100 space-y-2 relative group shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
-                        className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5"
-                      />
-
-                      {storePosItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveStorePosItem(item.id)}
-                          className="text-slate-300 hover:text-rose-600 p-0.5 transition-colors"
-                          title="Διαγραφή POS"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.amount}
-                        onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
-                      />
-                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -1937,7 +1994,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <div className="sm:col-span-1 flex justify-end">
                       <button
                         type="button"
-                        onClick={() => setExpenses(expenses.filter((_, i) => i !== idx))}
+                        onClick={() => handleRemoveExpense(idx)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1966,95 +2023,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           </div>
 
           {/* Customer Credit Feature */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-base font-extrabold text-slate-900 flex items-center space-x-2">
-                  <UserCheck className="w-5 h-5 text-indigo-600" />
-                  <span>Πιστώσεις Πελατών (Customer Credit)</span>
-                </h4>
-                <p className="text-xs text-slate-500">Νέες πιστώσεις (τεφτέρι) ή εισπράξεις παλαιών οφειλών.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddCredit}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Προσθήκη Πίστωσης</span>
-              </button>
-            </div>
-
-            {customerCredits.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400 font-medium">
-                Δεν υπάρχουν καταχωρημένες πιστώσεις/εισπράξεις πελατών.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {customerCredits.map((cred, idx) => (
-                  <div
-                    key={cred.id || idx}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
-                  >
-                    <div className="sm:col-span-4">
-                      <input
-                        type="text"
-                        placeholder="Όνομα Πελάτη..."
-                        value={cred.customer_name || ''}
-                        onChange={(e) => {
-                          const updated = [...customerCredits];
-                          updated[idx].customer_name = e.target.value;
-                          setCustomerCredits(updated);
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 bg-white"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-4">
-                      <select
-                        value={cred.type || 'GRANTED'}
-                        onChange={(e) => {
-                          const updated = [...customerCredits];
-                          updated[idx].type = e.target.value as 'GRANTED' | 'COLLECTED';
-                          setCustomerCredits(updated);
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white"
-                      >
-                        <option value="GRANTED">Νέα Πίστωση (Χρέωση Πελάτη)</option>
-                        <option value="COLLECTED">Είσπραξη Πίστωσης (Εξόφληση)</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Ποσό €"
-                        value={cred.amount || ''}
-                        onChange={(e) => {
-                          const updated = [...customerCredits];
-                          updated[idx].amount = parseFloat(e.target.value) || 0;
-                          setCustomerCredits(updated);
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-1 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCustomerCredits(customerCredits.filter((_, i) => i !== idx))
-                        }
-                        className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="pt-4 border-t border-slate-100">
+            <CustomerCreditSection
+              customerCredits={customerCredits}
+              onChangeCredits={setCustomerCredits}
+              storeId={shift.store_id}
+              isOwnerOrManager={isOwnerOrManager}
+            />
           </div>
         </div>
       )}
@@ -2105,20 +2080,97 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             onChange={setDenominations}
             theme="light"
           />
+
+          {/* Πωλήσεις POS Καταστήματος (POS Καταμέτρησης) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/50 border border-indigo-200/80 space-y-4">
+            <div className="flex items-center justify-between border-b border-indigo-150 pb-3 flex-wrap gap-2">
+              <div>
+                <h4 className="font-extrabold text-sm text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
+                  <span>💳 Πωλήσεις POS Καταστήματος (POS Καταμέτρησης)</span>
+                </h4>
+                <p className="text-[11px] font-medium text-indigo-700/80 mt-0.5">
+                  Τερματικά POS για πωλήσεις κάρτας — Υπολογίζονται απευθείας στο Σύνολο Καταμέτρησης
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleAddStorePosItem}
+                  className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Προσθήκη POS</span>
+                </button>
+                <span className="text-xs font-black text-indigo-800 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs font-mono">
+                  Σύνολο POS: {totalStorePos.toFixed(2)} €
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {storePosItems.map((item) => (
+                <div key={item.id} className="bg-white p-3.5 rounded-xl border border-indigo-150 space-y-2 relative group shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <input
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
+                      className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5"
+                    />
+
+                    {storePosItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStorePosItem(item.id)}
+                        className="text-slate-300 hover:text-rose-600 p-0.5 transition-colors cursor-pointer"
+                        title="Διαγραφή POS"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.amount}
+                      onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                    />
+                    <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* STEP 5: REVIEW, RECONCILIATION & SUBMISSION */}
       {currentStep === 5 && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-              <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">5</span>
-              <span>Τελικός Έλεγχος & Υποβολή</span>
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Επιβεβαιώστε το ισοζύγιο ταμείου και το Σύνολο Καταμέτρησης πριν την οριστική υποβολή.
-            </p>
+          <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
+                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">5</span>
+                <span>Τελικός Έλεγχος & Υποβολή</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Επιβεβαιώστε το ισοζύγιο ταμείου και το Σύνολο Καταμέτρησης πριν την οριστική υποβολή.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowReceiptModal(true)}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-2 shadow-xs transition-colors cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-300" />
+                <span>Προεπισκόπηση & Εκτύπωση Απόδειξης</span>
+              </button>
+            </div>
           </div>
 
           {/* Main Reconciliation KPI Cards */}
@@ -2447,16 +2499,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
                       {[
-                        { label: '2x', key: 'eur_2', val: 2 },
-                        { label: '1x', key: 'eur_1', val: 1 },
-                        { label: '0.5x', key: 'eur_050', val: 0.5 },
-                        { label: '0.2x', key: 'eur_020', val: 0.2 },
-                        { label: '0.1x', key: 'eur_010', val: 0.1 },
-                        { label: '0.05x', key: 'eur_005', val: 0.05 },
-                        { label: '0.02x', key: 'eur_002', val: 0.02 },
-                        { label: '0.01x', key: 'eur_001', val: 0.01 },
+                        { label: '2x', key: '2', val: 2 },
+                        { label: '1x', key: '1', val: 1 },
+                        { label: '0.5x', key: '0.50', altKey: '0.5', val: 0.5 },
+                        { label: '0.2x', key: '0.20', altKey: '0.2', val: 0.2 },
+                        { label: '0.1x', key: '0.10', altKey: '0.1', val: 0.1 },
                       ].map((c) => {
-                        const qty = Math.floor(safeNum(denominations[c.key]));
+                        const rawQty =
+                          denominations[c.key] ??
+                          (c.altKey ? denominations[c.altKey] : undefined) ??
+                          denominations[`eur_${c.key.replace('.', '')}`] ??
+                          denominations[`eur_${c.key}`];
+                        const qty = Math.floor(safeNum(rawQty));
                         const subtotal = roundCurrency(qty * c.val);
                         return (
                           <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
@@ -2480,15 +2534,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
                       {[
-                        { label: '5x', key: 'eur_5', val: 5 },
-                        { label: '10x', key: 'eur_10', val: 10 },
-                        { label: '20x', key: 'eur_20', val: 20 },
-                        { label: '50x', key: 'eur_50', val: 50 },
-                        { label: '100x', key: 'eur_100', val: 100 },
-                        { label: '200x', key: 'eur_200', val: 200 },
-                        { label: '500x', key: 'eur_500', val: 500 },
+                        { label: '5x', key: '5', val: 5 },
+                        { label: '10x', key: '10', val: 10 },
+                        { label: '20x', key: '20', val: 20 },
+                        { label: '50x', key: '50', val: 50 },
+                        { label: '100x', key: '100', val: 100 },
+                        { label: '200x', key: '200', val: 200 },
+                        { label: '500x', key: '500', val: 500 },
                       ].map((n) => {
-                        const qty = Math.floor(safeNum(denominations[n.key]));
+                        const rawQty =
+                          denominations[n.key] ??
+                          denominations[`eur_${n.key}`];
+                        const qty = Math.floor(safeNum(rawQty));
                         const subtotal = roundCurrency(qty * n.val);
                         return (
                           <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
@@ -2662,6 +2719,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             )}
           </button>
         )}
+      </div>
+
+      {/* Print Receipt Modal (When requested by user) */}
+      <ShiftReceiptPrintView
+        data={receiptData}
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+      />
+
+      {/* Dedicated Print-Only DOM element for thermal/A4 printing */}
+      <div className="print-only">
+        <ShiftReceiptPrintView data={receiptData} isInline={true} />
       </div>
     </div>
   );

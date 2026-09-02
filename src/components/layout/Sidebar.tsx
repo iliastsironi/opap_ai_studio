@@ -23,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 interface SidebarProps {
   currentTab: string;
@@ -87,7 +88,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
-              <p className="text-[10px] tracking-wider text-slate-400 font-semibold">ΔΙΑΧΕΙΡΙΣΗ ΤΑΜΕΙΟΥ & ΒΑΡΔΙΩΝ</p>
+              <p className="text-[10px] tracking-wider text-slate-400 font-semibold">
+                {toGreekUpper('Διαχειριση Ταμειου & Βαρδιων')}
+              </p>
             </div>
           </div>
           <button
@@ -114,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         {visibleNavItems.length > 0 && (
           <div>
             <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
-              ΔΙΑΧΕΙΡΙΣΗ & ΑΣΦΑΛΕΙΑ
+              {toGreekUpper('Διαχειριση & Ασφαλεια')}
             </p>
             <div className="space-y-1">
               {visibleNavItems.map((item) => {
@@ -149,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
 
         <div>
           <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
-            ΛΕΙΤΟΥΡΓΙΚΕΣ ΕΝΟΤΗΤΕΣ
+            {toGreekUpper('Λειτουργικες Ενοτητες')}
           </p>
           <div className="space-y-1">
             {visibleOperationalModules.map((mod) => {
@@ -183,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
 
         <div>
           <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
-            ΒΟΗΘΕΙΑ & AI
+            {toGreekUpper('Βοηθεια & AI')}
           </p>
           <div className="space-y-1">
             {helpModules.map((hMod) => {

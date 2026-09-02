@@ -66,6 +66,26 @@ export async function createExpenseInFirestore(record: Omit<ExpenseRecord, 'id' 
   }
 }
 
+export async function updateExpenseInFirestore(id: string, updates: Partial<ExpenseRecord>): Promise<void> {
+  try {
+    const ref = doc(db, EXPENSES_COLLECTION, id);
+    await updateDoc(ref, cleanFirestoreData(updates));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
+    throw error;
+  }
+}
+
+export async function deleteExpenseInFirestore(id: string): Promise<void> {
+  try {
+    const ref = doc(db, EXPENSES_COLLECTION, id);
+    await deleteDoc(ref);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${EXPENSES_COLLECTION}/${id}`);
+    throw error;
+  }
+}
+
 // ----------------------------------------------------
 // INCIDENTS SERVICE
 // ----------------------------------------------------
@@ -181,6 +201,16 @@ export async function createFnbInFirestore(record: Omit<FnbRecord, 'id' | 'creat
     return newRecord;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, FNB_COLLECTION);
+    throw error;
+  }
+}
+
+export async function deleteFnbInFirestore(id: string): Promise<void> {
+  try {
+    const ref = doc(db, FNB_COLLECTION, id);
+    await deleteDoc(ref);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${FNB_COLLECTION}/${id}`);
     throw error;
   }
 }

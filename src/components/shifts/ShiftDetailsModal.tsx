@@ -13,11 +13,31 @@ import {
   Eye,
   ShieldAlert,
   Trash2,
+  Scale,
+  ArrowRight,
+  TrendingUp,
+  Banknote,
+  CreditCard,
+  Layers,
+  HelpCircle,
+  Printer,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Shift } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
+import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
+import {
+  safeNum,
+  roundCurrency,
+  calculateBanknotesAndCoins,
+  EUR_DENOMINATIONS,
+} from '../../services/financialCalculator.ts';
+import {
+  calculateRowQty,
+  calculateRowTotal,
+  ScratchTicketRow,
+} from './ScratchCalculatorTable.tsx';
 
 interface ShiftDetailsModalProps {
   shift: Shift | null;
@@ -37,7 +57,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   onDeleteRequest,
 }) => {
   const { token, hasPermission, roles } = useAuth();
-  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'SHEET'>('SHEET');
+  const [activeTab, setActiveTab] = useState<'RECONCILIATION' | 'SHEET' | 'SUMMARY'>('RECONCILIATION');
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
   const [managerNotes, setManagerNotes] = useState('');
   const [actionType, setActionType] = useState<'CORRECTION' | 'REOPEN'>('CORRECTION');
@@ -138,19 +159,19 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden border border-slate-100 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 my-4 sm:my-8 flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
-              <Clock className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+              <Scale className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="font-bold text-base">Λεπτομέρειες Βάρδιας</h3>
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <h3 className="font-black text-base sm:text-lg">Επιθεώρηση & Έγκριση Βάρδιας</h3>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                     shift.status === 'APPROVED'
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                       : shift.status === 'SUBMITTED'
@@ -163,26 +184,26 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   {shift.status === 'APPROVED'
                     ? 'ΕΓΚΕΚΡΙΜΕΝΗ'
                     : shift.status === 'SUBMITTED'
-                    ? 'ΥΠΟΒΛΗΘΗΚΕ (ΑΜΕΤΑΒΛΗΤΗ)'
+                    ? 'ΕΚΚΡΕΜΕΙ ΕΓΚΡΙΣΗ'
                     : shift.status === 'CORRECTION_REQUESTED'
                     ? 'ΑΙΤΗΣΗ ΔΙΟΡΘΩΣΗΣ'
                     : shift.status}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                {shift.store_name} ({shift.register_id})
+                {shift.store_name} ({shift.register_id}) • Υπεύθυνος: <span className="font-bold text-white">{shift.opened_by_user_name || 'Υπάλληλος'}</span>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
               {error}
@@ -190,239 +211,736 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           )}
 
           {/* Tab Switcher */}
-          <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+          <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
             <button
-              onClick={() => setActiveTab('SHEET')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'SHEET'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              onClick={() => setActiveTab('RECONCILIATION')}
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+                activeTab === 'RECONCILIATION'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              Φύλλο Αναφοράς Βάρδιας (Ledger Report)
+              <Scale className="w-3.5 h-3.5" />
+              <span>Έλεγχος & Συμφωνία Ταμείου (Reconciliation)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('SHEET')}
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+                activeTab === 'SHEET'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Φύλλο Αναφοράς Βάρδιας (Ledger)</span>
             </button>
             <button
               onClick={() => setActiveTab('SUMMARY')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
                 activeTab === 'SUMMARY'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              Σύνοψη & Παραστατικά
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Έξοδα & Σημειώσεις</span>
             </button>
           </div>
 
-          {activeTab === 'SHEET' ? (
-            <ShiftLedgerSheet shift={shift} readOnly={true} />
-          ) : (
-            <>
-              {(() => {
-                const posTotal = shift.card_payments || (shift.custom_field_values?.tora_pos_items || []).reduce((acc: number, item: any) => acc + (parseFloat(item.amount) || 0), 0) || 0;
-                const expensesTotal = (shift.expenses || []).reduce((acc: number, e: any) => acc + (e.amount || 0), 0) || (shift.expenses_paid_cash || 0);
-                const creditGranted = shift.customer_credit_granted || 0;
-                const creditCollected = shift.customer_credit_collected || 0;
-                const totalReconciliationCount = shift.custom_field_values?.total_reconciliation_count !== undefined
-                  ? Number(shift.custom_field_values.total_reconciliation_count)
-                  : (shift.counted_cash || 0) + posTotal + expensesTotal + creditGranted - creditCollected - (shift.opening_cash || 0);
+          {activeTab === 'RECONCILIATION' && (() => {
+            // Data Extractions & Calculations
+            const opapSales = safeNum(shift.opap_gross_sales);
+            const opapPayouts = safeNum(shift.opap_payouts);
+            const opapNet = roundCurrency(shift.opap_net_sales !== undefined ? safeNum(shift.opap_net_sales) : opapSales - opapPayouts);
 
-                return (
-                  <>
-                    {/* User Timestamps Card */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase block mb-1">Έναρξη</span>
-                        <p className="font-bold text-slate-900">{shift.opened_by_user_name || 'Υπάλληλος'}</p>
-                        <p className="text-slate-500 font-mono">
-                          {new Date(shift.opened_at).toLocaleString('el-GR')}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold uppercase block mb-1">Κλείσιμο</span>
-                        <p className="font-bold text-slate-900">
-                          {shift.closed_by_user_name || (shift.closed_at ? 'Υπάλληλος' : '-')}
-                        </p>
-                        <p className="text-slate-500 font-mono">
-                          {shift.closed_at ? new Date(shift.closed_at).toLocaleString('el-GR') : 'Σε εξέλιξη'}
-                        </p>
-                      </div>
+            const vltsIn = safeNum(shift.vlts_cash_in);
+            const vltsOut = safeNum(shift.vlts_cash_out);
+            const vltsNet = roundCurrency(shift.vlts_net !== undefined ? safeNum(shift.vlts_net) : vltsIn - vltsOut);
+
+            const scratchSales = safeNum(shift.scratch_sales ?? shift.custom_field_values?.scratch_sales);
+            const scratchPayouts = safeNum(shift.scratch_payouts ?? shift.custom_field_values?.scratch_payouts);
+            const scratchNet = roundCurrency(scratchSales - scratchPayouts);
+
+            const toraServices = safeNum(shift.custom_field_values?.tora_bill_payments_amount ?? shift.custom_field_values?.tora_services_amount);
+            const toraPayouts = safeNum(shift.custom_field_values?.tora_payouts_amount);
+            const toraDirectTotal = (shift as any).tora_direct_total ?? shift.custom_field_values?.tora_direct_total;
+            const toraDirectNet = roundCurrency(toraDirectTotal !== undefined ? safeNum(toraDirectTotal) : toraServices - toraPayouts);
+
+            const fnbSales = safeNum(shift.fnb_cash);
+            const fnbCard = safeNum(shift.fnb_card);
+            const fnbTotal = roundCurrency(fnbSales + fnbCard);
+
+            const toraPosItems: Array<{ name: string; amount: string | number }> = shift.custom_field_values?.tora_pos_items || [];
+            const toraPosTotal = toraPosItems.length > 0
+              ? toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0)
+              : safeNum(shift.card_payments);
+
+            const expectedCash = roundCurrency(safeNum(shift.expected_cash));
+
+            // Right Column - Physical Count Extractions
+            const openingNotesAmount = safeNum(shift.custom_field_values?.opening_notes);
+            const openingCoinsAmount = safeNum(shift.custom_field_values?.opening_coins);
+            const openingTopUp1 = safeNum(shift.custom_field_values?.opening_topup1);
+            const openingTopUp2 = safeNum(shift.custom_field_values?.opening_topup2);
+            const openingCashTotal = roundCurrency(
+              openingNotesAmount + openingCoinsAmount + openingTopUp1 + openingTopUp2 || safeNum(shift.opening_cash)
+            );
+
+            const denominations: Record<string, number> = shift.counted_denominations || shift.custom_field_values?.denominations || {};
+            const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
+
+            const bankDeposits = safeNum(shift.custom_field_values?.bank_deposits ?? shift.custom_field_values?.safe_drops);
+            const storePosItems: Array<{ name: string; amount: string | number }> = shift.custom_field_values?.store_pos_items || [];
+            const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
+
+            const expensesGpCashTotal = safeNum(shift.custom_field_values?.expenses_gp_cash ?? shift.expenses_paid_cash);
+            const expensesFnbCashTotal = safeNum(shift.custom_field_values?.expenses_fnb_cash);
+            const creditGrantedTotal = safeNum(shift.customer_credit_granted);
+            const creditCollectedTotal = safeNum(shift.customer_credit_collected ?? shift.customer_returns);
+
+            const countedDrawerCash = roundCurrency(safeNum(shift.counted_cash) || banknotesAndCoins.total);
+            const grossCount = roundCurrency(
+              banknotesAndCoins.banknotes +
+              banknotesAndCoins.coins +
+              bankDeposits +
+              totalStorePos +
+              expensesGpCashTotal +
+              expensesFnbCashTotal +
+              creditGrantedTotal -
+              creditCollectedTotal
+            );
+
+            const totalReconciliationCount = roundCurrency(
+              shift.custom_field_values?.total_reconciliation_count !== undefined
+                ? safeNum(shift.custom_field_values.total_reconciliation_count)
+                : grossCount - openingCashTotal
+            );
+
+            const discrepancy = roundCurrency(
+              shift.discrepancy !== undefined
+                ? safeNum(shift.discrepancy)
+                : totalReconciliationCount - expectedCash
+            );
+            const isBalanced = Math.abs(discrepancy) < 0.01;
+
+            return (
+              <div className="space-y-4">
+                {/* Status & Discrepancy Hero Card */}
+                <div
+                  className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
+                    isBalanced
+                      ? 'bg-emerald-950 text-white border-emerald-800'
+                      : discrepancy > 0
+                      ? 'bg-indigo-950 text-white border-indigo-800'
+                      : 'bg-rose-950 text-white border-rose-800'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isBalanced
+                          ? 'bg-emerald-600 text-white'
+                          : discrepancy > 0
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-rose-600 text-white'
+                      }`}
+                    >
+                      {isBalanced ? <CheckCircle2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                     </div>
-
-                    {/* Σύνολο Καταμέτρησης Banner */}
-                    <div className="bg-indigo-900 text-white p-4 rounded-2xl border border-indigo-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
-                      <div>
-                        <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider block">
-                          Σύνολο Καταμέτρησης
-                        </span>
-                        <p className="text-[11px] text-indigo-200/80 mt-0.5">
-                          (Μετρημένα στο συρτάρι + Πωλήσεις POS + Έξοδα + Πιστώσεις - Επιστροφές) - Αρχικό
-                        </p>
-                      </div>
-                      <span className="text-2xl font-black text-emerald-400 font-mono">
-                        {totalReconciliationCount.toFixed(2)} €
-                      </span>
-                    </div>
-
-                    {/* Summary Figures Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                          Αρχικό Ταμείο
-                        </span>
-                        <span className="text-lg font-black text-slate-900">
-                          {shift.opening_cash.toFixed(2)} €
-                        </span>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                          Αναμενόμενο Ταμείο
-                        </span>
-                        <span className="text-lg font-black text-emerald-700">
-                          {shift.expected_cash.toFixed(2)} €
-                        </span>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                          Μετρητά Συρταριού
-                        </span>
-                        <span className="text-lg font-black text-indigo-700">
-                          {shift.counted_cash.toFixed(2)} €
-                        </span>
-                      </div>
-
-                      <div
-                        className={`p-3.5 rounded-xl border ${
-                          shift.is_unbalanced ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'
-                        }`}
-                      >
-                        <span className="text-[10px] font-bold uppercase block text-slate-700">
-                          Απόκλιση
-                        </span>
-                        <span
-                          className={`text-lg font-black ${
-                            shift.discrepancy < 0 ? 'text-rose-700' : 'text-emerald-700'
-                          }`}
-                        >
-                          {shift.discrepancy > 0 ? '+' : ''}
-                          {shift.discrepancy.toFixed(2)} €
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-          {/* Breakdown Table */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-            <div className="bg-slate-100 px-4 py-2 font-bold text-slate-800 border-b border-slate-200">
-              Οικονομική Ανάλυση Βάρδιας
-            </div>
-            <div className="divide-y divide-slate-100 bg-white">
-              <div className="px-4 py-2 flex justify-between">
-                <span>ΟΠΑΠ Ακαθάριστα / Πληρωμές / Καθαρά</span>
-                <span className="font-bold">
-                  {shift.opap_gross_sales.toFixed(2)}€ / -{shift.opap_payouts.toFixed(2)}€ ={' '}
-                  <span className="text-emerald-700">
-                    {(shift.opap_gross_sales - shift.opap_payouts).toFixed(2)}€
-                  </span>
-                </span>
-              </div>
-              <div className="px-4 py-2 flex justify-between">
-                <span>VLTs Cash-In / Cash-Out / Καθαρά</span>
-                <span className="font-bold">
-                  {shift.vlts_cash_in.toFixed(2)}€ / -{shift.vlts_cash_out.toFixed(2)}€ ={' '}
-                  <span className="text-emerald-700">
-                    {(shift.vlts_cash_in - shift.vlts_cash_out).toFixed(2)}€
-                  </span>
-                </span>
-              </div>
-              <div className="px-4 py-2 flex justify-between">
-                <span>Πωλήσεις FnB (Μετρητά / Κάρτες)</span>
-                <span className="font-bold">
-                  {shift.fnb_cash.toFixed(2)}€ (Μετρητά) / {shift.fnb_card.toFixed(2)}€ (Κάρτες)
-                </span>
-              </div>
-              <div className="px-4 py-2 flex justify-between">
-                <span>Αφαιρέσεις Καρτών POS / Εξόδων</span>
-                <span className="font-bold text-rose-600">
-                  -{shift.card_payments.toFixed(2)}€ (POS) / -{shift.expenses_paid_cash.toFixed(2)}€
-                  (Έξοδα)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Expenses & Receipts */}
-          {shift.expenses && shift.expenses.length > 0 && (
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                <Receipt className="w-4 h-4 text-indigo-600" />
-                <span>Καταχωρημένα Έξοδα Βάρδιας ({shift.expenses.length})</span>
-              </h4>
-              <div className="space-y-2">
-                {shift.expenses.map((exp) => (
-                  <div
-                    key={exp.id}
-                    className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
-                  >
                     <div>
-                      <span className="font-bold text-slate-900">{exp.description}</span>
-                      <span className="text-slate-500 ml-2">({exp.category})</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span className="font-bold text-slate-900">{exp.amount.toFixed(2)} €</span>
-                      {exp.receipt_url && (
-                        <button
-                          onClick={() => setSelectedReceiptUrl(exp.receipt_url || null)}
-                          className="px-2 py-1 bg-white border border-slate-200 rounded text-indigo-600 font-bold hover:bg-indigo-50 flex items-center space-x-1"
-                        >
-                          <Eye className="w-3 h-3" />
-                          <span>Απόδειξη</span>
-                        </button>
-                      )}
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        Οικονομικό Ισοζύγιο Ταμείου
+                      </span>
+                      <h4 className="text-lg font-black tracking-tight">
+                        {isBalanced
+                          ? 'Ταμείο Πλήρως Ισοσκελισμένο'
+                          : discrepancy > 0
+                          ? `Πλεόνασμα Ταμείου (+${discrepancy.toFixed(2)} €)`
+                          : `Έλλειμμα Ταμείου (${discrepancy.toFixed(2)} €)`}
+                      </h4>
                     </div>
                   </div>
-                ))}
+
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-300 block">Απόκλιση</span>
+                      <span
+                        className={`text-xl sm:text-2xl font-black font-mono ${
+                          isBalanced
+                            ? 'text-emerald-400'
+                            : discrepancy > 0
+                            ? 'text-indigo-300'
+                            : 'text-rose-400'
+                        }`}
+                      >
+                        {discrepancy > 0 ? '+' : ''}
+                        {discrepancy.toFixed(2)} €
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-COLUMN SIDE-BY-SIDE RECONCILIATION VIEW */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* LEFT COLUMN: 1. Αναφορές */}
+                  <div className="bg-slate-900/90 text-white rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between shadow-xs">
+                    {/* Header Banner */}
+                    <div className="bg-blue-900/90 text-white text-center py-2.5 text-xs font-black uppercase tracking-wider border-b border-blue-800 shadow-xs flex items-center justify-center space-x-1.5">
+                      <FileText className="w-4 h-4 text-blue-300" />
+                      <span>1. Αναφορές (Εκκαθάριση Συστημάτων)</span>
+                    </div>
+
+                    <div className="p-3.5 space-y-3 text-xs">
+                      {/* Block 1: Παιχνίδια ΟΠΑΠ */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Παιχνίδια
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Ακαθάριστα:</span>
+                          <span className="font-mono font-bold text-white">{opapSales.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πληρωμές:</span>
+                          <span className="font-mono font-bold text-rose-300">-{opapPayouts.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Καθαρά:</span>
+                          <span className="font-mono text-emerald-400">{opapNet.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 2: VLTs (Play OPAP) */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          VLTs
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Cash In:</span>
+                          <span className="font-mono font-bold text-white">{vltsIn.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Cash Out:</span>
+                          <span className="font-mono font-bold text-rose-300">-{vltsOut.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Καθαρά:</span>
+                          <span className="font-mono text-emerald-400">{vltsNet.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 3: Λαχεία & Σκρατς */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Λαχεία & Σκρατς
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πωλήσεις:</span>
+                          <span className="font-mono font-bold text-white">{scratchSales.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πληρωμές:</span>
+                          <span className="font-mono font-bold text-rose-300">-{scratchPayouts.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Καθαρά:</span>
+                          <span className="font-mono text-emerald-400">{scratchNet.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 4: Tora Direct */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Tora Direct
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Υπηρεσίες:</span>
+                          <span className="font-mono font-bold text-white">{toraServices.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πληρωμές:</span>
+                          <span className="font-mono font-bold text-rose-300">-{toraPayouts.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Καθαρά:</span>
+                          <span className="font-mono text-emerald-400">{toraDirectNet.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 5: FnB */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          FnB
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πωλήσεις:</span>
+                          <span className="font-mono font-bold text-white">{fnbTotal.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Κάρτες:</span>
+                          <span className="font-mono font-bold text-rose-300">-{fnbCard.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Καθαρά:</span>
+                          <span className="font-mono text-emerald-400">{fnbSales.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 6: POS Αφαιρέσεις */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          POS Αφαιρέσεις
+                        </div>
+                        {toraPosItems.length > 0 ? (
+                          toraPosItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-slate-300 py-0.5">
+                              <span>{item.name || `POS #${idx + 1}`}:</span>
+                              <span className="font-mono font-bold text-rose-300">-{safeNum(item.amount).toFixed(2)} €</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex justify-between text-slate-300 py-0.5">
+                            <span>POS Πληρωμές:</span>
+                            <span className="font-mono font-bold text-rose-300">-{toraPosTotal.toFixed(2)} €</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Σύνολο Αφαιρέσεων:</span>
+                          <span className="font-mono text-rose-300">-{toraPosTotal.toFixed(2)} €</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Left Blue Bar */}
+                    <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
+                      <span>Σύνολο Ταμείου (Αναφορές):</span>
+                      <span className="font-mono text-base font-black text-emerald-300">{expectedCash.toFixed(2)} €</span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: 2. Καταμέτρηση */}
+                  <div className="bg-slate-900/90 text-white rounded-2xl border border-slate-800 overflow-hidden flex flex-col justify-between shadow-xs">
+                    {/* Header Banner */}
+                    <div className="bg-blue-900/90 text-white text-center py-2.5 text-xs font-black uppercase tracking-wider border-b border-blue-800 shadow-xs flex items-center justify-center space-x-1.5">
+                      <Coins className="w-4 h-4 text-amber-300" />
+                      <span>2. Καταμέτρηση (Φυσική Καταμέτρηση)</span>
+                    </div>
+
+                    <div className="p-3.5 space-y-3 text-xs">
+                      {/* Block 1: Αρχικό κεφάλαιο */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Αρχικό κεφάλαιο
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Μετρητά:</span>
+                          <span className="font-mono font-bold text-white">{openingNotesAmount.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Κέρματα:</span>
+                          <span className="font-mono font-bold text-white">{openingCoinsAmount.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Προσαύξηση #1:</span>
+                          <span className="font-mono font-bold text-white">{openingTopUp1.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Προσαύξηση #2:</span>
+                          <span className="font-mono font-bold text-white">{openingTopUp2.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Σύνολο:</span>
+                          <span className="font-mono text-white">{openingCashTotal.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 2: Κέρματα Ταμείου */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Κέρματα Ταμείου
+                        </div>
+                        <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                          {[
+                            { label: '2x', key: '2', val: 2 },
+                            { label: '1x', key: '1', val: 1 },
+                            { label: '0.5x', key: '0.50', altKey: '0.5', val: 0.5 },
+                            { label: '0.2x', key: '0.20', altKey: '0.2', val: 0.2 },
+                            { label: '0.1x', key: '0.10', altKey: '0.1', val: 0.1 },
+                          ].map((c) => {
+                            const rawQty =
+                              denominations[c.key] ??
+                              (c.altKey ? denominations[c.altKey] : undefined) ??
+                              denominations[`eur_${c.key.replace('.', '')}`] ??
+                              denominations[`eur_${c.key}`];
+                            const qty = Math.floor(safeNum(rawQty));
+                            const subtotal = roundCurrency(qty * c.val);
+                            return (
+                              <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
+                                <span className="font-mono text-slate-300 font-bold w-12">{c.label}</span>
+                                <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
+                                <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Σύνολο:</span>
+                          <span className="font-mono text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 3: Μετρητά Ταμείου */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Μετρητά Ταμείου
+                        </div>
+                        <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                          {[
+                            { label: '5x', key: '5', val: 5 },
+                            { label: '10x', key: '10', val: 10 },
+                            { label: '20x', key: '20', val: 20 },
+                            { label: '50x', key: '50', val: 50 },
+                            { label: '100x', key: '100', val: 100 },
+                            { label: '200x', key: '200', val: 200 },
+                            { label: '500x', key: '500', val: 500 },
+                          ].map((n) => {
+                            const rawQty =
+                              denominations[n.key] ??
+                              denominations[`eur_${n.key}`];
+                            const qty = Math.floor(safeNum(rawQty));
+                            const subtotal = roundCurrency(qty * n.val);
+                            return (
+                              <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
+                                <span className="font-mono text-slate-300 font-bold w-12">{n.label}</span>
+                                <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
+                                <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Σύνολο:</span>
+                          <span className="font-mono text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                        </div>
+                      </div>
+
+                      {/* Block 4: Ταμείο */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                          Ταμείο (Τελική Συμφωνία)
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Μετρητά Χαρτονομίσματα:</span>
+                          <span className="font-mono font-bold text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Κέρματα:</span>
+                          <span className="font-mono font-bold text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Χρηματοκιβώτιο:</span>
+                          <span className="font-mono font-bold text-white">{bankDeposits.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Pos Καταστήματος:</span>
+                          <span className="font-mono font-bold text-white">{totalStorePos.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Έξοδα ΓΠ:</span>
+                          <span className="font-mono font-bold text-white">{expensesGpCashTotal.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Έξοδα FnB:</span>
+                          <span className="font-mono font-bold text-white">{expensesFnbCashTotal.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Πιστώσεις:</span>
+                          <span className="font-mono font-bold text-white">{creditGrantedTotal.toFixed(2)} €</span>
+                        </div>
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Επιστροφές:</span>
+                          <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + creditCollectedTotal.toFixed(2) + ' €' : '0.00 €'}</span>
+                        </div>
+                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
+                          <span>Σύνολο:</span>
+                          <span className="font-mono text-white">{grossCount.toFixed(2)} €</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Right Blue Bar */}
+                    <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
+                      <span>Σύνολο Καταμέτρησης:</span>
+                      <span className="font-mono text-base font-black text-emerald-300">{totalReconciliationCount.toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scratch Ticket Granular Verification Table for Managers */}
+                {(() => {
+                  const scratchItems: ScratchTicketRow[] = shift.custom_field_values?.scratch_ticket_items || [];
+                  const activeItems = scratchItems.filter(
+                    (r) => (r.startNo && r.startNo !== '') || (r.endNo && r.endNo !== '') || calculateRowQty(r) > 0
+                  );
+                  if (activeItems.length === 0) return null;
+
+                  const totalSold = activeItems.reduce((acc, r) => acc + calculateRowQty(r), 0);
+                  const totalVal = activeItems.reduce((acc, r) => acc + calculateRowTotal(r), 0);
+
+                  return (
+                    <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
+                            Έλεγχος Σκρατς & Λαχείων Βάρδιας (#Αρχικό ➔ #Τελικό)
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
+                          {totalSold} τμχ • {totalVal.toFixed(2)} €
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse font-mono">
+                          <thead>
+                            <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+                              <th className="py-1.5 px-2">Παιχνίδι</th>
+                              <th className="py-1.5 px-2 text-right">Τιμή</th>
+                              <th className="py-1.5 px-2 text-center"># Αρχικό</th>
+                              <th className="py-1.5 px-2 text-center"># Τελικό</th>
+                              <th className="py-1.5 px-2 text-center">Πωλήσεις (Τμχ)</th>
+                              <th className="py-1.5 px-2 text-right">Αξία (€)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 font-medium">
+                            {activeItems.map((r, idx) => {
+                              const qty = calculateRowQty(r);
+                              const val = calculateRowTotal(r);
+                              return (
+                                <tr key={r.id || idx} className="hover:bg-slate-800/40">
+                                  <td className="py-1.5 px-2 font-sans font-bold text-slate-200">
+                                    {r.name}
+                                    {r.isNewPack && (
+                                      <span className="ml-2 text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">
+                                        Νέο
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-right text-slate-300">{Number(r.price).toFixed(2)}€</td>
+                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{r.startNo || '-'}</td>
+                                  <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">{r.endNo || '-'}</td>
+                                  <td className="py-1.5 px-2 text-center font-bold text-white">
+                                    <span className={qty > 0 ? 'bg-indigo-900/80 px-2 py-0.5 rounded text-indigo-200' : 'text-slate-500'}>
+                                      {qty}
+                                    </span>
+                                  </td>
+                                  <td className="py-1.5 px-2 text-right font-black text-emerald-400">{val.toFixed(2)} €</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Customer Credits & Credit Score Verification Table */}
+                {(() => {
+                  const creditsList = shift.customer_credits || [];
+                  if (!Array.isArray(creditsList) || creditsList.length === 0) return null;
+
+                  return (
+                    <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
+                            Πιστώσεις & Εισπράξεις Πελατών Βάρδιας (Τεφτέρι)
+                          </h4>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-800/60">
+                          {creditsList.length} κινήσεις
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase font-mono">
+                              <th className="py-1.5 px-2">Πελάτης</th>
+                              <th className="py-1.5 px-2 text-center">Credit Score</th>
+                              <th className="py-1.5 px-2 text-center">Τύπος Κίνησης</th>
+                              <th className="py-1.5 px-2">Σημειώσεις</th>
+                              <th className="py-1.5 px-2 text-right">Ποσό (€)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 font-medium">
+                            {creditsList.map((cred, idx) => {
+                              const isCollected = cred.type === 'COLLECTED';
+                              return (
+                                <tr key={cred.id || idx} className="hover:bg-slate-800/40">
+                                  <td className="py-1.5 px-2 font-bold text-slate-200">
+                                    {cred.customer_name || 'Πελάτης'}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-black font-mono ${
+                                        cred.customer_tier === 'A+'
+                                          ? 'bg-purple-900/80 text-purple-300 border border-purple-700'
+                                          : cred.customer_tier === 'A'
+                                          ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-700'
+                                          : cred.customer_tier === 'B'
+                                          ? 'bg-amber-900/80 text-amber-300 border border-amber-700'
+                                          : 'bg-rose-900/80 text-rose-300 border border-rose-700'
+                                      }`}
+                                    >
+                                      {cred.customer_tier || 'B'}
+                                    </span>
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center">
+                                    <span
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        isCollected
+                                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                          : 'bg-amber-950 text-amber-300 border border-amber-800'
+                                      }`}
+                                    >
+                                      {isCollected ? 'Είσπραξη / Εξόφληση' : 'Νέα Πίστωση (Χρέωση)'}
+                                    </span>
+                                  </td>
+                                  <td className="py-1.5 px-2 text-slate-400 text-[11px] italic">
+                                    {cred.notes || '-'}
+                                  </td>
+                                  <td
+                                    className={`py-1.5 px-2 text-right font-mono font-black ${
+                                      isCollected ? 'text-emerald-400' : 'text-amber-400'
+                                    }`}
+                                  >
+                                    {isCollected ? '-' : '+'}
+                                    {Number(cred.amount || 0).toFixed(2)} €
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Employee / Manager Notes Preview */}
+                {(shift.employee_notes || shift.manager_notes) && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                    {shift.employee_notes && (
+                      <div>
+                        <span className="font-bold text-slate-700 block">Σημειώσεις Υπαλλήλου:</span>
+                        <p className="text-slate-600 italic">{shift.employee_notes}</p>
+                      </div>
+                    )}
+                    {shift.manager_notes && (
+                      <div className="pt-2 border-t border-slate-200">
+                        <span className="font-bold text-indigo-700 block">
+                          Σημειώσεις / Οδηγίες Διευθυντή:
+                        </span>
+                        <p className="text-slate-800 font-medium">{shift.manager_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
+            );
+          })()}
+
+          {activeTab === 'SHEET' && (
+            <ShiftLedgerSheet shift={shift} readOnly={true} />
           )}
 
-          {/* Notes */}
-          {(shift.employee_notes || shift.manager_notes) && (
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
-              {shift.employee_notes && (
+          {activeTab === 'SUMMARY' && (
+            <>
+              {/* User Timestamps Card */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                 <div>
-                  <span className="font-bold text-slate-700 block">Σημειώσεις Υπαλλήλου:</span>
-                  <p className="text-slate-600 italic">{shift.employee_notes}</p>
+                  <span className="text-slate-400 font-bold uppercase block mb-1">Έναρξη</span>
+                  <p className="font-bold text-slate-900">{shift.opened_by_user_name || 'Υπάλληλος'}</p>
+                  <p className="text-slate-500 font-mono">
+                    {new Date(shift.opened_at).toLocaleString('el-GR')}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold uppercase block mb-1">Κλείσιμο</span>
+                  <p className="font-bold text-slate-900">
+                    {shift.closed_by_user_name || (shift.closed_at ? 'Υπάλληλος' : '-')}
+                  </p>
+                  <p className="text-slate-500 font-mono">
+                    {shift.closed_at ? new Date(shift.closed_at).toLocaleString('el-GR') : 'Σε εξέλιξη'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Expenses & Receipts */}
+              {shift.expenses && shift.expenses.length > 0 ? (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                    <Receipt className="w-4 h-4 text-indigo-600" />
+                    <span>Καταχωρημένα Έξοδα Βάρδιας ({shift.expenses.length})</span>
+                  </h4>
+                  <div className="space-y-2">
+                    {shift.expenses.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900">{exp.description}</span>
+                          <span className="text-slate-500 ml-2">({exp.category})</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="font-bold text-slate-900">{exp.amount.toFixed(2)} €</span>
+                          {exp.receipt_url && (
+                            <button
+                              onClick={() => setSelectedReceiptUrl(exp.receipt_url || null)}
+                              className="px-2 py-1 bg-white border border-slate-200 rounded text-indigo-600 font-bold hover:bg-indigo-50 flex items-center space-x-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Απόδειξη</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                  Δεν υπάρχουν καταχωρημένα έξοδα για αυτή τη βάρδια.
                 </div>
               )}
-              {shift.manager_notes && (
-                <div className="pt-2 border-t border-slate-200">
-                  <span className="font-bold text-indigo-700 block">
-                    Σημειώσεις / Οδηγίες Διευθυντή:
-                  </span>
-                  <p className="text-slate-800 font-medium">{shift.manager_notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-          </>
+            </>
           )}
         </div>
 
-
         {/* Modal Footer Controls */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
           >
             Κλείσιμο
           </button>
 
           <div className="flex items-center space-x-2">
+            {/* Print Receipt Button */}
+            <button
+              onClick={() => setShowReceiptModal(true)}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-colors"
+            >
+              <Printer className="w-4 h-4 text-indigo-300" />
+              <span>Εκτύπωση Απόδειξης</span>
+            </button>
+
             {/* If shift is CORRECTION_REQUESTED or REOPENED, employee can edit */}
             {(shift.status === 'CORRECTION_REQUESTED' || shift.status === 'REOPENED') &&
               onOpenClosingWizard && (
@@ -431,7 +949,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     onClose();
                     onOpenClosingWizard(shift);
                   }}
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs"
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>Άνοιγμα Οδηγού Διόρθωσης</span>
@@ -451,24 +969,24 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             )}
 
             {/* Manager Actions */}
+            {['SUBMITTED', 'APPROVED'].includes(shift.status) && canReopen && (
+              <button
+                onClick={() => setShowReopenModal(true)}
+                className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Αίτηση Διόρθωσης</span>
+              </button>
+            )}
+
             {shift.status === 'SUBMITTED' && canApprove && (
               <button
                 onClick={handleApprove}
                 disabled={loading}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md cursor-pointer transition-all active:scale-95"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Έγκριση Βάρδιας</span>
-              </button>
-            )}
-
-            {['SUBMITTED', 'APPROVED'].includes(shift.status) && canReopen && (
-              <button
-                onClick={() => setShowReopenModal(true)}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Αίτηση Διόρθωσης / Επανάννοιγμα</span>
+                <span>{loading ? 'Έγκριση...' : 'Έγκριση Βάρδιας'}</span>
               </button>
             )}
           </div>
@@ -558,6 +1076,66 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Print Thermal Receipt Modal */}
+      <ShiftReceiptPrintView
+        data={{
+          shift: shift,
+          storeName: shift.store_name || 'OPAP AGENCY',
+          storeCode: shift.store_code || shift.store_id || '100343',
+          registerId: shift.register_id || 'POS-01',
+          cashierName: shift.closed_by_user_name || shift.opened_by_user_name || 'Υπάλληλος Βάρδιας',
+          shiftType: shift.shift_type || 'MORNING',
+          openedAt: shift.opened_at,
+          closedAt: shift.closed_at || new Date().toISOString(),
+          denominations: shift.counted_denominations || {},
+          openingCashTotal: safeNum(shift.opening_cash),
+          arithmoGross: safeNum(shift.arithmo_gross ?? shift.number_games_sales),
+          arithmoCancels: safeNum(shift.arithmo_cancels ?? shift.number_games_cancellations),
+          arithmoPayouts: safeNum(shift.arithmo_payouts ?? shift.number_games_payouts),
+          arithmoVouchers: safeNum(shift.arithmo_vouchers ?? shift.number_games_vouchers),
+          arithmoNet: safeNum((shift as any).arithmo_net ?? (safeNum(shift.arithmo_gross) - safeNum(shift.arithmo_cancels) - safeNum(shift.arithmo_payouts) + safeNum(shift.arithmo_vouchers))),
+          scratchSales: safeNum(shift.scratch_sales ?? shift.scratch_lotto_sales),
+          scratchPayouts: safeNum(shift.scratch_payouts),
+          scratchNet: safeNum(shift.scratch_lotto_sales),
+          vltsIn: safeNum(shift.vlts_cash_in),
+          vltsOut: safeNum(shift.vlts_cash_out),
+          vltsNet: safeNum((shift as any).vlts_net ?? (safeNum(shift.vlts_cash_in) - Math.abs(safeNum(shift.vlts_cash_out)))),
+          pameStoiximaBalance: safeNum(shift.pame_stoixima_balance),
+          cleverPointTotal: safeNum(shift.clever_point_total),
+          ippodromosBalance: safeNum(shift.ippodromos_balance),
+          fnbCash: safeNum(shift.fnb_cash),
+          fnbCard: safeNum(shift.fnb_card),
+          fnbTotal: safeNum(shift.fnb_sales),
+          expensesGpCash: safeNum(shift.opap_expenses ?? (shift.expenses_paid_cash || 0)),
+          expensesFnbCash: safeNum(shift.fnb_expenses),
+          expensesTotalCash: safeNum(shift.expenses_paid_cash),
+          expensesList: Array.isArray(shift.expenses) ? shift.expenses.map((e) => ({
+            id: e.id,
+            category: e.category,
+            recipient: e.description || e.category,
+            amount: safeNum(e.amount),
+            notes: e.description,
+          })) : [],
+          safeDrop: safeNum(shift.bank_deposits ?? shift.safe_drop),
+          storePos1: safeNum(shift.register_pos_1),
+          storePos2: safeNum(shift.register_pos_2),
+          totalStorePos: safeNum(shift.card_payments),
+          toraPos1: safeNum(shift.tora_pos1 ?? shift.tora_pos_1),
+          toraPos2: safeNum(shift.tora_pos2 ?? shift.tora_pos_2),
+          totalToraPos: safeNum((shift as any).tora_total ?? (safeNum(shift.tora_pos1) + safeNum(shift.tora_pos2))),
+          creditGranted: safeNum(shift.customer_credit_granted),
+          creditCollected: safeNum(shift.customer_credit_collected ?? shift.customer_returns),
+          totalCountedCash: safeNum(shift.counted_cash ?? shift.actual_cash),
+          totalExpectedCash: safeNum(shift.expected_cash),
+          discrepancy: safeNum(shift.discrepancy),
+          isUnbalanced: shift.is_unbalanced ?? (Math.abs(safeNum(shift.discrepancy)) > 0.01),
+          employeeNotes: shift.employee_notes,
+          managerNotes: shift.manager_notes,
+        }}
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+      />
     </div>
   );
 };

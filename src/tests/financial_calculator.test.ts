@@ -36,7 +36,7 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
         '20': 10, // 200
         '2': 5,   // 10
         '0.50': 4,// 2
-        '0.01': 10 // 0.10
+        '0.10': 1 // 0.10
       };
       // Total = 500 + 200 + 250 + 200 + 10 + 2 + 0.10 = 1162.10
       expect(calculateCountedCash(denominations)).toBe(1162.1);

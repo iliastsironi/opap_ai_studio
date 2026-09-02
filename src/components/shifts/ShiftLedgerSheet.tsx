@@ -127,9 +127,6 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
     '0.50': 0,
     '0.20': 0,
     '0.10': 0,
-    '0.05': 0,
-    '0.02': 0,
-    '0.01': 0,
     ...(shift.counted_denominations || {}),
   });
 
@@ -211,6 +208,24 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
     setCreditsGranted(String(shift.customer_credit_granted ?? 0));
     setCustomerReturns(String(shift.customer_credit_collected ?? shift.customer_returns ?? 0));
     setCustomFieldValues(shift.custom_field_values || {});
+    setCoinsCount({
+      '2': 0,
+      '1': 0,
+      '0.50': 0,
+      '0.20': 0,
+      '0.10': 0,
+      ...(shift.counted_denominations || {}),
+    });
+    setNotesCount({
+      '5': 0,
+      '10': 0,
+      '20': 0,
+      '50': 0,
+      '100': 0,
+      '200': 0,
+      '500': 0,
+      ...(shift.counted_denominations || {}),
+    });
   }, [shift]);
 
   // -------------------------------------------------------------
@@ -247,10 +262,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       safeNum(coinsCount['1']) * 1 +
       safeNum(coinsCount['0.50']) * 0.5 +
       safeNum(coinsCount['0.20']) * 0.2 +
-      safeNum(coinsCount['0.10']) * 0.1 +
-      safeNum(coinsCount['0.05']) * 0.05 +
-      safeNum(coinsCount['0.02']) * 0.02 +
-      safeNum(coinsCount['0.01']) * 0.01
+      safeNum(coinsCount['0.10']) * 0.1
   );
 
   const banknotesTotal = roundCurrency(

@@ -56,29 +56,189 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     onChange(resetObj);
   };
 
-  // Subtotals
+  // Subtotals and counts
   let totalNotes = 0;
+  let countNotes = 0;
   let totalCoins = 0;
+  let countCoins = 0;
 
   EUR_DENOMINATIONS.forEach((d) => {
     const qty = denominations[d.key] || 0;
     const subtotal = qty * d.value;
     if (d.value >= 5) {
       totalNotes += subtotal;
+      countNotes += qty;
     } else {
       totalCoins += subtotal;
+      countCoins += qty;
     }
   });
 
   const grandTotal = totalNotes + totalCoins;
-
-  const filteredDenominations = EUR_DENOMINATIONS.filter((d) => {
-    if (activeFilter === 'notes') return d.value >= 5;
-    if (activeFilter === 'coins') return d.value < 5;
-    return true;
-  });
+  const banknotes = EUR_DENOMINATIONS.filter((d) => d.value >= 5);
+  const coins = EUR_DENOMINATIONS.filter((d) => d.value < 5);
 
   const isDark = theme === 'dark';
+
+  const renderDenomCard = (
+    denom: (typeof EUR_DENOMINATIONS)[number],
+    isCoin: boolean
+  ) => {
+    const qty = denominations[denom.key] || 0;
+    const subtotal = qty * denom.value;
+
+    return (
+      <div
+        key={denom.key}
+        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+          isDark
+            ? isCoin
+              ? 'bg-slate-900/90 border-amber-900/30 hover:border-amber-600/50 shadow-2xs'
+              : 'bg-slate-900/90 border-emerald-900/30 hover:border-emerald-600/50 shadow-2xs'
+            : isCoin
+            ? 'bg-amber-50/30 border-amber-200/80 hover:border-amber-400 shadow-2xs'
+            : 'bg-emerald-50/30 border-emerald-200/80 hover:border-emerald-400 shadow-2xs'
+        }`}
+      >
+        {/* Card Header: Value & Subtotal Badge */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                isCoin
+                  ? isDark
+                    ? 'bg-amber-950 text-amber-400 border border-amber-800/60'
+                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  : isDark
+                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}
+            >
+              {isCoin ? <CoinsIcon className="w-3.5 h-3.5" /> : <Banknote className="w-3.5 h-3.5" />}
+            </div>
+            <span
+              className={`text-base sm:text-lg font-black tracking-tight ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}
+            >
+              {denom.label}
+            </span>
+          </div>
+
+          <span
+            className={`text-xs font-black font-mono px-2.5 py-1 rounded-lg border shadow-2xs ${
+              subtotal > 0
+                ? isCoin
+                  ? isDark
+                    ? 'bg-amber-950 text-amber-300 border-amber-700'
+                    : 'bg-amber-100 text-amber-950 border-amber-200'
+                  : isDark
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                  : 'bg-emerald-100 text-emerald-950 border-emerald-200'
+                : isDark
+                ? 'bg-slate-900 text-slate-500 border-slate-800'
+                : 'bg-white text-slate-600 border-slate-200'
+            }`}
+          >
+            {subtotal.toFixed(2)} €
+          </span>
+        </div>
+
+        {/* Counter Input Row */}
+        <div
+          className={`flex items-center p-1.5 rounded-xl border shadow-2xs transition-all gap-1 ${
+            isDark
+              ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
+              : 'bg-white border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
+          }`}
+        >
+          <button
+            type="button"
+            disabled={readOnly || qty <= 0}
+            onClick={() => updateCount(denom.key, -1)}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 active:scale-95 transition-all select-none ${
+              readOnly || qty <= 0
+                ? isDark
+                  ? 'bg-slate-900 text-slate-700 cursor-not-allowed'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : isDark
+                ? 'bg-slate-800 text-slate-100 hover:bg-slate-700 cursor-pointer'
+                : 'bg-slate-100 text-slate-900 hover:bg-slate-200 cursor-pointer'
+            }`}
+            title="Μείωση κατά 1"
+          >
+            -
+          </button>
+
+          <input
+            type="number"
+            min="0"
+            step="1"
+            disabled={readOnly}
+            value={qty === 0 ? '0' : qty}
+            onFocus={(e) => {
+              if (e.target.value === '0') {
+                e.target.select();
+              }
+            }}
+            onChange={(e) => setDirectCount(denom.key, e.target.value)}
+            placeholder="0"
+            className={`flex-1 min-w-0 px-1 text-center font-black font-mono text-base sm:text-lg bg-transparent border-none focus:outline-none focus:ring-0 ${
+              isDark
+                ? 'text-white placeholder:text-slate-500'
+                : 'text-slate-950 placeholder:text-slate-500'
+            }`}
+          />
+
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={() => updateCount(denom.key, 1)}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm text-white active:scale-95 transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
+              isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+            } ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Αύξηση κατά 1"
+          >
+            +
+          </button>
+
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => updateCount(denom.key, 5)}
+              className={`px-2 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none shrink-0 ${
+                isCoin
+                  ? isDark
+                    ? 'bg-slate-800 text-amber-300 hover:bg-amber-900 hover:text-white'
+                    : 'bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200/60'
+                  : isDark
+                  ? 'bg-slate-800 text-emerald-300 hover:bg-emerald-900 hover:text-white'
+                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white border border-emerald-200/60'
+              }`}
+              title="Προσθήκη +5"
+            >
+              +5
+            </button>
+          )}
+
+          {!readOnly && isCoin && (
+            <button
+              type="button"
+              onClick={() => updateCount(denom.key, 10)}
+              className={`px-1.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none shrink-0 ${
+                isDark
+                  ? 'bg-slate-800 text-amber-400 hover:bg-amber-900 hover:text-white'
+                  : 'bg-amber-100/70 text-amber-900 hover:bg-amber-600 hover:text-white border border-amber-300/60'
+              }`}
+              title="Προσθήκη +10 κέρματα"
+            >
+              +10
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -184,112 +344,145 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         </div>
       </div>
 
-      {/* Main Grid matching the requested image design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-        {filteredDenominations.map((denom) => {
-          const qty = denominations[denom.key] || 0;
-          const subtotal = qty * denom.value;
+      {/* Two Distinct Sections: Banknotes & Coins */}
+      <div className="space-y-6">
+        {/* SECTION 1: BANKNOTES (ΧΑΡΤΟΝΟΜΙΣΜΑΤΑ) */}
+        {(activeFilter === 'all' || activeFilter === 'notes') && (
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
+              isDark
+                ? 'bg-slate-900/60 border-emerald-900/40 shadow-sm'
+                : 'bg-emerald-50/25 border-emerald-200/80 shadow-2xs'
+            }`}
+          >
+            {/* Banknotes Section Header */}
+            <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3 flex-wrap gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
+                    isDark
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}
+                >
+                  <Banknote className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5
+                    className={`font-black text-sm uppercase tracking-wide flex items-center space-x-2 ${
+                      isDark ? 'text-emerald-300' : 'text-emerald-950'
+                    }`}
+                  >
+                    <span>Χαρτονομίσματα</span>
+                    <span className="text-xs font-normal opacity-70 font-mono">(500€ - 5€)</span>
+                  </h5>
+                  <p className={`text-[11px] font-medium ${isDark ? 'text-emerald-400/80' : 'text-emerald-700/80'}`}>
+                    Καταμέτρηση χαρτονομισμάτων ταμείου
+                  </p>
+                </div>
+              </div>
 
-          return (
-            <div
-              key={denom.key}
-              className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
-                isDark
-                  ? 'bg-slate-900/80 border-slate-800 hover:border-indigo-600/60 shadow-2xs'
-                  : 'bg-[#f8f9fe] border-slate-200/80 hover:border-indigo-300 shadow-2xs'
-              }`}
-            >
-              {/* Card Header: Value & Subtotal Badge */}
-              <div className="flex items-center justify-between">
-                <span className={`text-base sm:text-lg font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {denom.label}
-                </span>
-
+              <div className="flex items-center space-x-2">
                 <span
-                  className={`text-xs font-black font-mono px-3 py-1 rounded-lg border shadow-2xs ${
-                    subtotal > 0
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border font-mono ${
+                    isDark
+                      ? 'bg-slate-900 text-slate-300 border-slate-700'
+                      : 'bg-white text-slate-700 border-emerald-200'
+                  }`}
+                >
+                  {countNotes} τμχ
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black font-mono px-3.5 py-1.5 rounded-xl border shadow-2xs ${
+                    totalNotes > 0
                       ? isDark
-                        ? 'bg-indigo-950 text-indigo-300 border-indigo-700'
-                        : 'bg-indigo-100 text-indigo-950 border-indigo-200'
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
+                        : 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
                       : isDark
                       ? 'bg-slate-900 text-slate-400 border-slate-700'
-                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                      : 'bg-white text-emerald-950 border-emerald-200'
                   }`}
                 >
-                  {subtotal.toFixed(2)} €
+                  Σύνολο: {totalNotes.toFixed(2)} €
                 </span>
               </div>
+            </div>
 
-              {/* Counter Input Row */}
-              <div
-                className={`flex items-center p-1.5 rounded-xl border shadow-2xs transition-all gap-1 ${
-                  isDark
-                    ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
-                    : 'bg-white border-slate-300 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
-                }`}
-              >
-                <button
-                  type="button"
-                  disabled={readOnly || qty <= 0}
-                  onClick={() => updateCount(denom.key, -1)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0 active:scale-95 transition-all select-none ${
-                    readOnly || qty <= 0
-                      ? isDark ? 'bg-slate-900 text-slate-700 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : isDark ? 'bg-slate-800 text-slate-100 hover:bg-slate-700 cursor-pointer' : 'bg-slate-100 text-slate-900 hover:bg-slate-200 cursor-pointer'
+            {/* Banknotes Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+              {banknotes.map((denom) => renderDenomCard(denom, false))}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0.10€) */}
+        {(activeFilter === 'all' || activeFilter === 'coins') && (
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
+              isDark
+                ? 'bg-slate-900/60 border-amber-900/40 shadow-sm'
+                : 'bg-amber-50/25 border-amber-200/80 shadow-2xs'
+            }`}
+          >
+            {/* Coins Section Header */}
+            <div className="flex items-center justify-between border-b border-amber-200/60 pb-3 flex-wrap gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
+                    isDark
+                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
                   }`}
-                  title="Μείωση κατά 1"
                 >
-                  -
-                </button>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  disabled={readOnly}
-                  value={qty === 0 ? '0' : qty}
-                  onFocus={(e) => {
-                    if (e.target.value === '0') {
-                      e.target.select();
-                    }
-                  }}
-                  onChange={(e) => setDirectCount(denom.key, e.target.value)}
-                  placeholder="0"
-                  className={`flex-1 min-w-0 px-1 text-center font-black font-mono text-base sm:text-lg bg-transparent border-none focus:outline-none focus:ring-0 ${
-                    isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-950 placeholder:text-slate-500'
-                  }`}
-                />
-
-                <button
-                  type="button"
-                  disabled={readOnly}
-                  onClick={() => updateCount(denom.key, 1)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
-                    readOnly ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  title="Αύξηση κατά 1"
-                >
-                  +
-                </button>
-
-                {!readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => updateCount(denom.key, 5)}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none shrink-0 ${
-                      isDark
-                        ? 'bg-slate-800 text-indigo-300 hover:bg-indigo-900 hover:text-white'
-                        : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white'
+                  <CoinsIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5
+                    className={`font-black text-sm uppercase tracking-wide flex items-center space-x-2 ${
+                      isDark ? 'text-amber-300' : 'text-amber-950'
                     }`}
-                    title="Προσθήκη +5"
                   >
-                    +5
-                  </button>
-                )}
+                    <span>Κέρματα</span>
+                    <span className="text-xs font-normal opacity-70 font-mono">(2€ - 0,10€)</span>
+                  </h5>
+                  <p className={`text-[11px] font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
+                    Καταμέτρηση κερμάτων και υποδιαιρέσεων
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border font-mono ${
+                    isDark
+                      ? 'bg-slate-900 text-slate-300 border-slate-700'
+                      : 'bg-white text-slate-700 border-amber-200'
+                  }`}
+                >
+                  {countCoins} τμχ
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black font-mono px-3.5 py-1.5 rounded-xl border shadow-2xs ${
+                    totalCoins > 0
+                      ? isDark
+                        ? 'bg-amber-950 text-amber-300 border-amber-700'
+                        : 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                      : isDark
+                      ? 'bg-slate-900 text-slate-400 border-slate-700'
+                      : 'bg-white text-amber-950 border-amber-200'
+                  }`}
+                >
+                  Σύνολο: {totalCoins.toFixed(2)} €
+                </span>
               </div>
             </div>
-          );
-        })}
+
+            {/* Coins Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+              {coins.map((denom) => renderDenomCard(denom, true))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -79,12 +79,13 @@ import {
   WeeklyRosterStore,
 } from '../../data/pnlData.ts';
 import { fetchUsersFromFirestore, INITIAL_DEMO_USERS } from '../../services/userService.ts';
+import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 
 export const ReportsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
   const { organization } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'PNL' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED' | 'ROSTER'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED' | 'ROSTER'>('OVERVIEW');
   const [loading, setLoading] = useState(false);
   const [seedingLoading, setSeedingLoading] = useState(false);
   const [seedSuccessMessage, setSeedSuccessMessage] = useState<string | null>(null);
@@ -531,6 +532,18 @@ export const ReportsManager: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('DAILY_REPORT')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'DAILY_REPORT'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Ημερήσιο Συγκεντρωτικό Βαρδιών</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('EMPLOYEE_KPIS')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
             activeTab === 'EMPLOYEE_KPIS'
@@ -932,6 +945,15 @@ export const ReportsManager: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: DAILY AGGREGATION REPORT (ANTI-DOUBLE-COUNTING) */}
+      {activeTab === 'DAILY_REPORT' && (
+        <DailyAggregationView
+          shifts={rawShifts}
+          stores={stores}
+          currentStoreId={selectedStoreId}
+        />
       )}
 
       {/* TAB 3: EMPLOYEE KPIS & LEAGUE TABLE */}
