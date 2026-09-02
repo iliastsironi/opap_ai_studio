@@ -1894,7 +1894,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <div className="sm:col-span-4">
                       <input
                         type="text"
-                        placeholder="Περιγραφή εξόδου..."
+                        list="shift-suppliers-list"
+                        placeholder="Προμηθευτής / Περιγραφή εξόδου..."
                         value={exp.description || ''}
                         onChange={(e) => {
                           const updated = [...expenses];
@@ -1946,6 +1947,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 ))}
               </div>
             )}
+
+            {/* Datalist for fast supplier selection */}
+            <datalist id="shift-suppliers-list">
+              <option value="ΟΠΑΠ Α.Ε. - Κεντρικά" />
+              <option value="Coca-Cola 3Ε Ελλάδος Α.Β.Ε.Ε." />
+              <option value="Tora Wallet Α.Ε. - Υπηρεσίες Πληρωμών" />
+              <option value="ΔΕΗ / Ενέργεια (Ηλεκτρικό Ρεύμα)" />
+              <option value="ΕΥΔΑΠ (Ύδρευση / Αποχέτευση)" />
+              <option value="Cosmote / ΟΤΕ (Internet & Τηλεφωνία)" />
+              <option value="Nova / Wind (Τηλεπικοινωνίες & TV)" />
+              <option value="Καθαριστικά & Είδη Υγιεινής" />
+              <option value="Χαρτικά, Ρολά POS & Τερματικών" />
+              <option value="Προμηθευτής Καφέ & Ροφημάτων (FnB)" />
+              <option value="Snacks & Είδη Κυλικείου (FnB)" />
+              <option value="Τεχνικός Συντήρησης / Βλάβες" />
+            </datalist>
           </div>
 
           {/* Customer Credit Feature */}

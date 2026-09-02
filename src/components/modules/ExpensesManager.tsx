@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle, Building2 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
-import { Shift, ShiftExpense } from '../../types/index.ts';
+import { fetchSuppliersFromFirestore, INITIAL_DEMO_SUPPLIERS } from '../../services/supplierService.ts';
+import { Shift, ShiftExpense, Supplier } from '../../types/index.ts';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
   const { user, organization } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_DEMO_SUPPLIERS);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -18,10 +20,12 @@ export const ExpensesManager: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [targetStoreId, setTargetStoreId] = useState(stores[0]?.id || 'store_opap_01');
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [category, setCategory] = useState('CLEANING');
+  const [category, setCategory] = useState('EXPENSES_GP');
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [recipient, setRecipient] = useState('');
+  const [customRecipient, setCustomRecipient] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -40,8 +44,20 @@ export const ExpensesManager: React.FC = () => {
     }
   };
 
+  const loadSuppliers = async () => {
+    try {
+      const list = await fetchSuppliersFromFirestore(orgId);
+      if (list && list.length > 0) {
+        setSuppliers(list);
+      }
+    } catch (e) {
+      console.warn('Could not fetch suppliers, using defaults', e);
+    }
+  };
+
   useEffect(() => {
     loadExpenses();
+    loadSuppliers();
   }, [selectedStoreId, orgId]);
 
   useEffect(() => {
@@ -57,9 +73,49 @@ export const ExpensesManager: React.FC = () => {
     checkActiveShift();
   }, [targetStoreId, orgId, showModal]);
 
+  const handleSupplierSelect = (supplierIdOrPreset: string) => {
+    setSelectedSupplierId(supplierIdOrPreset);
+    if (!supplierIdOrPreset) {
+      setRecipient('');
+      return;
+    }
+
+    if (supplierIdOrPreset === 'CUSTOM') {
+      setRecipient(customRecipient || '');
+      return;
+    }
+
+    // Check in database suppliers
+    const foundSupplier = suppliers.find((s) => s.id === supplierIdOrPreset);
+    if (foundSupplier) {
+      const name = foundSupplier.company_name || foundSupplier.trade_name;
+      setRecipient(name);
+      // Auto-set category based on supplier
+      if (foundSupplier.category === 'BEVERAGES_FNB') {
+        setCategory('EXPENSES_FNB');
+      } else if (foundSupplier.category === 'OPAP_SERVICES' || foundSupplier.category === 'IT_EQUIPMENT') {
+        setCategory('EXPENSES_GP');
+      }
+      return;
+    }
+
+    // Check presets
+    setRecipient(supplierIdOrPreset);
+    if (supplierIdOrPreset.includes('ΔΕΗ') || supplierIdOrPreset.includes('ΕΥΔΑΠ') || supplierIdOrPreset.includes('Cosmote') || supplierIdOrPreset.includes('Nova')) {
+      setCategory('UTILITIES');
+    } else if (supplierIdOrPreset.includes('Καθαριστ') || supplierIdOrPreset.includes('Υγιεινής')) {
+      setCategory('CLEANING');
+    } else if (supplierIdOrPreset.includes('Χαρτί') || supplierIdOrPreset.includes('Ρολά')) {
+      setCategory('SUPPLIES');
+    } else if (supplierIdOrPreset.includes('Καφέ') || supplierIdOrPreset.includes('Snacks') || supplierIdOrPreset.includes('Κυλικείου')) {
+      setCategory('EXPENSES_FNB');
+    }
+  };
+
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || isNaN(Number(amount))) return;
+    const finalRecipient = selectedSupplierId === 'CUSTOM' ? (customRecipient.trim() || 'Προμηθευτής') : (recipient.trim() || 'Προμηθευτής');
     setSubmitting(true);
     try {
       const numAmount = parseFloat(amount);
@@ -69,7 +125,7 @@ export const ExpensesManager: React.FC = () => {
         category,
         amount: numAmount,
         payment_method: paymentMethod,
-        recipient: recipient || 'Προμηθευτής',
+        recipient: finalRecipient,
         created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
         date: new Date().toISOString().split('T')[0],
       };
@@ -89,7 +145,7 @@ export const ExpensesManager: React.FC = () => {
           category: category,
           amount: numAmount,
           payment_method: paymentMethod === 'CARD' ? 'CARD' : 'CASH',
-          description: recipient ? `${recipient}${notes ? ` - ${notes}` : ''}` : (notes || category),
+          description: finalRecipient ? `${finalRecipient}${notes ? ` - ${notes}` : ''}` : (notes || category),
           receipt_url: '',
           created_by_user_id: user?.id || 'usr_employee',
           created_at: createdRecord.created_at,
@@ -129,7 +185,9 @@ export const ExpensesManager: React.FC = () => {
       await loadExpenses();
       setShowModal(false);
       setAmount('');
+      setSelectedSupplierId('');
       setRecipient('');
+      setCustomRecipient('');
       setReceiptNumber('');
       setNotes('');
     } catch (err) {
@@ -420,14 +478,69 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Προμηθευτής / Παραλήπτης</label>
-                <input
-                  type="text"
-                  placeholder="π.χ. Καθαριστήρια ΑΕ"
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2"
-                />
+                <label className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-indigo-600" />
+                    <span>Επιλογή Προμηθευτή / Παραλήπτη</span>
+                  </span>
+                  <span className="text-[11px] font-normal text-slate-400">Επιλογή από λίστα</span>
+                </label>
+                <select
+                  value={selectedSupplierId}
+                  onChange={(e) => handleSupplierSelect(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white font-medium text-slate-800 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  required={selectedSupplierId !== 'CUSTOM' && !recipient}
+                >
+                  <option value="">-- Επιλέξτε Προμηθευτή από τη Λίστα --</option>
+                  
+                  {/* Database Registered Suppliers */}
+                  <optgroup label="Εγγεγραμμένοι Προμηθευτές (Μητρώο)">
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.company_name} ({s.code || s.trade_name || 'Προμηθευτής'})
+                      </option>
+                    ))}
+                  </optgroup>
+
+                  {/* Standard Agency & Public Utilities */}
+                  <optgroup label="Κοινόχρηστα & Λογαριασμοί / Utilities">
+                    <option value="ΔΕΗ / Ηλεκτρικό Ρεύμα">ΔΕΗ / Ενέργεια (Ηλεκτρικό Ρεύμα)</option>
+                    <option value="ΕΥΔΑΠ / Ύδρευση">ΕΥΔΑΠ (Ύδρευση / Αποχέτευση)</option>
+                    <option value="Cosmote / ΟΤΕ (Τηλεπικοινωνίες)">Cosmote / OTE (Internet & Τηλεφωνία)</option>
+                    <option value="Nova / Wind (Τηλεπικοινωνίες & TV)">Nova / Wind (Τηλεπικοινωνίες & TV)</option>
+                  </optgroup>
+
+                  {/* Operational & Consumables */}
+                  <optgroup label="Αναλώσιμα, Καθαριότητα & FnB">
+                    <option value="Καθαριστικά & Είδη Υγιεινής">Καθαριστικά & Είδη Υγιεινής (Super Market)</option>
+                    <option value="Χαρτικά, Ρολά POS & Τερματικών">Χαρτικά, Ρολά POS & Τερματικών (Βιβλιοπωλείο)</option>
+                    <option value="Προμηθευτής Καφέ & Ροφημάτων">Προμηθευτής Καφέ & Ροφημάτων (FnB)</option>
+                    <option value="Snacks & Είδη Κυλικείου">Snacks & Είδη Κυλικείου (FnB)</option>
+                    <option value="Τεχνικός Συντήρησης / Βλάβες">Τεχνικός Συντήρησης / Ηλεκτρολόγος / Ψυκτικός</option>
+                  </optgroup>
+
+                  {/* Custom Option */}
+                  <optgroup label="Χειροκίνητη Καταχώρηση">
+                    <option value="CUSTOM">+ Άλλος / Νέος Προμηθευτής (Χειροκίνητα)...</option>
+                  </optgroup>
+                </select>
+
+                {/* Custom input if "CUSTOM" is chosen */}
+                {selectedSupplierId === 'CUSTOM' && (
+                  <div className="mt-2 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      placeholder="Πληκτρολογήστε όνομα προμηθευτή / καταστήματος..."
+                      required
+                      value={customRecipient}
+                      onChange={(e) => {
+                        setCustomRecipient(e.target.value);
+                        setRecipient(e.target.value);
+                      }}
+                      className="w-full border border-indigo-300 bg-indigo-50/40 rounded-lg p-2 text-sm font-medium text-slate-900 focus:bg-white"
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-slate-700 font-semibold mb-1">Σημειώσεις / Αιτιολογία</label>

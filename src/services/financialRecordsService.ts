@@ -212,7 +212,7 @@ export async function fetchRosterSchedules(orgId: string): Promise<WeeklyRosterS
 
 export async function saveRosterSchedule(orgId: string, roster: WeeklyRosterStore): Promise<void> {
   try {
-    const id = roster.storeId || `roster_${Date.now()}`;
+    const id = `${orgId}_${roster.storeId}`;
     const payload = {
       ...roster,
       id,
@@ -235,36 +235,37 @@ export async function seedFinancialLedgerToFirestore(orgId: string): Promise<boo
 
     // 1. Seed Fixed Expenses
     FIXED_EXPENSES_LIST.forEach((item, idx) => {
-      const id = item.id || `fe_seed_${idx}`;
+      const id = `${orgId}_fe_${idx}`;
       const ref = doc(db, FIXED_EXPENSES_COLLECTION, id);
       batch.set(ref, cleanFirestoreData({ ...item, id, organization_id: orgId }));
     });
 
     // 2. Seed Corporate Expenses
     CORPORATE_EXPENSES_LIST.forEach((item, idx) => {
-      const id = (item as { id?: string }).id || `corp_seed_${idx}`;
+      const id = `${orgId}_corp_${idx}`;
       const ref = doc(db, CORPORATE_EXPENSES_COLLECTION, id);
       batch.set(ref, cleanFirestoreData({ ...item, id, organization_id: orgId }));
     });
 
     // 3. Seed Payroll Records
-    PAYROLL_EMPLOYEES_LIST.forEach((item) => {
-      const id = item.id;
+    PAYROLL_EMPLOYEES_LIST.forEach((item, idx) => {
+      const id = `${orgId}_pay_${idx}`;
       const ref = doc(db, PAYROLL_RECORDS_COLLECTION, id);
-      batch.set(ref, cleanFirestoreData({ ...item, organization_id: orgId }));
+      batch.set(ref, cleanFirestoreData({ ...item, id, organization_id: orgId }));
     });
 
     // 4. Seed VLT Reconciliations
     VLT_RECONCILIATIONS_SAMPLE.forEach((item, idx) => {
-      const id = item.id || `vlt_seed_${idx}`;
+      const id = `${orgId}_vlt_${idx}`;
       const ref = doc(db, VLT_RECONCILIATIONS_COLLECTION, id);
       batch.set(ref, cleanFirestoreData({ ...item, id, organization_id: orgId }));
     });
 
     // 5. Seed Roster Schedules
     WEEKLY_ROSTER_SAMPLE.forEach((item) => {
-      const ref = doc(db, ROSTER_SCHEDULES_COLLECTION, item.storeId);
-      batch.set(ref, cleanFirestoreData({ ...item, organization_id: orgId }));
+      const id = `${orgId}_${item.storeId}`;
+      const ref = doc(db, ROSTER_SCHEDULES_COLLECTION, id);
+      batch.set(ref, cleanFirestoreData({ ...item, id, organization_id: orgId }));
     });
 
     await batch.commit();

@@ -78,6 +78,7 @@ import {
   VltReconciliationRecord,
   WeeklyRosterStore,
 } from '../../data/pnlData.ts';
+import { fetchUsersFromFirestore, INITIAL_DEMO_USERS } from '../../services/userService.ts';
 
 export const ReportsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -96,6 +97,7 @@ export const ReportsManager: React.FC = () => {
   const [rawPayroll, setRawPayroll] = useState<PayrollEmployeeRecord[]>([]);
   const [rawVltRecs, setRawVltRecs] = useState<VltReconciliationRecord[]>([]);
   const [rawRoster, setRawRoster] = useState<WeeklyRosterStore[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<any[]>(INITIAL_DEMO_USERS);
 
   // Filtering
   const [selectedFilterStore, setSelectedFilterStore] = useState('ALL');
@@ -143,13 +145,25 @@ export const ReportsManager: React.FC = () => {
     cashInHand: 100,
   });
 
+  // Interactive Weekly Roster Schedule Creator / Editor State
+  const [showRosterModal, setShowRosterModal] = useState(false);
+  const [editingRosterStoreId, setEditingRosterStoreId] = useState<string>('100343');
+  const [editingRosterStoreName, setEditingRosterStoreName] = useState<string>('100343 - Κεντρικό ΟΠΑΠ');
+  const [editingScheduleRows, setEditingScheduleRows] = useState<
+    Array<{ shift: string; mon: string; tue: string; wed: string; thu: string; fri: string; sat: string; sun: string }>
+  >([
+    { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+    { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+    { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+  ]);
+
   const orgId = organization?.id || 'org_opap_demo';
 
   // Load all Firestore Collections
   const loadAllFinancialData = async () => {
     setLoading(true);
     try {
-      const [shifts, exp, fixed, corp, pay, vlt, ros] = await Promise.all([
+      const [shifts, exp, fixed, corp, pay, vlt, ros, users] = await Promise.all([
         fetchShiftsFromFirestore(orgId, selectedStoreId === 'ALL' ? undefined : selectedStoreId),
         fetchExpensesFromFirestore(orgId, selectedStoreId === 'ALL' ? undefined : selectedStoreId),
         fetchFixedExpenses(orgId),
@@ -157,6 +171,7 @@ export const ReportsManager: React.FC = () => {
         fetchPayrollRecords(orgId),
         fetchVltReconciliations(orgId),
         fetchRosterSchedules(orgId),
+        fetchUsersFromFirestore(orgId),
       ]);
 
       setRawShifts(shifts || []);
@@ -166,6 +181,9 @@ export const ReportsManager: React.FC = () => {
       setRawPayroll(pay || []);
       setRawVltRecs(vlt || []);
       setRawRoster(ros || []);
+      if (users && users.length > 0) {
+        setTenantUsers(users);
+      }
     } catch (err) {
       console.error('Error loading financial analytics from Firestore:', err);
     } finally {
@@ -351,6 +369,61 @@ export const ReportsManager: React.FC = () => {
     await loadAllFinancialData();
   };
 
+  const handleOpenRosterEditor = (existing?: WeeklyRosterStore) => {
+    if (existing) {
+      setEditingRosterStoreId(existing.storeId);
+      setEditingRosterStoreName(existing.storeName);
+      setEditingScheduleRows(
+        existing.schedule && existing.schedule.length > 0
+          ? JSON.parse(JSON.stringify(existing.schedule))
+          : [
+              { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+              { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+              { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+            ]
+      );
+    } else {
+      setEditingRosterStoreId('100343');
+      setEditingRosterStoreName('100343 - Κεντρικό ΟΠΑΠ');
+      setEditingScheduleRows([
+        { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+        { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+        { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+      ]);
+    }
+    setShowRosterModal(true);
+  };
+
+  const handleAddScheduleRow = () => {
+    setEditingScheduleRows([
+      ...editingScheduleRows,
+      { shift: 'Νέα Βάρδια (π.χ. 12:00 - 20:00)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
+    ]);
+  };
+
+  const handleRemoveScheduleRow = (rowIndex: number) => {
+    if (editingScheduleRows.length <= 1) return;
+    setEditingScheduleRows(editingScheduleRows.filter((_, idx) => idx !== rowIndex));
+  };
+
+  const handleScheduleCellChange = (rowIndex: number, field: string, value: string) => {
+    const updated = [...editingScheduleRows];
+    updated[rowIndex] = { ...updated[rowIndex], [field]: value };
+    setEditingScheduleRows(updated);
+  };
+
+  const handleSaveRosterSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const rosterPayload: WeeklyRosterStore = {
+      storeId: editingRosterStoreId,
+      storeName: editingRosterStoreName,
+      schedule: editingScheduleRows,
+    };
+    await saveRosterSchedule(orgId, rosterPayload);
+    setShowRosterModal(false);
+    await loadAllFinancialData();
+  };
+
   const handleExportExcel = () => {
     exportFullPnLWorkbook({
       month: '09',
@@ -512,71 +585,81 @@ export const ReportsManager: React.FC = () => {
           {/* Top 4 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Total Revenue */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Συνολικός Τζίρος</p>
-                  <h3 className="text-2xl font-black text-slate-900 mt-1">€{totals.turnover.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</h3>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικός Τζίρος</p>
+                  <h3 className="text-2xl font-black text-slate-900 mt-1.5 tracking-tight">€{totals.turnover.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</h3>
                 </div>
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/80">
                   <DollarSign className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[11px] text-emerald-600 font-semibold mt-3 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5" /> Υπολογισμένος από {rawShifts.length > 0 ? rawShifts.length : 120} βάρδιες
-              </p>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Από {rawShifts.length > 0 ? rawShifts.length : 120} βάρδιες
+                </span>
+                <span className="text-slate-400 font-medium">Όλα τα stores</span>
+              </div>
             </div>
 
             {/* Card 2: Total Expenses */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Συνολικά Έξοδα (OPEX)</p>
-                  <h3 className="text-2xl font-black text-rose-600 mt-1">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικά Έξοδα (OPEX)</p>
+                  <h3 className="text-2xl font-black text-rose-600 mt-1.5 tracking-tight">
                     €{(totals.dailyExpenses + totals.fixedExpenses + totals.payroll + totals.corporateExpenses).toLocaleString('el-GR', { minimumFractionDigits: 2 })}
                   </h3>
                 </div>
-                <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+                <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100/80">
                   <Receipt className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500 mt-3 font-medium">
-                Πάγια (€{totals.fixedExpenses.toFixed(2)}) + Ημέρας (€{totals.dailyExpenses.toFixed(2)}) + Μισθοδοσία
-              </p>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                <span>Πάγια + Ημέρας + Μισθοδοσία</span>
+                <span className="font-bold text-slate-700">€{(totals.fixedExpenses + totals.dailyExpenses).toFixed(0)}</span>
+              </div>
             </div>
 
             {/* Card 3: Net Cash Profit */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-emerald-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Καθαρά Κέρδη προ Φόρων</p>
-                  <h3 className={`text-2xl font-black mt-1 ${totals.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Καθαρά Κέρδη προ Φόρων</p>
+                  <h3 className={`text-2xl font-black mt-1.5 tracking-tight ${totals.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     €{totals.netProfit.toLocaleString('el-GR', { minimumFractionDigits: 2 })}
                   </h3>
                 </div>
-                <div className={`p-2.5 rounded-xl ${totals.netProfit >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                <div className={`p-2.5 rounded-xl border ${totals.netProfit >= 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100/80' : 'bg-rose-50 text-rose-600 border-rose-100/80'}`}>
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[11px] text-slate-500 mt-3">
-                Τζίρος μείον όλα τα άμεσα & πάγια κόστη
-              </p>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-medium">Περιθώριο Καθαρού Κέρδους</span>
+                <span className="font-bold text-emerald-700">
+                  {totals.turnover > 0 ? ((totals.netProfit / totals.turnover) * 100).toFixed(1) : '0.0'}%
+                </span>
+              </div>
             </div>
 
             {/* Card 4: Discrepancy & Shrinkage Rate */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Δείκτης Απωλειών (Shrinkage)</p>
-                  <h3 className="text-2xl font-black text-indigo-600 mt-1">{totals.shrinkageRate}%</h3>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Δείκτης Απωλειών (Shrinkage)</p>
+                  <h3 className="text-2xl font-black text-indigo-600 mt-1.5 tracking-tight">{totals.shrinkageRate}%</h3>
                 </div>
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/80">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
               </div>
-              <p className="text-[11px] text-emerald-600 font-semibold mt-3 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Σύνολο αποκλίσεων: €{totals.totalDiscrepancy.toFixed(2)}
-              </p>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500 font-medium">Σύνολο Αποκλίσεων</span>
+                <span className={`font-bold ${totals.totalDiscrepancy === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  €{totals.totalDiscrepancy.toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1253,22 +1336,38 @@ export const ReportsManager: React.FC = () => {
                   <span>Εβδομαδιαίο Πρόγραμμα Προσωπικού & Βάρδιες (Store Roster)</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Κατανομή πρωινών, απογευματινών βαρδιών & ρεπό ανά κατάστημα.
+                  Δημιουργία & παραμετροποίηση προγράμματος βαρδιών, πρωινών/απογευματινών και ρεπό ανά κατάστημα.
                 </p>
               </div>
+              <button
+                onClick={() => handleOpenRosterEditor()}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Δημιουργία / Επεξεργασία Προγράμματος</span>
+              </button>
             </div>
 
             {rosterSchedules.map((r, idx) => (
-              <div key={r.storeId || idx} className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
-                  <h4 className="font-extrabold text-slate-900 text-xs">Κατάστημα: {r.storeName}</h4>
+              <div key={r.storeId || idx} className="space-y-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
+                    <h4 className="font-extrabold text-slate-900 text-xs">Κατάστημα: {r.storeName}</h4>
+                  </div>
+                  <button
+                    onClick={() => handleOpenRosterEditor(r)}
+                    className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>Επεξεργασία</span>
+                  </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse border border-slate-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                      <tr className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
                         <th className="py-2.5 px-3">Βάρδια / Ωράριο</th>
                         <th className="py-2.5 px-3 text-center">Δευτέρα</th>
                         <th className="py-2.5 px-3 text-center">Τρίτη</th>
@@ -1283,13 +1382,13 @@ export const ReportsManager: React.FC = () => {
                       {r.schedule.map((s, sIdx) => (
                         <tr key={sIdx} className="hover:bg-slate-50/80 transition-colors font-medium">
                           <td className="py-2.5 px-3 font-bold text-slate-800 bg-slate-50/50">{s.shift}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.mon}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.tue}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.wed}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.thu}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.fri}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sat}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sun}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.mon || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.tue || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.wed || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.thu || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.fri || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sat || '-'}</td>
+                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sun || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1559,14 +1658,55 @@ export const ReportsManager: React.FC = () => {
             </div>
 
             <form onSubmit={handleSavePayroll} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Επιλογή Εργαζομένου (από Χρήστες)</span>
+                  <span className="text-[10px] text-indigo-600 font-semibold">Λίστα Προσωπικού</span>
+                </label>
+                <select
+                  value={newPayrollItem.name || ''}
+                  onChange={(e) => {
+                    const selectedName = e.target.value;
+                    const matchedUser = tenantUsers.find(
+                      (u) => `${u.first_name} ${u.last_name}` === selectedName || u.id === selectedName
+                    );
+                    if (matchedUser) {
+                      const fullName = `${matchedUser.first_name} ${matchedUser.last_name}`;
+                      const userStore = matchedUser.stores?.[0]?.store_name || '100343 (ΟΠΑΠ)';
+                      setNewPayrollItem({
+                        ...newPayrollItem,
+                        name: fullName,
+                        email: matchedUser.email || '',
+                        storeName: userStore,
+                      });
+                    } else {
+                      setNewPayrollItem({ ...newPayrollItem, name: selectedName });
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
+                >
+                  <option value="">-- Επιλέξτε Εργαζόμενο / Χρήστη --</option>
+                  <optgroup label="Εγγεγραμμένοι Χρήστες Οργανισμού">
+                    {tenantUsers.map((u) => {
+                      const fullName = `${u.first_name} ${u.last_name}`;
+                      return (
+                        <option key={u.id} value={fullName}>
+                          {fullName} — {u.role_name || u.role_code || 'Υπάλληλος'} ({u.email})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Ονοματεπώνυμο</label>
+                  <label className="block font-bold text-slate-700 mb-1">Ονοματεπώνυμο (ή Προσαρμογή)</label>
                   <input
                     type="text"
                     required
                     placeholder="π.χ. Γιάννης Παπαδόπουλος"
-                    value={newPayrollItem.name}
+                    value={newPayrollItem.name || ''}
                     onChange={(e) => setNewPayrollItem({ ...newPayrollItem, name: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
                   />
@@ -1665,6 +1805,256 @@ export const ReportsManager: React.FC = () => {
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
                 >
                   Αποθήκευση στη Μισθοδοσία
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: CREATE / EDIT WEEKLY ROSTER SCHEDULE */}
+      {/* ========================================================================= */}
+      {showRosterModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">
+                    Διαμόρφωση Εβδομαδιαίου Προγράμματος Βαρδιών
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Επιλέξτε εργαζόμενους από το μητρώο χρηστών για κάθε βάρδια & ημέρα της εβδομάδας.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRosterModal(false)}
+                className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRosterSchedule} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Επιλογή Καταστήματος</label>
+                  <select
+                    value={editingRosterStoreId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditingRosterStoreId(val);
+                      const matching = stores.find((s) => s.id === val || s.code === val);
+                      setEditingRosterStoreName(matching ? matching.name : val);
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
+                  >
+                    <option value="100343">100343 - Κεντρικό ΟΠΑΠ</option>
+                    <option value="100343_FnB">100343_FnB - Αναψυκτήριο / Καφέ</option>
+                    <option value="400298">400298 - Play Opap Gaming Hall</option>
+                    <option value="100411">100411 - Υποκατάστημα ΟΠΑΠ Β</option>
+                    <option value="143344">143344 - Play Opap Gaming Hall Β</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Τίτλος / Ετικέτα Καταστήματος</label>
+                  <input
+                    type="text"
+                    value={editingRosterStoreName}
+                    onChange={(e) => setEditingRosterStoreName(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
+                    placeholder="π.χ. 100343 - Κεντρικό ΟΠΑΠ"
+                  />
+                </div>
+              </div>
+
+              {/* Quick employee chips / helper palette */}
+              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-900">
+                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Διαθέσιμο Προσωπικό & Χρήστες Οργανισμού:</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {tenantUsers.map((u) => {
+                    const fullName = `${u.first_name} ${u.last_name}`;
+                    return (
+                      <span
+                        key={u.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-indigo-200 text-indigo-800 rounded-lg text-[11px] font-semibold shadow-2xs"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        {fullName} ({u.role_name || u.role_code || 'Staff'})
+                      </span>
+                    );
+                  })}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[11px] font-semibold">
+                    Ρεπό
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-[11px] font-semibold">
+                    Άδεια / Ασθένεια
+                  </span>
+                </div>
+              </div>
+
+              {/* Dynamic Shift Rows Table */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-800 text-xs">Γραμμές Βαρδιών & Ωραρίων:</h4>
+                  <button
+                    type="button"
+                    onClick={handleAddScheduleRow}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Προσθήκη Γραμμής Βάρδιας</span>
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="py-2.5 px-3 w-44">Βάρδια / Ωράριο</th>
+                        <th className="py-2.5 px-2 text-center">Δευτέρα</th>
+                        <th className="py-2.5 px-2 text-center">Τρίτη</th>
+                        <th className="py-2.5 px-2 text-center">Τετάρτη</th>
+                        <th className="py-2.5 px-2 text-center">Πέμπτη</th>
+                        <th className="py-2.5 px-2 text-center">Παρασκευή</th>
+                        <th className="py-2.5 px-2 text-center">Σάββατο</th>
+                        <th className="py-2.5 px-2 text-center">Κυριακή</th>
+                        <th className="py-2.5 px-2 text-center w-10">#</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {editingScheduleRows.map((row, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50/50">
+                          <td className="p-2">
+                            <input
+                              type="text"
+                              value={row.shift}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'shift', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800"
+                              placeholder="π.χ. 08:00 - 16:00 (Πρωί)"
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.mon}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'mon', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.tue}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'tue', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.wed}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'wed', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.thu}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'thu', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.fri}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'fri', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.sat}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'sat', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5">
+                            <input
+                              type="text"
+                              list="roster-users-datalist"
+                              value={row.sun}
+                              onChange={(e) => handleScheduleCellChange(rIdx, 'sun', e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
+                              placeholder="Επιλογή..."
+                            />
+                          </td>
+                          <td className="p-1.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveScheduleRow(rIdx)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                              title="Διαγραφή γραμμής"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Datalist for fast employee autocomplete in roster cells */}
+              <datalist id="roster-users-datalist">
+                {tenantUsers.map((u) => {
+                  const fullName = `${u.first_name} ${u.last_name}`;
+                  return <option key={u.id} value={fullName} />;
+                })}
+                <option value="Ρεπό" />
+                <option value="Άδεια" />
+                <option value="Ασθένεια" />
+                <option value="-" />
+              </datalist>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowRosterModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Αποθήκευση Προγράμματος στο Firestore</span>
                 </button>
               </div>
             </form>

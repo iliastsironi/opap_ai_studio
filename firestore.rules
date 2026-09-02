@@ -94,34 +94,46 @@ service cloud.firestore {
       allow write: if isValidId(orderId);
     }
 
+    // Customer Credits & Ledger
+    match /customer_credits/{creditId} {
+      allow read: if true;
+      allow write: if isValidId(creditId);
+    }
+
     // Fixed Expenses per store
     match /fixed_expenses/{id} {
-      allow read, write: if isValidId(id);
+      allow read: if true;
+      allow write: if isValidId(id);
     }
 
     // Corporate Expenses and Loans
     match /corporate_expenses/{id} {
-      allow read, write: if isValidId(id);
+      allow read: if true;
+      allow write: if isValidId(id);
     }
 
     // Payroll Records and Staff Rates
     match /payroll_records/{id} {
-      allow read, write: if isValidId(id);
+      allow read: if true;
+      allow write: if isValidId(id);
     }
 
     // VLT Opapnet Reconciliations
     match /vlt_reconciliations/{id} {
-      allow read, write: if isValidId(id);
+      allow read: if true;
+      allow write: if isValidId(id);
     }
 
     // Weekly Roster Schedules
     match /roster_schedules/{id} {
-      allow read, write: if isValidId(id);
+      allow read: if true;
+      allow write: if isValidId(id);
     }
 
     // Copilot Threads
     match /copilot_threads/{threadId} {
-      allow read, write: if isValidId(threadId);
+      allow read: if true;
+      allow write: if isValidId(threadId);
     }
 
     // Default deny catch-all

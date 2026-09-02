@@ -21,10 +21,10 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
   return (
     <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between shadow-xs">
       {/* Left section: Hamburger & Store Selector & Breadcrumb */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
         <button
           onClick={onToggleSidebar}
-          className="p-2 text-slate-600 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+          className="p-2 text-slate-600 hover:text-indigo-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Toggle sidebar"
           title={sidebarOpen ? "Απόκρυψη πλευρικού πάνελ" : "Εμφάνιση πλευρικού πάνελ"}
         >
@@ -33,17 +33,19 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
 
         {/* Store Selector Dropdown */}
         <div className="relative">
-          <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-medium text-slate-800">
-            <StoreIcon className="w-3.5 h-3.5 text-indigo-600" />
+          <div className="flex items-center space-x-2 bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 shadow-2xs">
+            <div className="p-1 bg-indigo-50 text-indigo-600 rounded-lg">
+              <StoreIcon className="w-3.5 h-3.5" />
+            </div>
             <select
               value={activeStoreId}
               onChange={(e) => setActiveStoreId(e.target.value)}
               className="bg-transparent font-bold text-slate-800 focus:outline-hidden cursor-pointer pr-2 text-xs"
             >
-              <option value="ALL">Όλα τα Καταστήματα ({stores.length})</option>
+              <option value="ALL">🏢 Όλα τα Καταστήματα ({stores.length})</option>
               {stores.map((st) => (
                 <option key={st.id} value={st.id}>
-                  {st.code} - {st.name}
+                  📍 {st.code} - {st.name}
                 </option>
               ))}
             </select>
