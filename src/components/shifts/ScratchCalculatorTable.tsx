@@ -189,28 +189,47 @@ export function getLatestStoreScratchInventory(storeId: string): ScratchTicketRo
   return null;
 }
 
+export function isLotteryRow(row: ScratchTicketRow): boolean {
+  const cat = (row.category || '').toLowerCase();
+  const name = (row.name || '').toLowerCase();
+  return cat.includes('λαχεί') || cat.includes('λαχει') || name.includes('λαχεί') || name.includes('λαχει');
+}
+
 export function calculateRowQty(row: ScratchTicketRow): number {
   if (row.manualQty !== undefined && row.manualQty !== '') {
     const q = parseInt(row.manualQty, 10);
     return isNaN(q) || q < 0 ? 0 : q;
   }
 
-  if (row.startNo.trim() === '' || row.endNo.trim() === '') {
+  const startStr = row.startNo !== undefined ? String(row.startNo).trim() : '';
+  const endStr = row.endNo !== undefined ? String(row.endNo).trim() : '';
+
+  // Αν δεν έχει εισαχθεί τελικός αριθμός, 0 πωλήσεις
+  if (endStr === '') {
     return 0;
   }
 
-  const start = parseInt(row.startNo, 10);
-  const end = parseInt(row.endNo, 10);
+  // Αν το αρχικό είναι κενό, θεωρείται ότι ξεκινά από το δελτίο 0 (000)
+  const start = startStr === '' ? 0 : parseInt(startStr, 10);
+  const end = parseInt(endStr, 10);
 
   if (isNaN(start) || isNaN(end)) {
     return 0;
   }
 
-  if (end >= start) {
+  if (!isLotteryRow(row)) {
+    // Στα Σκρατς το τελικό δεν γίνεται να είναι μικρότερο από το αρχικό
+    if (end < start) {
+      return 0;
+    }
     return end - start;
   } else {
-    // If end < start (e.g. rollover range)
-    return Math.abs(start - end);
+    // Στα Λαχεία
+    if (end >= start) {
+      return end - start;
+    } else {
+      return Math.abs(start - end);
+    }
   }
 }
 
@@ -301,8 +320,28 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     onChangeRows(reset);
   };
 
-  const grandTotalSales = rows.reduce((acc, r) => acc + calculateRowTotal(r), 0);
-  const totalTicketsSold = rows.reduce((acc, r) => acc + calculateRowQty(r), 0);
+  const scratchPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+  const scratchSales = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
+  const lotteryPieces = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+  const lotterySales = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
+  const totalTicketsSold = scratchPieces + lotteryPieces;
+  const grandTotalSales = scratchSales + lotterySales;
+
+  // Helper for typing ticket numbers: strips leading zeros when typing new number over 000
+  const handleTicketNumberChange = (
+    rowId: string,
+    field: 'startNo' | 'endNo',
+    inputVal: string,
+    previousVal: string
+  ) => {
+    let val = inputVal.replace(/[^0-9]/g, '');
+    if (/^0+$/.test(previousVal) && val.length > previousVal.length) {
+      val = val.replace(/^0+/, '');
+    } else if (/^0+[1-9]/.test(val)) {
+      val = val.replace(/^0+/, '');
+    }
+    handleUpdateRow(rowId, field, val);
+  };
 
   // Group rows by category
   const categories = Array.from(
@@ -316,7 +355,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
               <Hash className="w-4 h-4 text-indigo-600" />
-              <span>Έλληνικά Λαχεία & Σκρατς (#Αρχικό - #Τελικό Βάρδιας)</span>
+              <span>Έλληνικά Λαχεία & Σκρατς (Καταμέτρηση Τεμαχίων)</span>
             </h4>
             {canManage && (
               <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
@@ -372,12 +411,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         )}
       </div>
 
-      {/* Info notice about handover & daily settlement */}
+      {/* Info notice about scratch vs lotteries calculation rules */}
       <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-[11px] text-indigo-900">
         <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <p>
-            <strong>Μηχανισμός Διαδοχής & Αποφυγής Διπλομέτρησης:</strong> Οι πωλήσεις κάθε βάρδιας υπολογίζονται ως <code className="font-mono bg-white px-1 py-0.5 rounded border border-indigo-200 font-bold">Τελικό - Αρχικό</code>. Στο ημερήσιο κλείσιμο αθροίζονται οι πραγματικές πωλήσεις ανά βάρδια, εξασφαλίζοντας μηδενικό σφάλμα διπλοεγγραφής.
+            <strong>Κανόνες Καταμέτρησης:</strong> Στα <strong>Σκρατς & Λαχεία</strong> καταγράφονται τα # Αρχικά και # Τελικά. Οι πωλήσεις υπολογίζονται αυτόματα ως <code className="font-mono bg-white px-1 py-0.5 rounded border border-indigo-200 font-bold">Τελικό - Αρχικό</code> (π.χ. από 000 σε 10 = 10 τεμάχια) και εμφανίζεται η χρηματική αξία ανά παιχνίδι και βάρδια.
           </p>
         </div>
       </div>
@@ -410,6 +449,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               const catRows = rows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
               const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r), 0);
               const catQty = catRows.reduce((acc, r) => acc + calculateRowQty(r), 0);
+              const isCatLottery = cat.toLowerCase().includes('λαχεί') || cat.toLowerCase().includes('λαχει');
 
               return (
                 <React.Fragment key={cat}>
@@ -430,10 +470,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                   {/* Category Items */}
                   {catRows.map((row) => {
+                    const isLottery = isLotteryRow(row);
                     const qty = calculateRowQty(row);
                     const total = calculateRowTotal(row);
                     const isEditing = editingRowId === row.id;
                     const canEditStart = !readOnly && canManage && managerOverrideEnabled;
+                    const startStr = (row.startNo !== undefined ? String(row.startNo) : '').trim();
+                    const endStr = (row.endNo !== undefined ? String(row.endNo) : '').trim();
+                    const startNum = startStr !== '' ? parseInt(startStr, 10) : 0;
+                    const endNum = endStr !== '' ? parseInt(endStr, 10) : null;
+                    const isInvalidScratchEnd =
+                      !isLottery &&
+                      endNum !== null &&
+                      !isNaN(startNum) &&
+                      !isNaN(endNum) &&
+                      endNum < startNum;
 
                     return (
                       <tr key={row.id} className="hover:bg-indigo-50/30 transition-colors">
@@ -495,10 +546,29 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         <td className="p-2 text-center">
                           <div className="relative inline-block w-full max-w-[100px]">
                             <input
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               disabled={!canEditStart}
                               value={row.startNo}
-                              onChange={(e) => handleUpdateRow(row.id, 'startNo', e.target.value)}
+                              onFocus={(e) => {
+                                e.currentTarget.select();
+                                if (/^0+$/.test(row.startNo)) {
+                                  handleUpdateRow(row.id, 'startNo', '');
+                                }
+                              }}
+                              onClick={(e) => {
+                                if (/^0+$/.test(row.startNo)) {
+                                  handleUpdateRow(row.id, 'startNo', '');
+                                } else {
+                                  e.currentTarget.select();
+                                }
+                              }}
+                              onBlur={() => {
+                                if (row.startNo.trim() === '') {
+                                  handleUpdateRow(row.id, 'startNo', '000');
+                                }
+                              }}
+                              onChange={(e) => handleTicketNumberChange(row.id, 'startNo', e.target.value, row.startNo)}
                               placeholder="000"
                               className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
                                 canEditStart
@@ -519,16 +589,54 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           </div>
                         </td>
 
-                        {/* End Number (Always editable by employee at shift close) */}
+                        {/* End Number (Always editable by employee at shift close - locked to >= startNo for Scratch) */}
                         <td className="p-2 text-center">
-                          <input
-                            type="number"
-                            disabled={readOnly}
-                            value={row.endNo}
-                            onChange={(e) => handleUpdateRow(row.id, 'endNo', e.target.value)}
-                            placeholder="000"
-                            className="w-full max-w-[100px] mx-auto text-center px-2 py-1.5 border-2 border-indigo-200 rounded-lg text-xs font-mono font-black text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700 shadow-2xs"
-                          />
+                          <div className="relative inline-block w-full max-w-[110px]">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              disabled={readOnly}
+                              value={row.endNo}
+                              onFocus={(e) => {
+                                e.currentTarget.select();
+                                if (/^0+$/.test(row.endNo)) {
+                                  handleUpdateRow(row.id, 'endNo', '');
+                                }
+                              }}
+                              onClick={(e) => {
+                                if (/^0+$/.test(row.endNo)) {
+                                  handleUpdateRow(row.id, 'endNo', '');
+                                } else {
+                                  e.currentTarget.select();
+                                }
+                              }}
+                              onBlur={() => {
+                                // Στα Σκρατς κλείδωμα: το τελικό δεν γίνεται να είναι μικρότερο από το αρχικό
+                                if (!isLottery && startNum !== null && endNum !== null && endNum < startNum) {
+                                  handleUpdateRow(row.id, 'endNo', row.startNo || '000');
+                                }
+                              }}
+                              onChange={(e) => handleTicketNumberChange(row.id, 'endNo', e.target.value, row.endNo)}
+                              placeholder="000"
+                              className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                isInvalidScratchEnd
+                                  ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                                  : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                              }`}
+                              title={
+                                isInvalidScratchEnd
+                                  ? `Σφάλμα: Στα Σκρατς το # Τελικό (${row.endNo}) δεν μπορεί να είναι μικρότερο από το # Αρχικό (${row.startNo || '000'}). Κλειδώνει σε ≥ ${row.startNo || '000'}.`
+                                  : !isLottery
+                                  ? `Στα Σκρατς το # Τελικό πρέπει να είναι ≥ ${startNum}`
+                                  : undefined
+                              }
+                            />
+                            {isInvalidScratchEnd && (
+                              <span className="text-[9px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
+                                Τελικό &lt; Αρχικό
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Calculated Quantity */}
@@ -546,7 +654,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Calculated Row Total */}
                         <td className="p-2 text-right font-black font-mono text-xs">
-                          <span className={total > 0 ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200' : 'text-slate-600'}>
+                          <span className={total > 0 ? 'text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-2xs' : 'text-slate-500'}>
                             {total > 0 ? `${total.toFixed(2)} €` : '0.00 €'}
                           </span>
                         </td>
@@ -649,15 +757,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
       {/* Footer Summary Card */}
       <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 flex items-center justify-between text-xs flex-wrap gap-2">
-        <div className="flex items-center space-x-2 text-indigo-900">
-          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span className="font-bold">
-            Σύνολο Πωληθέντων Βάρδιας: <span className="font-black text-indigo-800 font-mono">{totalTicketsSold} τεμάχια</span>
-          </span>
+        <div className="flex items-center space-x-3 text-indigo-900 flex-wrap gap-y-1">
+          <div className="flex items-center space-x-1.5">
+            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="font-bold">
+              Σύνολο Πωληθέντων Τεμαχίων: <span className="font-black text-indigo-900 font-mono">{totalTicketsSold} τμχ</span>
+            </span>
+          </div>
+          {scratchPieces > 0 && lotteryPieces > 0 && (
+            <span className="text-slate-600 font-mono text-[11px]">
+              (Σκρατς: {scratchPieces} τμχ • Λαχεία: {lotteryPieces} τμχ)
+            </span>
+          )}
         </div>
-        <div className="text-right">
-          <span className="text-[11px] text-slate-600 font-semibold mr-2">Σύνολο Αξίας Πωλήσεων Σκρατς:</span>
-          <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200">
+        <div className="text-right flex items-center space-x-2">
+          <span className="text-[11px] text-slate-600 font-semibold">Σύνολο Αξίας Πωλήσεων Σκρατς & Λαχείων:</span>
+          <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
             {grandTotalSales.toFixed(2)} €
           </span>
         </div>

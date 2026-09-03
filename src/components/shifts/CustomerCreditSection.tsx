@@ -139,19 +139,10 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
-          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-            <h4 className="text-base font-extrabold text-slate-900 flex items-center space-x-2">
-              <UserCheck className="w-5 h-5 text-indigo-600" />
-              <span>Πιστώσεις & Εισπράξεις Πελατών (Τεφτέρι)</span>
-            </h4>
-            <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-indigo-600" />
-              Έλεγχος Credit Score (A+, A, B, C)
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Επιλέξτε πελάτη από τη λίστα. Το σύστημα ελέγχει αυτόματα το όριο δανεισμού βάσει του credit score και των υπαρχουσών οφειλών.
-          </p>
+          <h4 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+            <UserCheck className="w-4 h-4 text-indigo-600" />
+            <span>Πιστώσεις & Εισπράξεις</span>
+          </h4>
         </div>
 
         {!readOnly && (
@@ -163,10 +154,10 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                 setDirectoryModalOpen(true);
               }}
               className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
-              title="Προβολή Τεφτεριού & Ρύθμιση Ορίων"
+              title="Καρτέλες Πελατών"
             >
               <Users className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Καρτέλες Πελατών & Όρια</span>
+              <span>Καρτέλες Πελατών</span>
             </button>
 
             {isOwnerOrManager && (
@@ -178,20 +169,20 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                     ? 'bg-amber-500 text-slate-950 border border-amber-600 shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
-                title="Επιτρέπει υπέρβαση ορίου με έγκριση διαχειριστή"
+                title="Παράκαμψη ορίου πίστωσης"
               >
                 {managerBypassEnabled ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                <span>{managerBypassEnabled ? 'Παράκαμψη Ορίου (Ενεργή)' : 'Override'}</span>
+                <span>{managerBypassEnabled ? 'Παράκαμψη (Ενεργή)' : 'Παράκαμψη'}</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={handleAddCredit}
-              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Προσθήκη Πίστωσης</span>
+              <span>+ Προσθήκη</span>
             </button>
           </div>
         )}

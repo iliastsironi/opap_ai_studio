@@ -12,6 +12,7 @@ import {
   Building2,
   Coins,
   ChevronRight,
+  Printer,
   ShieldCheck,
   RefreshCw,
   Sliders,
@@ -38,6 +39,8 @@ import { Shift, ShiftStatus } from '../../types/index.ts';
 import { ShiftOpeningModal } from './ShiftOpeningModal.tsx';
 import { ShiftClosingWizard } from './ShiftClosingWizard.tsx';
 import { ShiftDetailsModal } from './ShiftDetailsModal.tsx';
+import { ShiftReceiptPrintView } from './ShiftReceiptPrintView.tsx';
+import { safeNum } from '../../services/financialCalculator.ts';
 import { ShiftTemplateConfigurator } from './ShiftTemplateConfigurator.tsx';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
 import { DailyAggregationView } from './DailyAggregationView.tsx';
@@ -96,7 +99,20 @@ export const ShiftsManager: React.FC = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [managerTab, setManagerTab] = useState<'SHIFTS' | 'DAILY_REPORT' | 'TEMPLATE'>('SHIFTS');
-  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>('CARDS');
+  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>(() => {
+    try {
+      const saved = localStorage.getItem('shiftledger_shifts_view_mode');
+      if (saved === 'CARDS' || saved === 'TABLE') return saved;
+    } catch {}
+    return 'TABLE';
+  });
+
+  const handleSetViewMode = (mode: 'CARDS' | 'TABLE') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('shiftledger_shifts_view_mode', mode);
+    } catch {}
+  };
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +128,7 @@ export const ShiftsManager: React.FC = () => {
   const [showDailyReportModal, setShowDailyReportModal] = useState(false);
   const [wizardShift, setWizardShift] = useState<Shift | null>(null);
   const [detailsShift, setDetailsShift] = useState<Shift | null>(null);
+  const [receiptShift, setReceiptShift] = useState<Shift | null>(null);
   const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
   const [isDeletingShift, setIsDeletingShift] = useState(false);
 
@@ -682,30 +699,30 @@ export const ShiftsManager: React.FC = () => {
               <div className="sm:col-span-2 flex items-center justify-end space-x-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setViewMode('CARDS')}
-                  className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
-                    viewMode === 'CARDS'
-                      ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="Προβολή Καρτών (Tablet Friendly)"
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{toGreekUpper('Καρτες')}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setViewMode('TABLE')}
+                  onClick={() => handleSetViewMode('TABLE')}
                   className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
                     viewMode === 'TABLE'
                       ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Προβολή Πίνακα (Desktop Table)"
+                  title="Προβολή Πίνακα (Γραμμές με Στήλες)"
                 >
                   <TableIcon className="w-3.5 h-3.5" />
                   <span className="text-[11px]">{toGreekUpper('Πινακας')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSetViewMode('CARDS')}
+                  className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
+                    viewMode === 'CARDS'
+                      ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Προβολή Καρτών"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="text-[11px]">{toGreekUpper('Καρτες')}</span>
                 </button>
               </div>
             </div>
@@ -883,81 +900,120 @@ export const ShiftsManager: React.FC = () => {
               ))}
             </div>
           ) : (
-            /* Dense Data Table Mode */
+            /* Dense & Readable Data Table Mode (Rows with Columns) */
             <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-100/90 text-slate-700 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200 select-none">
                     <tr>
-                      <th className="px-4 py-3">{toGreekUpper('Καταστημα & Ταμειο')}</th>
-                      <th className="px-4 py-3">{toGreekUpper('Τυπος / Ημερομηνια')}</th>
-                      <th className="px-4 py-3">{toGreekUpper('Χειριστης')}</th>
-                      <th className="px-4 py-3">{toGreekUpper('Αναμενομενο / Καταμετρημενο')}</th>
-                      <th className="px-4 py-3">{toGreekUpper('Αποκλιση')}</th>
-                      <th className="px-4 py-3">{toGreekUpper('Κατασταση')}</th>
-                      <th className="px-4 py-3 text-right">{toGreekUpper('Ενεργειες')}</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Ημερομηνια & Ωρα')}</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Καταστημα & Ταμειο')}</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Βαρδια')}</th>
+                      <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Χειριστης')}</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αρχικο (Float)')}</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αναμενομενο')}</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Καταμετρημενο')}</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αποκλιση')}</th>
+                      <th className="px-3.5 py-3.5 text-center whitespace-nowrap">{toGreekUpper('Κατασταση')}</th>
+                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Ενεργειες')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                     {filteredShifts.map((s) => (
                       <tr
                         key={s.id}
-                        className={`transition-colors ${
+                        onClick={() => setDetailsShift(s)}
+                        className={`transition-colors cursor-pointer group ${
                           s.status === 'SUBMITTED'
-                            ? 'bg-amber-50/40 hover:bg-amber-50 border-l-4 border-l-amber-500'
-                            : 'hover:bg-slate-50/80'
+                            ? 'bg-amber-50/40 hover:bg-amber-100/60 border-l-4 border-l-amber-500'
+                            : s.status === 'OPEN'
+                            ? 'bg-blue-50/20 hover:bg-blue-100/40 border-l-4 border-l-blue-500'
+                            : s.status === 'CORRECTION_REQUESTED'
+                            ? 'bg-rose-50/30 hover:bg-rose-100/50 border-l-4 border-l-rose-500'
+                            : 'hover:bg-indigo-50/40 border-l-4 border-l-transparent'
                         }`}
                       >
-                        <td className="px-4 py-3.5">
-                          <div className="font-bold text-slate-900">{s.store_name}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">
-                            {s.register_id === 'REG-01' ? 'Ταμείο 1' : s.register_id}
+                        {/* 1. Ημερομηνία & Ώρα */}
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <div className="font-bold text-slate-900 font-mono text-xs">
+                            {new Date(s.opened_at).toLocaleDateString('el-GR')}
                           </div>
-                        </td>
-
-                        <td className="px-4 py-3.5">
-                          <div className="font-bold text-slate-800">
-                            {s.shift_type === 'MORNING'
-                              ? 'Πρωινή'
-                              : s.shift_type === 'AFTERNOON'
-                              ? 'Απογευματινή'
-                              : 'Βραδινή'}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-mono">
-                            {new Date(s.opened_at).toLocaleDateString('el-GR')}{' '}
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                             {new Date(s.opened_at).toLocaleTimeString('el-GR', {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
+                            {s.closed_at ? (
+                              <>
+                                {' - '}
+                                {new Date(s.closed_at).toLocaleTimeString('el-GR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </>
+                            ) : (
+                              <span className="text-emerald-600 font-bold ml-1">({toGreekUpper('Σε εξελιξη')})</span>
+                            )}
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5">
-                          <div className="font-bold text-slate-900">
-                            {s.opened_by_user_name || 'Υπάλληλος'}
+                        {/* 2. Κατάστημα & Ταμείο */}
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <div className="font-bold text-slate-900 text-xs">{s.store_name}</div>
+                          <div className="text-[10px] text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded font-semibold inline-block mt-0.5">
+                            {s.register_id === 'REG-01' ? 'Ταμείο 1' : s.register_id}
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5">
-                          <div>
-                            <span className="font-bold text-slate-900">
-                              {Number(s.expected_cash || 0).toFixed(2)} €
-                            </span>{' '}
-                            /{' '}
-                            <span className="text-indigo-700 font-bold">
-                              {Number(s.counted_cash || 0).toFixed(2)} €
+                        {/* 3. Βάρδια */}
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            {s.shift_type === 'MORNING'
+                              ? 'Πρωινή (Α)'
+                              : s.shift_type === 'AFTERNOON'
+                              ? 'Απογευματινή (Β)'
+                              : s.shift_type === 'NIGHT'
+                              ? 'Βραδινή (Γ)'
+                              : s.shift_type || 'Βάρδια'}
+                          </span>
+                        </td>
+
+                        {/* 4. Χειριστής */}
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-[10px] font-bold shrink-0">
+                              <User className="w-3 h-3" />
+                            </div>
+                            <span className="font-bold text-slate-900 text-xs truncate max-w-[130px]">
+                              {s.opened_by_user_name || 'Υπάλληλος'}
                             </span>
                           </div>
                         </td>
 
-                        <td className="px-4 py-3.5">
+                        {/* 5. Αρχικό (Float) */}
+                        <td className="px-3.5 py-3 text-right font-mono text-xs font-semibold text-slate-600 whitespace-nowrap">
+                          {Number(s.opening_cash || 0).toFixed(2)} €
+                        </td>
+
+                        {/* 6. Αναμενόμενο */}
+                        <td className="px-3.5 py-3 text-right font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
+                          {Number(s.expected_cash || 0).toFixed(2)} €
+                        </td>
+
+                        {/* 7. Καταμετρημένο */}
+                        <td className="px-3.5 py-3 text-right font-mono text-xs font-black text-indigo-950 whitespace-nowrap">
+                          {Number(s.counted_cash || 0).toFixed(2)} €
+                        </td>
+
+                        {/* 8. Απόκλιση */}
+                        <td className="px-3.5 py-3 text-right whitespace-nowrap">
                           <span
-                            className={`font-black ${
-                              s.discrepancy < 0
-                                ? 'text-rose-600'
-                                : s.discrepancy > 0
-                                ? 'text-amber-600'
-                                : 'text-emerald-600'
+                            className={`inline-block font-mono text-xs font-black px-2 py-0.5 rounded-lg border ${
+                              s.discrepancy < -0.01
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : s.discrepancy > 0.01
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}
                           >
                             {s.discrepancy > 0 ? '+' : ''}
@@ -965,57 +1021,124 @@ export const ShiftsManager: React.FC = () => {
                           </span>
                         </td>
 
-                        <td className="px-4 py-3.5 whitespace-nowrap">
+                        {/* 9. Κατάσταση */}
+                        <td className="px-3.5 py-3 text-center whitespace-nowrap">
                           {renderStatusBadge(s.status)}
                         </td>
 
-                        <td className="px-4 py-3.5 text-right space-x-1.5">
-                          {['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
-                            s.status
-                          ) && (
-                            <button
-                              onClick={() => handleOpenWizard(s)}
-                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors cursor-pointer"
-                            >
-                              {toGreekUpper('Κλεισιμο')}
-                            </button>
-                          )}
-
-                          {s.status === 'SUBMITTED' && canApprove && (
-                            <button
-                              onClick={() => setDetailsShift(s)}
-                              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
-                              title="Επιθεώρηση & Έγκριση"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                              <span>{toGreekUpper('Εγκριση')}</span>
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => setDetailsShift(s)}
-                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
-                          >
-                            {toGreekUpper('Προβολη')}
-                          </button>
-
-                          {(isOwnerOrAdmin || canApprove) &&
-                            ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
+                        {/* 10. Ενέργειες */}
+                        <td
+                          className="px-3.5 py-3 text-right whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-end space-x-1.5">
+                            {['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
                               s.status
                             ) && (
                               <button
-                                onClick={() => setShiftToDelete(s)}
-                                className="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer inline-flex items-center space-x-1"
-                                title="Διαγραφή Προχείρου Βάρδιας (Μόνο Ιδιοκτήτης / Διαχειριστής)"
+                                onClick={() => handleOpenWizard(s)}
+                                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-colors cursor-pointer shadow-2xs"
+                                title="Οδηγός Κλεισίματος Βάρδιας"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span className="hidden xl:inline">{toGreekUpper('Διαγραφη')}</span>
+                                {toGreekUpper('Κλεισιμο')}
                               </button>
                             )}
+
+                            {s.status === 'SUBMITTED' && canApprove && (
+                              <button
+                                onClick={() => setDetailsShift(s)}
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
+                                title="Επιθεώρηση & Έγκριση"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>{toGreekUpper('Εγκριση')}</span>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => setDetailsShift(s)}
+                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center space-x-1 shadow-2xs"
+                              title="Προβολή Λεπτομερειών Βάρδιας"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              <span>{toGreekUpper('Προβολη')}</span>
+                            </button>
+
+                            <button
+                              onClick={() => setReceiptShift(s)}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+                              title="Εκτύπωση Θερμικής Απόδειξης"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                            </button>
+
+                            {(isOwnerOrAdmin || canApprove) &&
+                              ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
+                                s.status
+                              ) && (
+                                <button
+                                  onClick={() => setShiftToDelete(s)}
+                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
+                                  title="Διαγραφή Προχείρου Βάρδιας"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
+                  {/* Table Footer with Summary Row */}
+                  <tfoot className="bg-slate-50/90 border-t-2 border-slate-200 font-bold text-slate-800 text-xs">
+                    <tr>
+                      <td colSpan={4} className="px-3.5 py-3 text-slate-500 uppercase tracking-wider text-[11px]">
+                        {toGreekUpper('Συνολα Προβολης')} ({filteredShifts.length}{' '}
+                        {filteredShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'})
+                      </td>
+                      <td className="px-3.5 py-3 text-right font-mono text-slate-600">
+                        {filteredShifts
+                          .reduce((acc, s) => acc + (Number(s.opening_cash) || 0), 0)
+                          .toFixed(2)}{' '}
+                        €
+                      </td>
+                      <td className="px-3.5 py-3 text-right font-mono text-slate-900">
+                        {filteredShifts
+                          .reduce((acc, s) => acc + (Number(s.expected_cash) || 0), 0)
+                          .toFixed(2)}{' '}
+                        €
+                      </td>
+                      <td className="px-3.5 py-3 text-right font-mono text-indigo-950 font-black">
+                        {filteredShifts
+                          .reduce((acc, s) => acc + (Number(s.counted_cash) || 0), 0)
+                          .toFixed(2)}{' '}
+                        €
+                      </td>
+                      <td className="px-3.5 py-3 text-right font-mono font-black">
+                        {(() => {
+                          const totalDisc = filteredShifts.reduce(
+                            (acc, s) => acc + (Number(s.discrepancy) || 0),
+                            0
+                          );
+                          return (
+                            <span
+                              className={
+                                totalDisc < -0.01
+                                  ? 'text-rose-600'
+                                  : totalDisc > 0.01
+                                  ? 'text-amber-600'
+                                  : 'text-emerald-600'
+                              }
+                            >
+                              {totalDisc > 0 ? '+' : ''}
+                              {totalDisc.toFixed(2)} €
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -1136,6 +1259,68 @@ export const ShiftsManager: React.FC = () => {
         currentStoreId={currentStore?.id || selectedStoreFilter}
         onOpenShiftDetails={(s) => setDetailsShift(s)}
       />
+
+      {/* Thermal Receipt Print View Modal */}
+      {receiptShift && (
+        <ShiftReceiptPrintView
+          isOpen={Boolean(receiptShift)}
+          onClose={() => setReceiptShift(null)}
+          data={{
+            shift: receiptShift,
+            storeName: receiptShift.store_name || 'OPAP AGENCY',
+            storeCode: receiptShift.store_code || receiptShift.store_id || '100343',
+            registerId: receiptShift.register_id || 'POS-01',
+            cashierName: receiptShift.closed_by_user_name || receiptShift.opened_by_user_name || 'Υπάλληλος Βάρδιας',
+            shiftType: receiptShift.shift_type || 'MORNING',
+            openedAt: receiptShift.opened_at,
+            closedAt: receiptShift.closed_at || new Date().toISOString(),
+            denominations: receiptShift.counted_denominations || {},
+            openingCashTotal: safeNum(receiptShift.opening_cash),
+            arithmoGross: safeNum(receiptShift.arithmo_gross ?? receiptShift.number_games_sales),
+            arithmoCancels: safeNum(receiptShift.arithmo_cancels ?? receiptShift.number_games_cancellations),
+            arithmoPayouts: safeNum(receiptShift.arithmo_payouts ?? receiptShift.number_games_payouts),
+            arithmoVouchers: safeNum(receiptShift.arithmo_vouchers ?? receiptShift.number_games_vouchers),
+            arithmoNet: safeNum((receiptShift as any).arithmo_net ?? (safeNum(receiptShift.arithmo_gross) - safeNum(receiptShift.arithmo_cancels) - safeNum(receiptShift.arithmo_payouts) + safeNum(receiptShift.arithmo_vouchers))),
+            scratchSales: safeNum(receiptShift.scratch_sales ?? receiptShift.scratch_lotto_sales),
+            scratchPayouts: safeNum(receiptShift.scratch_payouts),
+            scratchNet: safeNum(receiptShift.scratch_lotto_sales),
+            vltsIn: safeNum(receiptShift.vlts_cash_in),
+            vltsOut: safeNum(receiptShift.vlts_cash_out),
+            vltsNet: safeNum((receiptShift as any).vlts_net ?? (safeNum(receiptShift.vlts_cash_in) - Math.abs(safeNum(receiptShift.vlts_cash_out)))),
+            pameStoiximaBalance: safeNum(receiptShift.pame_stoixima_balance),
+            cleverPointTotal: safeNum(receiptShift.clever_point_total),
+            ippodromosBalance: safeNum(receiptShift.ippodromos_balance),
+            fnbCash: safeNum(receiptShift.fnb_cash),
+            fnbCard: safeNum(receiptShift.fnb_card),
+            fnbTotal: safeNum(receiptShift.fnb_sales),
+            expensesGpCash: safeNum(receiptShift.opap_expenses ?? (receiptShift.expenses_paid_cash || 0)),
+            expensesFnbCash: safeNum(receiptShift.fnb_expenses),
+            expensesTotalCash: safeNum(receiptShift.expenses_paid_cash),
+            expensesList: Array.isArray(receiptShift.expenses) ? receiptShift.expenses.map((e) => ({
+              id: e.id,
+              category: e.category,
+              recipient: e.description || e.category,
+              amount: safeNum(e.amount),
+              notes: e.description,
+            })) : [],
+            safeDrop: safeNum(receiptShift.bank_deposits ?? receiptShift.safe_drop),
+            storePos1: safeNum(receiptShift.register_pos_1),
+            storePos2: safeNum(receiptShift.register_pos_2),
+            totalStorePos: safeNum(receiptShift.card_payments),
+            toraPos1: safeNum(receiptShift.tora_pos1 ?? receiptShift.tora_pos_1),
+            toraPos2: safeNum(receiptShift.tora_pos2 ?? receiptShift.tora_pos_2),
+            totalToraPos: safeNum((receiptShift as any).tora_total ?? (safeNum(receiptShift.tora_pos1) + safeNum(receiptShift.tora_pos2))),
+            creditGranted: safeNum(receiptShift.customer_credit_granted),
+            creditCollected: safeNum(receiptShift.customer_credit_collected ?? receiptShift.customer_returns),
+            totalCountedCash: safeNum(receiptShift.counted_cash ?? receiptShift.actual_cash),
+            totalExpectedCash: safeNum(receiptShift.expected_cash),
+            discrepancy: safeNum(receiptShift.discrepancy),
+            isUnbalanced: receiptShift.is_unbalanced ?? (Math.abs(safeNum(receiptShift.discrepancy)) > 0.01),
+            employeeNotes: receiptShift.employee_notes,
+            managerNotes: receiptShift.manager_notes,
+          }}
+        />
+      )}
     </div>
   );
 };

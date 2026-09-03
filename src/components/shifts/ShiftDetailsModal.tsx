@@ -36,6 +36,7 @@ import {
 import {
   calculateRowQty,
   calculateRowTotal,
+  isLotteryRow,
   ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
 
@@ -641,10 +642,19 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Χρηματοκιβώτιο:</span>
                           <span className="font-mono font-bold text-white">{bankDeposits.toFixed(2)} €</span>
                         </div>
-                        <div className="flex justify-between text-slate-300 py-0.5">
-                          <span>Pos Καταστήματος:</span>
-                          <span className="font-mono font-bold text-white">{totalStorePos.toFixed(2)} €</span>
-                        </div>
+                        {storePosItems.length > 0 ? (
+                          storePosItems.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-slate-300 py-0.5">
+                              <span>{item.name || `Pos #${idx + 1}`}:</span>
+                              <span className="font-mono font-bold text-white">{safeNum(item.amount).toFixed(2)} €</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex justify-between text-slate-300 py-0.5">
+                            <span>Pos Καταστήματος:</span>
+                            <span className="font-mono font-bold text-white">{totalStorePos.toFixed(2)} €</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Έξοδα ΓΠ:</span>
                           <span className="font-mono font-bold text-white">{expensesGpCashTotal.toFixed(2)} €</span>
@@ -684,8 +694,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   );
                   if (activeItems.length === 0) return null;
 
-                  const totalSold = activeItems.reduce((acc, r) => acc + calculateRowQty(r), 0);
+                  const scratchPieces = activeItems.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+                  const lotteryPieces = activeItems.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
                   const totalVal = activeItems.reduce((acc, r) => acc + calculateRowTotal(r), 0);
+                  const totalSold = scratchPieces + lotteryPieces;
 
                   return (
                     <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-4 space-y-3">
@@ -693,7 +705,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <div className="flex items-center space-x-2">
                           <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                           <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
-                            Έλεγχος Σκρατς & Λαχείων Βάρδιας (#Αρχικό ➔ #Τελικό)
+                            Έλεγχος Σκρατς & Λαχείων Βάρδιας (Καταμέτρηση Τεμαχίων)
                           </h4>
                         </div>
                         <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
@@ -735,7 +747,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       {qty}
                                     </span>
                                   </td>
-                                  <td className="py-1.5 px-2 text-right font-black text-emerald-400">{val.toFixed(2)} €</td>
+                                  <td className="py-1.5 px-2 text-right font-black text-emerald-400">
+                                    {val > 0 ? `${val.toFixed(2)} €` : '0.00 €'}
+                                  </td>
                                 </tr>
                               );
                             })}

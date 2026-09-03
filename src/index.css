@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Hide print-only elements by default on screen */
+.print-only {
+  display: none !important;
+}
+
 /* -------------------------------------------------------------
    PRINT-FRIENDLY CSS RULES FOR SHIFT RECEIPTS & PHYSICAL PRINTS
    ------------------------------------------------------------- */

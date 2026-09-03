@@ -195,7 +195,7 @@ export function aggregateShiftsForDay(
       const vltsOut = safeNum(s.vlts_cash_out);
       const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
       const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
-      const toraPos = safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2) || safeNum(s.custom_field_values?.tora_pos);
+      const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
       const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);
       const fnbSales = safeNum(s.fnb_sales);
       const fnbCash = safeNum(s.fnb_cash);
@@ -292,7 +292,7 @@ export function aggregateShiftsForDay(
     const vltsOut = safeNum(s.vlts_cash_out);
     const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
     const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
-    const toraPos = safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2) || safeNum(s.custom_field_values?.tora_pos);
+    const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
     const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);
     const fnbSales = safeNum(s.fnb_sales);
     const fnbCash = safeNum(s.fnb_cash);

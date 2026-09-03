@@ -229,6 +229,7 @@ export interface Shift {
   scratch_payouts?: number;
   tora_pos1?: number;
   tora_pos2?: number;
+  tora_total?: number;
   clever_point_total?: number;
   ippodromos_balance?: number;
   vlts_in?: number;
