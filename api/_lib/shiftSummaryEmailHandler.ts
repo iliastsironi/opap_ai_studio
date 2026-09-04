@@ -1,6 +1,6 @@
-import { getSupabaseAdmin } from './supabaseAdmin.ts';
-import { verifyAuthHeader } from './verifyRequestAuth.ts';
-import { sendShiftSummaryEmailToManagers, ShiftSummaryData } from '../../src/lib/emailService.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { verifyAuthHeader } from './verifyRequestAuth.js';
+import { sendShiftSummaryEmailToManagers, ShiftSummaryData } from '../../src/lib/emailService.js';
 
 interface NotifyShiftSummaryBody {
   store_id?: unknown;

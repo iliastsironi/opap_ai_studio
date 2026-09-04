@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleNotifyShiftSummary } from './_lib/shiftSummaryEmailHandler.ts';
-import { HttpError } from './_lib/verifyRequestAuth.ts';
+import { handleNotifyShiftSummary } from './_lib/shiftSummaryEmailHandler.js';
+import { HttpError } from './_lib/verifyRequestAuth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
