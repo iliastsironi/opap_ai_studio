@@ -41,7 +41,10 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
   const appUrl = process.env.APP_URL || 'https://ais-dev-whgodmemmilp4vacr23lio-628114198839.europe-west2.run.app';
   const inviteToken = data.inviteToken || `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const inviteLink = data.inviteLink || `${appUrl}?action=accept_invite&token=${inviteToken}&email=${encodeURIComponent(to)}`;
-  const tempPassword = data.temporaryPassword || 'ShiftLedger2026!';
+  // No hardcoded fallback: the invite flow creates the account with a
+  // random, never-disclosed password (sign-in only works via inviteLink),
+  // so a fixed fallback string here would just be wrong, not a placeholder.
+  const tempPassword = data.temporaryPassword;
   const orgName = data.organizationName || 'Πρακτορείο ΟΠΑΠ';
 
   const subject = `Πρόσκληση Εγγραφής στο ShiftLedger - ${orgName}`;
@@ -63,9 +66,9 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
         <p style="margin: 4px 0; color: #ffffff; font-size: 14px;"><strong>Email:</strong> ${to}</p>
         <p style="margin: 4px 0; color: #ffffff; font-size: 14px;"><strong>Ρόλος:</strong> ${data.roleName || 'Υπάλληλος'}</p>
         ${data.storeNames ? `<p style="margin: 4px 0; color: #ffffff; font-size: 14px;"><strong>Καταστήματα:</strong> ${data.storeNames}</p>` : ''}
-        <p style="margin: 8px 0 0 0; color: #e2e8f0; font-size: 14px;">
+        ${tempPassword ? `<p style="margin: 8px 0 0 0; color: #e2e8f0; font-size: 14px;">
           <strong>Προσωρινός Κωδικός:</strong> <code style="background: #0f172a; padding: 3px 8px; border-radius: 6px; color: #818cf8; font-family: monospace;">${tempPassword}</code>
-        </p>
+        </p>` : ''}
       </div>
 
       <div style="text-align: center; margin: 32px 0;">
@@ -86,8 +89,7 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
 Έχετε προσκληθεί στο σύστημα ShiftLedger (${orgName}).
 
 Σύνδεσμος Πρόσκλησης: ${inviteLink}
-Email: ${to}
-Προσωρινός Κωδικός: ${tempPassword}
+Email: ${to}${tempPassword ? `\nΠροσωρινός Κωδικός: ${tempPassword}` : ''}
   `;
 
   const senderEmail = process.env.EMAIL_FROM && process.env.EMAIL_FROM !== 'no-reply@shiftledger.gr'
