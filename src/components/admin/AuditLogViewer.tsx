@@ -2,22 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { History, ShieldAlert, User, Clock, Terminal } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { AuditLog } from '../../types/index.js';
+import { fetchAuditLogsFromFirestore } from '../../services/auditLogService.ts';
 
 export const AuditLogViewer: React.FC = () => {
-  const { token } = useAuth();
+  const { organization } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAuditLogs = async () => {
+    if (!organization?.id) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/audit', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data);
-      }
+      const data = await fetchAuditLogsFromFirestore(organization.id);
+      setLogs(data);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
     } finally {
@@ -27,7 +24,7 @@ export const AuditLogViewer: React.FC = () => {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [token]);
+  }, [organization?.id]);
 
   return (
     <div className="space-y-6">

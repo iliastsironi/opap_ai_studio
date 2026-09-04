@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { doc, setDoc } from 'firebase/firestore';
 import { Building2, Save, CheckCircle, Crown, Zap, Shield, Mail, Database, CreditCard, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { db, cleanFirestoreData } from '../../services/firebase.ts';
+import { writeAuditLog } from '../../services/auditLogService.ts';
 
 export const OrganizationSettings: React.FC = () => {
-  const { token, organization, refreshUser } = useAuth();
+  const { organization, user, refreshUser } = useAuth();
 
   const [legalName, setLegalName] = useState(organization?.legal_name || '');
   const [tradeName, setTradeName] = useState(organization?.trade_name || '');
@@ -18,36 +21,48 @@ export const OrganizationSettings: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!organization?.id) return;
     setSaving(true);
     setMessage(null);
     setError(null);
 
-    try {
-      const res = await fetch('/api/v1/orgs/current', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          legal_name: legalName,
-          trade_name: tradeName,
-          tax_office: taxOffice,
-          address,
-          phone,
-          email,
-        }),
-      });
+    const updates = {
+      id: organization.id,
+      legal_name: legalName,
+      trade_name: tradeName,
+      vat_number: organization.vat_number,
+      tax_office: taxOffice,
+      address,
+      phone,
+      email,
+      timezone: organization.timezone,
+      currency: organization.currency,
+      updated_at: new Date().toISOString(),
+    };
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Αποτυχία αποθήκευσης ρυθμίσεων');
-      }
+    try {
+      // setDoc(merge: true) rather than updateDoc: the demo organization
+      // (org_opap_demo) has never actually been written to Firestore - it's
+      // a client-side fallback object - so this needs to create the
+      // document the first time a real org's settings are ever saved, not
+      // require it to already exist.
+      await setDoc(doc(db, 'organizations', organization.id), cleanFirestoreData(updates), { merge: true });
+
+      writeAuditLog({
+        organizationId: organization.id,
+        userId: user?.id,
+        userEmail: user?.email,
+        action: 'ORGANIZATION_UPDATED',
+        entityType: 'ORGANIZATION',
+        entityId: organization.id,
+        beforeState: { ...organization },
+        afterState: updates,
+      });
 
       await refreshUser();
       setMessage('Οι ρυθμίσεις του οργανισμού ενημερώθηκαν επιτυχώς!');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Αποτυχία αποθήκευσης ρυθμίσεων');
     } finally {
       setSaving(false);
     }

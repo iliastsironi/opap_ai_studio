@@ -10,10 +10,21 @@ service cloud.firestore {
       return request.resource.data;
     }
 
-    function callerOrgId() {
+    // Accessing a field that isn't present on a doc (e.g. resource.data.foo,
+    // or get(...).data.foo) throws in Firestore rules - it does NOT come
+    // back as null - and an evaluation error denies the whole rule, not
+    // just that branch. map.get(key, default) is the safe way to read a
+    // possibly-missing field. callerData() centralizes the doc-may-not-
+    // exist AND field-may-not-exist cases so every other helper below can
+    // use plain map.get() safely.
+    function callerData() {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organization_id
-        : null;
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : {};
+    }
+
+    function callerOrgId() {
+      return callerData().get('organization_id', null);
     }
 
     function belongsToOrg(orgId) {
@@ -25,10 +36,7 @@ service cloud.firestore {
     // Narrow this to the single canonical list once the RBAC cleanup lands
     // and nothing writes the legacy codes anymore.
     function isElevatedRole() {
-      let code = isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role_code
-        : '';
-      return code in [
+      return callerData().get('role_code', '') in [
         'ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER',
         'SHIFT_SUPERVISOR', 'ORG_ADMIN', 'SHIFT_LEADER'
       ];
@@ -43,8 +51,8 @@ service cloud.firestore {
       // once they're set (blocks self-escalation and org-hopping). Setting them
       // ONCE from unset is allowed (first-login / onboarding bootstrap).
       allow update: if isSignedIn() && request.auth.uid == userId
-        && (resource.data.role_code == null || incoming().role_code == resource.data.role_code)
-        && (resource.data.organization_id == null || incoming().organization_id == resource.data.organization_id);
+        && (resource.data.get('role_code', null) == null || incoming().role_code == resource.data.role_code)
+        && (resource.data.get('organization_id', null) == null || incoming().organization_id == resource.data.organization_id);
       // Org managers/owners may edit any user in their own org.
       allow update: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
       allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
