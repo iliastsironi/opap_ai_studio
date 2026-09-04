@@ -1,20 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signInWithPopup,
-  signOut,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../services/firebase.ts';
+import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
+import { supabase } from '../services/supabase.ts';
 import { Organization, Role, User, UserStoreAssignment } from '../types/index.ts';
 import { getPermissionsForRole, getRoleByCode, normalizeRoleCode } from '../lib/rbac.ts';
 
 interface AuthContextType {
-  firebaseUser: FirebaseUser | null;
+  supabaseUser: SupabaseAuthUser | null;
   token: string | null;
   user: User | null;
   organization: Organization | null;
@@ -25,7 +16,6 @@ interface AuthContextType {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  login: (token: string, user: User, organization: Organization, roles: Role[], permissions: string[], assignedStores: UserStoreAssignment[]) => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
@@ -48,32 +38,6 @@ const DEFAULT_ORG: Organization = {
   updated_at: new Date().toISOString(),
 };
 
-export const EMPLOYEE_PERMISSIONS = [
-  'shifts.view',
-  'shift.create',
-  'expenses.view',
-  'suppliers.view',
-  'fnb.view',
-  'incidents.view',
-];
-
-export const MANAGER_PERMISSIONS = [
-  'dashboard.view',
-  'store.view',
-  'users.view',
-  'shifts.view',
-  'shift.create',
-  'shift.approve',
-  'shift.reopen',
-  'expenses.view',
-  'suppliers.view',
-  'fnb.view',
-  'incidents.view',
-  'reports.view',
-];
-
-export const OWNER_PERMISSIONS = ['*'];
-
 // The 3 fixed demo accounts advertised on the login screen. Kept as an exact,
 // narrow lookup (not a substring match on the email) so nothing else gets an
 // elevated role just for sharing a domain with them.
@@ -92,27 +56,9 @@ const DEFAULT_OWNER_ROLE: Role = {
   created_at: new Date().toISOString(),
 };
 
-const DEFAULT_MANAGER_ROLE: Role = {
-  id: 'role_manager',
-  code: 'STORE_MANAGER',
-  name: 'Διευθυντής Καταστήματος',
-  description: 'Διαχείριση βαρδιών, ταμείων & αναφορών καταστήματος',
-  is_system: true,
-  created_at: new Date().toISOString(),
-};
-
-const DEFAULT_EMPLOYEE_ROLE: Role = {
-  id: 'role_employee',
-  code: 'EMPLOYEE',
-  name: 'Υπάλληλος Βάρδιας',
-  description: 'Άνοιγμα & κλείσιμο βαρδιών, καταχώρηση εσόδων/εξόδων',
-  is_system: true,
-  created_at: new Date().toISOString(),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('shiftledger_token'));
+  const [supabaseUser, setSupabaseUser] = useState<SupabaseAuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(DEFAULT_ORG);
   const [roles, setRoles] = useState<Role[]>([DEFAULT_OWNER_ROLE]);
@@ -120,23 +66,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [assignedStores, setAssignedStores] = useState<UserStoreAssignment[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Sync profile when Firebase User changes
-  const syncUserProfile = async (fbUser: FirebaseUser) => {
+  // Sync profile whenever the Supabase session changes.
+  const syncUserProfile = async (authUser: SupabaseAuthUser) => {
     try {
-      try {
-        const idToken = await fbUser.getIdToken();
-        setToken(idToken);
-        localStorage.setItem('shiftledger_token', idToken);
-      } catch (tokenErr) {
-        console.warn('Could not retrieve idToken:', tokenErr);
-      }
-
-      const nameParts = fbUser.displayName ? fbUser.displayName.split(' ') : ['Χρήστης', 'ShiftLedger'];
-      const firstName = nameParts[0] || 'Χρήστης';
-      const lastName = nameParts.slice(1).join(' ') || 'ShiftLedger';
+      const meta = authUser.user_metadata || {};
+      const firstName = meta.first_name || 'Χρήστης';
+      const lastName = meta.last_name || 'ShiftLedger';
       const defaultUserObj: User = {
-        id: fbUser.uid,
-        email: fbUser.email || '',
+        id: authUser.id,
+        email: authUser.email || '',
         first_name: firstName,
         last_name: lastName,
         status: 'ACTIVE',
@@ -144,52 +82,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated_at: new Date().toISOString(),
       };
 
-      let activeRole = DEFAULT_OWNER_ROLE;
-      let activePerms = OWNER_PERMISSIONS;
       let activeOrg = DEFAULT_ORG;
 
-      let userSnap = null;
+      let uData: Record<string, any> | null = null;
       try {
-        const userRef = doc(db, 'users', fbUser.uid);
-        userSnap = await getDoc(userRef);
+        const { data, error } = await supabase.from('users').select('*').eq('id', authUser.id).maybeSingle();
+        if (error) throw error;
+        uData = data;
       } catch (fsErr) {
-        console.warn('Firestore offline or read timeout, falling back to cached user state:', fsErr);
+        console.warn('Supabase offline or read timeout, falling back to cached user state:', fsErr);
       }
 
       // Check if user is a demo account
-      const isDemoUser = fbUser.email && (
-        fbUser.email.includes('shiftledger.gr') ||
-        fbUser.email.includes('opap.gr') ||
-        fbUser.email === 'owner@shiftledger.gr' ||
-        fbUser.email === 'manager@shiftledger.gr' ||
-        fbUser.email === 'employee@shiftledger.gr'
-      );
+      const isDemoUser = !!(authUser.email && (
+        authUser.email.includes('shiftledger.gr') ||
+        authUser.email.includes('opap.gr') ||
+        authUser.email === 'owner@shiftledger.gr' ||
+        authUser.email === 'manager@shiftledger.gr' ||
+        authUser.email === 'employee@shiftledger.gr'
+      ));
 
-      const hasExistingDoc = !!(userSnap && userSnap.exists());
-      const storedRoleCode: string | undefined = hasExistingDoc ? userSnap!.data().role_code : undefined;
-      // A signed-in user with no Firestore doc yet and no demo-account match
+      const hasExistingRow = !!uData;
+      const storedRoleCode: string | undefined = uData?.role_code ?? undefined;
+      // A signed-in user with no profile row yet and no demo-account match
       // is about to have a brand-new organization created for them below -
       // they genuinely are that org's sole owner. Everyone else with a
       // missing/unrecognized role_code gets the least-privilege default
       // (EMPLOYEE) inside normalizeRoleCode(), not an elevated one.
-      const isBrandNewOrgOwner = !hasExistingDoc && !isDemoUser;
+      const isBrandNewOrgOwner = !hasExistingRow && !isDemoUser;
 
       const canonicalRoleCode = storedRoleCode
         ? normalizeRoleCode(storedRoleCode)
         : isBrandNewOrgOwner
         ? 'ORG_OWNER'
-        : normalizeRoleCode(fbUser.email ? DEMO_ACCOUNT_ROLE_OVERRIDES[fbUser.email] : undefined);
+        : normalizeRoleCode(authUser.email ? DEMO_ACCOUNT_ROLE_OVERRIDES[authUser.email] : undefined);
 
-      activeRole = getRoleByCode(canonicalRoleCode);
-      activePerms = getPermissionsForRole(canonicalRoleCode);
+      const activeRole = getRoleByCode(canonicalRoleCode);
+      const activePerms = getPermissionsForRole(canonicalRoleCode);
 
-      if (userSnap && userSnap.exists()) {
-        const uData = userSnap.data();
-        const userOrgId = uData.organization_id || (isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`);
+      if (uData) {
+        const userOrgId = uData.organization_id || (isDemoUser ? 'org_opap_demo' : `org_${authUser.id}`);
 
         setUser({
-          id: fbUser.uid,
-          email: fbUser.email || uData.email || '',
+          id: authUser.id,
+          email: authUser.email || uData.email || '',
           first_name: uData.first_name || firstName,
           last_name: uData.last_name || lastName,
           status: 'ACTIVE',
@@ -197,25 +133,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updated_at: new Date().toISOString(),
         });
 
-        // Self-heal: this doc predates role_code/organization_id tracking.
-        // The Firestore rules only trust *stored* values (never the
-        // client's own fallback guess) for anything beyond reading your own
-        // profile, so a role/org computed above but never persisted would
-        // show correct-looking UI that then fails every real write. Rules
-        // explicitly allow a user to set either field on their own doc
-        // exactly once, from unset.
+        // Self-heal: this row predates role_code/organization_id tracking,
+        // or was created before this device ever resolved them. RLS only
+        // trusts *stored* values (never the client's own fallback guess)
+        // for anything beyond reading your own profile, so a role/org
+        // computed above but never persisted would show correct-looking UI
+        // that then fails every real write. The bootstrap trigger
+        // (0002_rls.sql) explicitly allows setting either field exactly
+        // once, from unset.
         if (!storedRoleCode || !uData.organization_id) {
-          updateDoc(doc(db, 'users', fbUser.uid), {
-            role_code: canonicalRoleCode,
-            organization_id: userOrgId,
-          }).catch(() => {});
+          supabase.from('users').update({ role_code: canonicalRoleCode, organization_id: userOrgId })
+            .eq('id', authUser.id).then(({ error }) => {
+              if (error) console.warn('Could not self-heal role_code/organization_id:', error.message);
+            });
         }
 
         if (userOrgId !== 'org_opap_demo') {
           try {
-            const orgSnap = await getDoc(doc(db, 'organizations', userOrgId));
-            if (orgSnap.exists()) {
-              activeOrg = orgSnap.data() as Organization;
+            const { data: orgData } = await supabase.from('organizations').select('*').eq('id', userOrgId).maybeSingle();
+            if (orgData) {
+              activeOrg = orgData as Organization;
             } else {
               activeOrg = {
                 id: userOrgId,
@@ -225,43 +162,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 tax_office: '',
                 address: '',
                 phone: '',
-                email: fbUser.email || '',
+                email: authUser.email || '',
                 timezone: 'Europe/Athens',
                 currency: 'EUR',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               };
-              setDoc(doc(db, 'organizations', userOrgId), activeOrg).catch(() => {});
+              supabase.from('organizations').insert(activeOrg).then(({ error }) => {
+                if (error) console.warn('Could not create fallback organization row:', error.message);
+              });
             }
           } catch (orgErr) {
             console.warn('Error fetching custom org:', orgErr);
           }
         }
       } else {
-        const newOrgId = isDemoUser ? 'org_opap_demo' : `org_${fbUser.uid}`;
+        const newOrgId = isDemoUser ? 'org_opap_demo' : `org_${authUser.id}`;
         setUser(defaultUserObj);
 
-        if (!isDemoUser) {
-          activeOrg = {
-            id: newOrgId,
-            legal_name: `${firstName} ${lastName}`,
-            trade_name: `Πρακτορείο ${firstName}`,
-            vat_number: '',
-            tax_office: '',
-            address: '',
-            phone: '',
-            email: fbUser.email || '',
-            timezone: 'Europe/Athens',
-            currency: 'EUR',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          setDoc(doc(db, 'organizations', newOrgId), activeOrg).catch(() => {});
+        // users.organization_id is a real foreign key in Postgres (Firestore
+        // never enforced this) - the org row must exist before the user row
+        // can reference it, for demo users too. Plain insert, not upsert:
+        // PostgREST's ON CONFLICT resolution for upsert needs the SELECT
+        // policy to see the existing row, and a brand-new user can't
+        // satisfy belongs_to_org() yet (no users row of their own committed
+        // either), so it gets rejected by RLS before ever reaching the
+        // conflict check. A plain insert only needs the INSERT policy
+        // (any signed-in user, per 0002_rls.sql) - a 23505 conflict just
+        // means another of the 3 demo accounts already created this same
+        // 'org_opap_demo' row moments earlier, which is fine.
+        activeOrg = isDemoUser
+          ? { ...DEFAULT_ORG, updated_at: new Date().toISOString() }
+          : {
+              id: newOrgId,
+              legal_name: `${firstName} ${lastName}`,
+              trade_name: `Πρακτορείο ${firstName}`,
+              vat_number: '',
+              tax_office: '',
+              address: '',
+              phone: '',
+              email: authUser.email || '',
+              timezone: 'Europe/Athens',
+              currency: 'EUR',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+        const { error: orgInsertErr } = await supabase.from('organizations').insert(activeOrg);
+        if (orgInsertErr && orgInsertErr.code !== '23505') {
+          console.warn('Could not create organization row:', orgInsertErr.message);
         }
 
-        // Write user profile to Firestore (async non-blocking)
-        const userRef = doc(db, 'users', fbUser.uid);
-        setDoc(userRef, {
+        const { error: userInsertErr } = await supabase.from('users').insert({
           id: defaultUserObj.id,
           email: defaultUserObj.email,
           first_name: defaultUserObj.first_name,
@@ -271,256 +222,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           status: 'ACTIVE',
           created_at: defaultUserObj.created_at,
           updated_at: defaultUserObj.updated_at,
-        }).catch(() => {});
+        });
+        if (userInsertErr) console.warn('Could not create user profile row:', userInsertErr.message);
       }
 
       setRoles([activeRole]);
       setOrganization(activeOrg);
       setPermissions(activePerms);
     } catch (err) {
-      console.error('Error syncing user profile with Firebase:', err);
+      console.error('Error syncing user profile with Supabase:', err);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsLoading(true);
-      if (fbUser) {
-        setFirebaseUser(fbUser);
-        await syncUserProfile(fbUser);
+      if (session?.user) {
+        setSupabaseUser(session.user);
+        setToken(session.access_token);
+        await syncUserProfile(session.user);
       } else {
-        setFirebaseUser(null);
-        // Fallback to demo token if exists from local storage login without Firebase
-        const storedToken = localStorage.getItem('shiftledger_token');
-        if (storedToken && !storedToken.startsWith('eyJ') && storedToken.length < 50) {
-          // Demo fallback
-          setToken(storedToken);
-          setUser({
-            id: 'usr_owner',
-            email: 'owner@shiftledger.gr',
-            first_name: 'Γιώργος',
-            last_name: 'Παπαδόπουλος',
-            status: 'ACTIVE',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        } else {
-          setToken(null);
-          setUser(null);
-        }
+        setSupabaseUser(null);
+        setToken(null);
+        setUser(null);
       }
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
-  const loginWithEmail = async (email: string, pass: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-    } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed' || err.message?.includes('operation-not-allowed')) {
-        // Fallback login when Email/Password provider is not enabled in Firebase Auth Console
-        const fakeUid = `usr_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const nameParts = email.split('@')[0].split('.');
-        const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'Χρήστης';
-        const lastName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : 'ShiftLedger';
-        
-        const fallbackUser: User = {
-          id: fakeUid,
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        try {
-          await setDoc(doc(db, 'users', fakeUid), {
-            id: fakeUid,
-            email,
-            first_name: firstName,
-            last_name: lastName,
-            status: 'ACTIVE',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        } catch (e) {
-          console.warn('Firestore setDoc fallback error:', e);
-        }
-
-        login(
-          `token_${fakeUid}_${Date.now()}`,
-          fallbackUser,
-          DEFAULT_ORG,
-          [DEFAULT_OWNER_ROLE],
-          ['*'],
-          []
-        );
-        return;
-      }
-
-      // If user not found in demo environment, auto create user in Firebase Auth
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        const nameParts = email.split('@')[0].split('.');
-        const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'Χρήστης';
-        const lastName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : 'ShiftLedger';
-        
-        try {
-          await createUserWithEmailAndPassword(auth, email, pass);
-          return;
-        } catch (createErr: any) {
-          if (createErr.code === 'auth/operation-not-allowed' || createErr.message?.includes('operation-not-allowed')) {
-            const fakeUid = `usr_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            login(
-              `token_${fakeUid}_${Date.now()}`,
-              {
-                id: fakeUid,
-                email,
-                first_name: firstName,
-                last_name: lastName,
-                status: 'ACTIVE',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              },
-              DEFAULT_ORG,
-              [DEFAULT_OWNER_ROLE],
-              ['*'],
-              []
-            );
-            return;
-          }
-          throw new Error(createErr.message || 'Αποτυχία αυθεντικοποίησης μέσω Firebase');
-        }
-      }
-      throw new Error(err.message || 'Αποτυχία σύνδεσης');
-    }
+  const loginWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Αποτυχία σύνδεσης');
   };
 
   const loginWithGoogle = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed' || err.message?.includes('operation-not-allowed')) {
-        const fakeUid = `usr_google_user`;
-        login(
-          `token_google_${Date.now()}`,
-          {
-            id: fakeUid,
-            email: 'google.user@shiftledger.gr',
-            first_name: 'Google',
-            last_name: 'User',
-            status: 'ACTIVE',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          DEFAULT_ORG,
-          [DEFAULT_OWNER_ROLE],
-          ['*'],
-          []
-        );
-        return;
-      }
-      throw new Error(err.message || 'Αποτυχία σύνδεσης μέσω Google');
-    }
+    // Redirect-based (Supabase has no popup mode): the browser navigates to
+    // Google's login and back, and onAuthStateChange picks up the new
+    // session on return - this call not "resolving" in the usual sense
+    // (the page unloads) is expected.
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) throw new Error(error.message || 'Αποτυχία σύνδεσης μέσω Google');
   };
 
-  const signUpWithEmail = async (email: string, pass: string, firstName: string, lastName: string) => {
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, pass);
-      if (cred.user) {
-        // Send email verification link automatically via Firebase Authentication
-        try {
-          await sendEmailVerification(cred.user);
-        } catch (emailErr) {
-          console.warn('Could not send Firebase verification email automatically:', emailErr);
-        }
-
-        const userRef = doc(db, 'users', cred.user.uid);
-        await setDoc(userRef, {
-          id: cred.user.uid,
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-    } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed' || err.message?.includes('operation-not-allowed')) {
-        const fakeUid = `usr_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const newUserObj: User = {
-          id: fakeUid,
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        try {
-          await setDoc(doc(db, 'users', fakeUid), {
-            id: fakeUid,
-            email,
-            first_name: firstName,
-            last_name: lastName,
-            status: 'ACTIVE',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        } catch (e) {
-          console.warn('Firestore setDoc signup fallback error:', e);
-        }
-
-        login(
-          `token_${fakeUid}_${Date.now()}`,
-          newUserObj,
-          DEFAULT_ORG,
-          [DEFAULT_OWNER_ROLE],
-          ['*'],
-          []
-        );
-        return;
-      }
-      throw new Error(err.message || 'Αποτυχία εγγραφής χρήστη');
-    }
-  };
-
-  const login = (
-    newToken: string,
-    newUser: User,
-    newOrg: Organization,
-    newRoles: Role[],
-    newPerms: string[],
-    newStores: UserStoreAssignment[]
-  ) => {
-    localStorage.setItem('shiftledger_token', newToken);
-    setToken(newToken);
-    setUser(newUser);
-    setOrganization(newOrg);
-    setRoles(newRoles);
-    setPermissions(newPerms);
-    setAssignedStores(newStores);
+  const signUpWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { first_name: firstName, last_name: lastName } },
+    });
+    if (error) throw new Error(error.message || 'Αποτυχία εγγραφής χρήστη');
   };
 
   const logout = async () => {
-    localStorage.removeItem('shiftledger_token');
     setToken(null);
     setUser(null);
-    setFirebaseUser(null);
+    setSupabaseUser(null);
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error:', e);
     }
   };
 
   const refreshUser = async () => {
-    if (auth.currentUser) {
-      await syncUserProfile(auth.currentUser);
+    const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
+    if (currentAuthUser) {
+      await syncUserProfile(currentAuthUser);
     } else {
       setIsLoading(false);
     }
@@ -537,7 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
-        firebaseUser,
+        supabaseUser,
         token,
         user,
         organization,
@@ -548,7 +317,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithEmail,
         loginWithGoogle,
         signUpWithEmail,
-        login,
         logout,
         refreshUser,
         hasPermission,

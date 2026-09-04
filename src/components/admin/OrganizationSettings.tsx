@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
 import { Building2, Save, CheckCircle, Crown, Zap, Shield, Mail, Database, CreditCard, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { db, cleanFirestoreData } from '../../services/firebase.ts';
+import { supabase, cleanData } from '../../services/supabase.ts';
 import { writeAuditLog } from '../../services/auditLogService.ts';
 
 export const OrganizationSettings: React.FC = () => {
@@ -41,12 +40,12 @@ export const OrganizationSettings: React.FC = () => {
     };
 
     try {
-      // setDoc(merge: true) rather than updateDoc: the demo organization
-      // (org_opap_demo) has never actually been written to Firestore - it's
-      // a client-side fallback object - so this needs to create the
-      // document the first time a real org's settings are ever saved, not
-      // require it to already exist.
-      await setDoc(doc(db, 'organizations', organization.id), cleanFirestoreData(updates), { merge: true });
+      // upsert rather than update: the demo organization (org_opap_demo)
+      // has never actually been written to the table - it's a client-side
+      // fallback object - so this needs to create the row the first time a
+      // real org's settings are ever saved, not require it to already exist.
+      const { error: upsertError } = await supabase.from('organizations').upsert(cleanData(updates));
+      if (upsertError) throw upsertError;
 
       writeAuditLog({
         organizationId: organization.id,
@@ -102,7 +101,7 @@ export const OrganizationSettings: React.FC = () => {
               {tradeName || legalName || 'ShiftLedger Organization'}
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl">
-              Πλήρης πολυ-εταιρική άδεια με υποστήριξη απεριόριστων καταστημάτων ΟΠΑΠ / Play, αυτόματες ειδοποιήσεις Resend Email API, ασφαλή βάση Firestore & Live Audit Logging.
+              Πλήρης πολυ-εταιρική άδεια με υποστήριξη απεριόριστων καταστημάτων ΟΠΑΠ / Play, αυτόματες ειδοποιήσεις Resend Email API, ασφαλή βάση Supabase & Live Audit Logging.
             </p>
           </div>
 
@@ -122,7 +121,7 @@ export const OrganizationSettings: React.FC = () => {
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1 text-slate-300">
               <Database className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Firestore Sync Enabled</span>
+              <span>Supabase Sync Enabled</span>
             </span>
             <span className="flex items-center space-x-1 text-slate-300">
               <Mail className="w-3.5 h-3.5 text-emerald-400" />

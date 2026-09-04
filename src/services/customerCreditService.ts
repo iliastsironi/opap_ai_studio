@@ -1,3 +1,4 @@
+import { supabase } from './supabase.ts';
 import { Customer, CreditScoreTier, CreditTierConfig, CustomerCredit } from '../types/index.ts';
 
 export const DEFAULT_CREDIT_TIER_CONFIGS: Record<CreditScoreTier, CreditTierConfig> = {
@@ -43,228 +44,133 @@ export const DEFAULT_CREDIT_TIER_CONFIGS: Record<CreditScoreTier, CreditTierConf
   },
 };
 
-export const INITIAL_DEMO_CUSTOMERS: Customer[] = [
-  {
-    id: 'cust_01',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Γιώργος Παπαδόπουλος',
-    phone: '697 123 4567',
-    tier: 'A',
-    current_debt: 120.00,
-    total_granted: 850.00,
-    total_collected: 730.00,
-    notes: 'Συνεπής πελάτης ΚΙΝΟ & Στοίχημα. Εξοφλεί κάθε Παρασκευή.',
-    status: 'ACTIVE',
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'cust_02',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Νίκος Καραγιάννης',
-    phone: '698 998 8776',
-    tier: 'A+',
-    current_debt: 350.00,
-    total_granted: 3200.00,
-    total_collected: 2850.00,
-    notes: 'VIP Πελάτης VLTs & Στοίχημα. Άμεση εξόφληση μέσω e-banking.',
-    status: 'VIP',
-    created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'cust_03',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Κώστας Μανωλάς',
-    phone: '694 556 6778',
-    tier: 'B',
-    current_debt: 60.00,
-    total_granted: 400.00,
-    total_collected: 340.00,
-    notes: 'Όριο έως 100€. Παίζει Joker & Virtuals.',
-    status: 'ACTIVE',
-    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'cust_04',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Δημήτρης Σταυρόπουλος',
-    phone: '693 112 2334',
-    tier: 'C',
-    current_debt: 25.00,
-    total_granted: 150.00,
-    total_collected: 125.00,
-    notes: 'Αυστηρό όριο 30€. Συχνά καθυστερεί την εξόφληση.',
-    status: 'ACTIVE',
-    created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'cust_05',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Βασίλης Αλεξίου',
-    phone: '698 000 1122',
-    tier: 'A',
-    current_debt: 0.00,
-    total_granted: 900.00,
-    total_collected: 900.00,
-    notes: 'Μηδενικό υπόλοιπο. Εξαιρετική πιστοληπτική εικόνα.',
-    status: 'ACTIVE',
-    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'cust_06',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    name: 'Αλέξανδρος Μιχαηλίδης',
-    phone: '695 667 7889',
-    tier: 'B',
-    current_debt: 90.00,
-    total_granted: 520.00,
-    total_collected: 430.00,
-    notes: 'Πλησιάζει το όριο των 100€ (υπόλοιπο διαθέσιμο: 10€).',
-    status: 'ACTIVE',
-    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const CUSTOMER_STORAGE_KEY = 'shiftledger_customer_directory_v2';
-const TIER_CONFIG_STORAGE_KEY = 'shiftledger_credit_tier_config_v2';
-
-/**
- * Loads credit tier configurations for a given store (or defaults)
- */
-export function getStoreCreditTierConfigs(storeId?: string): Record<CreditScoreTier, CreditTierConfig> {
+// ----------------------------------------------------------------
+// Credit tier configs: real table (credit_tier_configs), not localStorage.
+// ----------------------------------------------------------------
+export async function getStoreCreditTierConfigs(
+  orgId: string,
+  storeId?: string
+): Promise<Record<CreditScoreTier, CreditTierConfig>> {
   try {
-    if (typeof window === 'undefined') return DEFAULT_CREDIT_TIER_CONFIGS;
-    const key = storeId ? `${TIER_CONFIG_STORAGE_KEY}_${storeId}` : TIER_CONFIG_STORAGE_KEY;
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULT_CREDIT_TIER_CONFIGS,
-        ...parsed,
+    let q = supabase.from('credit_tier_configs').select('*').eq('organization_id', orgId);
+    q = storeId ? q.eq('store_id', storeId) : q.is('store_id', null);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) return DEFAULT_CREDIT_TIER_CONFIGS;
+    const merged = { ...DEFAULT_CREDIT_TIER_CONFIGS };
+    for (const row of data) {
+      merged[row.tier as CreditScoreTier] = {
+        tier: row.tier, label: row.label, defaultLimit: Number(row.default_limit) || 0,
+        isUnlimited: row.is_unlimited, description: row.description,
+        badgeBg: row.badge_bg, badgeText: row.badge_text, badgeBorder: row.badge_border,
       };
     }
+    return merged;
   } catch (e) {
     console.warn('Failed to load credit tier configs', e);
+    return DEFAULT_CREDIT_TIER_CONFIGS;
   }
-  return DEFAULT_CREDIT_TIER_CONFIGS;
 }
 
-/**
- * Saves customized credit tier configurations (by owner/manager)
- */
-export function saveStoreCreditTierConfigs(
-  storeId: string,
+export async function saveStoreCreditTierConfigs(
+  orgId: string,
+  storeId: string | undefined,
   configs: Record<CreditScoreTier, CreditTierConfig>
-): void {
+): Promise<void> {
   try {
-    if (typeof window === 'undefined') return;
-    const key = storeId ? `${TIER_CONFIG_STORAGE_KEY}_${storeId}` : TIER_CONFIG_STORAGE_KEY;
-    localStorage.setItem(key, JSON.stringify(configs));
+    const rows = Object.values(configs).map((c) => ({
+      organization_id: orgId, store_id: storeId || null, tier: c.tier, label: c.label,
+      default_limit: c.defaultLimit, is_unlimited: c.isUnlimited, description: c.description,
+      badge_bg: c.badgeBg, badge_text: c.badgeText, badge_border: c.badgeBorder,
+    }));
+    const { error } = await supabase.from('credit_tier_configs').upsert(rows, { onConflict: 'organization_id,store_id,tier' });
+    if (error) throw error;
   } catch (e) {
     console.warn('Failed to save credit tier configs', e);
   }
 }
 
-/**
- * Gets all customers for the current store or organization
- */
-export function getCustomers(storeId?: string): Customer[] {
+// ----------------------------------------------------------------
+// Customers: real table, not localStorage - fixes the app's previous
+// zero-cross-device-sync running balance.
+// ----------------------------------------------------------------
+export async function getCustomers(orgId: string, storeId?: string): Promise<Customer[]> {
   try {
-    if (typeof window === 'undefined') return INITIAL_DEMO_CUSTOMERS;
-    const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
-    if (raw) {
-      const list: Customer[] = JSON.parse(raw);
-      if (Array.isArray(list) && list.length > 0) {
-        if (!storeId) return list;
-        // Return store customers + generic org customers
-        return list.filter((c) => !c.store_id || c.store_id === storeId || c.store_id === 'all');
-      }
-    }
-    // Initialize with demo customers if empty
-    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(INITIAL_DEMO_CUSTOMERS));
-    return INITIAL_DEMO_CUSTOMERS;
+    let q = supabase.from('customers').select('*').eq('organization_id', orgId);
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []) as Customer[];
   } catch (e) {
-    console.warn('Failed to load customers from storage', e);
-    return INITIAL_DEMO_CUSTOMERS;
+    console.warn('Failed to load customers', e);
+    return [];
   }
 }
 
-/**
- * Finds customer by ID or Name
- */
-export function findCustomer(idOrName: string, storeId?: string): Customer | undefined {
-  const all = getCustomers(storeId);
+export async function findCustomer(orgId: string, idOrName: string, storeId?: string): Promise<Customer | undefined> {
+  const all = await getCustomers(orgId, storeId);
   const search = idOrName.trim().toLowerCase();
   return all.find(
     (c) => c.id === idOrName || c.name.toLowerCase() === search || (c.phone && c.phone.includes(search))
   );
 }
 
-/**
- * Creates or updates a customer in directory
- */
-export function saveCustomer(customerData: Partial<Customer> & { name: string; tier: CreditScoreTier }): Customer {
-  const all = getCustomers();
-  const existingIdx = all.findIndex((c) => c.id === customerData.id || c.name.toLowerCase() === customerData.name.trim().toLowerCase());
-
-  let updatedCustomer: Customer;
-
-  if (existingIdx >= 0) {
-    updatedCustomer = {
-      ...all[existingIdx],
-      ...customerData,
-      name: customerData.name.trim(),
-      updated_at: new Date().toISOString(),
-    };
-    all[existingIdx] = updatedCustomer;
-  } else {
-    updatedCustomer = {
-      id: customerData.id || `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      organization_id: customerData.organization_id || 'org_opap_demo',
-      store_id: customerData.store_id || 'store_opap_01',
-      name: customerData.name.trim(),
-      phone: customerData.phone || '',
-      tier: customerData.tier || 'B',
-      custom_limit: customerData.custom_limit ?? null,
-      current_debt: customerData.current_debt || 0,
-      total_granted: customerData.total_granted || 0,
-      total_collected: customerData.total_collected || 0,
-      notes: customerData.notes || '',
-      status: customerData.status || (customerData.tier === 'A+' ? 'VIP' : 'ACTIVE'),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    all.push(updatedCustomer);
-  }
-
-  try {
-    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(all));
-  } catch (e) {
-    console.warn('Failed to persist customer', e);
-  }
-
-  return updatedCustomer;
+export async function saveCustomer(customerData: Partial<Customer> & { organization_id: string; store_id: string; name: string; tier: CreditScoreTier }): Promise<Customer> {
+  const payload: any = {
+    id: customerData.id,
+    organization_id: customerData.organization_id,
+    store_id: customerData.store_id,
+    name: customerData.name.trim(),
+    phone: customerData.phone || null,
+    tier: customerData.tier,
+    custom_limit: customerData.custom_limit ?? null,
+    notes: customerData.notes || null,
+    status: customerData.status || (customerData.tier === 'A+' ? 'VIP' : 'ACTIVE'),
+    updated_at: new Date().toISOString(),
+  };
+  if (!payload.id) delete payload.id;
+  const { data, error } = await supabase.from('customers').upsert(payload).select().single();
+  if (error) throw error;
+  return data as Customer;
 }
 
 /**
- * Deletes a customer from directory
+ * Records a manual balance correction as a real, trigger-applied transaction
+ * (shift_id left null - not tied to any specific shift) instead of writing
+ * customers.current_debt directly, so admin corrections stay in the same
+ * audit trail as shift-driven credits/collections.
  */
-export function deleteCustomer(id: string): boolean {
+export async function adjustCustomerDebt(params: {
+  customerId: string;
+  organizationId: string;
+  storeId: string;
+  currentDebt: number;
+  desiredDebt: number;
+  createdByUserId: string;
+  customerName: string;
+  customerTier: CreditScoreTier;
+}): Promise<void> {
+  const delta = params.desiredDebt - params.currentDebt;
+  if (Math.abs(delta) < 0.005) return;
+  const { error } = await supabase.from('customer_credit_transactions').insert({
+    organization_id: params.organizationId,
+    store_id: params.storeId,
+    shift_id: null,
+    customer_id: params.customerId,
+    customer_name_snapshot: params.customerName,
+    customer_tier_snapshot: params.customerTier,
+    type: delta > 0 ? 'GRANTED' : 'COLLECTED',
+    amount: Math.abs(delta),
+    notes: 'Χειροκίνητη διόρθωση υπολοίπου',
+    created_by_user_id: params.createdByUserId,
+  });
+  if (error) throw error;
+}
+
+export async function deleteCustomer(id: string): Promise<boolean> {
   try {
-    const all = getCustomers();
-    const filtered = all.filter((c) => c.id !== id);
-    localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(filtered));
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) throw error;
     return true;
   } catch (e) {
     console.warn('Failed to delete customer', e);
@@ -277,23 +183,15 @@ export function deleteCustomer(id: string): boolean {
  */
 export function getCustomerCreditLimit(
   customer: Customer,
-  tierConfigs = getStoreCreditTierConfigs(customer.store_id)
+  tierConfigs: Record<CreditScoreTier, CreditTierConfig> = DEFAULT_CREDIT_TIER_CONFIGS
 ): { limit: number; isUnlimited: boolean; tierConfig: CreditTierConfig } {
   const tierConfig = tierConfigs[customer.tier] || DEFAULT_CREDIT_TIER_CONFIGS[customer.tier] || DEFAULT_CREDIT_TIER_CONFIGS['B'];
 
   if (customer.custom_limit !== undefined && customer.custom_limit !== null && customer.custom_limit >= 0) {
-    return {
-      limit: customer.custom_limit,
-      isUnlimited: false,
-      tierConfig,
-    };
+    return { limit: customer.custom_limit, isUnlimited: false, tierConfig };
   }
 
-  return {
-    limit: tierConfig.defaultLimit,
-    isUnlimited: tierConfig.isUnlimited,
-    tierConfig,
-  };
+  return { limit: tierConfig.defaultLimit, isUnlimited: tierConfig.isUnlimited, tierConfig };
 }
 
 export interface CreditValidationResult {
@@ -311,8 +209,9 @@ export interface CreditValidationResult {
 }
 
 /**
- * Validates whether a customer can receive a new credit amount
- * according to their Credit Score and current unpaid balance
+ * Validates whether a customer can receive a new credit amount according to
+ * their Credit Score and current unpaid balance. Pure function, no I/O -
+ * unchanged by the Supabase migration.
  */
 export function validateCustomerCreditGrant(
   customer: Customer,
@@ -366,16 +265,22 @@ export function validateCustomerCreditGrant(
 }
 
 /**
- * Applies shift credit transactions (GRANTED / COLLECTED) to update customer outstanding balances
+ * Applies shift credit transactions (GRANTED / COLLECTED). Each one is now
+ * a real row in customer_credit_transactions - the DB trigger
+ * (apply_customer_credit_transaction, 0001_schema.sql) maintains the
+ * customer's running balance, replacing the manual current_debt +/- math
+ * this function used to do by hand against a localStorage array.
  */
-export function applyShiftCustomerCredits(
+export async function applyShiftCustomerCredits(
   credits: Partial<CustomerCredit>[],
-  storeId?: string
-): void {
+  orgId: string,
+  storeId: string,
+  shiftId: string,
+  createdByUserId: string
+): Promise<void> {
   if (!Array.isArray(credits) || credits.length === 0) return;
 
-  const customers = getCustomers(storeId);
-  let changed = false;
+  const customers = await getCustomers(orgId, storeId);
 
   for (const cred of credits) {
     if (!cred.customer_name || !cred.amount || cred.amount <= 0) continue;
@@ -385,39 +290,27 @@ export function applyShiftCustomerCredits(
     );
 
     if (!customer) {
-      // Auto-register new customer in tier B
-      customer = {
-        id: `cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        organization_id: cred.organization_id || 'org_opap_demo',
-        store_id: storeId || cred.store_id || 'store_opap_01',
+      customer = await saveCustomer({
+        organization_id: orgId,
+        store_id: storeId,
         name: cred.customer_name.trim(),
         tier: cred.customer_tier || 'B',
-        current_debt: 0,
-        total_granted: 0,
-        total_collected: 0,
-        status: 'ACTIVE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      });
       customers.push(customer);
     }
 
-    if (cred.type === 'GRANTED') {
-      customer.current_debt = Math.max(0, (customer.current_debt || 0) + cred.amount);
-      customer.total_granted = (customer.total_granted || 0) + cred.amount;
-    } else if (cred.type === 'COLLECTED') {
-      customer.current_debt = Math.max(0, (customer.current_debt || 0) - cred.amount);
-      customer.total_collected = (customer.total_collected || 0) + cred.amount;
-    }
-    customer.updated_at = new Date().toISOString();
-    changed = true;
-  }
-
-  if (changed) {
-    try {
-      localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customers));
-    } catch (e) {
-      console.warn('Failed to sync customer credit updates', e);
-    }
+    const { error } = await supabase.from('customer_credit_transactions').insert({
+      organization_id: orgId,
+      store_id: storeId,
+      shift_id: shiftId,
+      customer_id: customer.id,
+      customer_name_snapshot: customer.name,
+      customer_tier_snapshot: customer.tier,
+      type: cred.type,
+      amount: cred.amount,
+      notes: cred.notes || null,
+      created_by_user_id: createdByUserId,
+    });
+    if (error) console.warn('Failed to record customer credit transaction', error);
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   UserCheck,
@@ -24,15 +24,18 @@ import {
   getCustomers,
   saveCustomer,
   deleteCustomer,
+  adjustCustomerDebt,
   getStoreCreditTierConfigs,
   saveStoreCreditTierConfigs,
   DEFAULT_CREDIT_TIER_CONFIGS,
   getCustomerCreditLimit,
 } from '../../services/customerCreditService.ts';
+import { useAuth } from '../../context/AuthContext.tsx';
 
 interface CustomerCreditDirectoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  orgId: string;
   storeId?: string;
   isOwnerOrManager: boolean;
   onCustomerSelected?: (customer: Customer) => void;
@@ -41,14 +44,16 @@ interface CustomerCreditDirectoryModalProps {
 export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModalProps> = ({
   isOpen,
   onClose,
+  orgId,
   storeId,
   isOwnerOrManager,
   onCustomerSelected,
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'directory' | 'tier_settings'>('directory');
-  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers(storeId));
-  const [tierConfigs, setTierConfigs] = useState<Record<CreditScoreTier, CreditTierConfig>>(() =>
-    getStoreCreditTierConfigs(storeId)
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [tierConfigs, setTierConfigs] = useState<Record<CreditScoreTier, CreditTierConfig>>(
+    DEFAULT_CREDIT_TIER_CONFIGS
   );
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,23 +84,34 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     A: { limit: string };
     B: { limit: string };
     C: { limit: string };
-  }>(() => ({
-    'A+': {
-      isUnlimited: tierConfigs['A+']?.isUnlimited ?? true,
-      limit: String(tierConfigs['A+']?.defaultLimit ?? 999999),
-    },
-    A: { limit: String(tierConfigs['A']?.defaultLimit ?? 300) },
-    B: { limit: String(tierConfigs['B']?.defaultLimit ?? 100) },
-    C: { limit: String(tierConfigs['C']?.defaultLimit ?? 30) },
-  }));
+  }>({
+    'A+': { isUnlimited: true, limit: '999999' },
+    A: { limit: '300' },
+    B: { limit: '100' },
+    C: { limit: '30' },
+  });
 
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  if (!isOpen) return null;
+  const reloadCustomers = useCallback(async () => {
+    setCustomers(await getCustomers(orgId, storeId));
+  }, [orgId, storeId]);
 
-  const reloadCustomers = () => {
-    setCustomers(getCustomers(storeId));
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    reloadCustomers();
+    getStoreCreditTierConfigs(orgId, storeId).then((tiers) => {
+      setTierConfigs(tiers);
+      setEditTierLimits({
+        'A+': { isUnlimited: tiers['A+']?.isUnlimited ?? true, limit: String(tiers['A+']?.defaultLimit ?? 999999) },
+        A: { limit: String(tiers['A']?.defaultLimit ?? 300) },
+        B: { limit: String(tiers['B']?.defaultLimit ?? 100) },
+        C: { limit: String(tiers['C']?.defaultLimit ?? 30) },
+      });
+    });
+  }, [isOpen, orgId, storeId, reloadCustomers]);
+
+  if (!isOpen) return null;
 
   const handleOpenAddModal = () => {
     setFormData({
@@ -123,22 +139,40 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     setIsAddingNew(true);
   };
 
-  const handleSaveCustomer = (e: React.FormEvent) => {
+  const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
-    const saved = saveCustomer({
+    const desiredDebt = parseFloat(formData.current_debt) || 0;
+    const saved = await saveCustomer({
       id: editingCustomer ? editingCustomer.id : undefined,
+      organization_id: orgId,
       name: formData.name.trim(),
       phone: formData.phone.trim(),
       tier: formData.tier,
-      current_debt: parseFloat(formData.current_debt) || 0,
       custom_limit: formData.custom_limit ? parseFloat(formData.custom_limit) : null,
       notes: formData.notes.trim(),
       store_id: storeId || 'store_opap_01',
     });
 
-    reloadCustomers();
+    // current_debt is trigger-maintained from customer_credit_transactions,
+    // not writable directly - record the delta as a standalone (no shift)
+    // adjustment transaction so manual corrections stay in the audit trail.
+    const priorDebt = editingCustomer ? editingCustomer.current_debt || 0 : 0;
+    if (Math.abs(desiredDebt - priorDebt) >= 0.005) {
+      await adjustCustomerDebt({
+        customerId: saved.id,
+        organizationId: orgId,
+        storeId: storeId || 'store_opap_01',
+        currentDebt: priorDebt,
+        desiredDebt,
+        createdByUserId: user?.id || '',
+        customerName: saved.name,
+        customerTier: saved.tier,
+      });
+    }
+
+    await reloadCustomers();
     setIsAddingNew(false);
     setEditingCustomer(null);
 
@@ -147,14 +181,14 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     }
   };
 
-  const handleDeleteCustomer = (id: string, name: string) => {
+  const handleDeleteCustomer = async (id: string, name: string) => {
     if (window.confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον πελάτη "${name}";`)) {
-      deleteCustomer(id);
-      reloadCustomers();
+      await deleteCustomer(id);
+      await reloadCustomers();
     }
   };
 
-  const handleSaveTierLimits = () => {
+  const handleSaveTierLimits = async () => {
     const updated: Record<CreditScoreTier, CreditTierConfig> = {
       ...tierConfigs,
       'A+': {
@@ -176,7 +210,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       },
     };
 
-    saveStoreCreditTierConfigs(storeId || 'store_opap_01', updated);
+    await saveStoreCreditTierConfigs(orgId, storeId || 'store_opap_01', updated);
     setTierConfigs(updated);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);

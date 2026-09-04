@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
-import { sendUserInviteEmail } from '../../services/emailService.ts';
 
 export const UsersManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -110,24 +109,6 @@ export const UsersManager: React.FC = () => {
       const fsUsers = await fetchUsersFromFirestore(orgId);
       setUsers(fsUsers);
       setRoles(DEMO_ROLES);
-
-      if (token) {
-        try {
-          const [uRes, rRes] = await Promise.all([
-            fetch('/api/v1/users', { headers: { Authorization: `Bearer ${token}` } }),
-            fetch('/api/v1/users/roles', { headers: { Authorization: `Bearer ${token}` } }),
-          ]);
-
-          if (uRes.ok && rRes.ok) {
-            const uData = await uRes.json();
-            const rData = await rRes.json();
-            if (uData && uData.length > 0) setUsers(uData);
-            if (rData && rData.length > 0) setRoles(rData);
-          }
-        } catch (e) {
-          // Bypassed API sync
-        }
-      }
     } catch (err) {
       console.error('Failed to fetch users:', err);
     } finally {
@@ -149,15 +130,9 @@ export const UsersManager: React.FC = () => {
     setInviteError(null);
 
     try {
-      const assignedStoresList = stores
-        .filter((s) => selectedStoreIds.includes(s.id))
-        .map((s) => ({ store_id: s.id, store_code: s.code, store_name: s.name }));
-
-      const selectedRoleObj = roles.find((r) => r.code === inviteRoleCode);
-
-      // Creates both the Firebase Auth account and the Firestore profile
-      // doc under the same uid - the client SDK can't create another
-      // user's Auth account, so this has to go through a server function.
+      // Creates both the Supabase Auth account and the users profile row
+      // under the same id - the client SDK can't create another user's
+      // Auth account, so this has to go through a server function.
       const res = await fetch('/api/users-invite', {
         method: 'POST',
         headers: {
@@ -180,16 +155,8 @@ export const UsersManager: React.FC = () => {
         throw new Error(inviteResult.error || 'Αποτυχία δημιουργίας λογαριασμού χρήστη');
       }
 
-      // Now that a real Auth account exists, this can actually deliver.
-      await sendUserInviteEmail({
-        email: inviteEmail,
-        first_name: inviteFirstName,
-        last_name: inviteLastName,
-        role_name: selectedRoleObj?.name || inviteRoleCode,
-        store_name: assignedStoresList.map((s) => s.store_name).join(', '),
-        organization_name: organization?.trade_name || organization?.legal_name || 'Πρακτορείο ΟΠΑΠ',
-      });
-
+      // The invite email is now sent server-side, inside /api/users-invite,
+      // using the account it just created - no separate client-side send.
       setLastInviteInfo({
         email: inviteEmail,
         name: `${inviteFirstName} ${inviteLastName}`,
@@ -259,7 +226,7 @@ export const UsersManager: React.FC = () => {
               <span>Αντιγραφή Συνδέσμου Πρόσκλησης</span>
             </button>
             <p className="text-[11px] text-slate-500">
-              * Ο χρήστης έλαβε επίσης αυτόματο email με τον ίδιο σύνδεσμο μέσω Firebase.
+              * Ο χρήστης έλαβε επίσης αυτόματο email με τον ίδιο σύνδεσμο.
             </p>
           </div>
         </div>

@@ -58,7 +58,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   onOpenClosingWizard,
   onDeleteRequest,
 }) => {
-  const { token, hasPermission, roles } = useAuth();
+  const { hasPermission, roles } = useAuth();
   const [activeTab, setActiveTab] = useState<'RECONCILIATION' | 'SHEET' | 'SUMMARY'>('RECONCILIATION');
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showReopenModal, setShowReopenModal] = useState(false);
@@ -95,19 +95,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         manager_notes: managerNotes || 'Εγκρίθηκε από τον διευθυντή',
       });
 
-      try {
-        await fetch(`/api/v1/shifts/${shift.id}/approve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ manager_notes: managerNotes || 'Εγκρίθηκε από τον διευθυντή' }),
-        });
-      } catch (e) {
-        // server endpoint fallback
-      }
-
       onRefresh();
       onClose();
     } catch (err: any) {
@@ -133,22 +120,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         manager_notes: managerNotes,
         reopened_at: new Date().toISOString(),
       });
-
-      try {
-        await fetch(`/api/v1/shifts/${shift.id}/reopen`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            manager_notes: managerNotes,
-            action_type: actionType,
-          }),
-        });
-      } catch (e) {
-        // server endpoint fallback
-      }
 
       setShowReopenModal(false);
       onRefresh();

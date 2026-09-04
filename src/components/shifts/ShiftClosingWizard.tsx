@@ -159,7 +159,6 @@ import {
 import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
-import { sendShiftSummaryEmail } from '../../services/emailService.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -1090,19 +1089,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       await updateShiftInFirestore(shift.id, draftPayload);
 
-      try {
-        await fetch(`/api/v1/shifts/${shift.id}/draft`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(draftPayload),
-        });
-      } catch (e) {
-        // server endpoint optional fallback
-      }
-
       const timeStr = new Date().toLocaleTimeString('el-GR', {
         hour: '2-digit',
         minute: '2-digit',
@@ -1208,37 +1194,32 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       // Apply customer credit debt balances to store directory
       try {
-        applyShiftCustomerCredits(customerCredits, shift.store_id);
+        const creditOrgId = shift.organization_id || organization?.id || 'org_opap_demo';
+        await applyShiftCustomerCredits(customerCredits, creditOrgId, shift.store_id, shift.id, user?.id || '');
       } catch (custErr) {
         console.warn('Customer credit sync warning:', custErr);
       }
 
-      // Trigger automated shift closing summary email to owner/manager
+      // Trigger automated shift closing summary email to owners/managers
       try {
-        await sendShiftSummaryEmail(
-          {
-            ...submitPayload,
-            store_name: shift.store_name,
-            shift_type: shift.shift_type === 'MORNING' ? 'Πρωινή Βάρδια' : 'Απογευματινή / Βραδινή',
-            closed_by_user_name: shift.closed_by_user_name || 'Υπάλληλος Βάρδιας',
-          },
-          'owner@shiftledger.gr'
-        );
-      } catch (emailErr) {
-        console.warn('Shift closing summary email notification warning:', emailErr);
-      }
-
-      try {
-        await fetch(`/api/v1/shifts/${shift.id}/submit`, {
+        await fetch('/api/notify-shift-summary', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify(submitPayload),
+          body: JSON.stringify({
+            store_id: shift.store_id,
+            store_name: shift.store_name,
+            shift_type: shift.shift_type === 'MORNING' ? 'Πρωινή Βάρδια' : 'Απογευματινή / Βραδινή',
+            closed_by_user_name: shift.closed_by_user_name || 'Υπάλληλος Βάρδιας',
+            counted_cash: submitPayload.counted_cash,
+            expected_cash: submitPayload.expected_cash,
+            discrepancy: submitPayload.discrepancy,
+          }),
         });
-      } catch (e) {
-        // server endpoint fallback
+      } catch (emailErr) {
+        console.warn('Shift closing summary email notification warning:', emailErr);
       }
 
       onSubmitted();
@@ -2219,6 +2200,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <CustomerCreditSection
               customerCredits={customerCredits}
               onChangeCredits={setCustomerCredits}
+              orgId={shift.organization_id || organization?.id || 'org_opap_demo'}
               storeId={shift.store_id}
               isOwnerOrManager={isOwnerOrManager}
             />

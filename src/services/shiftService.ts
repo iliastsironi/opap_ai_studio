@@ -1,122 +1,9 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
-import { Shift, ShiftStatus, ShiftType } from '../types/index.ts';
+import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
+import { Shift } from '../types/index.ts';
 
-const COLLECTION_NAME = 'shifts';
+const TABLE_NAME = 'shifts';
 
-export const INITIAL_DEMO_SHIFTS: Shift[] = [
-  {
-    id: 'shift_demo_101',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    store_name: 'OPAP Agency - Κηφισίας',
-    register_id: 'Ταμείο 1',
-    shift_type: 'MORNING',
-    status: 'APPROVED',
-    opened_by_user_id: 'usr_owner',
-    opened_by_user_name: 'Γιώργος Παπαδόπουλος',
-    opened_at: new Date(Date.now() - 24 * 3600 * 1000 * 2).toISOString(),
-    closed_by_user_id: 'usr_owner',
-    closed_by_user_name: 'Γιώργος Παπαδόπουλος',
-    closed_at: new Date(Date.now() - 24 * 3600 * 1000 * 2 + 8 * 3600 * 1000).toISOString(),
-    opening_cash: 200,
-    opening_operational_notes: 'Ταμείο σε πλήρη τάξη',
-    opap_gross_sales: 1850,
-    opap_payouts: 420,
-    opap_net_sales: 1430,
-    vlts_cash_in: 1100,
-    vlts_cash_out: 650,
-    vlts_net: 450,
-    scratch_lotto_sales: 180,
-    fnb_sales: 120,
-    fnb_cash: 80,
-    fnb_card: 40,
-    card_payments: 240,
-    expenses_paid_cash: 35,
-    customer_credit_granted: 0,
-    customer_credit_collected: 0,
-    bank_deposits: 1000,
-    counted_denominations: { '50': 10, '20': 15, '10': 10, '5': 10 },
-    counted_cash: 900,
-    expected_cash: 900,
-    discrepancy: 0,
-    discrepancy_percentage: 0,
-    discrepancy_threshold: 15,
-    is_unbalanced: false,
-    employee_notes: 'Ομαλή πρωινή βάρδια χωρίς αποκλίσεις',
-    manager_notes: 'Εγκρίθηκε από Διεύθυνση',
-    created_at: new Date(Date.now() - 24 * 3600 * 1000 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 24 * 3600 * 1000 * 2 + 8 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'shift_demo_102',
-    organization_id: 'org_opap_demo',
-    store_id: 'store_opap_01',
-    store_name: 'OPAP Agency - Κηφισίας',
-    register_id: 'Ταμείο 1',
-    shift_type: 'AFTERNOON',
-    status: 'OPEN',
-    opened_by_user_id: 'usr_manager',
-    opened_by_user_name: 'Δημήτρης Νικολάου',
-    opened_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    opening_cash: 200,
-    opening_operational_notes: 'Παραλαβή ταμείου με 200€',
-    opap_gross_sales: 2100,
-    opap_payouts: 580,
-    opap_net_sales: 1520,
-    vlts_cash_in: 1350,
-    vlts_cash_out: 800,
-    vlts_net: 550,
-    scratch_lotto_sales: 220,
-    fnb_sales: 150,
-    fnb_cash: 100,
-    fnb_card: 50,
-    card_payments: 310,
-    expenses_paid_cash: 25,
-    customer_credit_granted: 0,
-    customer_credit_collected: 0,
-    bank_deposits: 0,
-    counted_denominations: {},
-    counted_cash: 0,
-    expected_cash: 1205,
-    discrepancy: 0,
-    discrepancy_percentage: 0,
-    discrepancy_threshold: 15,
-    is_unbalanced: false,
-    employee_notes: 'Ενεργή απογευματινή βάρδια',
-    created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    updated_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-  },
-];
-
-export async function seedInitialShiftsIfEmpty(orgId: string): Promise<void> {
-  if (orgId !== 'org_opap_demo') return;
-  try {
-    const q = query(collection(db, COLLECTION_NAME), where('organization_id', '==', orgId));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      for (const shift of INITIAL_DEMO_SHIFTS) {
-        const ref = doc(db, COLLECTION_NAME, shift.id);
-        await setDoc(ref, shift);
-      }
-    }
-  } catch (err) {
-    console.error('Error seeding initial shifts to Firestore:', err);
-  }
-}
+const ACTIVE_STATUSES = ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'];
 
 export async function fetchShiftsFromFirestore(
   orgId: string,
@@ -124,32 +11,14 @@ export async function fetchShiftsFromFirestore(
   status?: string
 ): Promise<Shift[]> {
   try {
-    if (orgId === 'org_opap_demo') {
-      await seedInitialShiftsIfEmpty(orgId);
-    }
-
-    const shiftsRef = collection(db, COLLECTION_NAME);
-    let q = query(shiftsRef, where('organization_id', '==', orgId));
-
-    if (storeId && storeId !== 'ALL') {
-      q = query(q, where('store_id', '==', storeId));
-    }
-
-    if (status && status !== 'ALL') {
-      q = query(q, where('status', '==', status));
-    }
-
-    const snapshot = await getDocs(q);
-    const shifts: Shift[] = [];
-    snapshot.forEach((docSnap) => {
-      shifts.push(docSnap.data() as Shift);
-    });
-
-    // Sort client side by opened_at descending
-    shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
-    return shifts;
+    let q = supabase.from(TABLE_NAME).select('*').eq('organization_id', orgId);
+    if (storeId && storeId !== 'ALL') q = q.eq('store_id', storeId);
+    if (status && status !== 'ALL') q = q.eq('status', status);
+    const { data, error } = await q.order('opened_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Shift[];
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION_NAME);
+    await handleSupabaseError(error, OperationType.LIST, TABLE_NAME).catch(() => {});
     return [];
   }
 }
@@ -160,25 +29,19 @@ export async function fetchActiveShiftFromFirestore(
   registerId: string = 'REG-01'
 ): Promise<Shift | null> {
   try {
-    const shiftsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      shiftsRef,
-      where('organization_id', '==', orgId),
-      where('store_id', '==', storeId),
-      where('register_id', '==', registerId),
-      where('status', 'in', ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'])
-    );
-
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-
-    const activeShifts: Shift[] = [];
-    snapshot.forEach((docSnap) => activeShifts.push(docSnap.data() as Shift));
-    activeShifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
-
-    return activeShifts[0] || null;
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('store_id', storeId)
+      .eq('register_id', registerId)
+      .in('status', ACTIVE_STATUSES)
+      .order('opened_at', { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    return (data && data[0]) ? (data[0] as Shift) : null;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, COLLECTION_NAME);
+    await handleSupabaseError(error, OperationType.GET, TABLE_NAME).catch(() => {});
     return null;
   }
 }
@@ -189,59 +52,50 @@ export async function fetchLatestShiftForRegister(
   registerId: string = 'Ταμείο 1'
 ): Promise<Shift | null> {
   try {
-    const shiftsRef = collection(db, COLLECTION_NAME);
-    const q = query(
-      shiftsRef,
-      where('organization_id', '==', orgId),
-      where('store_id', '==', storeId)
-    );
-
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-
-    const matchedShifts: Shift[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data() as Shift;
-      if (
-        data.register_id === registerId &&
-        ['SUBMITTED', 'APPROVED', 'DRAFT_CLOSING', 'OPEN'].includes(data.status)
-      ) {
-        matchedShifts.push(data);
-      }
-    });
-
-    if (matchedShifts.length === 0) return null;
-
-    matchedShifts.sort((a, b) => {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('store_id', storeId)
+      .eq('register_id', registerId)
+      .in('status', ['SUBMITTED', 'APPROVED', 'DRAFT_CLOSING', 'OPEN']);
+    if (error) throw error;
+    const matched = (data ?? []) as Shift[];
+    if (matched.length === 0) return null;
+    matched.sort((a, b) => {
       const timeA = new Date(a.closed_at || a.opened_at).getTime();
       const timeB = new Date(b.closed_at || b.opened_at).getTime();
       return timeB - timeA;
     });
-
-    return matchedShifts[0] || null;
+    return matched[0] || null;
   } catch (error) {
     console.warn('Error fetching latest shift for register:', error);
     return null;
   }
 }
 
+// The DB now enforces "one active shift per store+register" for real, via a
+// partial unique index (ux_shifts_one_active_per_register) - no sentinel
+// doc/transaction needed the way Firestore would have required. A 23505
+// (unique_violation) here means someone already has this register open.
 export async function createShiftInFirestore(shiftData: Omit<Shift, 'id'>): Promise<Shift> {
   try {
-    const newId = `shift_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const nowIso = new Date().toISOString();
-
-    const newShift: Shift = {
-      ...shiftData,
-      id: newId,
-      created_at: nowIso,
-      updated_at: nowIso,
-    };
-
-    const docRef = doc(db, COLLECTION_NAME, newId);
-    await setDoc(docRef, cleanFirestoreData(newShift));
-    return newShift;
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .insert(cleanData({ ...shiftData, created_at: nowIso, updated_at: nowIso }))
+      .select()
+      .single();
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('Υπάρχει ήδη ανοικτή βάρδια στο συγκεκριμένο κατάστημα/ταμείο. Κλείστε την προηγούμενη βάρδια πρώτα.');
+      }
+      throw error;
+    }
+    return data as Shift;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, COLLECTION_NAME);
+    if (error instanceof Error && error.message.includes('ανοικτή βάρδια')) throw error;
+    await handleSupabaseError(error, OperationType.CREATE, TABLE_NAME);
     throw error;
   }
 }
@@ -251,24 +105,23 @@ export async function updateShiftInFirestore(
   updateData: Partial<Shift>
 ): Promise<void> {
   try {
-    const docRef = doc(db, COLLECTION_NAME, shiftId);
-    const payload = cleanFirestoreData({
+    const { error } = await supabase.from(TABLE_NAME).update(cleanData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    });
-    await updateDoc(docRef, payload);
+    })).eq('id', shiftId);
+    if (error) throw error;
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${shiftId}`);
+    await handleSupabaseError(error, OperationType.UPDATE, `${TABLE_NAME}/${shiftId}`);
     throw error;
   }
 }
 
 export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
   try {
-    const docRef = doc(db, COLLECTION_NAME, shiftId);
-    await deleteDoc(docRef);
+    const { error } = await supabase.from(TABLE_NAME).delete().eq('id', shiftId);
+    if (error) throw error;
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${COLLECTION_NAME}/${shiftId}`);
+    await handleSupabaseError(error, OperationType.DELETE, `${TABLE_NAME}/${shiftId}`);
     throw error;
   }
 }
@@ -278,23 +131,23 @@ export function subscribeToShifts(
   storeId: string,
   onUpdate: (shifts: Shift[]) => void
 ) {
-  const shiftsRef = collection(db, COLLECTION_NAME);
-  let q = query(shiftsRef, where('organization_id', '==', orgId));
+  const refetch = () => {
+    fetchShiftsFromFirestore(orgId, storeId).then(onUpdate);
+  };
+  refetch();
 
-  if (storeId && storeId !== 'ALL') {
-    q = query(q, where('store_id', '==', storeId));
-  }
+  const filter = storeId && storeId !== 'ALL'
+    ? `organization_id=eq.${orgId},store_id=eq.${storeId}`
+    : `organization_id=eq.${orgId}`;
 
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const shifts: Shift[] = [];
-      snapshot.forEach((docSnap) => shifts.push(docSnap.data() as Shift));
-      shifts.sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
-      onUpdate(shifts);
-    },
-    (err) => {
-      console.error('Firestore Shifts subscription error:', err);
-    }
-  );
+  const channel = supabase
+    .channel(`shifts-${orgId}-${storeId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: TABLE_NAME, filter }, refetch)
+    .subscribe();
+
+  // Mirrors the Firestore onSnapshot() return value: calling this
+  // unsubscribes, same as the unsubscribe function callers already expect.
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }

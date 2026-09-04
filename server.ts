@@ -1,17 +1,9 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { getDb } from './src/db/index.js';
-import { seedDatabase } from './src/db/seed.js';
-import auditRoutes from './src/server/routes/audit.js';
-import authRoutes from './src/server/routes/auth.js';
-import orgsRoutes from './src/server/routes/orgs.js';
-import shiftsRoutes from './src/server/routes/shifts.js';
-import usersRoutes from './src/server/routes/users.js';
-import notificationsRoutes from './src/server/routes/notifications.js';
-import copilotRoutes from './src/server/routes/copilot.js';
 import { handleCopilotChat } from './api/_lib/copilotChatHandler.js';
 import { handleUsersInvite } from './api/_lib/usersInviteHandler.js';
+import { handleNotifyShiftSummary } from './api/_lib/shiftSummaryEmailHandler.js';
 import { HttpError } from './api/_lib/verifyRequestAuth.js';
 
 
@@ -21,26 +13,9 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Initialize DB and Seed Data
-  try {
-    await getDb();
-    await seedDatabase();
-  } catch (err) {
-    console.error('Database initialization error:', err);
-  }
-
-  // API Routes
   app.get('/api/v1/health', (req, res) => {
-    res.json({ status: 'ok', service: 'ShiftLedger Engine', version: '1.0.0-phase1' });
+    res.json({ status: 'ok', service: 'ShiftLedger Engine', version: '2.0.0-supabase' });
   });
-
-  app.use('/api/v1/auth', authRoutes);
-  app.use('/api/v1/orgs', orgsRoutes);
-  app.use('/api/v1/users', usersRoutes);
-  app.use('/api/v1/shifts', shiftsRoutes);
-  app.use('/api/v1/audit', auditRoutes);
-  app.use('/api/v1/notifications', notificationsRoutes);
-  app.use('/api/v1/copilot', copilotRoutes);
 
   // Same handlers the Vercel functions (api/copilot-chat.ts, api/users-invite.ts)
   // use, shared under api/_lib/ so Cloud Run/local dev and Vercel behave
@@ -59,6 +34,7 @@ async function startServer() {
     };
   app.post('/api/copilot-chat', wrapHandler(handleCopilotChat));
   app.post('/api/users-invite', wrapHandler(handleUsersInvite));
+  app.post('/api/notify-shift-summary', wrapHandler(handleNotifyShiftSummary));
 
   // Vite Middleware for Dev / Static serving for Prod
   if (process.env.NODE_ENV !== 'production') {

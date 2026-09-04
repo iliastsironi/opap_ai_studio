@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Building2, Store as StoreIcon, Layers, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase.ts';
+import { supabase, cleanData } from '../../services/supabase.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { StoreType } from '../../types/index.js';
 
 export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-  const { user, token, refreshUser } = useAuth();
+  const { user, organization, refreshUser } = useAuth();
   const { refreshStores } = useTenant();
 
   const [step, setStep] = useState<number>(1);
@@ -32,42 +31,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
     setSubmitting(true);
 
     try {
-      let createdOrgId: string | null = null;
-      let createdStoreId: string | null = null;
-
-      try {
-        const res = await fetch('/api/v1/orgs', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            legal_name: legalName,
-            trade_name: tradeName,
-            vat_number: vatNumber,
-            tax_office: taxOffice,
-            address,
-            phone,
-            initial_store_name: storeName,
-            initial_store_code: storeCode,
-            initial_store_type: storeType,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Αποτυχία ολοκλήρωσης εγγραφής');
-        }
-        createdOrgId = data.organization?.id;
-        createdStoreId = data.initialStoreId;
-      } catch (apiErr: any) {
-        console.warn('API Onboarding call warning:', apiErr);
-      }
-
-      // Also persist to Firestore to ensure instant UI reactivity across components
       if (user?.id) {
-        const orgId = createdOrgId || `org_${user.id}`;
+        const orgId = organization?.id || `org_${user.id}`;
+        const nowIso = new Date().toISOString();
         const newOrg = {
           id: orgId,
           legal_name: legalName,
@@ -79,20 +45,21 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           email: user.email || '',
           timezone: 'Europe/Athens',
           currency: 'EUR',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         };
 
-        await setDoc(doc(db, 'organizations', orgId), newOrg);
+        const { error: orgError } = await supabase.from('organizations').upsert(cleanData(newOrg));
+        if (orgError) throw orgError;
 
-        // Update user organization reference in Firestore
-        await setDoc(doc(db, 'users', user.id), {
-          organization_id: orgId,
-          updated_at: new Date().toISOString(),
-        }, { merge: true });
+        if (!organization?.id) {
+          const { error: userError } = await supabase
+            .from('users')
+            .update({ organization_id: orgId, updated_at: nowIso })
+            .eq('id', user.id);
+          if (userError) throw userError;
+        }
 
-        // Save initial store in Firestore
-        const storeId = createdStoreId || `store_${Date.now()}`;
+        const storeId = `store_${Date.now()}`;
         const newStore = {
           id: storeId,
           organization_id: orgId,
@@ -102,10 +69,10 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           address: address || '',
           phone: phone || '',
           is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         };
-        await setDoc(doc(db, 'stores', storeId), newStore);
+        const { error: storeError } = await supabase.from('stores').upsert(cleanData(newStore));
+        if (storeError) throw storeError;
       }
 
       await refreshUser();

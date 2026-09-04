@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles } from 'lucide-react';
-import { useAuth, EMPLOYEE_PERMISSIONS, MANAGER_PERMISSIONS, OWNER_PERMISSIONS } from '../../context/AuthContext.tsx';
-import { sendPasswordResetEmail } from '../../services/emailService.ts';
+import { useAuth } from '../../context/AuthContext.tsx';
+import { supabase } from '../../services/supabase.ts';
 
 export const LoginForm: React.FC = () => {
-  const { loginWithEmail, loginWithGoogle, signUpWithEmail, login } = useAuth();
+  const { loginWithEmail, loginWithGoogle, signUpWithEmail } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -70,51 +70,7 @@ export const LoginForm: React.FC = () => {
     try {
       await loginWithEmail(demoEmail, 'password123');
     } catch (err: any) {
-      const isOwner = demoEmail.includes('owner');
-      const isManager = demoEmail.includes('manager');
-
-      const roleObj = isOwner
-        ? { id: 'r_owner', code: 'ORG_OWNER', name: 'Ιδιοκτήτης (Owner)', description: 'Owner', is_system: true, created_at: '' }
-        : isManager
-        ? { id: 'r_manager', code: 'STORE_MANAGER', name: 'Διευθυντής Καταστήματος', description: 'Manager', is_system: true, created_at: '' }
-        : { id: 'r_employee', code: 'EMPLOYEE', name: 'Υπάλληλος Βάρδιας', description: 'Employee', is_system: true, created_at: '' };
-
-      const perms = isOwner
-        ? OWNER_PERMISSIONS
-        : isManager
-        ? MANAGER_PERMISSIONS
-        : EMPLOYEE_PERMISSIONS;
-
-      // Fallback demo login if network or config is restricted
-      login(
-        `demo_token_${Date.now()}`,
-        {
-          id: `usr_${demoEmail.split('@')[0]}`,
-          email: demoEmail,
-          first_name: isOwner ? 'Γιώργος' : isManager ? 'Δημήτρης' : 'Κώστας',
-          last_name: isOwner ? 'Παπαδόπουλος' : isManager ? 'Νικολάου' : 'Βασιλείου',
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: 'org_opap_demo',
-          legal_name: 'ΟΠΑΠ Πρακτορείο Α.Ε.',
-          trade_name: 'ShiftLedger OPAP Demo Store',
-          vat_number: 'EL998877665',
-          tax_office: 'ΔΟΥ Αθηνών',
-          address: 'Λεωφ. Κηφισίας 100, Αθήνα',
-          phone: '+30 210 1234567',
-          email: 'contact@shiftledger.gr',
-          timezone: 'Europe/Athens',
-          currency: 'EUR',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        [roleObj],
-        perms,
-        []
-      );
+      setError(err.message || 'Αποτυχία σύνδεσης');
     } finally {
       setLoading(false);
     }
@@ -267,7 +223,7 @@ export const LoginForm: React.FC = () => {
               <span>Επεξεργασία...</span>
             ) : isSignUp ? (
               <>
-                <span>Δημιουργία Λογαριασμού Firebase</span>
+                <span>Δημιουργία Λογαριασμού</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             ) : (
@@ -312,7 +268,7 @@ export const LoginForm: React.FC = () => {
         {/* Demo Accounts Quick Select */}
         <div className="mt-6 pt-5 border-t border-slate-800">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
-            Δοκιμαστικοί Λογαριασμοί Demo (Firebase Auth Enabled)
+            Δοκιμαστικοί Λογαριασμοί Demo
           </p>
           <div className="grid grid-cols-1 gap-2">
             <button
@@ -397,7 +353,7 @@ export const LoginForm: React.FC = () => {
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!resetEmail) return;
-                    await sendPasswordResetEmail(resetEmail);
+                    await supabase.auth.resetPasswordForEmail(resetEmail);
                     setResetSent(true);
                   }}
                   className="space-y-4"
