@@ -160,8 +160,19 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
   const discrepancy = data.discrepancy ?? (countedCash - expectedCash);
 
   const handlePrint = () => {
+    document.body.classList.add('printing-receipt');
     window.print();
   };
+
+  // Drop the print-isolation class once the print dialog closes (printed or
+  // cancelled) so the app looks normal again.
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-receipt');
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // Close modal on Escape key press
   useEffect(() => {
