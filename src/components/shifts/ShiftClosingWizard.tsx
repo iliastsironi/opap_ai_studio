@@ -254,6 +254,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             ...item,
             startNo: match.startNo || '',
             endNo: match.endNo || '',
+            backStartNo: match.backStartNo || '',
+            backEndNo: match.backEndNo || '',
             manualQty: match.manualQty !== undefined ? match.manualQty : '',
             isNewPack: match.isNewPack || false,
           });
@@ -654,10 +656,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   });
 
   const [customerCredits, setCustomerCredits] = useState<Array<Partial<CustomerCredit>>>(() => {
-    if (shift.customer_credits && shift.customer_credits.length > 0) return shift.customer_credits;
-    if (localDraft?.customer_credits && Array.isArray(localDraft.customer_credits) && localDraft.customer_credits.length > 0) {
-      return localDraft.customer_credits;
-    }
+    const fromCustomFields = shift.custom_field_values?.customer_credits;
+    if (Array.isArray(fromCustomFields) && fromCustomFields.length > 0) return fromCustomFields;
+    const fromDraftCustomFields = localDraft?.custom_field_values?.customer_credits;
+    if (Array.isArray(fromDraftCustomFields) && fromDraftCustomFields.length > 0) return fromDraftCustomFields;
     return [];
   });
 
@@ -948,16 +950,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       number_games_vouchers: safeNum(arithmoVouchers),
 
       pame_stoixima_balance: safeNum(pameStoiximaBalance),
-      scratch_sales: safeNum(scratchSales),
       scratch_payouts: safeNum(scratchPayouts),
       scratch_lotto_sales: totalScratchNet,
 
-      // POS & TORA fields (supporting all key conventions)
-      tora_pos1: safeNum(toraPosItems[0]?.amount),
-      tora_pos2: safeNum(toraPosItems[1]?.amount),
+      // POS & TORA fields (tora_total is DB-generated from tora_pos_1 + tora_pos_2, not writable)
       tora_pos_1: safeNum(toraPosItems[0]?.amount),
       tora_pos_2: safeNum(toraPosItems[1]?.amount),
-      tora_total: totalToraPos,
       register_pos_1: safeNum(storePosItems[0]?.amount),
       register_pos_2: safeNum(storePosItems[1]?.amount),
       card_payments: totalStorePos,
@@ -986,7 +984,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       counted_denominations: denominations,
       counted_cash: countedCash,
-      actual_cash: countedCash,
       expected_cash: expectedCash,
       discrepancy: discResult.discrepancy,
       discrepancy_percentage: discResult.discrepancyPercentage,
@@ -994,14 +991,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       is_unbalanced: discResult.isUnbalanced,
 
       employee_notes: employeeNotes,
-      expenses: expenses as any,
-      customer_credits: customerCredits as any,
-
       custom_field_values: {
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
         opening_topup_1: safeNum(openingTopUp1),
         opening_topup_2: safeNum(openingTopUp2),
+        customer_credits: customerCredits,
         scratch_ticket_items: scratchRows,
         store_pos_items: storePosItems,
         tora_pos_items: toraPosItems,
