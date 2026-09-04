@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Bot,
   Send,
@@ -14,6 +15,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { db } from '../../services/firebase.ts';
 
 interface ChatMessage {
   id: string;
@@ -32,14 +34,14 @@ const PROMPT_SUGGESTIONS = [
 ];
 
 export const CopilotPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const userId = user?.id || 'usr_anonymous';
+  const userId = user?.id;
   const userName = user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος';
 
   // Scroll to bottom when new messages arrive
@@ -51,17 +53,19 @@ export const CopilotPage: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Load chat history from backend on mount
+  // Load chat history straight from Firestore (copilot_threads/{uid}, matching
+  // the rules' strict request.auth.uid == threadId check) once we actually
+  // have a signed-in uid - firing before that would just be a denied read.
   useEffect(() => {
+    if (!userId) return;
+
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`/api/v1/copilot/history/${userId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.messages) && data.messages.length > 0) {
-            setMessages(data.messages);
-            return;
-          }
+        const snap = await getDoc(doc(db, 'copilot_threads', userId));
+        const storedMessages = snap.exists() ? snap.data().messages : null;
+        if (Array.isArray(storedMessages) && storedMessages.length > 0) {
+          setMessages(storedMessages);
+          return;
         }
       } catch (err) {
         console.warn('Failed to load chat history:', err);
@@ -81,13 +85,14 @@ export const CopilotPage: React.FC = () => {
     fetchHistory();
   }, [userId]);
 
-  // Save history to backend when messages change
+  // Persist history straight to Firestore, same doc the history load above reads.
   const saveHistoryToBackend = async (updatedMessages: ChatMessage[]) => {
+    if (!userId) return;
     try {
-      await fetch(`/api/v1/copilot/history/${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages })
+      await setDoc(doc(db, 'copilot_threads', userId), {
+        userId,
+        messages: updatedMessages,
+        updatedAt: new Date().toISOString(),
       });
     } catch (err) {
       console.warn('Could not persist conversation history:', err);
@@ -119,14 +124,15 @@ export const CopilotPage: React.FC = () => {
         content: m.content
       }));
 
-      const res = await fetch('/api/v1/copilot/chat', {
+      const res = await fetch('/api/copilot-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: prompt,
           history: historyPayload,
-          userId,
-          userName
         })
       });
 
@@ -168,8 +174,13 @@ export const CopilotPage: React.FC = () => {
     ];
 
     setMessages(resetMessages);
+    if (!userId) return;
     try {
-      await fetch(`/api/v1/copilot/history/${userId}`, { method: 'DELETE' });
+      await setDoc(doc(db, 'copilot_threads', userId), {
+        userId,
+        messages: [],
+        updatedAt: new Date().toISOString(),
+      });
     } catch (e) {
       console.warn('Error deleting history:', e);
     }
