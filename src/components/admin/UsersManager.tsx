@@ -3,7 +3,7 @@ import { UserCheck, UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCirc
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
-import { fetchUsersFromFirestore, createUserInFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
+import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
 import { sendUserInviteEmail } from '../../services/emailService.ts';
 
 export const UsersManager: React.FC = () => {
@@ -28,7 +28,6 @@ export const UsersManager: React.FC = () => {
     email: string;
     name: string;
     inviteLink: string;
-    tempPass: string;
   } | null>(null);
 
   // Edit User Modal
@@ -156,40 +155,32 @@ export const UsersManager: React.FC = () => {
 
       const selectedRoleObj = roles.find((r) => r.code === inviteRoleCode);
 
-      await createUserInFirestore({
-        organization_id: orgId,
-        email: inviteEmail,
-        first_name: inviteFirstName,
-        last_name: inviteLastName,
-        phone: invitePhone,
-        role_code: inviteRoleCode,
-        role_name: selectedRoleObj?.name || inviteRoleCode,
-        is_active: true,
-        is_verified: true,
-        stores: assignedStoresList,
+      // Creates both the Firebase Auth account and the Firestore profile
+      // doc under the same uid - the client SDK can't create another
+      // user's Auth account, so this has to go through a server function.
+      const res = await fetch('/api/users-invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
+          first_name: inviteFirstName,
+          last_name: inviteLastName,
+          phone: invitePhone,
+          employee_code: undefined,
+          role_code: inviteRoleCode,
+          store_ids: selectedStoreIds,
+        }),
       });
 
-      try {
-        await fetch('/api/v1/users/invite', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email: inviteEmail,
-            first_name: inviteFirstName,
-            last_name: inviteLastName,
-            phone: invitePhone,
-            role_code: inviteRoleCode,
-            store_ids: selectedStoreIds,
-          }),
-        });
-      } catch (e) {
-        // API fallback
+      const inviteResult = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(inviteResult.error || 'Αποτυχία δημιουργίας λογαριασμού χρήστη');
       }
 
-      // Trigger automated invite email
+      // Now that a real Auth account exists, this can actually deliver.
       await sendUserInviteEmail({
         email: inviteEmail,
         first_name: inviteFirstName,
@@ -199,15 +190,10 @@ export const UsersManager: React.FC = () => {
         organization_name: organization?.trade_name || organization?.legal_name || 'Πρακτορείο ΟΠΑΠ',
       });
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const inviteToken = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const generatedLink = `${origin}?action=accept_invite&token=${inviteToken}&email=${encodeURIComponent(inviteEmail)}`;
-
       setLastInviteInfo({
         email: inviteEmail,
         name: `${inviteFirstName} ${inviteLastName}`,
-        inviteLink: generatedLink,
-        tempPass: 'ShiftLedger2026!',
+        inviteLink: inviteResult.resetLink || '',
       });
 
       setSuccessNotification(`Η πρόσκληση δημιουργήθηκε επιτυχώς για τον χρήστη ${inviteFirstName} ${inviteLastName} (${inviteEmail})!`);
@@ -254,12 +240,8 @@ export const UsersManager: React.FC = () => {
 
           <div className="bg-white p-3.5 rounded-xl border border-indigo-100 text-xs space-y-1.5 font-mono">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-slate-500 font-sans font-bold">Σύνδεσμος Εγγραφής:</span>
+              <span className="text-slate-500 font-sans font-bold">Σύνδεσμος Ορισμού Κωδικού:</span>
               <span className="text-indigo-700 font-bold select-all truncate">{lastInviteInfo.inviteLink}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-sans font-bold">Προσωρινός Κωδικός:</span>
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-indigo-900 font-extrabold">{lastInviteInfo.tempPass}</span>
             </div>
           </div>
 
@@ -267,17 +249,17 @@ export const UsersManager: React.FC = () => {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(
-                  `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΣύνδεσμος Εγγραφής: ${lastInviteInfo.inviteLink}\nΠροσωρινός Κωδικός: ${lastInviteInfo.tempPass}`
+                  `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΟρίστε τον κωδικό πρόσβασής σας εδώ: ${lastInviteInfo.inviteLink}`
                 );
-                alert('Ο σύνδεσμος πρόσκλησης και ο κωδικός αντιγράφηκαν στο πρόχειρο!');
+                alert('Ο σύνδεσμος πρόσκλησης αντιγράφηκε στο πρόχειρο!');
               }}
               className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Αντιγραφή Στοιχείων Πρόσκλησης (Copy Link & Password)</span>
+              <span>Αντιγραφή Συνδέσμου Πρόσκλησης</span>
             </button>
             <p className="text-[11px] text-slate-500">
-              * Για αυτόματη παράδοση email στο inbox του χρήστη, συνδέστε το <code className="bg-slate-200 px-1 rounded">RESEND_API_KEY</code>.
+              * Ο χρήστης έλαβε επίσης αυτόματο email με τον ίδιο σύνδεσμο μέσω Firebase.
             </p>
           </div>
         </div>
