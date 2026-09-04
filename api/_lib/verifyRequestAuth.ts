@@ -1,4 +1,4 @@
-import { getAdminAuth } from './firebaseAdmin.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.ts';
 
 export class HttpError extends Error {
   status: number;
@@ -19,18 +19,19 @@ export async function verifyAuthHeader(
   if (!token) {
     throw new HttpError(401, 'Missing Authorization header');
   }
-  let auth;
+
+  let admin;
   try {
-    auth = getAdminAuth();
+    admin = getSupabaseAdmin();
   } catch (err: any) {
-    // Server misconfiguration (missing credential) - a 500, not a 401,
-    // since it has nothing to do with the caller's token.
+    // Server misconfiguration (missing env vars) - a 500, not a 401, since
+    // it has nothing to do with the caller's token.
     throw new HttpError(500, err.message);
   }
-  try {
-    const decoded = await auth.verifyIdToken(token);
-    return { uid: decoded.uid, email: decoded.email ?? null };
-  } catch {
+
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) {
     throw new HttpError(401, 'Invalid or expired token');
   }
+  return { uid: data.user.id, email: data.user.email ?? null };
 }

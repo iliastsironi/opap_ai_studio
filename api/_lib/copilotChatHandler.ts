@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { getAdminDb } from './firebaseAdmin.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.ts';
 import { HttpError, verifyAuthHeader } from './verifyRequestAuth.ts';
 import { INSTRUCTIONS_SECTIONS, FAQ_ITEMS } from '../../src/data/instructionsContent.ts';
 
@@ -26,22 +26,29 @@ interface LiveStoreContext {
 // fixes two bugs found there - it queried `discrepancy_amount`, a column
 // that doesn't exist (the real field is `discrepancy`), and it had no
 // organization scoping at all, so any org's Copilot could see every other
-// org's live shift data in its AI context.
+// org's live shift data in its AI context. This Supabase version also
+// demonstrates the whole migration's own motivation directly: real
+// server-side ORDER BY + LIMIT instead of fetching 50 docs and sorting in
+// JS, which is what the Firestore version had to do.
 async function getLiveStoreContext(orgId: string): Promise<LiveStoreContext> {
-  const adminDb = getAdminDb();
-  const [shiftsSnap, usersSnap, storesSnap] = await Promise.all([
-    adminDb.collection('shifts').where('organization_id', '==', orgId).limit(50).get(),
-    adminDb.collection('users').where('organization_id', '==', orgId).limit(15).get(),
-    adminDb.collection('stores').where('organization_id', '==', orgId).limit(10).get(),
+  const admin = getSupabaseAdmin();
+  const [shiftsRes, usersRes, storesRes] = await Promise.all([
+    admin
+      .from('shifts')
+      .select('id, status, opening_cash, counted_cash, expected_cash, discrepancy, created_at')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    admin.from('users').select('first_name, last_name, email').eq('organization_id', orgId).limit(15),
+    admin.from('stores').select('name, code').eq('organization_id', orgId).limit(10),
   ]);
 
-  const recentShifts = shiftsSnap.docs
-    .map((d) => d.data())
-    .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
-    .slice(0, 10);
+  if (shiftsRes.error) throw shiftsRes.error;
+  if (usersRes.error) throw usersRes.error;
+  if (storesRes.error) throw storesRes.error;
 
   return {
-    recent_shifts: recentShifts.map((s) => ({
+    recent_shifts: (shiftsRes.data ?? []).map((s) => ({
       id: s.id,
       status: s.status,
       opening_cash: s.opening_cash,
@@ -50,14 +57,8 @@ async function getLiveStoreContext(orgId: string): Promise<LiveStoreContext> {
       discrepancy: s.discrepancy,
       date: s.created_at,
     })),
-    users: usersSnap.docs.map((d) => {
-      const u = d.data();
-      return `${u.first_name} ${u.last_name} (${u.email})`;
-    }),
-    stores: storesSnap.docs.map((d) => {
-      const st = d.data();
-      return `${st.name} [Code: ${st.code}]`;
-    }),
+    users: (usersRes.data ?? []).map((u) => `${u.first_name} ${u.last_name} (${u.email})`),
+    stores: (storesRes.data ?? []).map((st) => `${st.name} [Code: ${st.code}]`),
   };
 }
 
@@ -98,8 +99,12 @@ export async function handleCopilotChat(params: {
 }): Promise<{ status: number; body: Record<string, unknown> }> {
   const { uid } = await verifyAuthHeader(params.authHeader);
 
-  const userDoc = await getAdminDb().collection('users').doc(uid).get();
-  const userData = userDoc.data();
+  const { data: userData, error: userError } = await getSupabaseAdmin()
+    .from('users')
+    .select('organization_id, first_name, last_name')
+    .eq('id', uid)
+    .maybeSingle();
+  if (userError) throw userError;
   const orgId = userData?.organization_id;
   if (!orgId) {
     return { status: 400, body: { error: 'Το προφίλ σας δεν έχει συνδεδεμένο οργανισμό' } };
