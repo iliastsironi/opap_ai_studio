@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-shiftledger-e3037eb6-83a9-4627-b92c-f13d28a0f47a",
+      "rules": "firestore.rules"
+    }
+  ]
+}
