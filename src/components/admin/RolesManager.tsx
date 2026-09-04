@@ -1,36 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ShieldCheck, Lock, Check } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext.tsx';
-import { Permission, Role } from '../../types/index.js';
+import { SYSTEM_PERMISSIONS, SYSTEM_ROLES } from '../../lib/rbac.ts';
 
 export const RolesManager: React.FC = () => {
-  const { token } = useAuth();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [rRes, pRes] = await Promise.all([
-          fetch('/api/v1/users/roles', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/v1/users/permissions', { headers: { Authorization: `Bearer ${token}` } }),
-        ]);
-
-        if (rRes.ok && pRes.ok) {
-          const rData = await rRes.json();
-          const pData = await pRes.json();
-          setRoles(rData);
-          setPermissions(pData);
-        }
-      } catch (err) {
-        console.error('Failed to load roles matrix:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [token]);
+  const roles = SYSTEM_ROLES;
+  const permissions = SYSTEM_PERMISSIONS;
 
   return (
     <div className="space-y-6">
@@ -44,10 +18,7 @@ export const RolesManager: React.FC = () => {
         </p>
       </div>
 
-      {loading ? (
-        <div className="p-8 text-center text-slate-400">Φόρτωση πίνακες δικαιωμάτων...</div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {roles.map((r) => (
               <div key={r.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
@@ -89,7 +60,6 @@ export const RolesManager: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 };

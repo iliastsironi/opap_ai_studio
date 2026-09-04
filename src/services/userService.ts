@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
 import { User, Role } from '../types/index.ts';
+import { SYSTEM_ROLES } from '../lib/rbac.ts';
 
 const USERS_COLLECTION = 'users';
 
@@ -64,12 +65,11 @@ export const INITIAL_DEMO_USERS: any[] = [
   },
 ];
 
-export const DEMO_ROLES: Role[] = [
-  { id: 'r1', code: 'ORG_ADMIN', name: 'Διευθυντής / Admin', permissions: ['*'], is_system: true, created_at: new Date().toISOString() },
-  { id: 'r2', code: 'STORE_MANAGER', name: 'Διαχειριστής Καταστήματος', permissions: ['shifts.*', 'stores.view', 'reports.view'], is_system: true, created_at: new Date().toISOString() },
-  { id: 'r3', code: 'SHIFT_LEADER', name: 'Υπεύθυνος Βάρδιας', permissions: ['shifts.open', 'shifts.close', 'expenses.create'], is_system: true, created_at: new Date().toISOString() },
-  { id: 'r4', code: 'CASHIER', name: 'Ταμίας / Υπάλληλος', permissions: ['shifts.close'], is_system: true, created_at: new Date().toISOString() },
-];
+// Re-exported for existing importers - this used to be its own hardcoded
+// list with role codes and permission strings that didn't match anything
+// else in the app. SYSTEM_ROLES (src/lib/rbac.ts) is now the one canonical
+// source, shared with AuthContext and RolesManager.
+export const DEMO_ROLES: Role[] = SYSTEM_ROLES;
 
 export async function fetchUsersFromFirestore(orgId: string): Promise<any[]> {
   try {

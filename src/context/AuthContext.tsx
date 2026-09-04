@@ -11,6 +11,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase.ts';
 import { Organization, Role, User, UserStoreAssignment } from '../types/index.ts';
+import { getPermissionsForRole, getRoleByCode, normalizeRoleCode } from '../lib/rbac.ts';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -72,6 +73,15 @@ export const MANAGER_PERMISSIONS = [
 ];
 
 export const OWNER_PERMISSIONS = ['*'];
+
+// The 3 fixed demo accounts advertised on the login screen. Kept as an exact,
+// narrow lookup (not a substring match on the email) so nothing else gets an
+// elevated role just for sharing a domain with them.
+const DEMO_ACCOUNT_ROLE_OVERRIDES: Record<string, string> = {
+  'owner@shiftledger.gr': 'ORG_OWNER',
+  'manager@shiftledger.gr': 'STORE_MANAGER',
+  'employee@shiftledger.gr': 'EMPLOYEE',
+};
 
 const DEFAULT_OWNER_ROLE: Role = {
   id: 'role_owner',
@@ -146,35 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Firestore offline or read timeout, falling back to cached user state:', fsErr);
       }
 
-      let detectedRoleCode = '';
-      if (userSnap && userSnap.exists()) {
-        const uData = userSnap.data();
-        if (uData.role_code) {
-          detectedRoleCode = uData.role_code;
-        }
-      }
-
-      if (!detectedRoleCode) {
-        if (fbUser.email?.includes('employee') || fbUser.email?.includes('cashier')) {
-          detectedRoleCode = 'EMPLOYEE';
-        } else if (fbUser.email?.includes('manager') || fbUser.email?.includes('leader')) {
-          detectedRoleCode = 'STORE_MANAGER';
-        } else {
-          detectedRoleCode = 'ORG_OWNER';
-        }
-      }
-
-      if (detectedRoleCode === 'EMPLOYEE' || detectedRoleCode === 'CASHIER' || detectedRoleCode === 'SHIFT_OPERATOR') {
-        activeRole = DEFAULT_EMPLOYEE_ROLE;
-        activePerms = EMPLOYEE_PERMISSIONS;
-      } else if (detectedRoleCode === 'STORE_MANAGER' || detectedRoleCode === 'SHIFT_SUPERVISOR' || detectedRoleCode === 'SHIFT_LEADER' || detectedRoleCode === 'AREA_MANAGER') {
-        activeRole = DEFAULT_MANAGER_ROLE;
-        activePerms = MANAGER_PERMISSIONS;
-      } else {
-        activeRole = DEFAULT_OWNER_ROLE;
-        activePerms = OWNER_PERMISSIONS;
-      }
-
       // Check if user is a demo account
       const isDemoUser = fbUser.email && (
         fbUser.email.includes('shiftledger.gr') ||
@@ -183,6 +164,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fbUser.email === 'manager@shiftledger.gr' ||
         fbUser.email === 'employee@shiftledger.gr'
       );
+
+      const hasExistingDoc = !!(userSnap && userSnap.exists());
+      const storedRoleCode: string | undefined = hasExistingDoc ? userSnap!.data().role_code : undefined;
+      // A signed-in user with no Firestore doc yet and no demo-account match
+      // is about to have a brand-new organization created for them below -
+      // they genuinely are that org's sole owner. Everyone else with a
+      // missing/unrecognized role_code gets the least-privilege default
+      // (EMPLOYEE) inside normalizeRoleCode(), not an elevated one.
+      const isBrandNewOrgOwner = !hasExistingDoc && !isDemoUser;
+
+      const canonicalRoleCode = storedRoleCode
+        ? normalizeRoleCode(storedRoleCode)
+        : isBrandNewOrgOwner
+        ? 'ORG_OWNER'
+        : normalizeRoleCode(fbUser.email ? DEMO_ACCOUNT_ROLE_OVERRIDES[fbUser.email] : undefined);
+
+      activeRole = getRoleByCode(canonicalRoleCode);
+      activePerms = getPermissionsForRole(canonicalRoleCode);
 
       if (userSnap && userSnap.exists()) {
         const uData = userSnap.data();
@@ -254,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           first_name: defaultUserObj.first_name,
           last_name: defaultUserObj.last_name,
           organization_id: newOrgId,
+          role_code: canonicalRoleCode,
           status: 'ACTIVE',
           created_at: defaultUserObj.created_at,
           updated_at: defaultUserObj.updated_at,
