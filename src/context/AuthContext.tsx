@@ -8,7 +8,7 @@ import {
   signOut,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase.ts';
 import { Organization, Role, User, UserStoreAssignment } from '../types/index.ts';
 import { getPermissionsForRole, getRoleByCode, normalizeRoleCode } from '../lib/rbac.ts';
@@ -196,6 +196,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           created_at: uData.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+
+        // Self-heal: this doc predates role_code/organization_id tracking.
+        // The Firestore rules only trust *stored* values (never the
+        // client's own fallback guess) for anything beyond reading your own
+        // profile, so a role/org computed above but never persisted would
+        // show correct-looking UI that then fails every real write. Rules
+        // explicitly allow a user to set either field on their own doc
+        // exactly once, from unset.
+        if (!storedRoleCode || !uData.organization_id) {
+          updateDoc(doc(db, 'users', fbUser.uid), {
+            role_code: canonicalRoleCode,
+            organization_id: userOrgId,
+          }).catch(() => {});
+        }
 
         if (userOrgId !== 'org_opap_demo') {
           try {

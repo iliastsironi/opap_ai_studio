@@ -10,7 +10,7 @@ export interface EmailPayload {
 }
 
 export async function sendSystemEmailNotification(params: EmailPayload): Promise<{ success: boolean; message?: string }> {
-  const { to, recipientName, type, payload } = params;
+  const { to, type, payload } = params;
 
   // 1. Write to Firestore /mail collection (Firebase Trigger Email extension standard schema)
   try {
@@ -39,34 +39,10 @@ export async function sendSystemEmailNotification(params: EmailPayload): Promise
         created_at: new Date().toISOString(),
       },
     });
+    return { success: true, message: 'Η ειδοποίηση καταχωρήθηκε στη βάση δεδομένων.' };
   } catch (fsErr) {
     console.warn('[emailService] Warning: Firestore /mail record creation bypassed:', fsErr);
-  }
-
-  // 2. Call backend email dispatch API
-  try {
-    const res = await fetch('/api/v1/notifications/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type,
-        to,
-        recipientName,
-        payload,
-      }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.success === false) {
-      const errDetail = data.error || 'Notice: External email provider fallback';
-      console.warn('[emailService] Server response notice:', errDetail);
-      return { success: true, message: 'Η ειδοποίηση καταχωρήθηκε στη βάση δεδομένων.' };
-    }
-
-    return { success: true, message: 'Το email στάλθηκε επιτυχώς!' };
-  } catch (apiErr: any) {
-    console.error('[emailService] API dispatch error:', apiErr);
-    return { success: true, message: 'Η ειδοποίηση καταχωρήθηκε στη βάση δεδομένων.' };
+    return { success: false, message: 'Αποτυχία καταχώρησης ειδοποίησης.' };
   }
 }
 
