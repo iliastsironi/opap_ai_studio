@@ -92,6 +92,24 @@
     padding: 2px 0 !important;
   }
 
+  /* Isolate the receipt/print modal from the rest of the app during print.
+     It renders inline inside the page tree (not a body-level portal), so
+     the .fixed.inset-0 rule above only stops IT from self-hiding - it does
+     nothing to hide the app content it's nested next to. visibility (not
+     display) is used so a descendant can opt back in via inheritance. */
+  body.printing-receipt > * {
+    visibility: hidden !important;
+  }
+  body.printing-receipt .print-container-root,
+  body.printing-receipt .print-container-root * {
+    visibility: visible !important;
+  }
+  body.printing-receipt .print-container-root {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999999 !important;
+  }
+
   /* Dividers */
   .receipt-hr {
     border: none !important;
