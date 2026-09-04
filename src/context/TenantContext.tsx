@@ -19,7 +19,7 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, organization } = useAuth();
+  const { token, organization, isLoading: authLoading } = useAuth();
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | 'ALL'>('ALL');
   const [isLoadingStores, setIsLoadingStores] = useState<boolean>(false);
@@ -39,8 +39,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
+    // Wait for AuthContext to finish resolving the signed-in user's own
+    // profile/org row first - firing earlier defaults orgId to the demo
+    // org and races the seed insert against RLS's belongs_to_org() check,
+    // which reads that very row (see syncUserProfile in AuthContext.tsx).
+    if (authLoading) return;
     refreshStores();
-  }, [token, organization]);
+  }, [token, organization, authLoading]);
 
   const currentStore = stores.find((s) => s.id === activeStoreId) || null;
 

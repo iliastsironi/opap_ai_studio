@@ -78,7 +78,7 @@ import {
   VltReconciliationRecord,
   WeeklyRosterStore,
 } from '../../data/pnlData.ts';
-import { fetchUsersFromFirestore, INITIAL_DEMO_USERS } from '../../services/userService.ts';
+import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 
@@ -99,7 +99,7 @@ export const ReportsManager: React.FC = () => {
   const [rawPayroll, setRawPayroll] = useState<PayrollEmployeeRecord[]>([]);
   const [rawVltRecs, setRawVltRecs] = useState<VltReconciliationRecord[]>([]);
   const [rawRoster, setRawRoster] = useState<WeeklyRosterStore[]>([]);
-  const [tenantUsers, setTenantUsers] = useState<any[]>(INITIAL_DEMO_USERS);
+  const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
   // Filtering
   const [selectedFilterStore, setSelectedFilterStore] = useState('ALL');

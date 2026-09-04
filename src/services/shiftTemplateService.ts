@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from './firebase.ts';
+import { supabase } from './supabase.ts';
 import { ShiftTemplateConfig } from '../types/index.ts';
 
 export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
@@ -167,30 +166,26 @@ export async function getShiftTemplateConfig(
   storeId?: string
 ): Promise<ShiftTemplateConfig> {
   try {
-    const docId = storeId ? `${orgId}_${storeId}` : orgId;
-    const ref = doc(db, 'shift_templates', docId);
-    const snap = await getDoc(ref);
+    let q = supabase.from('shift_templates').select('*').eq('organization_id', orgId);
+    q = storeId ? q.eq('store_id', storeId) : q.is('store_id', null);
+    const { data, error } = await q.maybeSingle();
+    if (error) throw error;
 
-    if (snap.exists()) {
-      return snap.data() as ShiftTemplateConfig;
+    if (data) {
+      return data as ShiftTemplateConfig;
     }
 
-    // Initialize in Firestore if not already present
+    // Initialize in the DB if not already present
     const initialTemplate: ShiftTemplateConfig = {
       ...DEFAULT_OPAP_SHIFT_TEMPLATE,
-      id: `template_${docId}`,
       organization_id: orgId,
       store_id: storeId,
       updated_at: new Date().toISOString(),
     };
-    try {
-      await setDoc(ref, initialTemplate);
-    } catch (writeErr) {
-      // Non-blocking in case of restricted client
-    }
-    return initialTemplate;
+    const { data: inserted } = await supabase.from('shift_templates').insert(initialTemplate).select().maybeSingle();
+    return (inserted as ShiftTemplateConfig) || initialTemplate;
   } catch (err) {
-    console.warn('[ShiftTemplateService] Could not load template from Firestore, using default template:', err);
+    console.warn('[ShiftTemplateService] Could not load template, using default template:', err);
   }
 
   // Fallback to default
@@ -207,17 +202,10 @@ export async function getShiftTemplateConfig(
 export async function saveShiftTemplateConfig(
   templateConfig: ShiftTemplateConfig
 ): Promise<void> {
-  const docId = templateConfig.store_id
-    ? `${templateConfig.organization_id}_${templateConfig.store_id}`
-    : templateConfig.organization_id;
-
-  const ref = doc(db, 'shift_templates', docId);
-  await setDoc(
-    ref,
-    {
-      ...templateConfig,
-      updated_at: new Date().toISOString(),
-    },
-    { merge: true }
+  const { id, ...rest } = templateConfig;
+  const { error } = await supabase.from('shift_templates').upsert(
+    { ...rest, updated_at: new Date().toISOString() },
+    { onConflict: 'organization_id,store_id' }
   );
+  if (error) throw error;
 }

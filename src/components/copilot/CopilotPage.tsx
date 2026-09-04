@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   Bot,
   Send,
@@ -15,7 +14,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { db } from '../../services/firebase.ts';
+import { supabase } from '../../services/supabase.ts';
 
 interface ChatMessage {
   id: string;
@@ -53,16 +52,21 @@ export const CopilotPage: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading]);
 
-  // Load chat history straight from Firestore (copilot_threads/{uid}, matching
-  // the rules' strict request.auth.uid == threadId check) once we actually
+  // Load chat history straight from copilot_threads (PK = auth.uid(), matching
+  // the RLS policy's strict user_id = auth.uid() check) once we actually
   // have a signed-in uid - firing before that would just be a denied read.
   useEffect(() => {
     if (!userId) return;
 
     const fetchHistory = async () => {
       try {
-        const snap = await getDoc(doc(db, 'copilot_threads', userId));
-        const storedMessages = snap.exists() ? snap.data().messages : null;
+        const { data, error } = await supabase
+          .from('copilot_threads')
+          .select('messages')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        const storedMessages = data?.messages;
         if (Array.isArray(storedMessages) && storedMessages.length > 0) {
           setMessages(storedMessages);
           return;
@@ -85,15 +89,16 @@ export const CopilotPage: React.FC = () => {
     fetchHistory();
   }, [userId]);
 
-  // Persist history straight to Firestore, same doc the history load above reads.
+  // Persist history straight to copilot_threads, same row the load above reads.
   const saveHistoryToBackend = async (updatedMessages: ChatMessage[]) => {
     if (!userId) return;
     try {
-      await setDoc(doc(db, 'copilot_threads', userId), {
-        userId,
+      const { error } = await supabase.from('copilot_threads').upsert({
+        user_id: userId,
         messages: updatedMessages,
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
+      if (error) throw error;
     } catch (err) {
       console.warn('Could not persist conversation history:', err);
     }
@@ -176,11 +181,12 @@ export const CopilotPage: React.FC = () => {
     setMessages(resetMessages);
     if (!userId) return;
     try {
-      await setDoc(doc(db, 'copilot_threads', userId), {
-        userId,
+      const { error } = await supabase.from('copilot_threads').upsert({
+        user_id: userId,
         messages: [],
-        updatedAt: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
+      if (error) throw error;
     } catch (e) {
       console.warn('Error deleting history:', e);
     }

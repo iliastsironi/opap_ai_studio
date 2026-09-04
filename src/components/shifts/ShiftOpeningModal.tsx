@@ -26,7 +26,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   onSuccess,
   stores,
 }) => {
-  const { token, user, organization } = useAuth();
+  const { user, organization } = useAuth();
   const { stores: tenantStores } = useTenant();
 
   const effectiveStores =
@@ -196,26 +196,6 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-
-      // Try server API as well
-      try {
-        await fetch('/api/v1/shifts/open', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            store_id: selectedStoreId,
-            register_id: registerId,
-            shift_type: shiftType,
-            opening_cash: cashNum,
-            opening_operational_notes: openingNotes,
-          }),
-        });
-      } catch (e) {
-        console.log('Server endpoint sync bypassed, Firestore persisted successfully.');
-      }
 
       onSuccess(fsShift.id);
       onClose();

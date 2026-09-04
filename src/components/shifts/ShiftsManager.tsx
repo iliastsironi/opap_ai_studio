@@ -1239,6 +1239,7 @@ export const ShiftsManager: React.FC = () => {
       <CustomerCreditDirectoryModal
         isOpen={showCreditDirectoryModal}
         onClose={() => setShowCreditDirectoryModal(false)}
+        orgId={organization?.id || 'org_opap_demo'}
         storeId={currentStore?.id || 'store_opap_01'}
         isOwnerOrManager={Boolean(isOwnerOrAdmin || canApprove)}
       />

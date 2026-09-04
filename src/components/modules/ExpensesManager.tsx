@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createExpenseInFirestore, deleteExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
-import { fetchSuppliersFromFirestore, INITIAL_DEMO_SUPPLIERS } from '../../services/supplierService.ts';
+import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, ShiftExpense, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -14,7 +14,7 @@ export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
   const { user, organization } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_DEMO_SUPPLIERS);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -129,6 +129,7 @@ export const ExpensesManager: React.FC = () => {
         amount: numAmount,
         payment_method: paymentMethod,
         recipient: finalRecipient,
+        created_by_user_id: user?.id,
         created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
         date: new Date().toISOString().split('T')[0],
       };

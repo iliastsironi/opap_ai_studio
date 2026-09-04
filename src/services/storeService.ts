@@ -1,19 +1,7 @@
-import {
-  collection,
-  doc,
-  getDocs,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  onSnapshot,
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
+import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
 import { Store, Department } from '../types/index.ts';
 
-const STORES_COLLECTION = 'stores';
+const STORES_TABLE = 'stores';
 
 export const INITIAL_DEMO_STORES: Store[] = [
   {
@@ -63,13 +51,15 @@ export const INITIAL_DEMO_STORES: Store[] = [
 export async function seedInitialStoresIfEmpty(orgId: string): Promise<void> {
   if (orgId !== 'org_opap_demo') return;
   try {
-    const q = query(collection(db, STORES_COLLECTION), where('organization_id', '==', orgId));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      for (const st of INITIAL_DEMO_STORES) {
-        const ref = doc(db, STORES_COLLECTION, st.id);
-        await setDoc(ref, st);
-      }
+    const { count } = await supabase.from(STORES_TABLE).select('id', { count: 'exact', head: true }).eq('organization_id', orgId);
+    if (!count) {
+      // Plain insert, not upsert: PostgREST's ON CONFLICT resolution needs
+      // the SELECT RLS policy to see the existing row, which can lag right
+      // after signup (see the matching note in AuthContext.tsx's org-row
+      // bootstrap). A 23505 here just means another concurrent caller
+      // (TenantContext's effect firing more than once) already seeded it.
+      const { error } = await supabase.from(STORES_TABLE).insert(INITIAL_DEMO_STORES);
+      if (error && error.code !== '23505') throw error;
     }
   } catch (err) {
     console.error('Error seeding initial stores:', err);
@@ -81,14 +71,12 @@ export async function fetchStoresFromFirestore(orgId: string): Promise<Store[]> 
     if (orgId === 'org_opap_demo') {
       await seedInitialStoresIfEmpty(orgId);
     }
-    const q = query(collection(db, STORES_COLLECTION), where('organization_id', '==', orgId));
-    const snap = await getDocs(q);
-    const result: Store[] = [];
-    snap.forEach((d) => result.push(d.data() as Store));
-    if (result.length > 0) return result;
+    const { data, error } = await supabase.from(STORES_TABLE).select('*').eq('organization_id', orgId);
+    if (error) throw error;
+    if (data && data.length > 0) return data as Store[];
     return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, STORES_COLLECTION);
+    await handleSupabaseError(error, OperationType.LIST, STORES_TABLE).catch(() => {});
     return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
   }
 }
@@ -103,59 +91,50 @@ export async function createStoreInFirestore(storeData: Omit<Store, 'id'>): Prom
       created_at: nowIso,
       updated_at: nowIso,
     };
-    const ref = doc(db, STORES_COLLECTION, newId);
-    await setDoc(ref, cleanFirestoreData(newStore));
+    const { error } = await supabase.from(STORES_TABLE).insert(cleanData(newStore));
+    if (error) throw error;
     return newStore;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, STORES_COLLECTION);
+    await handleSupabaseError(error, OperationType.CREATE, STORES_TABLE);
     throw error;
   }
 }
 
 export async function updateStoreInFirestore(storeId: string, updateData: Partial<Store>): Promise<void> {
   try {
-    const ref = doc(db, STORES_COLLECTION, storeId);
-    await updateDoc(ref, cleanFirestoreData({
+    const { error } = await supabase.from(STORES_TABLE).update(cleanData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    }));
+    })).eq('id', storeId);
+    if (error) throw error;
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${STORES_COLLECTION}/${storeId}`);
+    await handleSupabaseError(error, OperationType.UPDATE, `${STORES_TABLE}/${storeId}`);
     throw error;
   }
 }
 
 export async function deleteStoreFromFirestore(storeId: string): Promise<void> {
   try {
-    const ref = doc(db, STORES_COLLECTION, storeId);
-    await deleteDoc(ref);
+    const { error } = await supabase.from(STORES_TABLE).delete().eq('id', storeId);
+    if (error) throw error;
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${STORES_COLLECTION}/${storeId}`);
+    await handleSupabaseError(error, OperationType.DELETE, `${STORES_TABLE}/${storeId}`);
     throw error;
   }
 }
 
 export async function fetchDepartmentsForStore(storeId: string, orgId: string): Promise<Department[]> {
+  const fallback = [
+    { id: `dept_${storeId}_1`, store_id: storeId, organization_id: orgId, code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
+    { id: `dept_${storeId}_2`, store_id: storeId, organization_id: orgId, code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
+  ];
   try {
-    const q = query(
-      collection(db, 'departments'),
-      where('organization_id', '==', orgId),
-      where('store_id', '==', storeId)
-    );
-    const snap = await getDocs(q);
-    const depts: Department[] = [];
-    snap.forEach((d) => depts.push(d.data() as Department));
-    if (depts.length > 0) return depts;
-
-    return [
-      { id: `dept_${storeId}_1`, store_id: storeId, organization_id: orgId, code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
-      { id: `dept_${storeId}_2`, store_id: storeId, organization_id: orgId, code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
-    ];
+    const { data, error } = await supabase.from('departments').select('*').eq('organization_id', orgId).eq('store_id', storeId);
+    if (error) throw error;
+    if (data && data.length > 0) return data as Department[];
+    return fallback;
   } catch (err) {
-    return [
-      { id: `dept_${storeId}_1`, store_id: storeId, organization_id: orgId, code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
-      { id: `dept_${storeId}_2`, store_id: storeId, organization_id: orgId, code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
-    ];
+    return fallback;
   }
 }
 
@@ -167,12 +146,11 @@ export async function createDepartmentInFirestore(deptData: Omit<Department, 'id
       id: newId,
       created_at: new Date().toISOString(),
     };
-    const ref = doc(db, 'departments', newId);
-    await setDoc(ref, cleanFirestoreData(newDept));
+    const { error } = await supabase.from('departments').insert(cleanData(newDept));
+    if (error) throw error;
     return newDept;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, 'departments');
+    await handleSupabaseError(error, OperationType.CREATE, 'departments');
     throw error;
   }
 }
-

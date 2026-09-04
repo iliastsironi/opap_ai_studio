@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   UserCheck,
   Plus,
@@ -25,14 +25,15 @@ import {
   getStoreCreditTierConfigs,
   validateCustomerCreditGrant,
   getCustomerCreditLimit,
-  findCustomer,
   saveCustomer,
+  DEFAULT_CREDIT_TIER_CONFIGS,
 } from '../../services/customerCreditService.ts';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
 
 interface CustomerCreditSectionProps {
   customerCredits: Array<Partial<CustomerCredit>>;
   onChangeCredits: (updated: Array<Partial<CustomerCredit>>) => void;
+  orgId: string;
   storeId?: string;
   readOnly?: boolean;
   isOwnerOrManager?: boolean;
@@ -41,15 +42,16 @@ interface CustomerCreditSectionProps {
 export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
   customerCredits,
   onChangeCredits,
+  orgId,
   storeId,
   readOnly = false,
   isOwnerOrManager = false,
 }) => {
   const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [managerBypassEnabled, setManagerBypassEnabled] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>(() => getCustomers(storeId));
-  const [tierConfigs, setTierConfigs] = useState<Record<CreditScoreTier, CreditTierConfig>>(() =>
-    getStoreCreditTierConfigs(storeId)
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [tierConfigs, setTierConfigs] = useState<Record<CreditScoreTier, CreditTierConfig>>(
+    DEFAULT_CREDIT_TIER_CONFIGS
   );
 
   // Quick customer create inside row
@@ -58,10 +60,18 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
   const [quickPhone, setQuickPhone] = useState('');
   const [quickTier, setQuickTier] = useState<CreditScoreTier>('B');
 
-  const refreshCustomers = () => {
-    setCustomers(getCustomers(storeId));
-    setTierConfigs(getStoreCreditTierConfigs(storeId));
-  };
+  const refreshCustomers = useCallback(async () => {
+    const [custs, tiers] = await Promise.all([
+      getCustomers(orgId, storeId),
+      getStoreCreditTierConfigs(orgId, storeId),
+    ]);
+    setCustomers(custs);
+    setTierConfigs(tiers);
+  }, [orgId, storeId]);
+
+  useEffect(() => {
+    refreshCustomers();
+  }, [refreshCustomers]);
 
   const handleAddCredit = () => {
     if (readOnly) return;
@@ -105,16 +115,16 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
     onChangeCredits(updated);
   };
 
-  const handleQuickCreateCustomer = (index: number) => {
+  const handleQuickCreateCustomer = async (index: number) => {
     if (!quickName.trim()) return;
-    const newCust = saveCustomer({
+    const newCust = await saveCustomer({
+      organization_id: orgId,
       name: quickName.trim(),
       phone: quickPhone.trim(),
       tier: quickTier,
       store_id: storeId || 'store_opap_01',
-      current_debt: 0,
     });
-    refreshCustomers();
+    await refreshCustomers();
 
     handleUpdateCredit(index, 'customer_id', newCust.id);
     handleUpdateCredit(index, 'customer_name', newCust.name);
@@ -519,6 +529,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
           setDirectoryModalOpen(false);
           refreshCustomers();
         }}
+        orgId={orgId}
         storeId={storeId}
         isOwnerOrManager={isOwnerOrManager}
         onCustomerSelected={(selected) => {

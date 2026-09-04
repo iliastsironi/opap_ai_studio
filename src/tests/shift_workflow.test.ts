@@ -1,14 +1,7 @@
-import { describe, expect, it, beforeAll } from 'vitest';
-import { getDb } from '../db/index.js';
-import { seedDatabase } from '../db/seed.js';
+import { describe, expect, it } from 'vitest';
 import { calculateCountedCash, calculateExpectedCash, calculateDiscrepancy } from '../services/financialCalculator.js';
 
 describe('Shift Opening & Closing Workflow Core Business Logic', () => {
-  beforeAll(async () => {
-    await getDb();
-    await seedDatabase();
-  });
-
   describe('Duplicate Submission Prevention & Immutable State', () => {
     it('prevents employee modification when shift status is SUBMITTED or APPROVED', () => {
       const shiftSubmitted = {
