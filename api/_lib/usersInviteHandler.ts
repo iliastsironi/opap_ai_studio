@@ -1,7 +1,7 @@
-import { getSupabaseAdmin } from './supabaseAdmin.ts';
-import { verifyAuthHeader } from './verifyRequestAuth.ts';
-import { getRoleByCode, normalizeRoleCode } from '../../src/lib/rbac.ts';
-import { sendUserInviteEmailToEmployee } from '../../src/lib/emailService.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { verifyAuthHeader } from './verifyRequestAuth.js';
+import { getRoleByCode, normalizeRoleCode } from '../../src/lib/rbac.js';
+import { sendUserInviteEmailToEmployee } from '../../src/lib/emailService.js';
 
 const ELEVATED_ROLES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER'];
 

@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from './supabaseAdmin.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
 
 export class HttpError extends Error {
   status: number;

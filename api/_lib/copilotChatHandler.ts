@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
-import { getSupabaseAdmin } from './supabaseAdmin.ts';
-import { HttpError, verifyAuthHeader } from './verifyRequestAuth.ts';
-import { INSTRUCTIONS_SECTIONS, FAQ_ITEMS } from '../../src/data/instructionsContent.ts';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
+import { HttpError, verifyAuthHeader } from './verifyRequestAuth.js';
+import { INSTRUCTIONS_SECTIONS, FAQ_ITEMS } from '../../src/data/instructionsContent.js';
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',

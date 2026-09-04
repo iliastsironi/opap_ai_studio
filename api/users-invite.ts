@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleUsersInvite } from './_lib/usersInviteHandler.ts';
-import { HttpError } from './_lib/verifyRequestAuth.ts';
+import { handleUsersInvite } from './_lib/usersInviteHandler.js';
+import { HttpError } from './_lib/verifyRequestAuth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

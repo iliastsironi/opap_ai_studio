@@ -1,4 +1,4 @@
-import { Permission, Role } from '../types/index.ts';
+import { Permission, Role } from '../types/index.js';
 
 // Canonical role/permission model. Before this, the app had four separate,
 // inconsistent vocabularies: the seed data below (richest, and what
