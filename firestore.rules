@@ -6,151 +6,196 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
-    }
-
     function incoming() {
       return request.resource.data;
     }
 
-    // Top-level stores
-    match /stores/{storeId} {
-      allow read: if true;
-      allow write: if isValidId(storeId);
+    function callerOrgId() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organization_id
+        : null;
     }
 
-    // Organizations
-    match /organizations/{orgId} {
-      allow read: if true;
-      allow write: if isValidId(orgId);
+    function belongsToOrg(orgId) {
+      return isSignedIn() && callerOrgId() == orgId;
     }
 
-    // Stores inside organizations
-    match /organizations/{orgId}/stores/{storeId} {
-      allow read: if true;
-      allow write: if isValidId(storeId);
+    // Superset of every role-code vocabulary the app currently writes
+    // (canonical seed set + AuthContext's set + userService.ts DEMO_ROLES).
+    // Narrow this to the single canonical list once the RBAC cleanup lands
+    // and nothing writes the legacy codes anymore.
+    function isElevatedRole() {
+      let code = isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role_code
+        : '';
+      return code in [
+        'ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER',
+        'SHIFT_SUPERVISOR', 'ORG_ADMIN', 'SHIFT_LEADER'
+      ];
     }
 
-    // User profiles
+    // ---------- Users ----------
     match /users/{userId} {
-      allow read: if true;
-      allow write: if isValidId(userId);
+      allow read: if isSignedIn() && (request.auth.uid == userId || belongsToOrg(resource.data.organization_id));
+      // Bootstrap: a brand-new signed-in user may create their own profile doc.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Self-edit: may change your own fields, but NOT role_code / organization_id
+      // once they're set (blocks self-escalation and org-hopping). Setting them
+      // ONCE from unset is allowed (first-login / onboarding bootstrap).
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && (resource.data.role_code == null || incoming().role_code == resource.data.role_code)
+        && (resource.data.organization_id == null || incoming().organization_id == resource.data.organization_id);
+      // Org managers/owners may edit any user in their own org.
+      allow update: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
     }
 
-    // Shifts
-    match /shifts/{shiftId} {
-      allow read: if true;
-      allow write: if isValidId(shiftId);
+    // ---------- Organizations ----------
+    match /organizations/{orgId} {
+      allow read: if belongsToOrg(orgId);
+      allow create: if isSignedIn();
+      allow update: if belongsToOrg(orgId) && isElevatedRole();
+      allow delete: if false;
     }
 
-    // Expenses
-    match /expenses/{expenseId} {
-      allow read: if true;
-      allow write: if isValidId(expenseId)
-        && (incoming().amount is number && incoming().amount >= 0);
+    // VAT-number uniqueness lock, used by the onboarding transaction.
+    match /organizations_by_vat/{normalizedVat} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
     }
 
-    // Incidents
-    match /incidents/{incidentId} {
-      allow read: if true;
-      allow write: if isValidId(incidentId);
+    // ---------- Stores & Departments ----------
+    match /stores/{storeId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id);
+      allow update, delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
     }
 
-    // FnB sales
-    match /fnb_sales/{fnbId} {
-      allow read: if true;
-      allow write: if isValidId(fnbId)
-        && (incoming().quantity is number && incoming().quantity > 0)
-        && (incoming().unit_price is number && incoming().unit_price >= 0);
-    }
-
-    // Audit logs
-    match /auditLogs/{logId} {
-      allow read: if true;
-      allow write: if isValidId(logId);
-    }
-
-    // Trigger Email Extension collection
-    match /mail/{mailId} {
-      allow read: if true;
-      allow write: if isValidId(mailId);
-    }
-
-    // Test connection endpoint
-    match /test/{testId} {
-      allow read, write: if true;
-    }
-
-    // Suppliers
-    match /suppliers/{supplierId} {
-      allow read: if true;
-      allow write: if isValidId(supplierId);
-    }
-
-    // Supplier Orders
-    match /supplier_orders/{orderId} {
-      allow read: if true;
-      allow write: if isValidId(orderId);
-    }
-
-    // Customer Credits & Ledger
-    match /customer_credits/{creditId} {
-      allow read: if true;
-      allow write: if isValidId(creditId);
-    }
-
-    // Fixed Expenses per store
-    match /fixed_expenses/{id} {
-      allow read: if true;
-      allow write: if isValidId(id);
-    }
-
-    // Corporate Expenses and Loans
-    match /corporate_expenses/{id} {
-      allow read: if true;
-      allow write: if isValidId(id);
-    }
-
-    // Payroll Records and Staff Rates
-    match /payroll_records/{id} {
-      allow read: if true;
-      allow write: if isValidId(id);
-    }
-
-    // VLT Opapnet Reconciliations
-    match /vlt_reconciliations/{id} {
-      allow read: if true;
-      allow write: if isValidId(id);
-    }
-
-    // Weekly Roster Schedules
-    match /roster_schedules/{id} {
-      allow read: if true;
-      allow write: if isValidId(id);
-    }
-
-    // Copilot Threads
-    match /copilot_threads/{threadId} {
-      allow read: if true;
-      allow write: if isValidId(threadId);
-    }
-
-    // Shift Templates (Dynamic shift form and field configuration for Owner, Manager, Employee)
-    match /shift_templates/{templateId} {
-      allow read: if true;
-      allow write: if isValidId(templateId);
-    }
-
-    // Store Departments
     match /departments/{deptId} {
-      allow read: if true;
-      allow write: if isValidId(deptId);
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id);
+      allow update, delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
     }
 
-    match /stores/{storeId}/departments/{deptId} {
-      allow read: if true;
-      allow write: if isValidId(deptId);
+    // ---------- Shifts ----------
+    match /shifts/{shiftId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id);
+      // Immutability: once SUBMITTED/APPROVED, only elevated roles may write
+      // further (approve / reopen / correction actions).
+      allow update: if belongsToOrg(resource.data.organization_id)
+        && (!(resource.data.status in ['SUBMITTED', 'APPROVED']) || isElevatedRole());
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+    }
+
+    // Duplicate-active-shift guard sentinel docs.
+    match /active_shift_locks/{lockId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id);
+      allow update: if false;
+    }
+
+    // ---------- Shift-level operational records ----------
+    // Employees legitimately create these during a normal shift close, so they
+    // stay at plain org-membership level (not elevated-only) to avoid regressions.
+    match /expenses/{expenseId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id)
+        && incoming().amount is number && incoming().amount >= 0;
+      allow update: if belongsToOrg(resource.data.organization_id)
+        && incoming().amount is number && incoming().amount >= 0;
+      allow delete: if belongsToOrg(resource.data.organization_id);
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update: if belongsToOrg(incoming().organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+    }
+
+    match /fnb_sales/{fnbId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id)
+        && incoming().quantity is number && incoming().quantity > 0
+        && incoming().unit_price is number && incoming().unit_price >= 0;
+      allow update: if belongsToOrg(resource.data.organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id);
+    }
+
+    // customer_credits: sensitive (names/phones/debt), but EMPLOYEE role writes
+    // these routinely during shift close — kept at org-membership level, not
+    // elevated-only, to match real usage. (Contrast with payroll_records below.)
+    match /customer_credits/{creditId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update: if belongsToOrg(incoming().organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update: if belongsToOrg(incoming().organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+    }
+
+    match /supplier_orders/{orderId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update: if belongsToOrg(incoming().organization_id);
+      allow delete: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+    }
+
+    // ---------- Reports/back-office records (ReportsManager.tsx only,
+    // which has no hasPermission() gate of its own — access today is purely
+    // tab-level via 'reports.view', granted only manager-tier and up) ----------
+    match /fixed_expenses/{id} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    match /corporate_expenses/{id} {
+      allow read: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    // payroll_records: staff salary data — most sensitive collection, read AND
+    // write restricted to elevated roles.
+    match /payroll_records/{id} {
+      allow read: if belongsToOrg(resource.data.organization_id) && isElevatedRole();
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    match /vlt_reconciliations/{id} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    match /roster_schedules/{id} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    match /shift_templates/{templateId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create, update, delete: if belongsToOrg(incoming().organization_id) && isElevatedRole();
+    }
+
+    // ---------- Audit log (append-only) ----------
+    match /auditLogs/{logId} {
+      allow read: if belongsToOrg(resource.data.organization_id);
+      allow create: if belongsToOrg(incoming().organization_id);
+      allow update, delete: if false;
+    }
+
+    // ---------- Copilot chat history (strictly per-user, doc id == uid) -------
+    match /copilot_threads/{threadId} {
+      allow read, write: if isSignedIn() && request.auth.uid == threadId;
+    }
+
+    // ---------- Trigger Email extension collection (write-only from clients) --
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if false;
     }
 
     // Default deny catch-all
@@ -159,4 +204,3 @@ service cloud.firestore {
     }
   }
 }
-
