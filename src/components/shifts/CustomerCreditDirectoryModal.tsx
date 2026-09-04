@@ -19,6 +19,7 @@ import {
   Award,
 } from 'lucide-react';
 import { Customer, CreditScoreTier, CreditTierConfig } from '../../types/index.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import {
   getCustomers,
   saveCustomer,
@@ -280,7 +281,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       Συνολικό Ανοιχτό Τεφτέρι
                     </span>
                     <span className="text-xl font-black text-rose-950 font-mono">
-                      {totalOutstandingDebt.toFixed(2)} €
+                      {formatCurrency(totalOutstandingDebt)}
                     </span>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
@@ -406,7 +407,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                               {isUnlimited ? (
                                 <span className="text-purple-700 font-black">Απεριόριστο</span>
                               ) : (
-                                `${limit.toFixed(2)} €`
+                                formatCurrency(limit)
                               )}
                             </td>
 
@@ -420,7 +421,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                     : 'text-slate-500'
                                 }`}
                               >
-                                {debt.toFixed(2)} €
+                                {formatCurrency(debt)}
                               </span>
                             </td>
 
@@ -437,7 +438,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                       : 'text-emerald-700'
                                   }`}
                                 >
-                                  {available.toFixed(2)} €
+                                  {formatCurrency(available)}
                                 </span>
                               )}
                             </td>

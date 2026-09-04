@@ -11,7 +11,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase.ts';
-import { Store } from '../types/index.ts';
+import { Store, Department } from '../types/index.ts';
 
 const STORES_COLLECTION = 'stores';
 
@@ -134,3 +134,45 @@ export async function deleteStoreFromFirestore(storeId: string): Promise<void> {
     throw error;
   }
 }
+
+export async function fetchDepartmentsForStore(storeId: string, orgId: string): Promise<Department[]> {
+  try {
+    const q = query(
+      collection(db, 'departments'),
+      where('organization_id', '==', orgId),
+      where('store_id', '==', storeId)
+    );
+    const snap = await getDocs(q);
+    const depts: Department[] = [];
+    snap.forEach((d) => depts.push(d.data() as Department));
+    if (depts.length > 0) return depts;
+
+    return [
+      { id: `dept_${storeId}_1`, store_id: storeId, organization_id: orgId, code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
+      { id: `dept_${storeId}_2`, store_id: storeId, organization_id: orgId, code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
+    ];
+  } catch (err) {
+    return [
+      { id: `dept_${storeId}_1`, store_id: storeId, organization_id: orgId, code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
+      { id: `dept_${storeId}_2`, store_id: storeId, organization_id: orgId, code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
+    ];
+  }
+}
+
+export async function createDepartmentInFirestore(deptData: Omit<Department, 'id' | 'created_at'>): Promise<Department> {
+  try {
+    const newId = `dept_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newDept: Department = {
+      ...deptData,
+      id: newId,
+      created_at: new Date().toISOString(),
+    };
+    const ref = doc(db, 'departments', newId);
+    await setDoc(ref, cleanFirestoreData(newDept));
+    return newDept;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'departments');
+    throw error;
+  }
+}
+

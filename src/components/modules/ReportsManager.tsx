@@ -80,6 +80,7 @@ import {
 } from '../../data/pnlData.ts';
 import { fetchUsersFromFirestore, INITIAL_DEMO_USERS } from '../../services/userService.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export const ReportsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -602,7 +603,7 @@ export const ReportsManager: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικός Τζίρος</p>
-                  <h3 className="text-2xl font-black text-slate-900 mt-1.5 tracking-tight">€{totals.turnover.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</h3>
+                  <h3 className="text-2xl font-black text-slate-900 mt-1.5 tracking-tight">{formatCurrency(totals.turnover)}</h3>
                 </div>
                 <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100/80">
                   <DollarSign className="w-5 h-5" />
@@ -622,7 +623,7 @@ export const ReportsManager: React.FC = () => {
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικά Έξοδα (OPEX)</p>
                   <h3 className="text-2xl font-black text-rose-600 mt-1.5 tracking-tight">
-                    €{(totals.dailyExpenses + totals.fixedExpenses + totals.payroll + totals.corporateExpenses).toLocaleString('el-GR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(totals.dailyExpenses + totals.fixedExpenses + totals.payroll + totals.corporateExpenses)}
                   </h3>
                 </div>
                 <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100/80">
@@ -631,7 +632,7 @@ export const ReportsManager: React.FC = () => {
               </div>
               <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
                 <span>Πάγια + Ημέρας + Μισθοδοσία</span>
-                <span className="font-bold text-slate-700">€{(totals.fixedExpenses + totals.dailyExpenses).toFixed(0)}</span>
+                <span className="font-bold text-slate-700">{formatCurrency(totals.fixedExpenses + totals.dailyExpenses)}</span>
               </div>
             </div>
 
@@ -641,7 +642,7 @@ export const ReportsManager: React.FC = () => {
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Καθαρά Κέρδη προ Φόρων</p>
                   <h3 className={`text-2xl font-black mt-1.5 tracking-tight ${totals.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    €{totals.netProfit.toLocaleString('el-GR', { minimumFractionDigits: 2 })}
+                    {formatCurrency(totals.netProfit)}
                   </h3>
                 </div>
                 <div className={`p-2.5 rounded-xl border ${totals.netProfit >= 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100/80' : 'bg-rose-50 text-rose-600 border-rose-100/80'}`}>
@@ -670,7 +671,7 @@ export const ReportsManager: React.FC = () => {
               <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
                 <span className="text-slate-500 font-medium">Σύνολο Αποκλίσεων</span>
                 <span className={`font-bold ${totals.totalDiscrepancy === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  €{totals.totalDiscrepancy.toFixed(2)}
+                  {formatCurrency(totals.totalDiscrepancy, { showSign: true })}
                 </span>
               </div>
             </div>
@@ -716,7 +717,7 @@ export const ReportsManager: React.FC = () => {
                         color: '#fff',
                         fontSize: '12px',
                       }}
-                      formatter={(value: any) => [`${Number(value).toFixed(2)} €`, '']}
+                      formatter={(value: any) => [formatCurrency(Number(value) || 0), '']}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                     <Area
@@ -776,7 +777,7 @@ export const ReportsManager: React.FC = () => {
                         color: '#fff',
                         fontSize: '12px',
                       }}
-                      formatter={(value: any) => [`${Number(value).toFixed(2)} €`, '']}
+                      formatter={(value: any) => [formatCurrency(Number(value) || 0), '']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -834,16 +835,16 @@ export const ReportsManager: React.FC = () => {
                         <span>{st.storeName}</span>
                       </td>
                       <td className="py-3 px-3 text-slate-600">{st.storeType}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-800">€{st.ggr.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3 px-3 text-right font-mono text-slate-700">€{st.ngr.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-800">{formatCurrency(st.ggr)}</td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-700">{formatCurrency(st.ngr)}</td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-indigo-600">
-                        {st.vltWinPerMachine > 0 ? `€${st.vltWinPerMachine.toFixed(2)}` : '-'}
+                        {st.vltWinPerMachine > 0 ? formatCurrency(st.vltWinPerMachine) : '-'}
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-slate-700">{st.opexToRevenue}%</td>
                       <td className="py-3 px-3 text-right font-mono text-emerald-600 font-bold">{st.fnbMargin}%</td>
                       <td className="py-3 px-3 text-right font-mono text-slate-700">{st.shrinkageRate}%</td>
-                      <td className="py-3 px-3 text-right font-mono text-rose-600">€{st.outstandingCredits.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-600">€{st.netProfit.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3 px-3 text-right font-mono text-rose-600">{formatCurrency(st.outstandingCredits)}</td>
+                      <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-600">{formatCurrency(st.netProfit)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -897,21 +898,21 @@ export const ReportsManager: React.FC = () => {
                     <tr key={row.storeId} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-slate-900">{row.storeName}</td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-800">
-                        {row.turnover > 0 ? `€${row.turnover.toLocaleString('el-GR', { minimumFractionDigits: 2 })}` : '-'}
+                        {row.turnover > 0 ? formatCurrency(row.turnover) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-rose-600">
-                        {row.dailyExpenses > 0 ? `€${row.dailyExpenses.toLocaleString('el-GR', { minimumFractionDigits: 2 })}` : '-'}
+                        {row.dailyExpenses > 0 ? formatCurrency(row.dailyExpenses) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-rose-600">
-                        {row.fixedExpenses > 0 ? `€${row.fixedExpenses.toLocaleString('el-GR', { minimumFractionDigits: 2 })}` : '-'}
+                        {row.fixedExpenses > 0 ? formatCurrency(row.fixedExpenses) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-purple-600">
-                        {row.payroll > 0 ? `€${row.payroll.toLocaleString('el-GR', { minimumFractionDigits: 2 })}` : '-'}
+                        {row.payroll > 0 ? formatCurrency(row.payroll) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-500">-</td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-500">-</td>
                       <td className={`py-3.5 px-4 text-right font-mono font-extrabold ${row.profitBeforeTax >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        €{row.profitBeforeTax.toLocaleString('el-GR', { minimumFractionDigits: 2 })}
+                        {formatCurrency(row.profitBeforeTax)}
                       </td>
                     </tr>
                   ))}
@@ -922,22 +923,22 @@ export const ReportsManager: React.FC = () => {
                     <td className="py-3.5 px-3 text-right font-mono text-slate-400">-</td>
                     <td className="py-3.5 px-3 text-right font-mono text-slate-400">-</td>
                     <td className="py-3.5 px-3 text-right font-mono text-slate-400">-</td>
-                    <td className="py-3.5 px-3 text-right font-mono font-bold text-blue-600">€{totals.corporateExpenses.toFixed(2)}</td>
-                    <td className="py-3.5 px-3 text-right font-mono text-slate-400">€0.00</td>
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-rose-600">-€{totals.corporateExpenses.toFixed(2)}</td>
+                    <td className="py-3.5 px-3 text-right font-mono font-bold text-blue-600">{formatCurrency(totals.corporateExpenses)}</td>
+                    <td className="py-3.5 px-3 text-right font-mono text-slate-400">{formatCurrency(0)}</td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-rose-600">{formatCurrency(-totals.corporateExpenses)}</td>
                   </tr>
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-100 border-t-2 border-slate-300 font-extrabold text-slate-900 text-xs">
                     <td className="py-4 px-4 uppercase tracking-wider">Γενικό Σύνολο Οργανισμού</td>
-                    <td className="py-4 px-3 text-right font-mono">€{totals.turnover.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-4 px-3 text-right font-mono text-rose-700">€{totals.dailyExpenses.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-4 px-3 text-right font-mono text-rose-700">€{totals.fixedExpenses.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-4 px-3 text-right font-mono text-purple-700">€{totals.payroll.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                    <td className="py-4 px-3 text-right font-mono text-blue-700">€{totals.corporateExpenses.toFixed(2)}</td>
-                    <td className="py-4 px-3 text-right font-mono">€0.00</td>
+                    <td className="py-4 px-3 text-right font-mono">{formatCurrency(totals.turnover)}</td>
+                    <td className="py-4 px-3 text-right font-mono text-rose-700">{formatCurrency(totals.dailyExpenses)}</td>
+                    <td className="py-4 px-3 text-right font-mono text-rose-700">{formatCurrency(totals.fixedExpenses)}</td>
+                    <td className="py-4 px-3 text-right font-mono text-purple-700">{formatCurrency(totals.payroll)}</td>
+                    <td className="py-4 px-3 text-right font-mono text-blue-700">{formatCurrency(totals.corporateExpenses)}</td>
+                    <td className="py-4 px-3 text-right font-mono">{formatCurrency(0)}</td>
                     <td className="py-4 px-4 text-right font-mono text-rose-700 text-sm">
-                      €{totals.netProfit.toLocaleString('el-GR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(totals.netProfit)}
                     </td>
                   </tr>
                 </tfoot>
@@ -1025,20 +1026,20 @@ export const ReportsManager: React.FC = () => {
                         {e.totalShifts} βάρδ. ({e.totalHours}h)
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-800">
-                        {e.scratchTurnover > 0 ? `€${e.scratchTurnover.toFixed(2)}` : '-'}
+                        {e.scratchTurnover > 0 ? formatCurrency(e.scratchTurnover) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono font-bold text-indigo-600">
-                        {e.scratchPerHour > 0 ? `€${e.scratchPerHour.toFixed(2)}/h` : '-'}
+                        {e.scratchPerHour > 0 ? `${formatCurrency(e.scratchPerHour)}/h` : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-amber-700 font-bold">
-                        {e.fnbTurnover > 0 ? `€${e.fnbTurnover.toFixed(2)}` : '-'}
+                        {e.fnbTurnover > 0 ? formatCurrency(e.fnbTurnover) : '-'}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-700">
                         {e.cancellationRate}%
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono">
                         <span className={e.totalDiscrepancy === 0 ? 'text-slate-500 font-bold' : e.totalDiscrepancy > 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
-                          {e.totalDiscrepancy > 0 ? `+€${e.totalDiscrepancy.toFixed(2)}` : `€${e.totalDiscrepancy.toFixed(2)}`}
+                          {formatCurrency(e.totalDiscrepancy, { showSign: true })}
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-center">
@@ -1087,11 +1088,11 @@ export const ReportsManager: React.FC = () => {
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Μ.Ο. Τζίρου Βάρδιας:</span>
-                    <span className="font-mono font-extrabold text-slate-900">€{s.avgRevenue.toFixed(2)}</span>
+                    <span className="font-mono font-extrabold text-slate-900">{formatCurrency(s.avgRevenue)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">ΟΠΑΠ / VLTs / FnB:</span>
-                    <span className="font-mono text-slate-700">€{s.avgOpapSales} / €{s.avgVltNet} / €{s.avgFnbSales}</span>
+                    <span className="font-mono text-slate-700">{formatCurrency(s.avgOpapSales)} / {formatCurrency(s.avgVltNet)} / {formatCurrency(s.avgFnbSales)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Αναλογία Μετρητά / POS:</span>
@@ -1100,7 +1101,7 @@ export const ReportsManager: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Μ.Ο. Απόκλισης Ταμείου:</span>
                     <span className={`font-mono font-bold ${s.avgDiscrepancy >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {s.avgDiscrepancy > 0 ? `+€${s.avgDiscrepancy.toFixed(2)}` : `€${s.avgDiscrepancy.toFixed(2)}`}
+                      {formatCurrency(s.avgDiscrepancy, { showSign: true })}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -1152,10 +1153,10 @@ export const ReportsManager: React.FC = () => {
                   {vltReconciliations.map((v, idx) => (
                     <tr key={v.id || idx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-sans font-bold text-slate-900">{v.date}</td>
-                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">€{v.opapnetAmount.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
-                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">€{v.countedAmount.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</td>
+                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">{formatCurrency(v.opapnetAmount)}</td>
+                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">{formatCurrency(v.countedAmount)}</td>
                       <td className={`py-3.5 px-3 text-right font-bold ${v.difference === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        €{v.difference.toFixed(2)}
+                        {formatCurrency(v.difference, { showSign: true })}
                       </td>
                       <td className="py-3.5 px-4 text-center font-sans">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
@@ -1219,13 +1220,13 @@ export const ReportsManager: React.FC = () => {
                       <td className="py-3 px-4 font-sans font-bold text-slate-900">{p.name}</td>
                       <td className="py-3 px-3 font-sans text-slate-600">{p.storeName}</td>
                       <td className="py-3 px-3 font-sans text-slate-500 text-[11px]">{p.email}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">€{p.baseSalary.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{formatCurrency(p.baseSalary)}</td>
                       <td className="py-3 px-3 text-center text-slate-600">{p.daysWorked}ημ / {p.hoursWorked}h</td>
-                      <td className="py-3 px-3 text-right text-emerald-600 font-bold">{p.bonus > 0 ? `€${p.bonus.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-3 text-right font-extrabold text-slate-900">€{p.totalPayroll.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right text-blue-600 font-bold">€{p.bankAmount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right text-amber-600 font-bold">{p.advancePayment > 0 ? `€${p.advancePayment.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-4 text-right text-purple-600 font-bold">{p.cashInHand > 0 ? `€${p.cashInHand.toFixed(2)}` : '-'}</td>
+                      <td className="py-3 px-3 text-right text-emerald-600 font-bold">{p.bonus > 0 ? formatCurrency(p.bonus) : '-'}</td>
+                      <td className="py-3 px-3 text-right font-extrabold text-slate-900">{formatCurrency(p.totalPayroll)}</td>
+                      <td className="py-3 px-3 text-right text-blue-600 font-bold">{formatCurrency(p.bankAmount)}</td>
+                      <td className="py-3 px-3 text-right text-amber-600 font-bold">{p.advancePayment > 0 ? formatCurrency(p.advancePayment) : '-'}</td>
+                      <td className="py-3 px-4 text-right text-purple-600 font-bold">{p.cashInHand > 0 ? formatCurrency(p.cashInHand) : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1271,11 +1272,11 @@ export const ReportsManager: React.FC = () => {
                   {fixedExpenses.map((f) => (
                     <tr key={f.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 font-sans font-bold text-slate-900">{f.name}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store100343 > 0 ? `€${f.store100343.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store400298 > 0 ? `€${f.store400298.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store100411 > 0 ? `€${f.store100411.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store143344 > 0 ? `€${f.store143344.toFixed(2)}` : '-'}</td>
-                      <td className="py-3 px-3 text-right font-extrabold text-rose-600">€{f.total.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{f.store100343 > 0 ? formatCurrency(f.store100343) : '-'}</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{f.store400298 > 0 ? formatCurrency(f.store400298) : '-'}</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{f.store100411 > 0 ? formatCurrency(f.store100411) : '-'}</td>
+                      <td className="py-3 px-3 text-right text-slate-700">{f.store143344 > 0 ? formatCurrency(f.store143344) : '-'}</td>
+                      <td className="py-3 px-3 text-right font-extrabold text-rose-600">{formatCurrency(f.total)}</td>
                       <td className="py-3 px-3 text-center">
                         <button
                           onClick={() => handleDeleteFixedExpense(f.id)}
@@ -1328,7 +1329,7 @@ export const ReportsManager: React.FC = () => {
                     <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 text-slate-600 font-medium">{c.category}</td>
                       <td className="py-3 px-3 font-bold text-slate-900">{c.name}</td>
-                      <td className="py-3 px-3 text-right font-mono font-extrabold text-blue-600">€{c.amount.toFixed(2)}</td>
+                      <td className="py-3 px-3 text-right font-mono font-extrabold text-blue-600">{formatCurrency(c.amount)}</td>
                       <td className="py-3 px-3 text-center">
                         <button
                           onClick={() => handleDeleteCorpExpense(c.id)}

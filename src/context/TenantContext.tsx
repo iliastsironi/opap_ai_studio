@@ -31,23 +31,6 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const fsStores = await fetchStoresFromFirestore(orgId);
       setStores(fsStores);
-
-      // Try API sync as well if token exists
-      if (token) {
-        try {
-          const res = await fetch('/api/v1/stores', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0) {
-              setStores(data);
-            }
-          }
-        } catch (e) {
-          // Bypassed API sync
-        }
-      }
     } catch (err) {
       console.error('Failed to fetch stores:', err);
     } finally {

@@ -3,7 +3,7 @@ import { Store as StoreIcon, Plus, Building2, MapPin, Phone, Clock, Layers, Chec
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Department, Store, StoreType } from '../../types/index.js';
-import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestore } from '../../services/storeService.ts';
+import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestore, fetchDepartmentsForStore, createDepartmentInFirestore } from '../../services/storeService.ts';
 
 export const StoresManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -50,18 +50,9 @@ export const StoresManager: React.FC = () => {
     setSelectedStore(st);
     setLoadingDepts(true);
     try {
-      const res = await fetch(`/api/v1/stores/${st.id}/departments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDepartments(data);
-      } else {
-        setDepartments([
-          { id: 'd1', store_id: st.id, organization_id: 'org_opap_demo', code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
-          { id: 'd2', store_id: st.id, organization_id: 'org_opap_demo', code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
-        ]);
-      }
+      const orgId = organization?.id || 'org_opap_demo';
+      const data = await fetchDepartmentsForStore(st.id, orgId);
+      setDepartments(data);
     } catch (err) {
       setDepartments([
         { id: 'd1', store_id: st.id, organization_id: 'org_opap_demo', code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
@@ -159,29 +150,21 @@ export const StoresManager: React.FC = () => {
     setAddDeptError(null);
 
     try {
-      const res = await fetch(`/api/v1/stores/${selectedStore.id}/departments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          code: newDeptCode,
-          name: newDeptName,
-        }),
+      const orgId = organization?.id || 'org_opap_demo';
+      await createDepartmentInFirestore({
+        organization_id: orgId,
+        store_id: selectedStore.id,
+        code: newDeptCode,
+        name: newDeptName,
+        is_active: true,
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Αποτυχία δημιουργίας τμήματος');
-      }
 
       await handleSelectStore(selectedStore);
       setShowAddDeptModal(false);
       setNewDeptCode('');
       setNewDeptName('');
     } catch (err: any) {
-      setAddDeptError(err.message);
+      setAddDeptError(err.message || 'Αποτυχία δημιουργίας τμήματος');
     }
   };
 

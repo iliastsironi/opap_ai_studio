@@ -19,6 +19,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { Customer, CustomerCredit, CreditScoreTier, CreditTierConfig } from '../../types/index.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import {
   getCustomers,
   getStoreCreditTierConfigs,
@@ -196,7 +197,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
               <ArrowUpRight className="w-4 h-4 text-amber-700" />
               <span className="text-xs font-bold text-amber-900">Νέες Πιστώσεις (Χρέωση):</span>
             </div>
-            <span className="text-xs font-mono font-black text-amber-900">+{totalGranted.toFixed(2)} €</span>
+            <span className="text-xs font-mono font-black text-amber-900">+{formatCurrency(totalGranted)}</span>
           </div>
 
           <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between">
@@ -204,7 +205,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
               <ArrowDownRight className="w-4 h-4 text-emerald-700" />
               <span className="text-xs font-bold text-emerald-900">Εισπράξεις (Εξόφληση):</span>
             </div>
-            <span className="text-xs font-mono font-black text-emerald-900">-{totalCollected.toFixed(2)} €</span>
+            <span className="text-xs font-mono font-black text-emerald-900">-{formatCurrency(totalCollected)}</span>
           </div>
 
           <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between">
@@ -213,7 +214,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
               <span className="text-xs font-bold text-indigo-900">Καθαρή Επίπτωση Ταμείου:</span>
             </div>
             <span className="text-xs font-mono font-black text-indigo-950">
-              {(totalGranted - totalCollected).toFixed(2)} €
+              {formatCurrency(totalGranted - totalCollected)}
             </span>
           </div>
         </div>
@@ -445,7 +446,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       </span>
 
                       <span className="text-[11px] text-slate-600 font-semibold">
-                        Τρέχουσα Οφειλή: <strong className="font-mono text-slate-900">{(customerObj.current_debt || 0).toFixed(2)} €</strong>
+                        Τρέχουσα Οφειλή: <strong className="font-mono text-slate-900">{formatCurrency(customerObj.current_debt || 0)}</strong>
                       </span>
 
                       {!tierConfigs[customerObj.tier]?.isUnlimited && (
@@ -458,7 +459,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                                 : 'text-emerald-700 font-black'
                             }`}
                           >
-                            {(validationResult ? validationResult.availableCredit : 0).toFixed(2)} €
+                            {formatCurrency(validationResult ? validationResult.availableCredit : 0)}
                           </strong>
                         </span>
                       )}
@@ -469,11 +470,11 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       <div className="text-[11px] font-mono font-bold">
                         {isGranted ? (
                           <span className={isOverLimit ? 'text-rose-700 font-black' : 'text-amber-900'}>
-                            Νέο Σύνολο Οφειλής: {((customerObj.current_debt || 0) + amount).toFixed(2)} €
+                            Νέο Σύνολο Οφειλής: {formatCurrency((customerObj.current_debt || 0) + amount)}
                           </span>
                         ) : (
                           <span className="text-emerald-800 font-black">
-                            Νέο Υπόλοιπο μετά την Είσπραξη: {Math.max(0, (customerObj.current_debt || 0) - amount).toFixed(2)} €
+                            Νέο Υπόλοιπο μετά την Είσπραξη: {formatCurrency(Math.max(0, (customerObj.current_debt || 0) - amount))}
                           </span>
                         )}
                       </div>

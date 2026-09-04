@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 interface OpapSummaryItem {
   game: string;
@@ -300,19 +301,19 @@ export const OpapGamesManager: React.FC = () => {
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 font-semibold text-slate-900">{game.game}</td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">
-                    {game.grossSales.toFixed(2)} €
+                    {formatCurrency(game.grossSales)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-amber-700">
-                    {game.cancellations > 0 ? `-${game.cancellations.toFixed(2)} €` : '0.00 €'}
+                    {game.cancellations > 0 ? `-${formatCurrency(game.cancellations)}` : formatCurrency(0)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-bold text-rose-600">
-                    {game.payouts > 0 ? `-${game.payouts.toFixed(2)} €` : '0.00 €'}
+                    {game.payouts > 0 ? `-${formatCurrency(game.payouts)}` : formatCurrency(0)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-slate-500">
-                    {game.vouchers > 0 ? `-${game.vouchers.toFixed(2)} €` : '0.00 €'}
+                    {game.vouchers > 0 ? `-${formatCurrency(game.vouchers)}` : formatCurrency(0)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-extrabold text-indigo-700">
-                    {game.netRevenue >= 0 ? `+${game.netRevenue.toFixed(2)} €` : `${game.netRevenue.toFixed(2)} €`}
+                    {formatCurrency(game.netRevenue, { showSign: true })}
                   </td>
                 </tr>
               ))}

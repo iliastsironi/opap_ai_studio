@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Shift } from '../../types/index.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -356,8 +357,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         {isBalanced
                           ? 'Ταμείο Πλήρως Ισοσκελισμένο'
                           : discrepancy > 0
-                          ? `Πλεόνασμα Ταμείου (+${discrepancy.toFixed(2)} €)`
-                          : `Έλλειμμα Ταμείου (${discrepancy.toFixed(2)} €)`}
+                          ? `Πλεόνασμα Ταμείου (${formatCurrency(discrepancy, { showSign: true })})`
+                          : `Έλλειμμα Ταμείου (${formatCurrency(discrepancy)})`}
                       </h4>
                     </div>
                   </div>
@@ -374,8 +375,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             : 'text-rose-400'
                         }`}
                       >
-                        {discrepancy > 0 ? '+' : ''}
-                        {discrepancy.toFixed(2)} €
+                        {formatCurrency(discrepancy, { showSign: true })}
                       </span>
                     </div>
                   </div>
@@ -399,15 +399,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Ακαθάριστα:</span>
-                          <span className="font-mono font-bold text-white">{opapSales.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(opapSales)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πληρωμές:</span>
-                          <span className="font-mono font-bold text-rose-300">-{opapPayouts.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-rose-300">-{formatCurrency(opapPayouts)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
-                          <span className="font-mono text-emerald-400">{opapNet.toFixed(2)} €</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(opapNet)}</span>
                         </div>
                       </div>
 
@@ -418,15 +418,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Cash In:</span>
-                          <span className="font-mono font-bold text-white">{vltsIn.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(vltsIn)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Cash Out:</span>
-                          <span className="font-mono font-bold text-rose-300">-{vltsOut.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-rose-300">-{formatCurrency(vltsOut)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
-                          <span className="font-mono text-emerald-400">{vltsNet.toFixed(2)} €</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(vltsNet)}</span>
                         </div>
                       </div>
 
@@ -437,15 +437,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πωλήσεις:</span>
-                          <span className="font-mono font-bold text-white">{scratchSales.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(scratchSales)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πληρωμές:</span>
-                          <span className="font-mono font-bold text-rose-300">-{scratchPayouts.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-rose-300">-{formatCurrency(scratchPayouts)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
-                          <span className="font-mono text-emerald-400">{scratchNet.toFixed(2)} €</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(scratchNet)}</span>
                         </div>
                       </div>
 
@@ -456,15 +456,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Υπηρεσίες:</span>
-                          <span className="font-mono font-bold text-white">{toraServices.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(toraServices)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πληρωμές:</span>
-                          <span className="font-mono font-bold text-rose-300">-{toraPayouts.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-rose-300">-{formatCurrency(toraPayouts)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
-                          <span className="font-mono text-emerald-400">{toraDirectNet.toFixed(2)} €</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(toraDirectNet)}</span>
                         </div>
                       </div>
 
@@ -475,15 +475,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πωλήσεις:</span>
-                          <span className="font-mono font-bold text-white">{fnbTotal.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(fnbTotal)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Κάρτες:</span>
-                          <span className="font-mono font-bold text-rose-300">-{fnbCard.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-rose-300">-{formatCurrency(fnbCard)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
-                          <span className="font-mono text-emerald-400">{fnbSales.toFixed(2)} €</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(fnbSales)}</span>
                         </div>
                       </div>
 
@@ -496,18 +496,18 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           toraPosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
                               <span>{item.name || `POS #${idx + 1}`}:</span>
-                              <span className="font-mono font-bold text-rose-300">-{safeNum(item.amount).toFixed(2)} €</span>
+                              <span className="font-mono font-bold text-rose-300">-{formatCurrency(safeNum(item.amount))}</span>
                             </div>
                           ))
                         ) : (
                           <div className="flex justify-between text-slate-300 py-0.5">
                             <span>POS Πληρωμές:</span>
-                            <span className="font-mono font-bold text-rose-300">-{toraPosTotal.toFixed(2)} €</span>
+                            <span className="font-mono font-bold text-rose-300">-{formatCurrency(toraPosTotal)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Σύνολο Αφαιρέσεων:</span>
-                          <span className="font-mono text-rose-300">-{toraPosTotal.toFixed(2)} €</span>
+                          <span className="font-mono text-rose-300">-{formatCurrency(toraPosTotal)}</span>
                         </div>
                       </div>
                     </div>
@@ -515,7 +515,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     {/* Bottom Left Blue Bar */}
                     <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                       <span>Σύνολο Ταμείου (Αναφορές):</span>
-                      <span className="font-mono text-base font-black text-emerald-300">{expectedCash.toFixed(2)} €</span>
+                      <span className="font-mono text-base font-black text-emerald-300">{formatCurrency(expectedCash)}</span>
                     </div>
                   </div>
 
@@ -535,23 +535,23 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Μετρητά:</span>
-                          <span className="font-mono font-bold text-white">{openingNotesAmount.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(openingNotesAmount)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Κέρματα:</span>
-                          <span className="font-mono font-bold text-white">{openingCoinsAmount.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(openingCoinsAmount)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Προσαύξηση #1:</span>
-                          <span className="font-mono font-bold text-white">{openingTopUp1.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(openingTopUp1)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Προσαύξηση #2:</span>
-                          <span className="font-mono font-bold text-white">{openingTopUp2.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(openingTopUp2)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Σύνολο:</span>
-                          <span className="font-mono text-white">{openingCashTotal.toFixed(2)} €</span>
+                          <span className="font-mono text-white">{formatCurrency(openingCashTotal)}</span>
                         </div>
                       </div>
 
@@ -579,14 +579,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
                                 <span className="font-mono text-slate-300 font-bold w-12">{c.label}</span>
                                 <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
-                                <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                                <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
                               </div>
                             );
                           })}
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Σύνολο:</span>
-                          <span className="font-mono text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                          <span className="font-mono text-white">{formatCurrency(banknotesAndCoins.coins)}</span>
                         </div>
                       </div>
 
@@ -614,14 +614,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
                                 <span className="font-mono text-slate-300 font-bold w-12">{n.label}</span>
                                 <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
-                                <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                                <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
                               </div>
                             );
                           })}
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Σύνολο:</span>
-                          <span className="font-mono text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                          <span className="font-mono text-white">{formatCurrency(banknotesAndCoins.banknotes)}</span>
                         </div>
                       </div>
 
@@ -632,48 +632,48 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Μετρητά Χαρτονομίσματα:</span>
-                          <span className="font-mono font-bold text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.banknotes)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Κέρματα:</span>
-                          <span className="font-mono font-bold text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.coins)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Χρηματοκιβώτιο:</span>
-                          <span className="font-mono font-bold text-white">{bankDeposits.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(bankDeposits)}</span>
                         </div>
                         {storePosItems.length > 0 ? (
                           storePosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
                               <span>{item.name || `Pos #${idx + 1}`}:</span>
-                              <span className="font-mono font-bold text-white">{safeNum(item.amount).toFixed(2)} €</span>
+                              <span className="font-mono font-bold text-white">{formatCurrency(safeNum(item.amount))}</span>
                             </div>
                           ))
                         ) : (
                           <div className="flex justify-between text-slate-300 py-0.5">
                             <span>Pos Καταστήματος:</span>
-                            <span className="font-mono font-bold text-white">{totalStorePos.toFixed(2)} €</span>
+                            <span className="font-mono font-bold text-white">{formatCurrency(totalStorePos)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Έξοδα ΓΠ:</span>
-                          <span className="font-mono font-bold text-white">{expensesGpCashTotal.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(expensesGpCashTotal)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Έξοδα FnB:</span>
-                          <span className="font-mono font-bold text-white">{expensesFnbCashTotal.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(expensesFnbCashTotal)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πιστώσεις:</span>
-                          <span className="font-mono font-bold text-white">{creditGrantedTotal.toFixed(2)} €</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(creditGrantedTotal)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Επιστροφές:</span>
-                          <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + creditCollectedTotal.toFixed(2) + ' €' : '0.00 €'}</span>
+                          <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + formatCurrency(creditCollectedTotal) : formatCurrency(0)}</span>
                         </div>
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Σύνολο:</span>
-                          <span className="font-mono text-white">{grossCount.toFixed(2)} €</span>
+                          <span className="font-mono text-white">{formatCurrency(grossCount)}</span>
                         </div>
                       </div>
                     </div>
@@ -681,7 +681,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     {/* Bottom Right Blue Bar */}
                     <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                       <span>Σύνολο Καταμέτρησης:</span>
-                      <span className="font-mono text-base font-black text-emerald-300">{totalReconciliationCount.toFixed(2)} €</span>
+                      <span className="font-mono text-base font-black text-emerald-300">{formatCurrency(totalReconciliationCount)}</span>
                     </div>
                   </div>
                 </div>
@@ -709,7 +709,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           </h4>
                         </div>
                         <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
-                          {totalSold} τμχ • {totalVal.toFixed(2)} €
+                          {totalSold} τμχ • {formatCurrency(totalVal)}
                         </span>
                       </div>
 
@@ -739,7 +739,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       </span>
                                     )}
                                   </td>
-                                  <td className="py-1.5 px-2 text-right text-slate-300">{Number(r.price).toFixed(2)}€</td>
+                                  <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{r.startNo || '-'}</td>
                                   <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">{r.endNo || '-'}</td>
                                   <td className="py-1.5 px-2 text-center font-bold text-white">
@@ -748,7 +748,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     </span>
                                   </td>
                                   <td className="py-1.5 px-2 text-right font-black text-emerald-400">
-                                    {val > 0 ? `${val.toFixed(2)} €` : '0.00 €'}
+                                    {formatCurrency(val)}
                                   </td>
                                 </tr>
                               );
@@ -833,7 +833,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     }`}
                                   >
                                     {isCollected ? '-' : '+'}
-                                    {Number(cred.amount || 0).toFixed(2)} €
+                                    {formatCurrency(Number(cred.amount || 0))}
                                   </td>
                                 </tr>
                               );
@@ -912,7 +912,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span className="text-slate-500 ml-2">({exp.category})</span>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <span className="font-bold text-slate-900">{exp.amount.toFixed(2)} €</span>
+                          <span className="font-bold text-slate-900">{formatCurrency(exp.amount)}</span>
                           {exp.receipt_url && (
                             <button
                               onClick={() => setSelectedReceiptUrl(exp.receipt_url || null)}

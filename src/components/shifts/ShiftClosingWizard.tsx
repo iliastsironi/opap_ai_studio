@@ -43,6 +43,7 @@ import {
 } from './ScratchCalculatorTable.tsx';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export interface ToraPosItem {
   id: string;
@@ -1406,12 +1407,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 flex items-center space-x-5 shadow-inner">
             <div className="text-right sm:text-left">
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Αναμενόμενο Ταμείο</p>
-              <p className="text-xl font-black text-emerald-400">{expectedCash.toFixed(2)} €</p>
+              <p className="text-xl font-black text-emerald-400">{formatCurrency(expectedCash)}</p>
             </div>
             <div className="h-10 w-px bg-slate-700"></div>
             <div>
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Μετρημένα</p>
-              <p className="text-xl font-black text-indigo-300">{countedCash.toFixed(2)} €</p>
+              <p className="text-xl font-black text-indigo-300">{formatCurrency(countedCash)}</p>
             </div>
           </div>
         </div>
@@ -1468,7 +1469,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </p>
             </div>
             <span className="text-sm font-black text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
-              Αρχικό Σύνολο: {openingCashTotal.toFixed(2)} €
+              Αρχικό Σύνολο: {formatCurrency(openingCashTotal)}
             </span>
           </div>
 
@@ -1537,7 +1538,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
               <div className="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-600">Σύνολο Αρχικού Κεφαλαίου:</span>
-                <span className="font-black text-indigo-900 text-sm">{openingCashTotal.toFixed(2)} €</span>
+                <span className="font-black text-indigo-900 text-sm">{formatCurrency(openingCashTotal)}</span>
               </div>
             </div>
 
@@ -1595,7 +1596,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </p>
             </div>
             <div className="bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold">
-              Καθαρό Σύνολο ΟΠΑΠ: {(opapGrossTotal - opapPayoutsTotal).toFixed(2)} €
+              Καθαρό Σύνολο ΟΠΑΠ: {formatCurrency(opapGrossTotal - opapPayoutsTotal)}
             </div>
           </div>
 
@@ -1608,13 +1609,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </h4>
                 <div className="flex items-center space-x-2">
                   <span className="text-xs font-bold text-slate-500">
-                    Πωλήσεις: <span className="font-mono text-slate-900">{safeNum(scratchSales).toFixed(2)} €</span>
+                    Πωλήσεις: <span className="font-mono text-slate-900">{formatCurrency(scratchSales)}</span>
                   </span>
                   <span className="text-xs font-bold text-rose-600">
-                    - Εξαργ.: <span className="font-mono">{safeNum(scratchPayouts).toFixed(2)} €</span>
+                    - Εξαργ.: <span className="font-mono">{formatCurrency(scratchPayouts)}</span>
                   </span>
                   <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 font-mono">
-                    Καθαρό: {totalScratchNet.toFixed(2)} €
+                    Καθαρό: {formatCurrency(totalScratchNet)}
                   </span>
                 </div>
               </div>
@@ -1726,7 +1727,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </button>
                   )}
                   <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
-                    Σύνολο TORA DIRECT: {totalToraPos.toFixed(2)} €
+                    Σύνολο TORA DIRECT: {formatCurrency(totalToraPos)}
                   </span>
                 </div>
               </div>
@@ -1844,7 +1845,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span>🎰 PLAY VLTs</span>
                 </h4>
                 <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                  Καθαρό: {(safeNum(vltsIn) + signedVltsOut).toFixed(2)} €
+                  Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1928,7 +1929,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span>🎯 Αριθμοπαιχνίδια (KINO, Τζόκερ, Λόττο)</span>
                 </h4>
                 <span className="text-xs font-black text-indigo-900 bg-indigo-100 px-2.5 py-1 rounded-lg">
-                  Σύνολο: {totalArithmoNet.toFixed(2)} €
+                  Σύνολο: {formatCurrency(totalArithmoNet)}
                 </span>
               </div>
 
@@ -2063,11 +2064,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold">
-                  <span className="text-slate-600">ΓΠ: <span className="text-slate-900 font-mono">{expensesGpCashTotal.toFixed(2)}€</span></span>
+                  <span className="text-slate-600">ΓΠ: <span className="text-slate-900 font-mono">{formatCurrency(expensesGpCashTotal)}</span></span>
                   <span className="text-slate-300">|</span>
-                  <span className="text-slate-600">FnB: <span className="text-slate-900 font-mono">{expensesFnbCashTotal.toFixed(2)}€</span></span>
+                  <span className="text-slate-600">FnB: <span className="text-slate-900 font-mono">{formatCurrency(expensesFnbCashTotal)}</span></span>
                   <span className="text-slate-300">|</span>
-                  <span className="text-indigo-700">Σύνολο: <span className="font-mono">{expensesCashTotal.toFixed(2)}€</span></span>
+                  <span className="text-indigo-700">Σύνολο: <span className="font-mono">{formatCurrency(expensesCashTotal)}</span></span>
                 </div>
 
                 <button
@@ -2244,13 +2245,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider block">
                   Μετρητά Συρταριού
                 </span>
-                <span className="text-xl font-black text-slate-900">{countedCash.toFixed(2)} €</span>
+                <span className="text-xl font-black text-slate-900">{formatCurrency(countedCash)}</span>
               </div>
               <div className="text-right bg-indigo-600 text-white px-4 py-2 rounded-2xl border border-indigo-700 shadow-xs">
                 <span className="text-[10px] font-extrabold text-indigo-100 uppercase tracking-wider block">
                   Σύνολο Καταμέτρησης
                 </span>
-                <span className="text-xl font-black text-white">{totalReconciliationCount.toFixed(2)} €</span>
+                <span className="text-xl font-black text-white">{formatCurrency(totalReconciliationCount)}</span>
               </div>
             </div>
           </div>
@@ -2297,7 +2298,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span>Προσθήκη POS</span>
                 </button>
                 <span className="text-xs font-black text-indigo-800 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs font-mono">
-                  Σύνολο POS: {totalStorePos.toFixed(2)} €
+                  Σύνολο POS: {formatCurrency(totalStorePos)}
                 </span>
               </div>
             </div>
@@ -2384,7 +2385,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Σύνολο Καταμέτρησης
               </span>
               <p className="text-3xl font-black text-emerald-400 mt-1 font-mono">
-                {totalReconciliationCount.toFixed(2)} €
+                {formatCurrency(totalReconciliationCount)}
               </p>
               <p className="text-[10px] text-indigo-200/80 mt-1 font-medium">
                 Μετρητά + POS + Έξοδα + Πιστώσεις - Επιστροφές - Αρχικό
@@ -2396,7 +2397,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Μετρημένα στο Συρτάρι
               </span>
               <p className="text-2xl font-black text-indigo-950 mt-1">
-                {countedCash.toFixed(2)} €
+                {formatCurrency(countedCash)}
               </p>
               <p className="text-[11px] text-indigo-700/80 mt-1">
                 Από καταμέτρηση χαρτονομισμάτων.
@@ -2408,7 +2409,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Αναμενόμενο Ταμείο
               </span>
               <p className="text-2xl font-black text-slate-900 mt-1">
-                {expectedCash.toFixed(2)} €
+                {formatCurrency(expectedCash)}
               </p>
               <p className="text-[11px] text-slate-500 mt-1">
                 Βάσει εισροών/εκροών συστήματος.
@@ -2436,14 +2437,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     : 'text-emerald-700'
                 }`}
               >
-                {discResult.discrepancy > 0 ? '+' : ''}
-                {discResult.discrepancy.toFixed(2)} €
+                {formatCurrency(discResult.discrepancy, { showSign: true })}
               </p>
               <p className="text-xs font-bold mt-1">
                 {discResult.isExceedingThreshold ? (
                   <span className="text-rose-700 flex items-center space-x-1">
                     <AlertTriangle className="w-4 h-4 inline shrink-0" />
-                    <span>Υπέρβαση ορίου ({discrepancyThreshold}€)</span>
+                    <span>Υπέρβαση ορίου ({formatCurrency(discrepancyThreshold)})</span>
                   </span>
                 ) : discResult.isUnbalanced ? (
                   <span className="text-amber-700">Μικρή απόκλιση εντός ορίου</span>
@@ -2499,8 +2499,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         : 'text-rose-400 bg-rose-950/60 border border-rose-500/30'
                     }`}
                   >
-                    {discResult.discrepancy >= 0 ? '+' : ''}
-                    {discResult.discrepancy.toFixed(2)} €
+                    {formatCurrency(discResult.discrepancy, { showSign: true })}
                   </span>
                 </div>
               </div>
@@ -2523,15 +2522,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Πωλήσεις:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(scratchSales).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(scratchSales))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Εξαργυρώσεις:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(scratchPayouts).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(scratchPayouts))}</span>
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{totalScratchNet.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(totalScratchNet)}</span>
                     </div>
                   </div>
 
@@ -2543,12 +2542,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     {toraPosItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-slate-300 py-0.5">
                         <span>{item.name || `Tora Pos #${idx + 1}`}:</span>
-                        <span className="font-mono font-bold text-white">{safeNum(item.amount).toFixed(2)} €</span>
+                        <span className="font-mono font-bold text-white">{formatCurrency(safeNum(item.amount))}</span>
                       </div>
                     ))}
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{totalToraPos.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(totalToraPos)}</span>
                     </div>
                   </div>
 
@@ -2559,7 +2558,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold pt-0.5">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{safeNum(cleverPointTotal).toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(safeNum(cleverPointTotal))}</span>
                     </div>
                   </div>
 
@@ -2570,7 +2569,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Υπόλοιπο Ταμείου:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(ippodromosBalance).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(ippodromosBalance))}</span>
                     </div>
                   </div>
 
@@ -2581,12 +2580,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Μετρητά στα VLTs:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(vltsIn).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(vltsIn))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Ροή Μετρητών:</span>
                       <span className={`font-mono font-bold ${signedVltsOut < 0 ? 'text-rose-400' : signedVltsOut > 0 ? 'text-emerald-400' : 'text-white'}`}>
-                        {signedVltsOut !== 0 ? (signedVltsOut < 0 ? '-' + Math.abs(signedVltsOut).toFixed(2) + ' €' : '+' + signedVltsOut.toFixed(2) + ' €') : '0.00 €'}
+                        {formatCurrency(signedVltsOut, { showSign: true })}
                       </span>
                     </div>
                   </div>
@@ -2598,7 +2597,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Υπόλοιπο Ταμείου:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(pameStoiximaBalance).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(pameStoiximaBalance))}</span>
                     </div>
                   </div>
 
@@ -2609,25 +2608,25 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Πωλήσεις:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(arithmoGross).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(arithmoGross))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Ακυρώσεις:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(arithmoCancels).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(arithmoCancels))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Εξαργυρώσεις:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(arithmoPayouts).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(arithmoPayouts))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Vouchers:</span>
                       <span className={`font-mono font-bold ${safeNum(arithmoVouchers) < 0 ? 'text-rose-400' : 'text-white'}`}>
-                        {safeNum(arithmoVouchers) !== 0 ? (safeNum(arithmoVouchers) < 0 ? '-' + Math.abs(safeNum(arithmoVouchers)).toFixed(2) + ' €' : safeNum(arithmoVouchers).toFixed(2) + ' €') : '0.00 €'}
+                        {formatCurrency(safeNum(arithmoVouchers))}
                       </span>
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{totalArithmoNet.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(totalArithmoNet)}</span>
                     </div>
                   </div>
 
@@ -2638,15 +2637,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Μετρητά:</span>
-                      <span className="font-mono font-bold text-white">{(safeNum(fnbCash) > 0 ? safeNum(fnbCash) : safeNum(fnbSales)).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(fnbCash) > 0 ? safeNum(fnbCash) : safeNum(fnbSales))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Pos:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(fnbCard).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(fnbCard))}</span>
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{(safeNum(fnbCash) + safeNum(fnbCard) > 0 ? safeNum(fnbCash) + safeNum(fnbCard) : safeNum(fnbSales)).toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(safeNum(fnbCash) + safeNum(fnbCard) > 0 ? safeNum(fnbCash) + safeNum(fnbCard) : safeNum(fnbSales))}</span>
                     </div>
                   </div>
                 </div>
@@ -2654,7 +2653,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 {/* Bottom Left Blue Bar */}
                 <div className="bg-blue-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                   <span>Σύνολο Ταμείου (Αναφορές):</span>
-                  <span className="font-mono text-sm">{expectedCash.toFixed(2)} €</span>
+                  <span className="font-mono text-sm">{formatCurrency(expectedCash)}</span>
                 </div>
               </div>
 
@@ -2673,23 +2672,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Μετρητά:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(openingNotesAmount).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingNotesAmount))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Κέρματα:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(openingCoinsAmount).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingCoinsAmount))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Προσαύξηση #1:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(openingTopUp1).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingTopUp1))}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Προσαύξηση #2:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(openingTopUp2).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingTopUp2))}</span>
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{openingCashTotal.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(openingCashTotal)}</span>
                     </div>
                   </div>
 
@@ -2717,14 +2716,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
                             <span className="font-mono text-slate-300 font-bold w-12">{c.label}</span>
                             <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty}</span>
-                            <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                            <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
                           </div>
                         );
                       })}
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(banknotesAndCoins.coins)}</span>
                     </div>
                   </div>
 
@@ -2752,14 +2751,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-700/20 text-xs">
                             <span className="font-mono text-slate-300 font-bold w-12">{n.label}</span>
                             <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty}</span>
-                            <span className="font-mono font-bold text-white w-20 text-right">{subtotal.toFixed(2)} €</span>
+                            <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
                           </div>
                         );
                       })}
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(banknotesAndCoins.banknotes)}</span>
                     </div>
                   </div>
 
@@ -2770,41 +2769,41 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Μετρητά:</span>
-                      <span className="font-mono font-bold text-white">{banknotesAndCoins.banknotes.toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.banknotes)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Κέρματα:</span>
-                      <span className="font-mono font-bold text-white">{banknotesAndCoins.coins.toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.coins)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Χρηματοκιβώτιο:</span>
-                      <span className="font-mono font-bold text-white">{safeNum(bankDeposits).toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(bankDeposits))}</span>
                     </div>
                     {storePosItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-slate-300 py-0.5">
                         <span>{item.name || `Pos #${idx + 1}`}:</span>
-                        <span className="font-mono font-bold text-white">{safeNum(item.amount).toFixed(2)} €</span>
+                        <span className="font-mono font-bold text-white">{formatCurrency(safeNum(item.amount))}</span>
                       </div>
                     ))}
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Έξοδα ΓΠ:</span>
-                      <span className="font-mono font-bold text-white">{expensesGpCashTotal.toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(expensesGpCashTotal)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Έξοδα FnB:</span>
-                      <span className="font-mono font-bold text-white">{expensesFnbCashTotal.toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(expensesFnbCashTotal)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Πιστώσεις:</span>
-                      <span className="font-mono font-bold text-white">{creditGrantedTotal.toFixed(2)} €</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(creditGrantedTotal)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Επιστροφές:</span>
-                      <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + creditCollectedTotal.toFixed(2) + ' €' : '0.00 €'}</span>
+                      <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? `-${formatCurrency(creditCollectedTotal)}` : formatCurrency(0)}</span>
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{reconciliationBreakdown.grossTotal.toFixed(2)} €</span>
+                      <span className="font-mono text-white">{formatCurrency(reconciliationBreakdown.grossTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -2812,7 +2811,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 {/* Bottom Right Blue Bar */}
                 <div className="bg-blue-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                   <span>Σύνολο Καταμέτρησης:</span>
-                  <span className="font-mono text-sm text-emerald-300">{totalReconciliationCount.toFixed(2)} €</span>
+                  <span className="font-mono text-sm text-emerald-300">{formatCurrency(totalReconciliationCount)}</span>
                 </div>
               </div>
             </div>
@@ -2826,37 +2825,37 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <div className="divide-y divide-slate-100 bg-white">
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">Αρχικό Ταμείο</span>
-                <span className="font-bold text-slate-900">{openingCashTotal.toFixed(2)} €</span>
+                <span className="font-bold text-slate-900">{formatCurrency(openingCashTotal)}</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) Πωλήσεις ΟΠΑΠ</span>
-                <span className="font-bold text-emerald-700">+{opapGrossTotal.toFixed(2)} €</span>
+                <span className="font-bold text-emerald-700">+{formatCurrency(opapGrossTotal)}</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(-) Πληρωμές Κερδών ΟΠΑΠ</span>
-                <span className="font-bold text-rose-600">-{opapPayoutsTotal.toFixed(2)} €</span>
+                <span className="font-bold text-rose-600">-{formatCurrency(opapPayoutsTotal)}</span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) PLAY VLTs Net</span>
                 <span className="font-bold text-emerald-700">
-                  +{(safeNum(vltsIn) - safeNum(vltsOut)).toFixed(2)} €
+                  +{formatCurrency(safeNum(vltsIn) - safeNum(vltsOut))}
                 </span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(+) Μετρητά FnB & Σκρατς</span>
                 <span className="font-bold text-emerald-700">
-                  +{(safeNum(fnbCash) + totalScratchNet).toFixed(2)} €
+                  +{formatCurrency(safeNum(fnbCash) + totalScratchNet)}
                 </span>
               </div>
               <div className="px-4 py-2.5 flex justify-between">
                 <span className="text-slate-600 font-medium">(-) Πληρωμές Καρτών POS & Έξοδα</span>
                 <span className="font-bold text-rose-600">
-                  -{(totalToraPos + expensesCashTotal).toFixed(2)} €
+                  -{formatCurrency(totalToraPos + expensesCashTotal)}
                 </span>
               </div>
               <div className="px-4 py-3 flex justify-between bg-slate-50 font-black border-t border-slate-200 text-sm">
                 <span className="text-slate-900">Τελικό Αναμενόμενο Ταμείο</span>
-                <span className="text-slate-900 font-mono">{expectedCash.toFixed(2)} €</span>
+                <span className="text-slate-900 font-mono">{formatCurrency(expectedCash)}</span>
               </div>
             </div>
           </div>

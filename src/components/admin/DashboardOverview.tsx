@@ -45,6 +45,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -169,7 +170,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-black text-slate-900">
-              €{totalRevenueCalculated.toLocaleString('el-GR')}
+              {formatCurrency(totalRevenueCalculated)}
             </h3>
             <span className="inline-flex items-center text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
               <TrendingUp className="w-3 h-3 mr-0.5" /> +8.4%
@@ -192,7 +193,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-black text-slate-900">
-              €{totalExpensesCalculated.toLocaleString('el-GR')}
+              {formatCurrency(totalExpensesCalculated)}
             </h3>
             <span className="inline-flex items-center text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
               Εγκεκριμένα
@@ -225,7 +226,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 totalDiscrepanciesCalculated < 0 ? 'text-amber-600' : 'text-emerald-600'
               }`}
             >
-              {totalDiscrepanciesCalculated > 0 ? `+€${totalDiscrepanciesCalculated}` : `€${totalDiscrepanciesCalculated}`}
+              {formatCurrency(totalDiscrepanciesCalculated, { showSign: true })}
             </h3>
             <span
               className={`inline-flex items-center text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
@@ -254,7 +255,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <div className="mt-2 flex items-baseline justify-between">
             <h3 className="text-2xl font-black text-slate-900">
-              €{totalSafeDropCalculated.toLocaleString('el-GR')}
+              {formatCurrency(totalSafeDropCalculated)}
             </h3>
             <span className="inline-flex items-center text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
               Ασφαλισμένα
@@ -337,7 +338,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} tickLine={false} />
                 <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `€${v}`} />
                 <Tooltip
-                  formatter={(value: any) => [`€${Number(value).toLocaleString('el-GR')}`, '']}
+                  formatter={(value: any) => [formatCurrency(value), '']}
                   contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '12px' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
@@ -382,7 +383,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(val: any) => `€${Number(val).toLocaleString('el-GR')}`}
+                    formatter={(val: any) => formatCurrency(val)}
                     contentStyle={{ backgroundColor: '#0f172a', borderRadius: '10px', color: '#fff', fontSize: '11px' }}
                   />
                 </PieChart>
@@ -397,7 +398,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stream.color }}></span>
                   <span className="font-semibold text-slate-700 truncate max-w-[160px]">{stream.name}</span>
                 </div>
-                <span className="font-black text-slate-900">€{stream.value.toLocaleString('el-GR')}</span>
+                <span className="font-black text-slate-900">{formatCurrency(stream.value)}</span>
               </div>
             ))}
           </div>

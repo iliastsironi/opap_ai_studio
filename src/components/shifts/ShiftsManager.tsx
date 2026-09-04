@@ -41,6 +41,7 @@ import { ShiftClosingWizard } from './ShiftClosingWizard.tsx';
 import { ShiftDetailsModal } from './ShiftDetailsModal.tsx';
 import { ShiftReceiptPrintView } from './ShiftReceiptPrintView.tsx';
 import { safeNum } from '../../services/financialCalculator.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import { ShiftTemplateConfigurator } from './ShiftTemplateConfigurator.tsx';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
 import { DailyAggregationView } from './DailyAggregationView.tsx';
@@ -440,7 +441,7 @@ export const ShiftsManager: React.FC = () => {
               </span>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-lg sm:text-xl font-black text-indigo-950 font-mono">
-                  {metrics.totalCountedCash.toFixed(2)} €
+                  {formatCurrency(metrics.totalCountedCash)}
                 </span>
               </div>
             </div>
@@ -459,8 +460,7 @@ export const ShiftsManager: React.FC = () => {
                       : 'text-emerald-600'
                   }`}
                 >
-                  {metrics.totalDiscrepancy > 0 ? '+' : ''}
-                  {metrics.totalDiscrepancy.toFixed(2)} €
+                  {formatCurrency(metrics.totalDiscrepancy, { showSign: true })}
                 </span>
                 <span className="text-[10px] font-bold text-slate-400">
                   {metrics.totalDiscrepancy === 0 ? toGreekUpper('Ισοζυγιο') : toGreekUpper('Διαφορα')}
@@ -561,8 +561,7 @@ export const ShiftsManager: React.FC = () => {
                               : 'text-emerald-600'
                           }`}
                         >
-                          {pShift.discrepancy > 0 ? '+' : ''}
-                          {pShift.discrepancy.toFixed(2)} €
+                          {formatCurrency(pShift.discrepancy, { showSign: true })}
                         </span>
                       </div>
                     </div>
@@ -615,7 +614,7 @@ export const ShiftsManager: React.FC = () => {
                     {toGreekUpper('Αρχικο Ταμειο (Float)')}
                   </span>
                   <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">
-                    {Number(activeShift.opening_cash).toFixed(2)} €
+                    {formatCurrency(Number(activeShift.opening_cash))}
                   </div>
                   <span className="text-[10px] text-slate-400 mt-0.5">
                     {activeShift.shift_type === 'MORNING'
@@ -812,7 +811,7 @@ export const ShiftsManager: React.FC = () => {
                           {toGreekUpper('Αναμενομενο')}
                         </span>
                         <span className="font-black text-slate-900 font-mono text-sm block mt-0.5">
-                          {Number(s.expected_cash || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.expected_cash || 0))}
                         </span>
                       </div>
 
@@ -821,7 +820,7 @@ export const ShiftsManager: React.FC = () => {
                           {toGreekUpper('Καταμετρημενο')}
                         </span>
                         <span className="font-black text-indigo-950 font-mono text-sm block mt-0.5">
-                          {Number(s.counted_cash || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.counted_cash || 0))}
                         </span>
                       </div>
 
@@ -843,8 +842,7 @@ export const ShiftsManager: React.FC = () => {
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}
                         >
-                          {s.discrepancy > 0 ? '+' : ''}
-                          {Number(s.discrepancy || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.discrepancy || 0), { showSign: true })}
                         </span>
                       </div>
                     </div>
@@ -992,17 +990,17 @@ export const ShiftsManager: React.FC = () => {
 
                         {/* 5. Αρχικό (Float) */}
                         <td className="px-3.5 py-3 text-right font-mono text-xs font-semibold text-slate-600 whitespace-nowrap">
-                          {Number(s.opening_cash || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.opening_cash || 0))}
                         </td>
 
                         {/* 6. Αναμενόμενο */}
                         <td className="px-3.5 py-3 text-right font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
-                          {Number(s.expected_cash || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.expected_cash || 0))}
                         </td>
 
                         {/* 7. Καταμετρημένο */}
                         <td className="px-3.5 py-3 text-right font-mono text-xs font-black text-indigo-950 whitespace-nowrap">
-                          {Number(s.counted_cash || 0).toFixed(2)} €
+                          {formatCurrency(Number(s.counted_cash || 0))}
                         </td>
 
                         {/* 8. Απόκλιση */}
@@ -1016,8 +1014,7 @@ export const ShiftsManager: React.FC = () => {
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}
                           >
-                            {s.discrepancy > 0 ? '+' : ''}
-                            {Number(s.discrepancy || 0).toFixed(2)} €
+                            {formatCurrency(Number(s.discrepancy || 0), { showSign: true })}
                           </span>
                         </td>
 
@@ -1097,22 +1094,19 @@ export const ShiftsManager: React.FC = () => {
                         {filteredShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'})
                       </td>
                       <td className="px-3.5 py-3 text-right font-mono text-slate-600">
-                        {filteredShifts
-                          .reduce((acc, s) => acc + (Number(s.opening_cash) || 0), 0)
-                          .toFixed(2)}{' '}
-                        €
+                        {formatCurrency(
+                          filteredShifts.reduce((acc, s) => acc + (Number(s.opening_cash) || 0), 0)
+                        )}
                       </td>
                       <td className="px-3.5 py-3 text-right font-mono text-slate-900">
-                        {filteredShifts
-                          .reduce((acc, s) => acc + (Number(s.expected_cash) || 0), 0)
-                          .toFixed(2)}{' '}
-                        €
+                        {formatCurrency(
+                          filteredShifts.reduce((acc, s) => acc + (Number(s.expected_cash) || 0), 0)
+                        )}
                       </td>
                       <td className="px-3.5 py-3 text-right font-mono text-indigo-950 font-black">
-                        {filteredShifts
-                          .reduce((acc, s) => acc + (Number(s.counted_cash) || 0), 0)
-                          .toFixed(2)}{' '}
-                        €
+                        {formatCurrency(
+                          filteredShifts.reduce((acc, s) => acc + (Number(s.counted_cash) || 0), 0)
+                        )}
                       </td>
                       <td className="px-3.5 py-3 text-right font-mono font-black">
                         {(() => {
@@ -1130,8 +1124,7 @@ export const ShiftsManager: React.FC = () => {
                                   : 'text-emerald-600'
                               }
                             >
-                              {totalDisc > 0 ? '+' : ''}
-                              {totalDisc.toFixed(2)} €
+                              {formatCurrency(totalDisc, { showSign: true })}
                             </span>
                           );
                         })()}

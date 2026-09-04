@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 interface VltTerminal {
   id: string;
@@ -187,19 +188,19 @@ export const VltManager: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Εισπράξεων (Meter In)</p>
-          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalIn.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalIn)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Πληρωμών (Meter Out)</p>
-          <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{totalOut.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalOut)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Εκδόσεις TITO & payouts παικτών</p>
         </div>
 
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
           <p className="text-xs font-medium text-slate-500">Καθαρό Έσοδο VLTs (Net Revenue)</p>
-          <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{totalNet.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
         </div>
       </div>

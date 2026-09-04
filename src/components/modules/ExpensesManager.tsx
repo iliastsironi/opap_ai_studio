@@ -8,6 +8,7 @@ import { fetchSuppliersFromFirestore, INITIAL_DEMO_SUPPLIERS } from '../../servi
 import { Shift, ShiftExpense, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -305,7 +306,7 @@ export const ExpensesManager: React.FC = () => {
             <div>
               <p className="text-xs font-medium text-slate-500">Σύνολο Εξόδων (Φιλτραρισμένα)</p>
               <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
-                {totalExpenseAmount.toFixed(2)} €
+                {formatCurrency(totalExpenseAmount)}
               </h3>
             </div>
             <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
@@ -333,7 +334,7 @@ export const ExpensesManager: React.FC = () => {
             <div>
               <p className="text-xs font-medium text-slate-500">Μέσο Έξοδο ανά Βάρδια</p>
               <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
-                {filteredExpenses.length > 0 ? (totalExpenseAmount / filteredExpenses.length).toFixed(2) : '0.00'} €
+                {formatCurrency(filteredExpenses.length > 0 ? totalExpenseAmount / filteredExpenses.length : 0)}
               </h3>
             </div>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -405,7 +406,7 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3">{getCategoryBadge(exp.category)}</td>
                     <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{exp.notes || exp.receipt_number || '—'}</td>
                     <td className="px-4 py-3 text-right font-extrabold text-rose-600">
-                      -{exp.amount.toFixed(2)} €
+                      -{formatCurrency(exp.amount)}
                     </td>
                     <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{exp.payment_method}</td>
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>

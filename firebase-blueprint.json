@@ -227,6 +227,18 @@
     "/roster_schedules/{id}": {
       "schema": "Shift",
       "description": "Weekly store employee shift rosters"
+    },
+    "/shift_templates/{templateId}": {
+      "schema": "Shift",
+      "description": "Shift template configuration"
+    },
+    "/departments/{deptId}": {
+      "schema": "Shift",
+      "description": "Store departments"
+    },
+    "/stores/{storeId}/departments/{deptId}": {
+      "schema": "Shift",
+      "description": "Store subdepartments"
     }
   }
 }

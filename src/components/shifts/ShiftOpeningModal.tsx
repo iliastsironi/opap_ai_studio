@@ -6,6 +6,7 @@ import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../services/shiftService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import {
   carryOverScratchInventory,
@@ -165,7 +166,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         opening_operational_notes: openingNotes
           ? openingNotes
           : shiftType !== 'MORNING' && isAutoFetched
-          ? `Αυτόματη μεταφορά από προηγούμενη βάρδια (${banknotesNum.toFixed(2)}€ χαρτ. + ${coinsNum.toFixed(2)}€ κέρμ.)`
+          ? `Αυτόματη μεταφορά από προηγούμενη βάρδια (${formatCurrency(banknotesNum)} χαρτ. + ${formatCurrency(coinsNum)} κέρμ.)`
           : 'Αρχικό ταμείο διαχειριστή',
         opap_gross_sales: 0,
         opap_payouts: 0,
@@ -368,7 +369,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 )}
               </span>
               <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                {toGreekUpper('Συνολο')}: {totalOpeningCash.toFixed(2)} €
+                {toGreekUpper('Συνολο')}: {formatCurrency(totalOpeningCash)}
               </span>
             </div>
 

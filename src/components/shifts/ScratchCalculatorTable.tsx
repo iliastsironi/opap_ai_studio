@@ -15,6 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -462,7 +463,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           {cat}
                         </span>
                         <span className="text-[11px] font-bold text-slate-700 font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
-                          {catQty} τμχ • <span className="text-emerald-700 font-black">{catTotal.toFixed(2)} €</span>
+                          {catQty} τμχ • <span className="text-emerald-700 font-black">{formatCurrency(catTotal)}</span>
                         </span>
                       </div>
                     </td>
@@ -537,7 +538,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             />
                           ) : (
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
-                              {row.price.toFixed(2)} €
+                              {formatCurrency(row.price)}
                             </span>
                           )}
                         </td>
@@ -655,7 +656,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         {/* Calculated Row Total */}
                         <td className="p-2 text-right font-black font-mono text-xs">
                           <span className={total > 0 ? 'text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-2xs' : 'text-slate-500'}>
-                            {total > 0 ? `${total.toFixed(2)} €` : '0.00 €'}
+                            {formatCurrency(total)}
                           </span>
                         </td>
 
@@ -773,7 +774,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         <div className="text-right flex items-center space-x-2">
           <span className="text-[11px] text-slate-600 font-semibold">Σύνολο Αξίας Πωλήσεων Σκρατς & Λαχείων:</span>
           <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
-            {grandTotalSales.toFixed(2)} €
+            {formatCurrency(grandTotalSales)}
           </span>
         </div>
       </div>

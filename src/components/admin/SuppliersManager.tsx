@@ -34,6 +34,7 @@ import {
   createSupplierOrderInFirestore,
   updateSupplierOrderStatusInFirestore,
 } from '../../services/supplierService.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 const CATEGORY_LABELS: Record<string, string> = {
   OPAP_SERVICES: 'Υπηρεσίες ΟΠΑΠ & Τερματικά',
@@ -432,7 +433,7 @@ export const SuppliersManager: React.FC = () => {
 
               <div className="px-3.5 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-bold flex items-center gap-2 shrink-0">
                 <Wallet className="w-4 h-4 text-amber-600" />
-                <span>Συνολικό Υπόλοιπο: €{totalBalance.toFixed(2)}</span>
+                <span>Συνολικό Υπόλοιπο: {formatCurrency(totalBalance)}</span>
               </div>
             </div>
           </div>
@@ -516,7 +517,7 @@ export const SuppliersManager: React.FC = () => {
                               sup.balance > 0 ? 'text-rose-600' : 'text-slate-700'
                             }`}
                           >
-                            €{(sup.balance || 0).toFixed(2)}
+                            {formatCurrency(sup.balance || 0)}
                           </span>
                         </td>
 
@@ -606,7 +607,7 @@ export const SuppliersManager: React.FC = () => {
                   <DollarSign className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-black text-slate-900 mt-2">€{totalOrdersAmount.toFixed(2)}</p>
+              <p className="text-2xl font-black text-slate-900 mt-2">{formatCurrency(totalOrdersAmount)}</p>
             </div>
           </div>
 
@@ -723,7 +724,7 @@ export const SuppliersManager: React.FC = () => {
 
                         <td className="p-4 text-right">
                           <span className="font-mono font-extrabold text-slate-900 text-sm">
-                            €{(ord.total_amount || 0).toFixed(2)}
+                            {formatCurrency(ord.total_amount || 0)}
                           </span>
                         </td>
 
@@ -817,7 +818,7 @@ export const SuppliersManager: React.FC = () => {
               <div>
                 <p className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider">Υπόλοιπο Οφειλής</p>
                 <p className="text-xl font-black text-amber-900 font-mono mt-0.5">
-                  €{(previewSupplier.balance || 0).toFixed(2)}
+                  {formatCurrency(previewSupplier.balance || 0)}
                 </p>
               </div>
               <button
@@ -861,7 +862,7 @@ export const SuppliersManager: React.FC = () => {
                           <span className="text-[11px] text-slate-400 ml-2">({ord.order_date})</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-mono font-bold text-slate-900">€{ord.total_amount.toFixed(2)}</span>
+                          <span className="font-mono font-bold text-slate-900">{formatCurrency(ord.total_amount)}</span>
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               ord.status === 'DELIVERED'
@@ -935,7 +936,7 @@ export const SuppliersManager: React.FC = () => {
               <div className="p-4 bg-slate-900 text-white rounded-xl flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Συνολική Αξία</p>
-                  <p className="text-xl font-black font-mono">€{previewOrder.total_amount.toFixed(2)}</p>
+                  <p className="text-xl font-black font-mono">{formatCurrency(previewOrder.total_amount)}</p>
                 </div>
                 <div>
                   <span

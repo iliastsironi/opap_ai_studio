@@ -174,6 +174,21 @@ export async function getShiftTemplateConfig(
     if (snap.exists()) {
       return snap.data() as ShiftTemplateConfig;
     }
+
+    // Initialize in Firestore if not already present
+    const initialTemplate: ShiftTemplateConfig = {
+      ...DEFAULT_OPAP_SHIFT_TEMPLATE,
+      id: `template_${docId}`,
+      organization_id: orgId,
+      store_id: storeId,
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      await setDoc(ref, initialTemplate);
+    } catch (writeErr) {
+      // Non-blocking in case of restricted client
+    }
+    return initialTemplate;
   } catch (err) {
     console.warn('[ShiftTemplateService] Could not load template from Firestore, using default template:', err);
   }

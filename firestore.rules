@@ -136,6 +136,23 @@ service cloud.firestore {
       allow write: if isValidId(threadId);
     }
 
+    // Shift Templates (Dynamic shift form and field configuration for Owner, Manager, Employee)
+    match /shift_templates/{templateId} {
+      allow read: if true;
+      allow write: if isValidId(templateId);
+    }
+
+    // Store Departments
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isValidId(deptId);
+    }
+
+    match /stores/{storeId}/departments/{deptId} {
+      allow read: if true;
+      allow write: if isValidId(deptId);
+    }
+
     // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;

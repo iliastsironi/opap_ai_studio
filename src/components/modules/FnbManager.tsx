@@ -6,6 +6,7 @@ import { fetchFnbFromFirestore, createFnbInFirestore, deleteFnbInFirestore, FnbR
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export const FnbManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -131,7 +132,7 @@ export const FnbManager: React.FC = () => {
   };
 
   const handleDeleteSale = async (sale: FnbRecord) => {
-    if (!confirm(`Διαγραφή πώλησης "${sale.item_name}" (${sale.total_price.toFixed(2)} €);`)) return;
+    if (!confirm(`Διαγραφή πώλησης "${sale.item_name}" (${formatCurrency(sale.total_price)});`)) return;
     try {
       await deleteFnbInFirestore(sale.id);
 
@@ -284,9 +285,9 @@ export const FnbManager: React.FC = () => {
                 Ενεργή Βάρδια: {activeShift.store_name} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
               </p>
               <p className="text-[11px] text-slate-600 mt-0.5">
-                FnB Μετρητά Ταμείου: <strong className="text-emerald-700 font-mono">{(Number(activeShift.fnb_cash) || 0).toFixed(2)} €</strong> | 
-                Κάρτες POS: <strong className="text-indigo-700 font-mono">{(Number(activeShift.fnb_card) || 0).toFixed(2)} €</strong> | 
-                Συνολικό FnB: <strong className="text-slate-900 font-mono">{(Number(activeShift.fnb_sales) || 0).toFixed(2)} €</strong>
+                FnB Μετρητά Ταμείου: <strong className="text-emerald-700 font-mono">{formatCurrency(Number(activeShift.fnb_cash) || 0)}</strong> | 
+                Κάρτες POS: <strong className="text-indigo-700 font-mono">{formatCurrency(Number(activeShift.fnb_card) || 0)}</strong> | 
+                Συνολικό FnB: <strong className="text-slate-900 font-mono">{formatCurrency(Number(activeShift.fnb_sales) || 0)}</strong>
               </p>
             </div>
           </div>
@@ -306,7 +307,7 @@ export const FnbManager: React.FC = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Συνολικές Πωλήσεις FnB</p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalSales.toFixed(2)} €</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalSales)}</h3>
             </div>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
               <ShoppingBag className="w-5 h-5" />
@@ -319,7 +320,7 @@ export const FnbManager: React.FC = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">FnB Μετρητά (Cash Inflow)</p>
-              <h3 className="text-2xl font-extrabold text-emerald-600 mt-1">+{cashSales.toFixed(2)} €</h3>
+              <h3 className="text-2xl font-extrabold text-emerald-600 mt-1">+{formatCurrency(cashSales)}</h3>
             </div>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
               <DollarSign className="w-5 h-5" />
@@ -332,7 +333,7 @@ export const FnbManager: React.FC = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">FnB Κάρτα (POS Bar)</p>
-              <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">+{cardSales.toFixed(2)} €</h3>
+              <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">+{formatCurrency(cardSales)}</h3>
             </div>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
               <CreditCard className="w-5 h-5" />
@@ -378,9 +379,9 @@ export const FnbManager: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">{s.item_name}</td>
                     <td className="px-4 py-3 text-center font-bold text-slate-700">{s.quantity}</td>
-                    <td className="px-4 py-3 text-right font-mono">{s.unit_price.toFixed(2)} €</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(s.unit_price)}</td>
                     <td className="px-4 py-3 text-right font-bold text-emerald-600 font-mono">
-                      +{s.total_price.toFixed(2)} €
+                      +{formatCurrency(s.total_price)}
                     </td>
                     <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{s.payment_method}</td>
                     <td className="px-4 py-3 text-slate-600">{s.server_name}</td>
@@ -546,7 +547,7 @@ export const FnbManager: React.FC = () => {
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <span className="font-bold text-slate-700">Συνολικό FnB Βάρδιας:</span>
                 <span className="font-mono font-extrabold text-sm text-indigo-700">
-                  {((parseFloat(shiftFnbCashInput) || 0) + (parseFloat(shiftFnbCardInput) || 0)).toFixed(2)} €
+                  {formatCurrency((parseFloat(shiftFnbCashInput) || 0) + (parseFloat(shiftFnbCardInput) || 0))}
                 </span>
               </div>
 

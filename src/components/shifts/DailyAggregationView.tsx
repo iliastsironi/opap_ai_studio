@@ -32,6 +32,7 @@ import {
   getShiftDateKey,
 } from '../../services/dailyAggregationService.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 interface DailyAggregationViewProps {
   shifts: Shift[];
@@ -231,7 +232,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
               </h4>
             </div>
             <p className="text-xs text-indigo-200/90 leading-relaxed">
-              Για την ημέρα <strong>{dailyReport.formattedDate}</strong>, το <strong>Αρχικό Ταμείο ({dailyReport.initialOpeningCash.toFixed(2)} €)</strong> υπολογίζεται αποκλειστικά από την <em>1η βάρδια</em> κάθε ταμείου και το <strong>Τελικό Ταμείο ({dailyReport.finalCountedCash.toFixed(2)} €)</strong> από την <em>τελευταία βάρδια</em>. Όλοι οι τζίροι (ΟΠΑΠ, VLTs, Σκρατς, TORA, FnB), τα έξοδα και οι καταθέσεις αθροίζονται πλήρως και ανεξάρτητα.
+              Για την ημέρα <strong>{dailyReport.formattedDate}</strong>, το <strong>Αρχικό Ταμείο ({formatCurrency(dailyReport.initialOpeningCash)})</strong> υπολογίζεται αποκλειστικά από την <em>1η βάρδια</em> κάθε ταμείου και το <strong>Τελικό Ταμείο ({formatCurrency(dailyReport.finalCountedCash)})</strong> από την <em>τελευταία βάρδια</em>. Όλοι οι τζίροι (ΟΠΑΠ, VLTs, Σκρατς, TORA, FnB), τα έξοδα και οι καταθέσεις αθροίζονται πλήρως και ανεξάρτητα.
             </p>
           </div>
         </div>
@@ -263,7 +264,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
               </div>
               <div>
                 <span className="text-2xl font-black text-slate-900 font-mono">
-                  {dailyReport.totalGrossTurnover.toFixed(2)} €
+                  {formatCurrency(dailyReport.totalGrossTurnover)}
                 </span>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   ΟΠΑΠ + VLTs + Σκρατς + TORA + FnB ({dailyReport.totalShiftsCount} βάρδιες)
@@ -283,7 +284,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
               </div>
               <div>
                 <span className="text-2xl font-black text-emerald-700 font-mono">
-                  {dailyReport.totalNetCashActivity.toFixed(2)} €
+                  {formatCurrency(dailyReport.totalNetCashActivity)}
                 </span>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Καθαρά έσοδα μείον έξοδα & πιστώσεις
@@ -303,7 +304,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
               </div>
               <div>
                 <span className="text-2xl font-black text-blue-700 font-mono">
-                  {dailyReport.totalBankDeposits.toFixed(2)} €
+                  {formatCurrency(dailyReport.totalBankDeposits)}
                 </span>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Μεταφορές μετρητών εκτός ταμείου
@@ -349,8 +350,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                       : 'text-emerald-700'
                   }`}
                 >
-                  {dailyReport.dailyDiscrepancy > 0 ? '+' : ''}
-                  {dailyReport.dailyDiscrepancy.toFixed(2)} €
+                  {formatCurrency(dailyReport.dailyDiscrepancy, { showSign: true })}
                 </span>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {dailyReport.dailyDiscrepancy === 0
@@ -384,7 +384,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                   1. Αρχικό Ταμείο (1η Βάρδια)
                 </span>
                 <span className="text-base font-black font-mono text-white block">
-                  {dailyReport.initialOpeningCash.toFixed(2)} €
+                  {formatCurrency(dailyReport.initialOpeningCash)}
                 </span>
                 <span className="text-[10px] text-slate-400 block">
                   Αφετηρία ημέρας χωρίς διπλομέτρηση
@@ -397,15 +397,14 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                   2. (+) Καθαρά Έσοδα Πωλήσεων
                 </span>
                 <span className="text-base font-black font-mono text-emerald-400 block">
-                  +{(
+                  +{formatCurrency(
                     dailyReport.totalOpapNet +
                     dailyReport.totalVltsNet +
                     dailyReport.totalScratchSales +
                     dailyReport.totalToraPos +
                     dailyReport.totalCleverPoint +
                     dailyReport.totalFnbCash
-                  ).toFixed(2)}{' '}
-                  €
+                  )}
                 </span>
                 <span className="text-[10px] text-slate-400 block">
                   Όλες οι εισπράξεις μετρητών
@@ -418,11 +417,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                   3. (-) Έξοδα & Καταθέσεις
                 </span>
                 <span className="text-base font-black font-mono text-rose-400 block">
-                  -{(dailyReport.totalExpensesPaidCash + dailyReport.totalBankDeposits).toFixed(2)} €
+                  -{formatCurrency(dailyReport.totalExpensesPaidCash + dailyReport.totalBankDeposits)}
                 </span>
                 <span className="text-[10px] text-slate-400 block">
-                  Έξοδα: {dailyReport.totalExpensesPaidCash.toFixed(2)}€ | Καταθέσεις:{' '}
-                  {dailyReport.totalBankDeposits.toFixed(2)}€
+                  Έξοδα: {formatCurrency(dailyReport.totalExpensesPaidCash)} | Καταθέσεις:{' '}
+                  {formatCurrency(dailyReport.totalBankDeposits)}
                 </span>
               </div>
 
@@ -432,7 +431,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                   4. (=) Αναμενόμενο Τελικό
                 </span>
                 <span className="text-base font-black font-mono text-indigo-200 block">
-                  {dailyReport.dailyExpectedClosingDrawer.toFixed(2)} €
+                  {formatCurrency(dailyReport.dailyExpectedClosingDrawer)}
                 </span>
                 <span className="text-[10px] text-indigo-300/80 block">
                   Αρχικό + Καθαρά - Έξοδα - Drops
@@ -451,11 +450,10 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                   5. (vs) Πραγματικό Καταμετρημένο
                 </span>
                 <span className="text-base font-black font-mono text-white block">
-                  {dailyReport.finalCountedCash.toFixed(2)} €
+                  {formatCurrency(dailyReport.finalCountedCash)}
                 </span>
                 <span className="text-[10px] font-bold block text-emerald-300">
-                  Διαφορά: {dailyReport.dailyDiscrepancy > 0 ? '+' : ''}
-                  {dailyReport.dailyDiscrepancy.toFixed(2)} €
+                  Διαφορά: {formatCurrency(dailyReport.dailyDiscrepancy, { showSign: true })}
                 </span>
               </div>
             </div>
@@ -510,11 +508,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4 font-bold text-slate-900">ΟΠΑΠ Μικτές Εισπράξεις (Gross)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.opapGross.toFixed(2)} €
+                        {formatCurrency(s.opapGross)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalOpapGross.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalOpapGross)}
                     </td>
                   </tr>
 
@@ -523,11 +521,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4 text-rose-700">ΟΠΑΠ Πληρωμές Κερδών (Payouts)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-rose-700">
-                        -{s.opapPayouts.toFixed(2)} €
+                        -{formatCurrency(s.opapPayouts)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-bold bg-indigo-50/40 text-rose-700 border-l border-indigo-100">
-                      -{dailyReport.totalOpapPayouts.toFixed(2)} €
+                      -{formatCurrency(dailyReport.totalOpapPayouts)}
                     </td>
                   </tr>
 
@@ -536,27 +534,27 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2 px-4 text-indigo-900">↳ ΟΠΑΠ Καθαρά (Net)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2 px-3.5 text-right font-mono text-indigo-900">
-                        {s.opapNet.toFixed(2)} €
+                        {formatCurrency(s.opapNet)}
                       </td>
                     ))}
                     <td className="py-2 px-4 text-right font-mono font-black bg-indigo-50/70 text-indigo-900 border-l border-indigo-100">
-                      {dailyReport.totalOpapNet.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalOpapNet)}
                     </td>
                   </tr>
 
                   {/* VLTs Net */}
                   <tr className="hover:bg-slate-50/60">
                     <td className="py-2.5 px-4">
-                      VLTs / Megaplus (In: {dailyReport.totalVltsCashIn.toFixed(2)}€ | Out:{' '}
-                      {dailyReport.totalVltsCashOut.toFixed(2)}€)
+                      VLTs / Megaplus (In: {formatCurrency(dailyReport.totalVltsCashIn)} | Out:{' '}
+                      {formatCurrency(dailyReport.totalVltsCashOut)})
                     </td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.vltsNet.toFixed(2)} €
+                        {formatCurrency(s.vltsNet)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalVltsNet.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalVltsNet)}
                     </td>
                   </tr>
 
@@ -565,11 +563,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4">Σκρατς & Λαχεία (Scratch / Lotteries)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.scratchSales.toFixed(2)} €
+                        {formatCurrency(s.scratchSales)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalScratchSales.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalScratchSales)}
                     </td>
                   </tr>
 
@@ -578,11 +576,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4">TORA Direct POS (Πληρωμές Λογαριασμών)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.toraPos.toFixed(2)} €
+                        {formatCurrency(s.toraPos)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalToraPos.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalToraPos)}
                     </td>
                   </tr>
 
@@ -591,27 +589,27 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4">Clever Point (Δέματα / Υπηρεσίες)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.cleverPoint.toFixed(2)} €
+                        {formatCurrency(s.cleverPoint)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalCleverPoint.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalCleverPoint)}
                     </td>
                   </tr>
 
                   {/* FnB Sales */}
                   <tr className="hover:bg-slate-50/60">
                     <td className="py-2.5 px-4">
-                      Καφέ / FnB (Μετρητά: {dailyReport.totalFnbCash.toFixed(2)}€ | POS:{' '}
-                      {dailyReport.totalFnbCard.toFixed(2)}€)
+                      Καφέ / FnB (Μετρητά: {formatCurrency(dailyReport.totalFnbCash)} | POS:{' '}
+                      {formatCurrency(dailyReport.totalFnbCard)})
                     </td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono">
-                        {s.fnbSales.toFixed(2)} €
+                        {formatCurrency(s.fnbSales)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-slate-900 border-l border-indigo-100">
-                      {dailyReport.totalFnbSales.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalFnbSales)}
                     </td>
                   </tr>
 
@@ -622,11 +620,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     </td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-slate-600">
-                        {s.cardPayments.toFixed(2)} €
+                        {formatCurrency(s.cardPayments)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-bold bg-indigo-50/40 text-slate-700 border-l border-indigo-100">
-                      {dailyReport.totalCardPayments.toFixed(2)} €
+                      {formatCurrency(dailyReport.totalCardPayments)}
                     </td>
                   </tr>
 
@@ -635,26 +633,26 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4 text-rose-700">Έξοδα Πληρωτέα από Ταμείο (Expenses)</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-rose-700">
-                        -{s.expenses.toFixed(2)} €
+                        -{formatCurrency(s.expenses)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-rose-700 border-l border-indigo-100">
-                      -{dailyReport.totalExpensesPaidCash.toFixed(2)} €
+                      -{formatCurrency(dailyReport.totalExpensesPaidCash)}
                     </td>
                   </tr>
 
                   {/* Customer Credits */}
                   <tr className="hover:bg-slate-50/60">
                     <td className="py-2.5 px-4 text-amber-800">
-                      Πιστώσεις Πελατών (Χορηγήσεις: -{dailyReport.totalCreditGranted.toFixed(2)}€ | Εισπράξεις: +{dailyReport.totalCreditCollected.toFixed(2)}€)
+                      Πιστώσεις Πελατών (Χορηγήσεις: -{formatCurrency(dailyReport.totalCreditGranted)} | Εισπράξεις: +{formatCurrency(dailyReport.totalCreditCollected)})
                     </td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-amber-800">
-                        {(s.creditCollected - s.creditGranted).toFixed(2)} €
+                        {formatCurrency(s.creditCollected - s.creditGranted)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-amber-800 border-l border-indigo-100">
-                      {(dailyReport.totalCreditCollected - dailyReport.totalCreditGranted).toFixed(2)} €
+                      {formatCurrency(dailyReport.totalCreditCollected - dailyReport.totalCreditGranted)}
                     </td>
                   </tr>
 
@@ -663,11 +661,11 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     <td className="py-2.5 px-4 text-blue-700">Καταθέσεις σε Χρηματοκιβώτιο / Bank Drops</td>
                     {dailyReport.shiftContributions.map((s) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-blue-700">
-                        -{s.bankDeposits.toFixed(2)} €
+                        -{formatCurrency(s.bankDeposits)}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-50/40 text-blue-700 border-l border-indigo-100">
-                      -{dailyReport.totalBankDeposits.toFixed(2)} €
+                      -{formatCurrency(dailyReport.totalBankDeposits)}
                     </td>
                   </tr>
 
@@ -689,16 +687,16 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     {dailyReport.shiftContributions.map((s, idx) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-slate-600">
                         {idx === 0 ? (
-                          <span className="font-black text-indigo-900">{s.openingCash.toFixed(2)} €</span>
+                          <span className="font-black text-indigo-900">{formatCurrency(s.openingCash)}</span>
                         ) : (
                           <span className="text-slate-400 text-[11px] italic">
-                            {s.openingCash.toFixed(2)} € (μεταφορά)
+                            {formatCurrency(s.openingCash)} (μεταφορά)
                           </span>
                         )}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-100/70 text-indigo-950 border-l border-indigo-200">
-                      {dailyReport.initialOpeningCash.toFixed(2)} €
+                      {formatCurrency(dailyReport.initialOpeningCash)}
                     </td>
                   </tr>
 
@@ -713,16 +711,16 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                     {dailyReport.shiftContributions.map((s, idx) => (
                       <td key={s.shiftId} className="py-2.5 px-3.5 text-right font-mono text-slate-600">
                         {idx === dailyReport.shiftContributions.length - 1 ? (
-                          <span className="font-black text-indigo-900">{s.countedCash.toFixed(2)} €</span>
+                          <span className="font-black text-indigo-900">{formatCurrency(s.countedCash)}</span>
                         ) : (
                           <span className="text-slate-400 text-[11px] italic">
-                            {s.countedCash.toFixed(2)} € (παράδοση)
+                            {formatCurrency(s.countedCash)} (παράδοση)
                           </span>
                         )}
                       </td>
                     ))}
                     <td className="py-2.5 px-4 text-right font-mono font-black bg-indigo-100/70 text-indigo-950 border-l border-indigo-200">
-                      {dailyReport.finalCountedCash.toFixed(2)} €
+                      {formatCurrency(dailyReport.finalCountedCash)}
                     </td>
                   </tr>
 
@@ -740,8 +738,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                             : 'text-emerald-600'
                         }`}
                       >
-                        {s.discrepancy > 0 ? '+' : ''}
-                        {s.discrepancy.toFixed(2)} €
+                        {formatCurrency(s.discrepancy, { showSign: true })}
                       </td>
                     ))}
                     <td
@@ -753,8 +750,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                           : 'bg-emerald-100 text-emerald-800'
                       }`}
                     >
-                      {dailyReport.dailyDiscrepancy > 0 ? '+' : ''}
-                      {dailyReport.dailyDiscrepancy.toFixed(2)} €
+                      {formatCurrency(dailyReport.dailyDiscrepancy, { showSign: true })}
                     </td>
                   </tr>
                 </tbody>
