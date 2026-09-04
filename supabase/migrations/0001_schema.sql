@@ -337,9 +337,14 @@ CREATE TABLE credit_tier_configs (
   description TEXT,
   badge_bg TEXT,
   badge_text TEXT,
-  badge_border TEXT,
-  UNIQUE (organization_id, COALESCE(store_id, ''), tier)
+  badge_border TEXT
 );
+-- A table-level UNIQUE(...) constraint only accepts plain column names, not
+-- expressions - COALESCE(store_id, '') has to be a unique INDEX instead.
+-- NULL store_id means "org-wide default"; this still stops two org-wide
+-- defaults (or two store-specific rows) for the same tier from coexisting.
+CREATE UNIQUE INDEX ux_credit_tier_configs_org_store_tier
+  ON credit_tier_configs (organization_id, COALESCE(store_id, ''), tier);
 
 -- ============================================================
 -- Suppliers
@@ -521,9 +526,12 @@ CREATE TABLE shift_templates (
   show_coins_breakdown BOOLEAN NOT NULL DEFAULT TRUE,
   show_notes_breakdown BOOLEAN NOT NULL DEFAULT TRUE,
   custom_fields JSONB NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(custom_fields) = 'array'),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (organization_id, COALESCE(store_id, ''))
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Same expression-vs-plain-column issue as credit_tier_configs above -
+-- a unique INDEX, not a table constraint.
+CREATE UNIQUE INDEX ux_shift_templates_org_store
+  ON shift_templates (organization_id, COALESCE(store_id, ''));
 
 -- ============================================================
 -- Copilot chat history — one row per user, matching the strict
