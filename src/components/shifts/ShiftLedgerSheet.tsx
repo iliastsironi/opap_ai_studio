@@ -26,7 +26,7 @@ import { Shift, ShiftTemplateConfig } from '../../types/index.ts';
 import { safeNum, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { DEFAULT_OPAP_SHIFT_TEMPLATE } from '../../services/shiftTemplateService.ts';
-import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isLotteryRow } from './ScratchCalculatorTable.tsx';
+import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isLotteryRow, isBundleTrackedRow, parseNonNegativeInt, splitPiecesIntoBundles } from './ScratchCalculatorTable.tsx';
 
 interface ShiftLedgerSheetProps {
   shift?: Partial<Shift>;
@@ -595,6 +595,10 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                     const lottery = isLotteryRow(item);
                     const qty = calculateRowQty(item) + calculateBackRowQty(item);
                     const rowTotal = calculateRowTotal(item);
+                    const bundleTracked = isBundleTrackedRow(item);
+                    const bundleSize = item.bundleSize || 5;
+                    const startSplit = bundleTracked ? splitPiecesIntoBundles(parseNonNegativeInt(item.startNo).value, bundleSize) : null;
+                    const endSplit = bundleTracked && item.endNo ? splitPiecesIntoBundles(parseNonNegativeInt(item.endNo).value, bundleSize) : null;
 
                     return (
                       <div key={item.id || idx} className="grid grid-cols-7 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
@@ -606,6 +610,13 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                         <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? formatCurrency(rowTotal) : '-'}</span>
                         {qty > 0 && (
                           <span className="col-span-7 text-[9px] text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
+                        )}
+                        {bundleTracked && (startSplit || endSplit) && (
+                          <span className="col-span-7 text-[9px] text-indigo-400 -mt-0.5">
+                            {startSplit && <>Απόθεμα: {startSplit.bundles} πεντάδες + {startSplit.pieces} κομμάτια</>}
+                            {startSplit && endSplit && ' · '}
+                            {endSplit && <>Υπόλοιπο: {endSplit.bundles} πεντάδες + {endSplit.pieces} κομμάτια</>}
+                          </span>
                         )}
                       </div>
                     );

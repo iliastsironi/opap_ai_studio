@@ -258,6 +258,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             backEndNo: match.backEndNo || '',
             manualQty: match.manualQty !== undefined ? match.manualQty : '',
             isNewPack: match.isNewPack || false,
+            // Bundle-tracked rows (e.g. Λαϊκό Λαχείο): saleBundles/salePieces
+            // must survive this merge same as endNo does - dropping them
+            // while keeping endNo would desync the two, and the backend
+            // trigger (0008) rejects exactly that inconsistency on save.
+            saleBundles: match.saleBundles || '',
+            salePieces: match.salePieces || '',
           });
         } else {
           merged.push(item);
