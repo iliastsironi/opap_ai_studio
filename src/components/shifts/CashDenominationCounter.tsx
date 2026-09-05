@@ -135,7 +135,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               {isCoin ? <CoinsIcon className="w-3.5 h-3.5" /> : <Banknote className="w-3.5 h-3.5" />}
             </div>
             <span
-              className={`text-base font-black tracking-tight truncate ${
+              className={`text-sm font-black tracking-tight ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
             >

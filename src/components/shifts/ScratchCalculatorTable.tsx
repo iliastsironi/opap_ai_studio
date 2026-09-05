@@ -573,6 +573,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
   const [editingRowId, setEditingRowId] = React.useState<string | null>(null);
   const [managerOverrideEnabled, setManagerOverrideEnabled] = useState(false);
+  const [showRulesInfo, setShowRulesInfo] = useState(false);
   const [newPackModalRowId, setNewPackModalRowId] = useState<string | null>(null);
   const [newPackStartNo, setNewPackStartNo] = useState<string>('0');
   const [newPackBackEndNo, setNewPackBackEndNo] = useState<string>('');
@@ -774,6 +775,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <Hash className="w-4 h-4 text-indigo-600" />
               <span>Έλληνικά Λαχεία & Σκρατς (Καταμέτρηση Τεμαχίων)</span>
             </h4>
+            <button
+              type="button"
+              onClick={() => setShowRulesInfo(!showRulesInfo)}
+              className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5 cursor-pointer"
+              title={showRulesInfo ? 'Απόκρυψη κανόνων καταμέτρησης' : 'Εμφάνιση κανόνων καταμέτρησης'}
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
             {canEditLockedFields && (
               <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-indigo-600" />
@@ -828,18 +837,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         )}
       </div>
 
-      {/* Info notice about scratch vs lotteries calculation rules */}
-      <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-[11px] text-indigo-900">
-        <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <p>
-            <strong>Κανόνες Καταμέτρησης:</strong> Κάθε πακέτο <strong>Σκρατς</strong> μπορεί να πουληθεί ταυτόχρονα και από τις δύο πλευρές του ίδιου αποθέματος -{' '}
-            <strong className="text-indigo-700">Μπροστά</strong> (από την αρχή της αρίθμησης προς τα πάνω) και{' '}
-            <strong className="text-purple-700">Πίσω</strong> (από το τέλος προς τα κάτω). Κάθε πλευρά υπολογίζεται ως{' '}
-            <code className="font-mono bg-white px-1 py-0.5 rounded border border-indigo-200 font-bold">Τελικό - Αρχικό</code> (π.χ. από 000 σε 10 = 10 τεμάχια) και το <strong>Σύνολο</strong> είναι το άθροισμα των δύο πλευρών. Τα κλειδωμένα πεδία (🔒) διαχειρίζονται μόνο από Owner/Admin.
-          </p>
+      {/* Info notice about scratch vs lotteries calculation rules - collapsed by
+          default so returning users reach the table immediately; still one click away. */}
+      {showRulesInfo && (
+        <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-[11px] text-indigo-900">
+          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p>
+              <strong>Κανόνες Καταμέτρησης:</strong> Κάθε πακέτο <strong>Σκρατς</strong> μπορεί να πουληθεί ταυτόχρονα και από τις δύο πλευρές του ίδιου αποθέματος -{' '}
+              <strong className="text-indigo-700">Μπροστά</strong> (από την αρχή της αρίθμησης προς τα πάνω) και{' '}
+              <strong className="text-purple-700">Πίσω</strong> (από το τέλος προς τα κάτω). Κάθε πλευρά υπολογίζεται ως{' '}
+              <code className="font-mono bg-white px-1 py-0.5 rounded border border-indigo-200 font-bold">Τελικό - Αρχικό</code> (π.χ. από 000 σε 10 = 10 τεμάχια) και το <strong>Σύνολο</strong> είναι το άθροισμα των δύο πλευρών. Τα κλειδωμένα πεδία (🔒) διαχειρίζονται μόνο από Owner/Admin.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table grid */}
       <div className="overflow-x-auto">
@@ -1103,7 +1115,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                       : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
                                   }`}
                                 />
-                                <span className="text-[9px] font-bold text-slate-400 shrink-0">×5 +</span>
+                                <span className="text-[9px] font-bold text-slate-400 shrink-0">×{rowBundleSize} +</span>
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -1121,13 +1133,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 />
                               </div>
                               <span className="text-[9px] font-bold text-indigo-600 block">
+                                {/* N πεντάδες / M κομμάτια are already visible in the two inputs above -
+                                    this line only needs to add the one number they don't show: the total. */}
                                 {(row.saleBundles || row.salePieces)
-                                  ? `Καταχώριση: ${parseNonNegativeInt(row.saleBundles).value} πεντάδες + ${parseNonNegativeInt(row.salePieces).value} κομμάτια (Ισοδύναμο: ${bundleSaleCheck.soldPieces} κομμάτια)`
+                                  ? `= ${bundleSaleCheck.soldPieces} τμχ`
                                   : 'Πεντάδες + Κομμάτια'}
                               </span>
                               {(row.saleBundles || row.salePieces) && rowErrors.length === 0 && (
-                                <span className="text-[9px] font-semibold text-emerald-600 block">
-                                  Υπόλοιπο: {remainingSplit.bundles} πεντάδες + {remainingSplit.pieces} κομμάτια
+                                <span className="text-[9px] font-semibold text-emerald-600 block" title="Υπόλοιπο απόθεμα μετά την πώληση">
+                                  Υπόλ. {remainingSplit.bundles}×{rowBundleSize}+{remainingSplit.pieces}
                                 </span>
                               )}
                             </div>
