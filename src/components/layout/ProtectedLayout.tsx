@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { LoginForm } from '../auth/LoginForm.tsx';
+import { LandingPage } from '../marketing/LandingPage.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { ErrorBoundary } from '../common/ErrorBoundary.tsx';
@@ -11,10 +12,18 @@ interface ProtectedLayoutProps {
   children: (tab: string, setTab: (t: string) => void) => React.ReactNode;
 }
 
+// An invite link (?action=accept_invite&email=...) must land straight on the
+// sign-up form, never the marketing page - the invited user already decided.
+const hasInviteLink = () =>
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('action') === 'accept_invite';
+
 export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) => {
   const { token, isLoading } = useAuth();
   const { isLoadingStores } = useTenant();
   const [currentTab, setCurrentTab] = useState('shifts');
+  const [authScreen, setAuthScreen] = useState<'landing' | 'signin' | 'signup'>(
+    hasInviteLink() ? 'signup' : 'landing'
+  );
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 768;
@@ -34,7 +43,20 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
   }
 
   if (!token) {
-    return <LoginForm />;
+    if (authScreen === 'landing') {
+      return (
+        <LandingPage
+          onStartTrial={() => setAuthScreen('signup')}
+          onSignIn={() => setAuthScreen('signin')}
+        />
+      );
+    }
+    return (
+      <LoginForm
+        initialMode={authScreen}
+        onBack={hasInviteLink() ? undefined : () => setAuthScreen('landing')}
+      />
+    );
   }
 
   return (
