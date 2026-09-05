@@ -264,6 +264,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             // trigger (0008) rejects exactly that inconsistency on save.
             saleBundles: match.saleBundles || '',
             salePieces: match.salePieces || '',
+            // bundleSize/backSideEnabled are per-row config (like price) that
+            // can now be toggled per Λαχεία game. Prefer what THIS shift's
+            // own saved row actually used - it's what its saleBundles/
+            // salePieces/backStartNo were entered against - falling back to
+            // the current catalog only for a row untouched in this shift.
+            bundleSize: match.bundleSize !== undefined ? match.bundleSize : item.bundleSize,
+            backSideEnabled: match.backSideEnabled !== undefined ? match.backSideEnabled : item.backSideEnabled,
           });
         } else {
           merged.push(item);

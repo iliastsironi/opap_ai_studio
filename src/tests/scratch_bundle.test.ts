@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   isBundleTrackedRow,
+  isLotteryRow,
+  hasBackSide,
   parseNonNegativeInt,
   normalizeBundleEntry,
   splitPiecesIntoBundles,
   validateBundleSaleEntry,
+  calculateRowTotal,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -20,7 +23,9 @@ import {
 
 function laikoRow(overrides: Partial<ScratchTicketRow> = {}): ScratchTicketRow {
   return {
-    id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 10, bundleSize: 5,
+    // price is PER PIECE (€2) - a full πεντάδα (bundleSize=5) costs €10,
+    // matching the real product (5 x €2 = €10).
+    id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 2, bundleSize: 5,
     startNo: '100', endNo: '', saleBundles: '', salePieces: '',
     ...overrides,
   };
@@ -127,6 +132,34 @@ describe('Λαϊκό Λαχείο bundle/piece dual-unit tracking', () => {
 
       const edited = validateBundleSaleEntry(laikoRow({ saleBundles: '1', salePieces: '0' }));
       expect(edited).toMatchObject({ isValid: true, soldPieces: 5 });
+    });
+  });
+
+  describe('price is per piece for bundle-tracked rows (bundle price is derived: price x bundleSize)', () => {
+    it('a full πεντάδα (5 pieces) at €2/piece totals €10, matching the real product', () => {
+      const row = laikoRow({ saleBundles: '1', salePieces: '0', endNo: '95' });
+      expect(calculateRowTotal(row)).toBe(10);
+    });
+
+    it('13 pieces (2 bundles + 3) at €2/piece totals €26, not €130', () => {
+      const row = laikoRow({ saleBundles: '2', salePieces: '3', endNo: '87' });
+      expect(calculateRowTotal(row)).toBe(26);
+    });
+  });
+
+  describe('hasBackSide (Πίσω selling) - independent of bundle-tracking, opt-in per row', () => {
+    it('defaults to false for Λαχεία and true for Σκρατς, matching pre-existing behavior', () => {
+      const scratchRow: ScratchTicketRow = { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '' };
+      expect(isLotteryRow(laikoRow())).toBe(true);
+      expect(hasBackSide(laikoRow())).toBe(false);
+      expect(isLotteryRow(scratchRow)).toBe(false);
+      expect(hasBackSide(scratchRow)).toBe(true);
+    });
+
+    it('an explicit backSideEnabled overrides the category default either way', () => {
+      expect(hasBackSide(laikoRow({ backSideEnabled: true }))).toBe(true);
+      const scratchRow: ScratchTicketRow = { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '', backSideEnabled: false };
+      expect(hasBackSide(scratchRow)).toBe(false);
     });
   });
 });

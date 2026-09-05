@@ -38,6 +38,13 @@ export interface ScratchTicketRow {
   bundleSize?: number;
   saleBundles?: string; // πεντάδες sold this entry (User-editable)
   salePieces?: string; // μεμονωμένα κομμάτια sold this entry, normalized 0..bundleSize-1 (User-editable)
+  // Whether this row sells from both ends of the same stock (Πίσω side)
+  // at all. Independent of bundleSize/isLotteryRow - a Λαχεία game can
+  // opt into Πίσω selling same as Σκρατς, or a Σκρατς game could opt out.
+  // Undefined means "use the historical default" (see hasBackSide below),
+  // so every row that predates this toggle keeps behaving exactly as it
+  // always did until an Owner/Admin explicitly changes it.
+  backSideEnabled?: boolean;
 }
 
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
@@ -68,7 +75,9 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   { id: 'scr_20_gata_x20', name: 'ΓΑΤΑ Χ20', category: 'Σκρατς 20€', price: 20, startNo: '', endNo: '' },
 
   // Λαχεία & Ειδικές Εκδόσεις
-  { id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 10, startNo: '', endNo: '', bundleSize: 5 },
+  // price is PER PIECE for a bundle-tracked row (see isBundleTrackedRow) -
+  // €2/piece x 5 pieces/bundle = €10/bundle, matching the real product.
+  { id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 2, startNo: '', endNo: '', bundleSize: 5 },
   { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
   { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
   { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
@@ -127,6 +136,7 @@ export function saveScratchCatalog(rows: ScratchTicketRow[]): void {
       backStartNo: '',
       backEndNo: '',
       bundleSize: r.bundleSize,
+      backSideEnabled: r.backSideEnabled,
     }));
     localStorage.setItem(SCRATCH_CATALOG_STORAGE_KEY, JSON.stringify(cleanDefinitions));
   } catch (e) {
@@ -224,6 +234,7 @@ export function carryOverScratchInventory(
         backStartNo: '',
         manualQty: '',
         bundleSize: prev.bundleSize,
+        backSideEnabled: prev.backSideEnabled,
         saleBundles: '',
         salePieces: '',
       });
@@ -266,6 +277,13 @@ export function isLotteryRow(row: ScratchTicketRow): boolean {
 
 export function isBundleTrackedRow(row: ScratchTicketRow): boolean {
   return !!row.bundleSize && row.bundleSize > 0;
+}
+
+// Whether a row has a Πίσω (back) side to sell from at all. Falls back to
+// the historical rule (Σκρατς: yes, Λαχεία: no) for any row that hasn't
+// explicitly set backSideEnabled, so this stays a pure opt-in change.
+export function hasBackSide(row: ScratchTicketRow): boolean {
+  return row.backSideEnabled ?? !isLotteryRow(row);
 }
 
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
@@ -419,9 +437,9 @@ export function calculateRowQty(row: ScratchTicketRow): number {
 // pack); backStartNo is the moving, User-filled current reading (decreasing
 // as more gets sold from the back). Empty backStartNo = no back-side sale
 // recorded yet, mirroring endNo's empty-means-zero convention exactly.
-// Lottery rows don't have a defined back side (no fixed package size).
+// Rows without a back side (hasBackSide === false) contribute zero here.
 export function calculateBackRowQty(row: ScratchTicketRow): number {
-  if (isLotteryRow(row)) return 0;
+  if (!hasBackSide(row)) return 0;
 
   const backStartStr = row.backStartNo !== undefined ? String(row.backStartNo).trim() : '';
   const backEndStr = row.backEndNo !== undefined ? String(row.backEndNo).trim() : '';
@@ -621,6 +639,43 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     onChangeRows(updated);
   };
 
+  // Owner/Admin-only config toggles for Λαχεία rows: whether the row uses
+  // πεντάδα/κομμάτι dual tracking at all, and whether it also sells from
+  // the Πίσω side. Both default off/historical for every row that hasn't
+  // been explicitly configured (see isBundleTrackedRow/hasBackSide).
+  const handleToggleBundleTracking = (id: string, enabled: boolean) => {
+    if (readOnly) return;
+    const updated = rows.map((r) => {
+      if (r.id !== id) return r;
+      if (enabled) return { ...r, bundleSize: r.bundleSize || 5 };
+      // Turning it off: clear the sale-entry fields too, they're meaningless
+      // without a bundle size to normalize against. endNo (the actual
+      // remaining count) is left untouched - it's still valid as a plain reading.
+      return { ...r, bundleSize: undefined, saleBundles: undefined, salePieces: undefined };
+    });
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
+  };
+
+  const handleSetBundleSize = (id: string, size: number) => {
+    if (readOnly) return;
+    const updated = rows.map((r) => (r.id === id ? { ...r, bundleSize: size } : r));
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
+  };
+
+  const handleToggleBackSide = (id: string, enabled: boolean) => {
+    if (readOnly) return;
+    const updated = rows.map((r) => {
+      if (r.id !== id) return r;
+      if (enabled) return { ...r, backSideEnabled: true };
+      // Disabling: clear any back-side data so it doesn't linger unused.
+      return { ...r, backSideEnabled: false, backStartNo: '', backEndNo: '' };
+    });
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
+  };
+
   const handleApplyNewPack = (rowId: string) => {
     const updated = rows.map((r) => {
       if (r.id === rowId) {
@@ -677,7 +732,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const scratchFrontPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
   const scratchBackPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateBackRowQty(r), 0);
   const scratchSales = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
-  const lotteryPieces = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+  // calculateCombinedRowQty (not calculateRowQty) - a Λαχεία row can now
+  // opt into Πίσω selling too (hasBackSide), same reasoning as scratchPieces above.
+  const lotteryPieces = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
   const lotterySales = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
   const totalTicketsSold = scratchPieces + lotteryPieces;
   const grandTotalSales = scratchSales + lotterySales;
@@ -833,7 +890,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             {categories.map((cat) => {
               const catRows = rows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
               const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r), 0);
-              const catQty = catRows.reduce((acc, r) => acc + calculateRowQty(r), 0);
+              // calculateCombinedRowQty (front+back), not calculateRowQty (front-only) -
+              // matches catTotal above (calculateRowTotal already combines both sides),
+              // and the per-row Σύνολο column. Pre-existing gap from the Front/Back
+              // feature: this header badge undercounted any row with back-side sales.
+              const catQty = catRows.reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
               const isCatLottery = cat.toLowerCase().includes('λαχεί') || cat.toLowerCase().includes('λαχει');
 
               return (
@@ -857,6 +918,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   {catRows.map((row) => {
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
+                    const rowHasBackSide = hasBackSide(row);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
                     const bundleSaleCheck = validateBundleSaleEntry(row);
@@ -869,7 +931,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isEditing = editingRowId === row.id;
                     const canEditStart = !readOnly && canEditLockedFields && managerOverrideEnabled;
                     const canEditBackEnd = !readOnly && canEditLockedFields && managerOverrideEnabled;
-                    const canEditBackStart = !readOnly && !isLottery;
+                    const canEditBackStart = !readOnly && rowHasBackSide;
                     const startStr = (row.startNo !== undefined ? String(row.startNo) : '').trim();
                     const endStr = (row.endNo !== undefined ? String(row.endNo) : '').trim();
                     const backStartStr = (row.backStartNo !== undefined ? String(row.backStartNo) : '').trim();
@@ -932,21 +994,31 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           )}
                         </td>
 
-                        {/* Price */}
+                        {/* Price - PER PIECE for bundle-tracked rows (bundle price is derived: price x bundleSize) */}
                         <td className="p-2 text-right">
                           {isEditing ? (
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={row.price}
-                              onChange={(e) =>
-                                handleUpdateRow(row.id, 'price', parseFloat(e.target.value) || 0)
-                              }
-                              className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
-                            />
+                            <div>
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={row.price}
+                                onChange={(e) =>
+                                  handleUpdateRow(row.id, 'price', parseFloat(e.target.value) || 0)
+                                }
+                                className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
+                              />
+                              {isBundleTracked && (
+                                <p className="text-[9px] text-slate-500 mt-0.5 whitespace-nowrap">
+                                  /κομμάτιο (≈{formatCurrency((Number(row.price) || 0) * rowBundleSize)}/{rowBundleSize}άδα)
+                                </p>
+                              )}
+                            </div>
                           ) : (
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
                               {formatCurrency(row.price)}
+                              {isBundleTracked && (
+                                <span className="block text-[9px] font-semibold text-slate-400">/κομμάτιο</span>
+                              )}
                             </span>
                           )}
                         </td>
@@ -1113,7 +1185,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Πίσω - Αρχικό (User-editable, mirrors Μπροστά-Τελικό) */}
                         <td className="p-2 text-center bg-purple-50/20">
-                          {isLottery ? (
+                          {!rowHasBackSide ? (
                             <span className="text-slate-300 text-xs">—</span>
                           ) : (
                             <div className="relative inline-block w-full max-w-[100px]">
@@ -1155,7 +1227,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Πίσω - Τελικό (Locked for regular employee, editable by Owner/Admin when override active) */}
                         <td className="p-2 text-center bg-purple-50/20">
-                          {isLottery ? (
+                          {!rowHasBackSide ? (
                             <span className="text-slate-300 text-xs">—</span>
                           ) : (
                             <div className="relative inline-block w-full max-w-[100px]">
@@ -1195,7 +1267,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                                 : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
-                            title={!isLottery ? `Μπροστά: ${frontQty} τμχ • Πίσω: ${backQty} τμχ` : undefined}
+                            title={rowHasBackSide ? `Μπροστά: ${frontQty} τμχ • Πίσω: ${backQty} τμχ` : undefined}
                           >
                             {totalQty}
                           </span>
@@ -1251,6 +1323,54 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           </td>
                         )}
                       </tr>
+                      {isEditing && isLottery && canEditLockedFields && (
+                        <tr>
+                          <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-3 pt-0">
+                            <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-lg space-y-2.5">
+                              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">
+                                Ρυθμίσεις Πώλησης Λαχείου
+                              </p>
+                              <div className="flex flex-wrap items-center gap-4">
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isBundleTracked}
+                                    onChange={(e) => handleToggleBundleTracking(row.id, e.target.checked)}
+                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                                  />
+                                  <span>Πώληση σε πεντάδες + κομμάτια</span>
+                                </label>
+                                {isBundleTracked && (
+                                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                    <span>Τεμάχια ανά πεντάδα:</span>
+                                    <input
+                                      type="number"
+                                      min={2}
+                                      value={rowBundleSize}
+                                      onChange={(e) => handleSetBundleSize(row.id, Math.max(2, parseInt(e.target.value, 10) || 5))}
+                                      className="w-14 px-1.5 py-0.5 text-center border border-indigo-300 rounded text-xs font-mono font-bold"
+                                    />
+                                  </label>
+                                )}
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={rowHasBackSide}
+                                    onChange={(e) => handleToggleBackSide(row.id, e.target.checked)}
+                                    className="w-3.5 h-3.5 accent-purple-600 cursor-pointer"
+                                  />
+                                  <span>Πώληση και από Πίσω πλευρά</span>
+                                </label>
+                              </div>
+                              {isBundleTracked && (
+                                <p className="text-[10px] text-slate-500">
+                                  Τιμή ανά κομμάτι: {formatCurrency(row.price)} · Τιμή ανά πεντάδα: {formatCurrency((Number(row.price) || 0) * rowBundleSize)}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {rowErrors.length > 0 && (
                         <tr>
                           <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-2 pt-0">
@@ -1278,8 +1398,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       {/* New Pack Modal for Managers */}
       {newPackModalRowId && (() => {
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
-        const targetIsLottery = targetRow ? isLotteryRow(targetRow) : false;
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
+        const targetHasBackSide = targetRow ? hasBackSide(targetRow) : false;
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4">
@@ -1318,7 +1438,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               )}
             </div>
 
-            {!targetIsLottery && (
+            {targetHasBackSide && (
               <div>
                 <label className="text-[11px] font-bold text-purple-700 uppercase block mb-1">
                   Πίσω - Τελικό (πώληση από το τέλος):
