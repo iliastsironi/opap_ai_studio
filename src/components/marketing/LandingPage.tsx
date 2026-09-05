@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
   Clock,
@@ -14,12 +14,38 @@ import {
   Settings,
   PlayCircle,
   HelpCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 interface LandingPageProps {
   onStartTrial: () => void;
   onSignIn: () => void;
 }
+
+const NAV_LINKS = [
+  { href: '#reassurance', label: 'Για ποιον είναι' },
+  { href: '#features', label: 'Λειτουργίες' },
+  { href: '#how-it-works', label: 'Πώς λειτουργεί' },
+  { href: '#pricing', label: 'Τιμές' },
+  { href: '#faq', label: 'Ερωτήσεις' },
+];
+
+const REASSURANCE_POINTS = [
+  {
+    title: 'Μετράτε το ταμείο στο χέρι κάθε βράδυ;',
+    description:
+      'Το ShiftLedger κάνει τους υπολογισμούς για εσάς — εσείς απλά πληκτρολογείτε αριθμούς, όπως σε μια αριθμομηχανή.',
+  },
+  {
+    title: 'Χάνετε το μέτρημα στα Λαχεία;',
+    description: 'Το απόθεμα ενημερώνεται μόνο του — τέλος το τετράδιο και το μολύβι.',
+  },
+  {
+    title: 'Φοβάστε μήπως κάνετε λάθος;',
+    description:
+      'Αν κάτι καταχωρηθεί λάθος, ο υπεύθυνος το στέλνει πίσω για διόρθωση με ένα κλικ — δεν χρειάζεται να ξεκινήσετε από την αρχή.',
+  },
+];
 
 const FEATURES = [
   {
@@ -38,7 +64,7 @@ const FEATURES = [
     icon: Building2,
     title: 'Πολλαπλά Καταστήματα',
     description:
-      'Διαχειριστείτε όσα καταστήματα και ταμεία χρειάζεστε, με ρόλους πρόσβασης για Ιδιοκτήτη, Διευθυντή και Υπάλληλο. Δείτε ενοποιημένη εικόνα ή ανά κατάστημα, ανά πάσα στιγμή.',
+      'Διαχειριστείτε όσα καταστήματα χρειάζεστε από ένα μέρος — ο καθένας βλέπει ό,τι του χρειάζεται: Ιδιοκτήτης, Διευθυντής ή Υπάλληλος.',
   },
   {
     icon: CreditCard,
@@ -48,7 +74,7 @@ const FEATURES = [
   },
   {
     icon: BarChart3,
-    title: 'Αναφορές & KPIs',
+    title: 'Αναφορές & Στατιστικά',
     description:
       'Ημερήσιες και περιοδικές αναφορές εσόδων, εξόδων και αποκλίσεων ταμείου σε όλα τα καταστήματά σας. Εξαγωγή σε Excel για τον λογιστή σας με ένα κλικ.',
   },
@@ -56,7 +82,7 @@ const FEATURES = [
     icon: ShieldCheck,
     title: 'Ασφάλεια Δεδομένων',
     description:
-      'Κάθε κατάστημα βλέπει μόνο τα δικά του δεδομένα, με πλήρες ιστορικό ενεργειών (audit log) για κάθε αλλαγή. Ο διαχωρισμός επιβάλλεται σε επίπεδο βάσης δεδομένων, όχι μόνο στην οθόνη.',
+      'Κάθε κατάστημα βλέπει μόνο τα δικά του δεδομένα, με πλήρες ιστορικό για κάθε αλλαγή, ώστε να ξέρετε πάντα τι έγινε και πότε.',
   },
 ];
 
@@ -80,6 +106,14 @@ const HOW_IT_WORKS = [
 
 const FAQS = [
   {
+    q: 'Χρειάζεται να ξέρω από υπολογιστές;',
+    a: 'Όχι. Αν ξέρετε να χρησιμοποιείτε το κινητό σας για Viber ή email, θα νιώσετε άνετα από την πρώτη μέρα.',
+  },
+  {
+    q: 'Τι γίνεται αν κάνω κάποιο λάθος;',
+    a: 'Διορθώνεται εύκολα. Ο υπεύθυνος του καταστήματος μπορεί να στείλει πίσω μια βάρδια για διόρθωση, και εσείς απλά την ξανανοίγετε και τη διορθώνετε — δεν χάνεται τίποτα.',
+  },
+  {
     q: 'Πόσο διαρκεί η δωρεάν δοκιμή;',
     a: '30 ημέρες, με πλήρη πρόσβαση σε όλες τις λειτουργίες. Δεν απαιτείται πιστωτική κάρτα για να ξεκινήσετε.',
   },
@@ -89,7 +123,7 @@ const FAQS = [
   },
   {
     q: 'Βλέπουν τα καταστήματα το ένα τα δεδομένα του άλλου;',
-    a: 'Όχι. Κάθε κατάστημα/οργανισμός βλέπει αποκλειστικά τα δικά του δεδομένα — ο διαχωρισμός ελέγχεται σε επίπεδο βάσης δεδομένων.',
+    a: 'Όχι. Κάθε κατάστημα βλέπει αποκλειστικά τα δικά του δεδομένα, με ασφάλεια.',
   },
   {
     q: 'Τι γίνεται όταν λήξει η δοκιμή;',
@@ -248,7 +282,46 @@ const CashCounterPreview: React.FC = () => (
   </div>
 );
 
+const TOUR_ITEMS = [
+  {
+    key: 'dashboard',
+    tabLabel: 'Επισκόπηση',
+    title: 'Δείτε τα πάντα με μια ματιά',
+    description:
+      'Έσοδα, έξοδα και απόκλιση ταμείου για όλα τα καταστήματά σας, σε μία μόνο οθόνη — χωρίς να ψάχνετε σε χαρτιά.',
+    Panel: DashboardPreview,
+  },
+  {
+    key: 'shifts',
+    tabLabel: 'Βάρδιες',
+    title: 'Όλες οι βάρδιες, σε έναν πίνακα',
+    description:
+      'Δείτε ώρα ανοίγματος, χειριστή, αναμενόμενο ταμείο και απόκλιση για κάθε βάρδια, σε κάθε κατάστημα — χωρίς να ανοίγετε ξεχωριστό αρχείο για το καθένα.',
+    Panel: ShiftsTablePreview,
+  },
+  {
+    key: 'laiko',
+    tabLabel: 'Λαχεία',
+    title: 'Απόθεμα Λαχείων σε πεντάδες & κομμάτια',
+    description:
+      'Καταχωρήστε την πώληση ακριβώς όπως μετράτε το πακέτο — σε πεντάδες και μεμονωμένα κομμάτια — και το υπόλοιπο απόθεμα ενημερώνεται αυτόματα.',
+    Panel: LaikoTablePreview,
+  },
+  {
+    key: 'cash',
+    tabLabel: 'Μέτρημα Ταμείου',
+    title: 'Καταμέτρηση ταμείου χωρίς αριθμομηχανή',
+    description:
+      'Μετρήστε χαρτονομίσματα και κέρματα ένα-ένα και δείτε το σύνολο να υπολογίζεται από μόνο του, συγκρινόμενο απευθείας με το αναμενόμενο ταμείο.',
+    Panel: CashCounterPreview,
+  },
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn }) => {
+  const [activeTour, setActiveTour] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const ActiveTourPanel = TOUR_ITEMS[activeTour].Panel;
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {/* Top bar */}
@@ -260,6 +333,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
             </div>
             <span className="font-extrabold text-lg tracking-tight text-slate-900">ShiftLedger</span>
           </div>
+          <nav className="hidden lg:flex items-center space-x-6 text-sm font-semibold text-slate-600">
+            {NAV_LINKS.map((link) => (
+              <a key={link.href} href={link.href} className="hover:text-indigo-600 transition-colors">
+                {link.label}
+              </a>
+            ))}
+          </nav>
           <button
             onClick={onSignIn}
             className="inline-flex items-center space-x-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
@@ -283,7 +363,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
             </h1>
             <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed">
               Βάρδιες, ταμείο, Σκρατς &amp; Λαχεία, τεφτέρι πελατών και αναφορές — όλα σε ένα σύστημα,
-              χτισμένο ειδικά για πρακτορεία ΟΠΑΠ.
+              χτισμένο ειδικά για πρακτορεία ΟΠΑΠ. Απλό στη χρήση, όσο κι αν δεν είστε "τεχνολογικός" τύπος.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
               <button
@@ -300,7 +380,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 Έχω ήδη λογαριασμό
               </button>
             </div>
-            <p className="mt-4 text-xs text-slate-500">Χωρίς πιστωτική κάρτα. Ακυρώστε όποτε θέλετε.</p>
+            <p className="mt-4 text-sm text-slate-500">Χωρίς πιστωτική κάρτα. Ακυρώστε όποτε θέλετε.</p>
           </div>
           <BrowserFrame>
             <DashboardPreview />
@@ -308,8 +388,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
         </div>
       </section>
 
+      {/* Who this is for / reassurance */}
+      <section id="reassurance" className="scroll-mt-24 bg-indigo-50/40 border-t border-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              Δεν είστε &quot;τεχνολογικός&quot; τύπος; Δεν χρειάζεται.
+            </h2>
+            <p className="mt-3 text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Αν ξέρετε να στέλνετε μήνυμα στο Viber ή να διαβάζετε ένα email, θα νιώσετε άνετα με το ShiftLedger
+              από την πρώτη μέρα.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {REASSURANCE_POINTS.map((point) => (
+              <div key={point.title} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500 mb-3" />
+                <h3 className="font-bold text-slate-900">{point.title}</h3>
+                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{point.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
+      <section id="features" className="scroll-mt-24 max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
         <div className="text-center mb-12">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
             Όλα όσα χρειάζεται το πρακτορείο σας
@@ -328,14 +432,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 <feature.icon className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-slate-900">{feature.title}</h3>
-              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{feature.description}</p>
+              <p className="mt-1.5 text-base text-slate-500 leading-relaxed">{feature.description}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="bg-slate-50 border-t border-slate-100">
+      <section id="how-it-works" className="scroll-mt-24 bg-slate-50 border-t border-slate-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Πώς λειτουργεί</h2>
@@ -351,63 +455,48 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                   </span>
                 </div>
                 <h3 className="mt-4 font-bold text-slate-900">{step.title}</h3>
-                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed max-w-xs mx-auto">{step.description}</p>
+                <p className="mt-1.5 text-base text-slate-500 leading-relaxed max-w-xs mx-auto">{step.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Product tour */}
+      {/* Interactive product tour */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Μια ματιά στην εφαρμογή</h2>
-          <p className="mt-3 text-slate-500 max-w-xl mx-auto">Πραγματικές οθόνες από το ShiftLedger, όχι υποσχέσεις.</p>
+          <p className="mt-3 text-slate-500 max-w-xl mx-auto">
+            Πραγματικές οθόνες από το ShiftLedger — πατήστε πάνω σε ό,τι σας ενδιαφέρει.
+          </p>
         </div>
-        <div className="space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <BrowserFrame>
-              <ShiftsTablePreview />
-            </BrowserFrame>
-            <div>
-              <h3 className="font-extrabold text-xl text-slate-900">Όλες οι βάρδιες, σε έναν πίνακα</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Δείτε ώρα ανοίγματος, χειριστή, αναμενόμενο ταμείο και απόκλιση για κάθε βάρδια, σε κάθε
-                κατάστημα — χωρίς να ανοίγετε ξεχωριστό αρχείο για το καθένα.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="md:order-2">
-              <BrowserFrame>
-                <LaikoTablePreview />
-              </BrowserFrame>
-            </div>
-            <div className="md:order-1">
-              <h3 className="font-extrabold text-xl text-slate-900">Απόθεμα Λαχείων σε πεντάδες &amp; κομμάτια</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Καταχωρήστε την πώληση ακριβώς όπως μετράτε το πακέτο — σε πεντάδες και μεμονωμένα κομμάτια — και
-                το υπόλοιπο απόθεμα ενημερώνεται αυτόματα.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <BrowserFrame>
-              <CashCounterPreview />
-            </BrowserFrame>
-            <div>
-              <h3 className="font-extrabold text-xl text-slate-900">Καταμέτρηση ταμείου χωρίς αριθμομηχανή</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Μετρήστε χαρτονομίσματα και κέρματα ένα-ένα και δείτε το σύνολο να υπολογίζεται από μόνο του,
-                συγκρινόμενο απευθείας με το αναμενόμενο ταμείο.
-              </p>
-            </div>
+        <div className="flex flex-wrap justify-center gap-2 mb-10">
+          {TOUR_ITEMS.map((item, i) => (
+            <button
+              key={item.key}
+              onClick={() => setActiveTour(i)}
+              aria-pressed={activeTour === i}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-colors cursor-pointer ${
+                activeTour === i ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {item.tabLabel}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <BrowserFrame>
+            <ActiveTourPanel />
+          </BrowserFrame>
+          <div>
+            <h3 className="font-extrabold text-xl text-slate-900">{TOUR_ITEMS[activeTour].title}</h3>
+            <p className="mt-2 text-base text-slate-600 leading-relaxed">{TOUR_ITEMS[activeTour].description}</p>
           </div>
         </div>
       </section>
 
       {/* Pricing */}
-      <section className="bg-slate-50 border-t border-slate-100">
+      <section id="pricing" className="scroll-mt-24 bg-slate-50 border-t border-slate-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Απλή, καθαρή τιμολόγηση</h2>
@@ -466,20 +555,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       </section>
 
       {/* FAQ */}
-      <section className="max-w-3xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
+      <section id="faq" className="scroll-mt-24 max-w-3xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 mb-4">
             <HelpCircle className="w-5 h-5" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Συχνές Ερωτήσεις</h2>
         </div>
-        <div className="space-y-4">
-          {FAQS.map((faq) => (
-            <div key={faq.q} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <h3 className="font-bold text-slate-900 text-sm">{faq.q}</h3>
-              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{faq.a}</p>
-            </div>
-          ))}
+        <div className="space-y-3">
+          {FAQS.map((faq, i) => {
+            const isOpen = openFaq === i;
+            return (
+              <div key={faq.q} className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : i)}
+                  aria-expanded={isOpen}
+                  className="w-full flex items-center justify-between gap-3 text-left p-5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
+                >
+                  <span className="font-bold text-slate-900 text-base">{faq.q}</span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {isOpen && <p className="px-5 pb-5 text-base text-slate-600 leading-relaxed">{faq.a}</p>}
+              </div>
+            );
+          })}
         </div>
       </section>
 
