@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase } from '../../services/supabase.ts';
 
-export const LoginForm: React.FC = () => {
+interface LoginFormProps {
+  initialMode?: 'signin' | 'signup';
+  onBack?: () => void;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', onBack }) => {
   const { loginWithEmail, loginWithGoogle, signUpWithEmail } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -83,6 +88,16 @@ export const LoginForm: React.FC = () => {
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-900/20 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative z-10">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-4 inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Αρχική Σελίδα</span>
+          </button>
+        )}
         {/* Logo Branding */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white font-extrabold text-2xl shadow-lg shadow-indigo-600/30 mb-3">
