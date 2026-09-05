@@ -650,11 +650,17 @@ export const ShiftsManager: React.FC = () => {
             </div>
           )}
 
-          {/* Grouped Filter, Search & View Controls Bar (Tablet Responsive Grid) */}
+          {/* Grouped Filter, Search & View Controls Bar - was sm: (640px), which
+              switches this row from stacked to a 12-col inline grid before
+              there's actually enough width for 2 dropdowns (long option text
+              like "ΟΛΕΣ ΟΙ ΚΑΤΑΣΤΑΣΕΙΣ") plus the view switcher - confirmed
+              live at 768px (tablet): both selects visibly truncated. lg:
+              (1024px) is genuine desktop width; tablet now keeps the stacked
+              layout that already renders cleanly at phone widths too. */}
           <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/90 shadow-2xs space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-              {/* Search Field (sm:col-span-5) */}
-              <div className="sm:col-span-5 relative">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+              {/* Search Field (lg:col-span-5) */}
+              <div className="lg:col-span-5 relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -665,8 +671,8 @@ export const ShiftsManager: React.FC = () => {
                 />
               </div>
 
-              {/* Store & Status Filters (sm:col-span-5) */}
-              <div className="sm:col-span-5 grid grid-cols-2 gap-2">
+              {/* Store & Status Filters (lg:col-span-5) */}
+              <div className="lg:col-span-5 grid grid-cols-2 gap-2">
                 <select
                   value={selectedStoreFilter}
                   onChange={(e) => setSelectedStoreFilter(e.target.value)}
@@ -694,8 +700,8 @@ export const ShiftsManager: React.FC = () => {
                 </select>
               </div>
 
-              {/* View Layout Switcher (sm:col-span-2) */}
-              <div className="sm:col-span-2 flex items-center justify-end space-x-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200">
+              {/* View Layout Switcher (lg:col-span-2) */}
+              <div className="lg:col-span-2 flex items-center justify-end space-x-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200">
                 <button
                   type="button"
                   onClick={() => handleSetViewMode('TABLE')}
