@@ -381,7 +381,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => setActiveTab('FIELDS')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'FIELDS'
-                ? 'bg-slate-900 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -396,7 +396,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => setActiveTab('MODULES')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'MODULES'
-                ? 'bg-slate-900 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >

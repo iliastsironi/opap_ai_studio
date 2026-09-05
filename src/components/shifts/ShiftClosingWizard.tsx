@@ -1375,7 +1375,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       )}
 
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800">
+      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl border border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2 mb-2">
@@ -1446,7 +1446,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 1: OPENING & OPERATIONAL SUMMARY */}
       {currentStep === 1 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -1477,6 +1477,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={openingNotesAmount}
                     onChange={(e) => setOpeningNotesAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1490,6 +1491,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={openingCoinsAmount}
                     onChange={(e) => setOpeningCoinsAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1503,6 +1505,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="0.00"
                     value={openingTopUp1}
                     onChange={(e) => setOpeningTopUp1(e.target.value)}
@@ -1517,6 +1520,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="0.00"
                     value={openingTopUp2}
                     onChange={(e) => setOpeningTopUp2(e.target.value)}
@@ -1559,6 +1563,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <input
                 type="number"
                 step="1"
+                min="0"
                 value={discrepancyThreshold}
                 onChange={(e) => setDiscrepancyThreshold(e.target.value)}
                 className="w-36 px-4 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1573,7 +1578,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 2: OPAP TRANSACTION CATEGORIES & GRANULAR REPORTS */}
       {currentStep === 2 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -1631,6 +1636,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       readOnly={!scratchSalesManualOverride}
                       value={scratchSales}
                       onChange={(e) => setScratchSales(e.target.value)}
@@ -1676,6 +1682,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       value={scratchPayouts}
                       onChange={(e) => setScratchPayouts(e.target.value)}
                       placeholder="0.00"
@@ -1758,6 +1765,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
                         value={item.amount}
                         onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
                         placeholder="0.00"
@@ -1782,6 +1790,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={cleverPointTotal}
                     onChange={(e) => setCleverPointTotal(e.target.value)}
                     placeholder="0.00"
@@ -1800,6 +1809,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={ippodromosBalance}
                     onChange={(e) => setIppodromosBalance(e.target.value)}
                     placeholder="0.00"
@@ -1818,6 +1828,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={pameStoiximaBalance}
                     onChange={(e) => setPameStoiximaBalance(e.target.value)}
                     placeholder="0.00"
@@ -1845,6 +1856,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={vltsIn}
                     onChange={(e) => setVltsIn(e.target.value)}
                     placeholder="0.00"
@@ -1892,6 +1904,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       value={vltsOut}
                       onChange={(e) => setVltsOut(e.target.value)}
                       placeholder="0.00"
@@ -1930,6 +1943,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={arithmoGross}
                     onChange={(e) => setArithmoGross(e.target.value)}
                     placeholder="0.00"
@@ -1944,6 +1958,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={arithmoCancels}
                     onChange={(e) => setArithmoCancels(e.target.value)}
                     placeholder="0.00"
@@ -1958,6 +1973,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={arithmoPayouts}
                     onChange={(e) => setArithmoPayouts(e.target.value)}
                     placeholder="0.00"
@@ -1972,6 +1988,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={arithmoVouchers}
                     onChange={(e) => setArithmoVouchers(e.target.value)}
                     placeholder="0.00"
@@ -1986,7 +2003,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 3: FnB, EXPENSES & CUSTOMER CREDITS */}
       {currentStep === 3 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8">
           {/* FnB Sales */}
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-3">
@@ -2004,6 +2021,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={fnbSales}
                   onChange={(e) => setFnbSales(e.target.value)}
                   placeholder="0.00"
@@ -2018,6 +2036,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={fnbCash}
                   onChange={(e) => setFnbCash(e.target.value)}
                   placeholder="0.00"
@@ -2032,6 +2051,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
                   value={fnbCard}
                   onChange={(e) => setFnbCard(e.target.value)}
                   placeholder="0.00"
@@ -2148,6 +2168,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <input
                         type="number"
                         step="0.01"
+                        min="0"
                         placeholder="Ποσό €"
                         value={exp.amount || ''}
                         onChange={(e) => {
@@ -2218,7 +2239,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 4: EUR DENOMINATION CASH COUNTER */}
       {currentStep === 4 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -2326,6 +2347,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <input
                       type="number"
                       step="0.01"
+                      min="0"
                       value={item.amount}
                       onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
                       placeholder="0.00"
@@ -2342,7 +2364,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 5: REVIEW, RECONCILIATION & SUBMISSION */}
       {currentStep === 5 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -2445,7 +2467,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           </div>
 
           {/* 📋 Πλήρες Φύλλο Ισοσκελισμού Βάρδιας (Ακριβές Πρότυπο Excel) */}
-          <div className="bg-slate-900 text-white rounded-3xl p-5 sm:p-6 border border-slate-800 shadow-xl space-y-5">
+          <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-xl space-y-5">
             {/* Excel Top Header */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 text-xs">
               <div className="space-y-1.5 border-b md:border-b-0 md:border-r border-slate-700/60 pb-3 md:pb-0 md:pr-4">
