@@ -674,7 +674,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   if (activeItems.length === 0) return null;
 
                   const scratchPieces = activeItems.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
-                  const lotteryPieces = activeItems.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+                  // calculateCombinedRowQty (not calculateRowQty) - a Λαχεία row can
+                  // opt into Πίσω selling too (hasBackSide), so front-only would undercount.
+                  const lotteryPieces = activeItems.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
                   const totalVal = activeItems.reduce((acc, r) => acc + calculateRowTotal(r), 0);
                   const totalSold = scratchPieces + lotteryPieces;
 
