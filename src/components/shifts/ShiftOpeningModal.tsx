@@ -364,6 +364,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
@@ -391,6 +392,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"

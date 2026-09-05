@@ -45,6 +45,19 @@ import {
   ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
 
+// Same 5 statuses/colors as ShiftsManager's renderStatusBadge, adapted to
+// this modal's dark header (semi-transparent /20 fill + light text, vs.
+// ShiftsManager's light bg-COLOR-50 on a white row) - was previously a
+// 3-way ternary that collapsed OPEN and DRAFT_CLOSING into the same amber
+// fallback, and put SUBMITTED under indigo instead of amber.
+const SHIFT_STATUS_STYLES: Record<string, { badge: string; label: string }> = {
+  APPROVED: { badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', label: 'ΕΓΚΕΚΡΙΜΕΝΗ' },
+  SUBMITTED: { badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', label: 'ΕΚΚΡΕΜΕΙ ΕΓΚΡΙΣΗ' },
+  CORRECTION_REQUESTED: { badge: 'bg-rose-500/20 text-rose-300 border border-rose-500/30', label: 'ΑΙΤΗΣΗ ΔΙΟΡΘΩΣΗΣ' },
+  OPEN: { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', label: 'ΑΝΟΙΧΤΗ' },
+  DRAFT_CLOSING: { badge: 'bg-purple-500/20 text-purple-300 border border-purple-500/30', label: 'ΠΡΟΧΕΙΡΟ' },
+};
+
 interface ShiftDetailsModalProps {
   shift: Shift | null;
   isOpen: boolean;
@@ -149,22 +162,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 <h3 className="font-black text-base sm:text-lg">Επιθεώρηση & Έγκριση Βάρδιας</h3>
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    shift.status === 'APPROVED'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : shift.status === 'SUBMITTED'
-                      ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                      : shift.status === 'CORRECTION_REQUESTED'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    (SHIFT_STATUS_STYLES[shift.status] ?? { badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30' }).badge
                   }`}
                 >
-                  {shift.status === 'APPROVED'
-                    ? 'ΕΓΚΕΚΡΙΜΕΝΗ'
-                    : shift.status === 'SUBMITTED'
-                    ? 'ΕΚΚΡΕΜΕΙ ΕΓΚΡΙΣΗ'
-                    : shift.status === 'CORRECTION_REQUESTED'
-                    ? 'ΑΙΤΗΣΗ ΔΙΟΡΘΩΣΗΣ'
-                    : shift.status}
+                  {(SHIFT_STATUS_STYLES[shift.status] ?? { label: shift.status }).label}
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">

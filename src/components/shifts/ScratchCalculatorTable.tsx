@@ -1001,6 +1001,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               <input
                                 type="number"
                                 step="0.5"
+                                min="0"
                                 value={row.price}
                                 onChange={(e) =>
                                   handleUpdateRow(row.id, 'price', parseFloat(e.target.value) || 0)
@@ -1420,6 +1421,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               </label>
               <input
                 type="number"
+                min="0"
                 value={newPackStartNo}
                 onChange={(e) => setNewPackStartNo(e.target.value)}
                 className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500"
@@ -1445,6 +1447,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 </label>
                 <input
                   type="number"
+                  min="0"
                   value={newPackBackEndNo}
                   onChange={(e) => setNewPackBackEndNo(e.target.value)}
                   className="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500"
