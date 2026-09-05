@@ -26,6 +26,7 @@ import { Shift, ShiftTemplateConfig } from '../../types/index.ts';
 import { safeNum, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { DEFAULT_OPAP_SHIFT_TEMPLATE } from '../../services/shiftTemplateService.ts';
+import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isLotteryRow } from './ScratchCalculatorTable.tsx';
 
 interface ShiftLedgerSheetProps {
   shift?: Partial<Shift>;
@@ -582,24 +583,30 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               {/* Expandable Breakdown of Scratch Serial Numbers */}
               {showScratchDetails && savedScratchItems.length > 0 && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] space-y-1.5 font-mono">
-                  <div className="grid grid-cols-5 text-slate-500 font-bold uppercase text-[9px] pb-1 border-b border-slate-200">
+                  <div className="grid grid-cols-7 text-slate-500 font-bold uppercase text-[9px] pb-1 border-b border-slate-200">
                     <span className="col-span-2">Τύπος Σκρατς</span>
-                    <span className="text-center">Αρχικό</span>
-                    <span className="text-center">Τελικό</span>
+                    <span className="text-center text-indigo-600">Μπρ. Αρχ.</span>
+                    <span className="text-center text-indigo-600">Μπρ. Τελ.</span>
+                    <span className="text-center text-purple-600">Πίσ. Αρχ.</span>
+                    <span className="text-center text-purple-600">Πίσ. Τελ.</span>
                     <span className="text-right">Σύνολο (€)</span>
                   </div>
                   {savedScratchItems.map((item: any, idx: number) => {
-                    const start = parseInt(item.startNo, 10);
-                    const end = parseInt(item.endNo, 10);
-                    const qty = (!isNaN(start) && !isNaN(end) && end >= start) ? (end - start) : (parseInt(item.manualQty, 10) || 0);
-                    const rowTotal = qty * (item.price || 0);
+                    const lottery = isLotteryRow(item);
+                    const qty = calculateRowQty(item) + calculateBackRowQty(item);
+                    const rowTotal = calculateRowTotal(item);
 
                     return (
-                      <div key={item.id || idx} className="grid grid-cols-5 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
+                      <div key={item.id || idx} className="grid grid-cols-7 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
                         <span className="col-span-2 font-bold font-sans text-slate-900">{item.name} ({item.price}€)</span>
                         <span className="text-center text-slate-600">{item.startNo !== '' ? item.startNo : '-'}</span>
                         <span className="text-center text-slate-600">{item.endNo !== '' ? item.endNo : '-'}</span>
+                        <span className="text-center text-slate-600">{lottery ? '—' : (item.backStartNo || '-')}</span>
+                        <span className="text-center text-slate-600">{lottery ? '—' : (item.backEndNo || '-')}</span>
                         <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? formatCurrency(rowTotal) : '-'}</span>
+                        {qty > 0 && (
+                          <span className="col-span-7 text-[9px] text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
+                        )}
                       </div>
                     );
                   })}

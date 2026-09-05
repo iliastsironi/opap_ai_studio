@@ -37,6 +37,7 @@ import {
 import {
   calculateRowQty,
   calculateRowTotal,
+  calculateCombinedRowQty,
   isLotteryRow,
   ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
@@ -661,11 +662,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 {(() => {
                   const scratchItems: ScratchTicketRow[] = shift.custom_field_values?.scratch_ticket_items || [];
                   const activeItems = scratchItems.filter(
-                    (r) => (r.startNo && r.startNo !== '') || (r.endNo && r.endNo !== '') || calculateRowQty(r) > 0
+                    (r) =>
+                      (r.startNo && r.startNo !== '') ||
+                      (r.endNo && r.endNo !== '') ||
+                      (r.backStartNo && r.backStartNo !== '') ||
+                      calculateCombinedRowQty(r) > 0
                   );
                   if (activeItems.length === 0) return null;
 
-                  const scratchPieces = activeItems.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
+                  const scratchPieces = activeItems.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
                   const lotteryPieces = activeItems.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
                   const totalVal = activeItems.reduce((acc, r) => acc + calculateRowTotal(r), 0);
                   const totalSold = scratchPieces + lotteryPieces;
@@ -690,16 +695,19 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase">
                               <th className="py-1.5 px-2">Παιχνίδι</th>
                               <th className="py-1.5 px-2 text-right">Τιμή</th>
-                              <th className="py-1.5 px-2 text-center"># Αρχικό</th>
-                              <th className="py-1.5 px-2 text-center"># Τελικό</th>
-                              <th className="py-1.5 px-2 text-center">Πωλήσεις (Τμχ)</th>
+                              <th className="py-1.5 px-2 text-center text-indigo-400">Μπρ. Αρχικό</th>
+                              <th className="py-1.5 px-2 text-center text-indigo-400">Μπρ. Τελικό</th>
+                              <th className="py-1.5 px-2 text-center text-purple-400">Πίσ. Αρχικό</th>
+                              <th className="py-1.5 px-2 text-center text-purple-400">Πίσ. Τελικό</th>
+                              <th className="py-1.5 px-2 text-center">Σύνολο (Τμχ)</th>
                               <th className="py-1.5 px-2 text-right">Αξία (€)</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-800/60 font-medium">
                             {activeItems.map((r, idx) => {
-                              const qty = calculateRowQty(r);
+                              const qty = calculateCombinedRowQty(r);
                               const val = calculateRowTotal(r);
+                              const lottery = isLotteryRow(r);
                               return (
                                 <tr key={r.id || idx} className="hover:bg-slate-800/40">
                                   <td className="py-1.5 px-2 font-sans font-bold text-slate-200">
@@ -713,6 +721,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{r.startNo || '-'}</td>
                                   <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">{r.endNo || '-'}</td>
+                                  <td className="py-1.5 px-2 text-center text-slate-300 font-bold">{lottery ? '—' : (r.backStartNo || '-')}</td>
+                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{lottery ? '—' : (r.backEndNo || '-')}</td>
                                   <td className="py-1.5 px-2 text-center font-bold text-white">
                                     <span className={qty > 0 ? 'bg-indigo-900/80 px-2 py-0.5 rounded text-indigo-200' : 'text-slate-500'}>
                                       {qty}
