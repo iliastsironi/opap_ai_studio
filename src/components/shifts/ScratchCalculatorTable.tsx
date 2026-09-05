@@ -1086,7 +1086,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             )}
                             {isBundleTracked && (
                               <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
-                                ≈ {startPiecesSplit.bundles} πεντάδες + {startPiecesSplit.pieces} κομμάτια
+                                ≈ {startPiecesSplit.bundles} πεντ. + {startPiecesSplit.pieces} κομ.
                               </span>
                             )}
                           </div>
@@ -1138,26 +1138,28 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   }`}
                                 />
                               </div>
-                              <span className="text-[9px] font-bold text-indigo-600 block">
-                                {/* N πεντάδες / M κομμάτια are already visible in the two inputs above -
-                                    this line only needs to add the one number they don't show: the total.
-                                    Gated on soldPieces > 0, not on the raw strings being truthy - a row
-                                    whose sale was entered and then cleared stores "0"/"0" (a non-empty,
-                                    truthy string), which must display exactly like never-touched
-                                    (undefined) rows, not show a stale "sale recorded" state. */}
-                                {bundleSaleCheck.soldPieces > 0
-                                  ? `= ${bundleSaleCheck.soldPieces} τμχ`
-                                  : 'Πεντάδες + Κομμάτια'}
-                              </span>
+                              {/* No empty-state hint here - the two title tooltips on the inputs above,
+                                  plus the ≈X πεντάδες + Y κομμάτια line in the Αρχικό cell, already say
+                                  what these boxes are for. A "Πεντάδες + Κομμάτια" label wrapped to 3
+                                  lines at this width, adding height to the single most common state
+                                  (every row starts here) for information the row already conveys.
+                                  Gated on soldPieces > 0, not on the raw strings being truthy - a row
+                                  whose sale was entered and then cleared stores "0"/"0" (a non-empty,
+                                  truthy string), which must display exactly like never-touched
+                                  (undefined) rows, not show a stale "sale recorded" state. */}
+                              {bundleSaleCheck.soldPieces > 0 && (
+                                <span className="text-[9px] font-bold text-indigo-600 block">
+                                  = {bundleSaleCheck.soldPieces} τμχ
+                                </span>
+                              )}
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
                                 <span className="text-[9px] font-semibold text-emerald-600 block">
-                                  {/* Full words, matching the ≈X πεντάδες + Y κομμάτια hint above and
-                                      every other breakdown in this row - a compact "A×B+C" reads like
-                                      an arithmetic formula, not "A bundles + B pieces", and was the one
-                                      inconsistent notation in an otherwise spelled-out row. Costs a
-                                      wrapped line while a sale is actively being entered; worth it for
-                                      not being misread as a calculation. */}
-                                  Μένουν: {remainingSplit.bundles} πεντάδες + {remainingSplit.pieces} κομμάτια
+                                  {/* "πεντ."/"κομ." abbreviations, not the earlier "A×B+C" notation -
+                                      that read like an arithmetic formula rather than "A bundles + B
+                                      pieces". Matches the same abbreviation used in the ≈X πεντ. + Y κομ.
+                                      hint above, which needed it for the same reason: the full words
+                                      ("πεντάδες"/"κομμάτια") wrapped to 3 lines at this column width. */}
+                                  Μένουν: {remainingSplit.bundles} πεντ. + {remainingSplit.pieces} κομ.
                                 </span>
                               )}
                             </div>
