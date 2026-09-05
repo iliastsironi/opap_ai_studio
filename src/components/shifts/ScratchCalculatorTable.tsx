@@ -24,12 +24,20 @@ export interface ScratchTicketRow {
   category?: string;
   price: number;
   startNo: string; // Μπροστά - Αρχικό (locked, Owner/Admin only)
-  endNo: string; // Μπροστά - Τελικό (User-editable)
+  endNo: string; // Μπροστά - Τελικό (User-editable) - for bundleSize rows, this is COMPUTED (startNo - sold pieces), never typed directly
   backStartNo?: string; // Πίσω - Αρχικό (User-editable)
   backEndNo?: string; // Πίσω - Τελικό (locked, Owner/Admin only)
   manualQty?: string;
   isNewPack?: boolean;
   packCode?: string;
+  // Dual-unit (πεντάδες/κομμάτια) tracking, e.g. Λαϊκό Λαχείο. Presence of
+  // bundleSize (pieces per bundle, e.g. 5) activates this mode for the row.
+  // startNo/endNo keep their exact existing meaning (remaining piece count
+  // before/after) - saleBundles/salePieces are just how the User expresses
+  // THIS entry's sale, which the UI converts into that same endNo.
+  bundleSize?: number;
+  saleBundles?: string; // πεντάδες sold this entry (User-editable)
+  salePieces?: string; // μεμονωμένα κομμάτια sold this entry, normalized 0..bundleSize-1 (User-editable)
 }
 
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
@@ -60,7 +68,7 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   { id: 'scr_20_gata_x20', name: 'ΓΑΤΑ Χ20', category: 'Σκρατς 20€', price: 20, startNo: '', endNo: '' },
 
   // Λαχεία & Ειδικές Εκδόσεις
-  { id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
+  { id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 10, startNo: '', endNo: '', bundleSize: 5 },
   { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
   { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
   { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
@@ -76,8 +84,22 @@ export function getSavedScratchCatalog(): ScratchTicketRow[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Merge with defaults in case defaults have keys not present
-        const merged = [...parsed];
+        // Merge with defaults in case defaults have keys not present. Two
+        // cases: an entire preset missing from the cache (handled below by
+        // appending it), AND a field added to an EXISTING preset after the
+        // cache was written (e.g. bundleSize, added for scr_laiko by this
+        // feature) - a cached row already has its own id/name match, so it
+        // must be backfilled with any default fields it lacks, or a browser
+        // with any pre-existing cached catalog would silently never see
+        // bundleSize at all and the whole feature would look inert to them.
+        // Cached values still win for fields both sides define (a user's
+        // own name/price edits must survive).
+        const merged = parsed.map((cached: any) => {
+          const def = DEFAULT_SCRATCH_PRESETS.find(
+            (d) => d.id === cached.id || (d.name === cached.name && d.category === cached.category)
+          );
+          return def ? { ...def, ...cached } : cached;
+        });
         for (const def of DEFAULT_SCRATCH_PRESETS) {
           if (!merged.some((m) => m.id === def.id || (m.name === def.name && m.category === def.category))) {
             merged.push(def);
@@ -104,6 +126,7 @@ export function saveScratchCatalog(rows: ScratchTicketRow[]): void {
       endNo: '',
       backStartNo: '',
       backEndNo: '',
+      bundleSize: r.bundleSize,
     }));
     localStorage.setItem(SCRATCH_CATALOG_STORAGE_KEY, JSON.stringify(cleanDefinitions));
   } catch (e) {
@@ -137,6 +160,8 @@ export function carryOverScratchInventory(
       endNo: '',
       backEndNo: r.backEndNo || suggestedBackEnd(r.price),
       backStartNo: '',
+      saleBundles: '',
+      salePieces: '',
     }));
   }
 
@@ -167,9 +192,11 @@ export function carryOverScratchInventory(
         backEndNo: nextBackEnd,
         backStartNo: '',
         manualQty: '',
+        saleBundles: '',
+        salePieces: '',
       });
     } else {
-      result.push({ ...base, endNo: '', backEndNo: base.backEndNo || suggestedBackEnd(base.price), backStartNo: '' });
+      result.push({ ...base, endNo: '', backEndNo: base.backEndNo || suggestedBackEnd(base.price), backStartNo: '', saleBundles: '', salePieces: '' });
     }
   }
 
@@ -196,6 +223,9 @@ export function carryOverScratchInventory(
         backEndNo: nextBackEnd,
         backStartNo: '',
         manualQty: '',
+        bundleSize: prev.bundleSize,
+        saleBundles: '',
+        salePieces: '',
       });
     }
   }
@@ -232,6 +262,89 @@ export function isLotteryRow(row: ScratchTicketRow): boolean {
   const cat = (row.category || '').toLowerCase();
   const name = (row.name || '').toLowerCase();
   return cat.includes('λαχεί') || cat.includes('λαχει') || name.includes('λαχεί') || name.includes('λαχει');
+}
+
+export function isBundleTrackedRow(row: ScratchTicketRow): boolean {
+  return !!row.bundleSize && row.bundleSize > 0;
+}
+
+// Parses a field as a non-negative integer. Empty/undefined -> 0 (no
+// fabricated sale, matches every other empty-field convention in this
+// file). Decimals, negatives, and non-numeric strings all report as
+// invalid so the caller can surface a clear Greek validation error
+// instead of silently coercing them.
+export function parseNonNegativeInt(raw: string | number | undefined): { value: number; isValid: boolean } {
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return { value: 0, isValid: true };
+  }
+  const str = String(raw).trim();
+  if (!/^\d+$/.test(str)) {
+    return { value: 0, isValid: false };
+  }
+  const n = parseInt(str, 10);
+  return { value: n, isValid: Number.isInteger(n) && n >= 0 };
+}
+
+// Normalizes a (bundles, pieces) pair so pieces always lands in
+// [0, bundleSize). E.g. bundleSize=5, (1, 7) -> (2, 2).
+export function normalizeBundleEntry(bundles: number, pieces: number, bundleSize: number): { bundles: number; pieces: number } {
+  const totalPieces = bundles * bundleSize + pieces;
+  return {
+    bundles: Math.floor(totalPieces / bundleSize),
+    pieces: totalPieces % bundleSize,
+  };
+}
+
+// Αρχικό σύνολο σε πεντάδες - purely informational derived display, never
+// a second stored/editable value (the piece count is the only source of
+// truth, per spec).
+export function splitPiecesIntoBundles(totalPieces: number, bundleSize: number): { bundles: number; pieces: number } {
+  if (!bundleSize || bundleSize <= 0 || !Number.isFinite(totalPieces) || totalPieces < 0) {
+    return { bundles: 0, pieces: 0 };
+  }
+  return { bundles: Math.floor(totalPieces / bundleSize), pieces: totalPieces % bundleSize };
+}
+
+export interface BundleSaleValidationResult {
+  errors: string[];
+  isValid: boolean;
+  soldPieces: number;
+}
+
+// Validates one bundle-tracked row's CURRENT sale entry (saleBundles +
+// salePieces) against its available stock (startNo, the remaining piece
+// count carried into this shift). Pure, no I/O - used by both the UI
+// (inline feedback) and as the model for the mirrored DB-side check.
+export function validateBundleSaleEntry(row: ScratchTicketRow): BundleSaleValidationResult {
+  const errors: string[] = [];
+  const bundleSize = row.bundleSize || 5;
+
+  const bundlesParsed = parseNonNegativeInt(row.saleBundles);
+  const piecesParsed = parseNonNegativeInt(row.salePieces);
+
+  if (!bundlesParsed.isValid) {
+    errors.push(`Το πεδίο Πεντάδες (${row.saleBundles}) πρέπει να είναι μη αρνητικός ακέραιος αριθμός.`);
+  }
+  if (!piecesParsed.isValid) {
+    errors.push(`Το πεδίο Κομμάτια (${row.salePieces}) πρέπει να είναι μη αρνητικός ακέραιος αριθμός.`);
+  }
+  if (!bundlesParsed.isValid || !piecesParsed.isValid) {
+    return { errors, isValid: false, soldPieces: 0 };
+  }
+
+  const { bundles: normBundles, pieces: normPieces } = normalizeBundleEntry(bundlesParsed.value, piecesParsed.value, bundleSize);
+  const soldPieces = normBundles * bundleSize + normPieces;
+
+  const available = parseNonNegativeInt(row.startNo).value;
+  if (soldPieces > available) {
+    const availSplit = splitPiecesIntoBundles(available, bundleSize);
+    errors.push(
+      `Η πώληση (${normBundles} πεντάδες + ${normPieces} κομμάτια = ${soldPieces} κομμάτια) ξεπερνά το διαθέσιμο απόθεμα ` +
+      `(${available} κομμάτια = ${availSplit.bundles} πεντάδες + ${availSplit.pieces} κομμάτια).`
+    );
+  }
+
+  return { errors, isValid: errors.length === 0, soldPieces };
 }
 
 // 300 EUR total face value per full package (000-299 for a 1EUR game, etc.).
@@ -448,11 +561,64 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
   const handleUpdateRow = (id: string, field: keyof ScratchTicketRow, value: any) => {
     if (readOnly) return;
-    const updated = rows.map((r) => (r.id === id ? { ...r, [field]: value } : r));
+    const updated = rows.map((r) => {
+      if (r.id !== id) return r;
+      const nextRow = { ...r, [field]: value };
+      // Admin editing the initial piece total (startNo) on a bundle-tracked
+      // row must recompute endNo in the same update - endNo = startNo - sold
+      // is an invariant the backend trigger enforces (0008), so leaving a
+      // stale endNo here would make the very next save rejected server-side.
+      if (field === 'startNo' && isBundleTrackedRow(nextRow)) {
+        const bundleSize = nextRow.bundleSize || 5;
+        const { bundles: normBundles, pieces: normPieces } = normalizeBundleEntry(
+          parseNonNegativeInt(nextRow.saleBundles).value,
+          parseNonNegativeInt(nextRow.salePieces).value,
+          bundleSize
+        );
+        const soldPieces = normBundles * bundleSize + normPieces;
+        const available = parseNonNegativeInt(nextRow.startNo).value;
+        nextRow.endNo = soldPieces > 0 ? String(Math.max(0, available - soldPieces)) : '';
+      }
+      return nextRow;
+    });
     onChangeRows(updated);
     if (field === 'name' || field === 'price' || field === 'category') {
       saveScratchCatalog(updated);
     }
+  };
+
+  // Updates a bundle-tracked row's sale entry (saleBundles/salePieces) and
+  // recomputes endNo (startNo - sold pieces) in the same update, so endNo
+  // keeps meaning exactly what it always has ("remaining after") without
+  // the User ever typing it directly. Normalizes pieces >= bundleSize into
+  // whole bundles before storing, per spec.
+  const handleUpdateBundleSale = (id: string, field: 'saleBundles' | 'salePieces', rawValue: string) => {
+    if (readOnly) return;
+    const digitsOnly = rawValue.replace(/[^0-9]/g, '');
+    const updated = rows.map((r) => {
+      if (r.id !== id) return r;
+      const bundleSize = r.bundleSize || 5;
+      const nextRow = { ...r, [field]: digitsOnly };
+      const bundlesParsed = parseNonNegativeInt(nextRow.saleBundles);
+      const piecesParsed = parseNonNegativeInt(nextRow.salePieces);
+      if (!bundlesParsed.isValid || !piecesParsed.isValid) {
+        // Leave endNo untouched while the field holds a transiently
+        // invalid value (e.g. mid-edit) - validateBundleSaleEntry will
+        // surface the real error for display.
+        return nextRow;
+      }
+      const { bundles: normBundles, pieces: normPieces } = normalizeBundleEntry(bundlesParsed.value, piecesParsed.value, bundleSize);
+      const soldPieces = normBundles * bundleSize + normPieces;
+      const available = parseNonNegativeInt(r.startNo).value;
+      const remaining = Math.max(0, available - soldPieces);
+      return {
+        ...nextRow,
+        saleBundles: String(normBundles),
+        salePieces: String(normPieces),
+        endNo: soldPieces > 0 ? String(remaining) : '',
+      };
+    });
+    onChangeRows(updated);
   };
 
   const handleApplyNewPack = (rowId: string) => {
@@ -464,6 +630,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           endNo: '',
           backEndNo: newPackBackEndNo,
           backStartNo: '',
+          saleBundles: '',
+          salePieces: '',
           isNewPack: true,
         };
       }
@@ -515,7 +683,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const grandTotalSales = scratchSales + lotterySales;
   const rowValidationErrors = new Map<string, string[]>();
   for (const r of rows) {
-    const { errors } = validateScratchRow(r);
+    const errors = isBundleTrackedRow(r) ? validateBundleSaleEntry(r).errors : validateScratchRow(r).errors;
     if (errors.length > 0) rowValidationErrors.set(r.id, errors);
   }
 
@@ -688,6 +856,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   {/* Category Items */}
                   {catRows.map((row) => {
                     const isLottery = isLotteryRow(row);
+                    const isBundleTracked = isBundleTrackedRow(row);
+                    const rowBundleSize = row.bundleSize || 5;
+                    const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
+                    const bundleSaleCheck = validateBundleSaleEntry(row);
+                    const remainingPieces = Math.max(0, parseNonNegativeInt(row.startNo).value - bundleSaleCheck.soldPieces);
+                    const remainingSplit = splitPiecesIntoBundles(remainingPieces, rowBundleSize);
                     const frontQty = calculateRowQty(row);
                     const backQty = calculateBackRowQty(row);
                     const totalQty = frontQty + backQty;
@@ -811,7 +985,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   : 'bg-slate-100 text-slate-700 border border-slate-200 cursor-not-allowed opacity-90'
                               }`}
                               title={
-                                canEditStart
+                                isBundleTracked
+                                  ? canEditStart
+                                    ? 'Διαχειριστής: Αρχικό σύνολο κομματιών (καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια)'
+                                    : 'Κλειδωμένο: Αρχικό σύνολο κομματιών - Αυτόματη μεταφορά από την προηγούμενη βάρδια'
+                                  : canEditStart
                                   ? 'Διαχειριστής: Μπορείτε να ορίσετε νέο αρχικό νούμερο'
                                   : 'Κλειδωμένο: Αυτόματη μεταφορά από την προηγούμενη βάρδια'
                               }
@@ -821,12 +999,67 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <Lock className="w-3 h-3" />
                               </div>
                             )}
+                            {isBundleTracked && (
+                              <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
+                                ≈ {startPiecesSplit.bundles} πεντάδες + {startPiecesSplit.pieces} κομμάτια
+                              </span>
+                            )}
                           </div>
                         </td>
 
-                        {/* Μπροστά - Τελικό (User-editable at shift close - locked to >= startNo for Scratch) */}
+                        {/* Μπροστά - Τελικό: for bundle-tracked rows (Λαϊκό Λαχείο), the User enters
+                            the sale as πεντάδες + κομμάτια instead of typing a raw remaining count -
+                            endNo gets computed automatically (handleUpdateBundleSale), keeping its
+                            existing "remaining after" meaning unchanged. */}
                         <td className="p-2 text-center bg-indigo-50/20">
-                          <div className="relative inline-block w-full max-w-[100px]">
+                          {isBundleTracked ? (
+                            <div className="w-full max-w-[160px] mx-auto space-y-1">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  disabled={readOnly}
+                                  value={row.saleBundles || ''}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  onChange={(e) => handleUpdateBundleSale(row.id, 'saleBundles', e.target.value)}
+                                  placeholder="0"
+                                  title="Πεντάδες που πωλήθηκαν"
+                                  className={`w-1/2 text-center px-1.5 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                    rowErrors.length > 0
+                                      ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                                      : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                  }`}
+                                />
+                                <span className="text-[9px] font-bold text-slate-400 shrink-0">×5 +</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  disabled={readOnly}
+                                  value={row.salePieces || ''}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  onChange={(e) => handleUpdateBundleSale(row.id, 'salePieces', e.target.value)}
+                                  placeholder="0"
+                                  title="Μεμονωμένα κομμάτια που πωλήθηκαν"
+                                  className={`w-1/2 text-center px-1.5 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                    rowErrors.length > 0
+                                      ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                                      : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                  }`}
+                                />
+                              </div>
+                              <span className="text-[9px] font-bold text-indigo-600 block">
+                                {(row.saleBundles || row.salePieces)
+                                  ? `Καταχώριση: ${parseNonNegativeInt(row.saleBundles).value} πεντάδες + ${parseNonNegativeInt(row.salePieces).value} κομμάτια (Ισοδύναμο: ${bundleSaleCheck.soldPieces} κομμάτια)`
+                                  : 'Πεντάδες + Κομμάτια'}
+                              </span>
+                              {(row.saleBundles || row.salePieces) && rowErrors.length === 0 && (
+                                <span className="text-[9px] font-semibold text-emerald-600 block">
+                                  Υπόλοιπο: {remainingSplit.bundles} πεντάδες + {remainingSplit.pieces} κομμάτια
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="relative inline-block w-full max-w-[100px]">
                             <input
                               type="text"
                               inputMode="numeric"
@@ -874,7 +1107,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             {frontQty > 0 && !isInvalidScratchEnd && (
                               <span className="text-[9px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
                             )}
-                          </div>
+                            </div>
+                          )}
                         </td>
 
                         {/* Πίσω - Αρχικό (User-editable, mirrors Μπροστά-Τελικό) */}
@@ -1042,21 +1276,27 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       </div>
 
       {/* New Pack Modal for Managers */}
-      {newPackModalRowId && (
+      {newPackModalRowId && (() => {
+        const targetRow = rows.find((r) => r.id === newPackModalRowId);
+        const targetIsLottery = targetRow ? isLotteryRow(targetRow) : false;
+        const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4">
             <div className="flex items-center space-x-2 text-indigo-900 border-b border-slate-100 pb-3">
               <PackagePlus className="w-5 h-5 text-indigo-600" />
-              <h4 className="font-extrabold text-sm">Άνοιγμα Νέου Πακέτου Σκρατς</h4>
+              <h4 className="font-extrabold text-sm">Άνοιγμα Νέου Πακέτου{targetIsBundleTracked ? '' : ' Σκρατς'}</h4>
             </div>
 
             <p className="text-xs text-slate-600">
-              Το προηγούμενο πακέτο ολοκληρώθηκε. Ορίστε τα δύο κλειδωμένα σημεία εκκίνησης του νέου πακέτου - ένα για κάθε κατεύθυνση πώλησης:
+              {targetIsBundleTracked
+                ? 'Το προηγούμενο απόθεμα ολοκληρώθηκε. Ορίστε το αρχικό σύνολο του νέου αποθέματος:'
+                : 'Το προηγούμενο πακέτο ολοκληρώθηκε. Ορίστε τα δύο κλειδωμένα σημεία εκκίνησης του νέου πακέτου - ένα για κάθε κατεύθυνση πώλησης:'}
             </p>
 
             <div>
               <label className="text-[11px] font-bold text-indigo-700 uppercase block mb-1">
-                Μπροστά - Αρχικό (πώληση από την αρχή):
+                {targetIsBundleTracked ? 'Αρχικό σύνολο κομματιών:' : 'Μπροστά - Αρχικό (πώληση από την αρχή):'}
               </label>
               <input
                 type="number"
@@ -1066,21 +1306,33 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 placeholder="0"
                 autoFocus
               />
+              {targetIsBundleTracked && (
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Η τιμή καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια{' '}
+                  {(() => {
+                    const n = parseNonNegativeInt(newPackStartNo).value;
+                    const split = splitPiecesIntoBundles(n, targetRow?.bundleSize || 5);
+                    return n > 0 ? `(≈ ${split.bundles} πεντάδες + ${split.pieces} κομμάτια)` : '';
+                  })()}
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="text-[11px] font-bold text-purple-700 uppercase block mb-1">
-                Πίσω - Τελικό (πώληση από το τέλος):
-              </label>
-              <input
-                type="number"
-                value={newPackBackEndNo}
-                onChange={(e) => setNewPackBackEndNo(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500"
-                placeholder="π.χ. 299"
-              />
-              <p className="text-[10px] text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
-            </div>
+            {!targetIsLottery && (
+              <div>
+                <label className="text-[11px] font-bold text-purple-700 uppercase block mb-1">
+                  Πίσω - Τελικό (πώληση από το τέλος):
+                </label>
+                <input
+                  type="number"
+                  value={newPackBackEndNo}
+                  onChange={(e) => setNewPackBackEndNo(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500"
+                  placeholder="π.χ. 299"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
+              </div>
+            )}
 
             <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
               <button
@@ -1101,7 +1353,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Footer Summary Card */}
       <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 flex items-center justify-between text-xs flex-wrap gap-2">

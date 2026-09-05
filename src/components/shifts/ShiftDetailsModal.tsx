@@ -39,6 +39,9 @@ import {
   calculateRowTotal,
   calculateCombinedRowQty,
   isLotteryRow,
+  isBundleTrackedRow,
+  parseNonNegativeInt,
+  splitPiecesIntoBundles,
   ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
 
@@ -708,6 +711,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               const qty = calculateCombinedRowQty(r);
                               const val = calculateRowTotal(r);
                               const lottery = isLotteryRow(r);
+                              const bundleTracked = isBundleTrackedRow(r);
+                              const bundleSize = r.bundleSize || 5;
+                              const startSplit = bundleTracked ? splitPiecesIntoBundles(parseNonNegativeInt(r.startNo).value, bundleSize) : null;
+                              const endSplit = bundleTracked && r.endNo ? splitPiecesIntoBundles(parseNonNegativeInt(r.endNo).value, bundleSize) : null;
                               return (
                                 <tr key={r.id || idx} className="hover:bg-slate-800/40">
                                   <td className="py-1.5 px-2 font-sans font-bold text-slate-200">
@@ -719,8 +726,22 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     )}
                                   </td>
                                   <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
-                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{r.startNo || '-'}</td>
-                                  <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">{r.endNo || '-'}</td>
+                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">
+                                    {r.startNo || '-'}
+                                    {startSplit && (
+                                      <div className="text-[9px] font-sans font-normal text-amber-500/80 normal-case">
+                                        {startSplit.bundles} πεντ. + {startSplit.pieces} τμχ
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">
+                                    {r.endNo || '-'}
+                                    {endSplit && (
+                                      <div className="text-[9px] font-sans font-normal text-indigo-400/80 normal-case">
+                                        {endSplit.bundles} πεντ. + {endSplit.pieces} τμχ
+                                      </div>
+                                    )}
+                                  </td>
                                   <td className="py-1.5 px-2 text-center text-slate-300 font-bold">{lottery ? '—' : (r.backStartNo || '-')}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{lottery ? '—' : (r.backEndNo || '-')}</td>
                                   <td className="py-1.5 px-2 text-center font-bold text-white">
