@@ -17,7 +17,6 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
   className = '',
   theme = 'light',
 }) => {
-  const [stepSize, setStepSize] = useState<number>(1);
   const [activeFilter, setActiveFilter] = useState<'all' | 'notes' | 'coins'>('all');
 
   // Handle count updates
@@ -222,78 +221,25 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
           >
             +
           </button>
+
+          {/* Reset-to-zero for this one denomination - kept separate from the
+              removed +5/+10/+20 shortcuts, which were redundant once the
+              count field itself takes direct numeric entry. */}
+          {!readOnly && qty > 0 && (
+            <button
+              type="button"
+              onClick={() => updateCount(denom.key, -qty)}
+              className={`w-7 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
+                isDark
+                  ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
+                  : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+              }`}
+              title="Μηδενισμός αξίας"
+            >
+              ✕
+            </button>
+          )}
         </div>
-
-        {/* Quick Increment Presets Row */}
-        {!readOnly && (
-          <div className="flex items-center gap-1.5 pt-0.5">
-            <button
-              type="button"
-              onClick={() => updateCount(denom.key, 5)}
-              className={`flex-1 py-1 px-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none text-center ${
-                isCoin
-                  ? isDark
-                    ? 'bg-slate-800 text-amber-300 hover:bg-amber-900 hover:text-white'
-                    : 'bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200/80'
-                  : isDark
-                  ? 'bg-slate-800 text-emerald-300 hover:bg-emerald-900 hover:text-white'
-                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white border border-emerald-200/80'
-              }`}
-              title="Προσθήκη +5"
-            >
-              +5
-            </button>
-
-            <button
-              type="button"
-              onClick={() => updateCount(denom.key, 10)}
-              className={`flex-1 py-1 px-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none text-center ${
-                isCoin
-                  ? isDark
-                    ? 'bg-slate-800 text-amber-300 hover:bg-amber-900 hover:text-white'
-                    : 'bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200/80'
-                  : isDark
-                  ? 'bg-slate-800 text-emerald-300 hover:bg-emerald-900 hover:text-white'
-                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white border border-emerald-200/80'
-              }`}
-              title="Προσθήκη +10"
-            >
-              +10
-            </button>
-
-            <button
-              type="button"
-              onClick={() => updateCount(denom.key, isCoin ? 25 : 20)}
-              className={`flex-1 py-1 px-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer select-none text-center ${
-                isCoin
-                  ? isDark
-                    ? 'bg-slate-800 text-amber-300 hover:bg-amber-900 hover:text-white'
-                    : 'bg-amber-50 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200/80'
-                  : isDark
-                  ? 'bg-slate-800 text-emerald-300 hover:bg-emerald-900 hover:text-white'
-                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white border border-emerald-200/80'
-              }`}
-              title={isCoin ? 'Προσθήκη +25 (ρολό)' : 'Προσθήκη +20 (δεσμίδα)'}
-            >
-              {isCoin ? '+25' : '+20'}
-            </button>
-
-            {qty > 0 && (
-              <button
-                type="button"
-                onClick={() => updateCount(denom.key, -qty)}
-                className={`py-1 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
-                  isDark
-                    ? 'bg-slate-800 text-rose-400 hover:bg-rose-950 hover:text-rose-200'
-                    : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 border border-slate-200'
-                }`}
-                title="Μηδενισμός αξίας"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        )}
       </div>
     );
   };

@@ -1134,12 +1134,16 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               </div>
                               <span className="text-[9px] font-bold text-indigo-600 block">
                                 {/* N πεντάδες / M κομμάτια are already visible in the two inputs above -
-                                    this line only needs to add the one number they don't show: the total. */}
-                                {(row.saleBundles || row.salePieces)
+                                    this line only needs to add the one number they don't show: the total.
+                                    Gated on soldPieces > 0, not on the raw strings being truthy - a row
+                                    whose sale was entered and then cleared stores "0"/"0" (a non-empty,
+                                    truthy string), which must display exactly like never-touched
+                                    (undefined) rows, not show a stale "sale recorded" state. */}
+                                {bundleSaleCheck.soldPieces > 0
                                   ? `= ${bundleSaleCheck.soldPieces} τμχ`
                                   : 'Πεντάδες + Κομμάτια'}
                               </span>
-                              {(row.saleBundles || row.salePieces) && rowErrors.length === 0 && (
+                              {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
                                 <span className="text-[9px] font-semibold text-emerald-600 block" title="Υπόλοιπο απόθεμα μετά την πώληση">
                                   Υπόλ. {remainingSplit.bundles}×{rowBundleSize}+{remainingSplit.pieces}
                                 </span>
