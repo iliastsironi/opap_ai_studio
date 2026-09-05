@@ -107,7 +107,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     return (
       <div
         key={denom.key}
-        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 min-h-[168px] ${
+        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
           isDark
             ? isCoin
               ? 'bg-slate-900/90 border-amber-900/30 hover:border-amber-600/50 shadow-2xs'

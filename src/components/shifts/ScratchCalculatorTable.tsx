@@ -1144,8 +1144,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   : 'Πεντάδες + Κομμάτια'}
                               </span>
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
-                                <span className="text-[9px] font-semibold text-emerald-600 block" title="Υπόλοιπο απόθεμα μετά την πώληση">
-                                  Υπόλ. {remainingSplit.bundles}×{rowBundleSize}+{remainingSplit.pieces}
+                                <span className="text-[9px] font-semibold text-emerald-600 block">
+                                  {/* Full words, matching the ≈X πεντάδες + Y κομμάτια hint above and
+                                      every other breakdown in this row - a compact "A×B+C" reads like
+                                      an arithmetic formula, not "A bundles + B pieces", and was the one
+                                      inconsistent notation in an otherwise spelled-out row. Costs a
+                                      wrapped line while a sale is actively being entered; worth it for
+                                      not being misread as a calculation. */}
+                                  Μένουν: {remainingSplit.bundles} πεντάδες + {remainingSplit.pieces} κομμάτια
                                 </span>
                               )}
                             </div>
