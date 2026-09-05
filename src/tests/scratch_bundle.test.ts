@@ -133,6 +133,19 @@ describe('Λαϊκό Λαχείο bundle/piece dual-unit tracking', () => {
       const edited = validateBundleSaleEntry(laikoRow({ saleBundles: '1', salePieces: '0' }));
       expect(edited).toMatchObject({ isValid: true, soldPieces: 5 });
     });
+
+    it('a sale entered and then cleared (stored as "0"/"0" strings, not undefined) computes the same soldPieces as a never-touched row', () => {
+      // handleUpdateBundleSale always writes String(normBundles)/String(normPieces),
+      // so clearing an input leaves "0" (a non-empty, truthy string), never "".
+      // The UI's own > 0 check (not a truthy-string check) is what makes this
+      // display identically to a fresh row - this pins the soldPieces side of
+      // that invariant.
+      const cleared = validateBundleSaleEntry(laikoRow({ saleBundles: '0', salePieces: '0' }));
+      const neverTouched = validateBundleSaleEntry(laikoRow({ saleBundles: undefined, salePieces: undefined }));
+      expect(cleared.soldPieces).toBe(0);
+      expect(neverTouched.soldPieces).toBe(0);
+      expect(cleared.soldPieces).toBe(neverTouched.soldPieces);
+    });
   });
 
   describe('price is per piece for bundle-tracked rows (bundle price is derived: price x bundleSize)', () => {

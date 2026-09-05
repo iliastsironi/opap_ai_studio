@@ -1086,7 +1086,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             )}
                             {isBundleTracked && (
                               <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
-                                ≈ {startPiecesSplit.bundles} πεντάδες + {startPiecesSplit.pieces} κομμάτια
+                                ≈ {startPiecesSplit.bundles} πεντ. + {startPiecesSplit.pieces} κομ.
                               </span>
                             )}
                           </div>
@@ -1099,7 +1099,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         <td className="p-2 text-center bg-indigo-50/20">
                           {isBundleTracked ? (
                             <div className="w-full max-w-[160px] mx-auto space-y-1">
-                              <div className="flex items-center gap-1">
+                              {/* Was a single flex row with "×N +" squeezed between the two inputs -
+                                  on a narrow rendered column that separator (shrink-0) took priority
+                                  over the inputs, leaving them as little as 16px wide: less than their
+                                  own padding+border, so a typed digit had zero room to actually render.
+                                  A plain 2-column grid guarantees each input a real, equal share of the
+                                  width; the ×N relationship is still taught by the label below instead
+                                  of fighting for space on the same line. */}
+                              <div className="grid grid-cols-2 gap-1">
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -1109,13 +1116,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   onChange={(e) => handleUpdateBundleSale(row.id, 'saleBundles', e.target.value)}
                                   placeholder="0"
                                   title="Πεντάδες που πωλήθηκαν"
-                                  className={`w-1/2 text-center px-1.5 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                  className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                     rowErrors.length > 0
                                       ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
                                       : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
                                   }`}
                                 />
-                                <span className="text-[9px] font-bold text-slate-400 shrink-0">×{rowBundleSize} +</span>
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -1125,23 +1131,35 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   onChange={(e) => handleUpdateBundleSale(row.id, 'salePieces', e.target.value)}
                                   placeholder="0"
                                   title="Μεμονωμένα κομμάτια που πωλήθηκαν"
-                                  className={`w-1/2 text-center px-1.5 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
+                                  className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                     rowErrors.length > 0
                                       ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
                                       : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
                                   }`}
                                 />
                               </div>
-                              <span className="text-[9px] font-bold text-indigo-600 block">
-                                {/* N πεντάδες / M κομμάτια are already visible in the two inputs above -
-                                    this line only needs to add the one number they don't show: the total. */}
-                                {(row.saleBundles || row.salePieces)
-                                  ? `= ${bundleSaleCheck.soldPieces} τμχ`
-                                  : 'Πεντάδες + Κομμάτια'}
-                              </span>
-                              {(row.saleBundles || row.salePieces) && rowErrors.length === 0 && (
-                                <span className="text-[9px] font-semibold text-emerald-600 block" title="Υπόλοιπο απόθεμα μετά την πώληση">
-                                  Υπόλ. {remainingSplit.bundles}×{rowBundleSize}+{remainingSplit.pieces}
+                              {/* No empty-state hint here - the two title tooltips on the inputs above,
+                                  plus the ≈X πεντάδες + Y κομμάτια line in the Αρχικό cell, already say
+                                  what these boxes are for. A "Πεντάδες + Κομμάτια" label wrapped to 3
+                                  lines at this width, adding height to the single most common state
+                                  (every row starts here) for information the row already conveys.
+                                  Gated on soldPieces > 0, not on the raw strings being truthy - a row
+                                  whose sale was entered and then cleared stores "0"/"0" (a non-empty,
+                                  truthy string), which must display exactly like never-touched
+                                  (undefined) rows, not show a stale "sale recorded" state. */}
+                              {bundleSaleCheck.soldPieces > 0 && (
+                                <span className="text-[9px] font-bold text-indigo-600 block">
+                                  = {bundleSaleCheck.soldPieces} τμχ
+                                </span>
+                              )}
+                              {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
+                                <span className="text-[9px] font-semibold text-emerald-600 block">
+                                  {/* "πεντ."/"κομ." abbreviations, not the earlier "A×B+C" notation -
+                                      that read like an arithmetic formula rather than "A bundles + B
+                                      pieces". Matches the same abbreviation used in the ≈X πεντ. + Y κομ.
+                                      hint above, which needed it for the same reason: the full words
+                                      ("πεντάδες"/"κομμάτια") wrapped to 3 lines at this column width. */}
+                                  Μένουν: {remainingSplit.bundles} πεντ. + {remainingSplit.pieces} κομ.
                                 </span>
                               )}
                             </div>
