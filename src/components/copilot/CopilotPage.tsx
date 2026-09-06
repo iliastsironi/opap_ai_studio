@@ -5,13 +5,8 @@ import {
   Trash2,
   Sparkles,
   User,
-  Clock,
-  CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  RefreshCw,
-  Lightbulb,
-  MessageSquare
+  Lightbulb
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase } from '../../services/supabase.ts';
@@ -38,6 +33,7 @@ export const CopilotPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const userId = user?.id;
@@ -165,9 +161,7 @@ export const CopilotPage: React.FC = () => {
   };
 
   const handleClearHistory = async () => {
-    if (!window.confirm('Είστε βέβαιοι ότι θέλετε να καθαρίσετε το ιστορικό της συνομιλίας;')) {
-      return;
-    }
+    setShowClearConfirm(false);
 
     const resetMessages: ChatMessage[] = [
       {
@@ -230,7 +224,7 @@ export const CopilotPage: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] max-w-5xl mx-auto space-y-4">
       {/* Top Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex items-center justify-between shrink-0">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs flex items-center justify-between shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-bold shadow-xs">
             <Sparkles className="w-5 h-5 animate-pulse" />
@@ -250,9 +244,10 @@ export const CopilotPage: React.FC = () => {
         </div>
 
         <button
-          onClick={handleClearHistory}
+          onClick={() => setShowClearConfirm(true)}
           className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-rose-600 border border-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center space-x-1.5"
           title="Καθαρισμός Ιστορικού"
+          aria-label="Καθαρισμός Ιστορικού"
         >
           <Trash2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Νέα Συνομιλία</span>
@@ -260,7 +255,12 @@ export const CopilotPage: React.FC = () => {
       </div>
 
       {/* Main Chat Stream Container */}
-      <div className="flex-1 bg-slate-50/60 rounded-2xl border border-slate-200/80 p-4 overflow-y-auto space-y-4 shadow-inner">
+      <div
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        className="flex-1 bg-slate-50/60 rounded-2xl border border-slate-200/80 p-4 overflow-y-auto space-y-4 shadow-inner"
+      >
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
           return (
@@ -321,8 +321,8 @@ export const CopilotPage: React.FC = () => {
 
         {/* Error Notification */}
         {errorText && (
-          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center space-x-2">
+            <AlertCircle aria-hidden="true" className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{errorText}</span>
           </div>
         )}
@@ -353,7 +353,9 @@ export const CopilotPage: React.FC = () => {
 
       {/* Input Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2.5 shadow-sm shrink-0 flex items-center space-x-2">
+        <label htmlFor="copilot-input" className="sr-only">Μήνυμα προς τον AI Copilot</label>
         <input
+          id="copilot-input"
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
@@ -377,6 +379,46 @@ export const CopilotPage: React.FC = () => {
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* Clear History Confirmation Modal */}
+      {showClearConfirm && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setShowClearConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Καθαρισμός Ιστορικού</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε βέβαιοι ότι θέλετε να καθαρίσετε το ιστορικό της συνομιλίας; Η ενέργεια είναι οριστική.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Ναι, Καθαρισμός</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

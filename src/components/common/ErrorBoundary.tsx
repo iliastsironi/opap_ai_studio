@@ -46,22 +46,22 @@ export class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 my-6 max-w-3xl mx-auto">
+        <div role="alert" className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 my-6 max-w-3xl mx-auto">
           <div className="flex items-start space-x-4">
             <div className="p-3 bg-red-50 text-red-600 rounded-xl flex-shrink-0">
-              <AlertTriangle className="w-8 h-8" />
+              <AlertTriangle aria-hidden="true" className="w-8 h-8" />
             </div>
             <div className="flex-1">
               <div className="flex items-center space-x-2">
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                  Σφάλμα Εφαρμογής / Firestore
+                  Σφάλμα Εφαρμογής
                 </span>
               </div>
               <h3 className="text-xl font-bold text-slate-900 mt-2">
                 Προέκυψε ανεπαρκές σφάλμα κατά τη φόρτωση δεδομένων
               </h3>
               <p className="text-slate-600 mt-1 text-sm leading-relaxed">
-                Παρουσιάστηκε ένα πρόβλημα κατά την επικοινωνία με τη βάση δεδομένων ή την επεξεργασία του υποσυστήματος.
+                Παρουσιάστηκε ένα πρόβλημα κατά την επικοινωνία με τον διακομιστή ή την επεξεργασία των δεδομένων.
               </p>
 
               {this.state.error && (
