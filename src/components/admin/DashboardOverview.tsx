@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Store as StoreIcon,
   Clock,
   Receipt,
   BarChart3,
-  ShieldCheck,
   ArrowRight,
-  Wallet,
   CheckCircle2,
   AlertTriangle,
-  Building2,
-  Ticket,
-  Gamepad2,
-  Coffee,
   TrendingUp,
-  TrendingDown,
   Euro,
   PieChart as PieIcon,
-  Layers,
-  Sparkles,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
   Vault,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -103,13 +90,45 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
       ? 'Όλα τα Καταστήματα'
       : stores.find((s) => s.id === activeStoreId)?.name || 'Επιλεγμένο Κατάστημα';
 
-  // Compute live KPIs from shifts or fallback
+  // Compute live KPIs from shifts, falling back to demo numbers only when there
+  // is no shift data at all - a real sum of exactly 0 must stay 0, not get
+  // silently replaced by a demo constant.
   const totalCompletedShifts = allShifts.filter((s) => s.status === 'APPROVED').length;
-  const totalRevenueCalculated =
-    allShifts.reduce((sum, s) => sum + (s.opap_gross_sales || 0) + (s.vlts_cash_in || 0) + (s.fnb_sales || 0), 0) || 14200;
-  const totalExpensesCalculated = allShifts.reduce((sum, s) => sum + (s.expenses_paid_cash || 0), 0) || 1860;
-  const totalDiscrepanciesCalculated = allShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0) || -8;
-  const totalSafeDropCalculated = allShifts.reduce((sum, s) => sum + (s.bank_deposits || 0), 0) || 4500;
+  const hasRealShifts = allShifts.length > 0;
+  const totalRevenueCalculated = hasRealShifts
+    ? allShifts.reduce((sum, s) => sum + (s.opap_gross_sales || 0) + (s.vlts_cash_in || 0) + (s.fnb_sales || 0), 0)
+    : 14200;
+  const totalExpensesCalculated = hasRealShifts
+    ? allShifts.reduce((sum, s) => sum + (s.expenses_paid_cash || 0), 0)
+    : 1860;
+  const totalDiscrepanciesCalculated = hasRealShifts
+    ? allShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0)
+    : -8;
+  const totalSafeDropCalculated = hasRealShifts
+    ? allShifts.reduce((sum, s) => sum + (s.bank_deposits || 0), 0)
+    : 4500;
+
+  const weeklyTrendData = hasRealShifts
+    ? (() => {
+        const dayLabels = ['Κυρ', 'Δευ', 'Τρι', 'Τετ', 'Πεμ', 'Παρ', 'Σαβ'];
+        const buckets: Record<string, { day: string; opap: number; vlt: number; fnb: number; expenses: number }> = {};
+        allShifts.forEach((s) => {
+          const opened = new Date(s.opened_at || s.closed_at || Date.now());
+          const dateKey = opened.toISOString().split('T')[0];
+          if (!buckets[dateKey]) {
+            buckets[dateKey] = { day: dayLabels[opened.getDay()], opap: 0, vlt: 0, fnb: 0, expenses: 0 };
+          }
+          buckets[dateKey].opap += Number(s.opap_gross_sales) || 0;
+          buckets[dateKey].vlt += Number(s.vlts_cash_in) || 0;
+          buckets[dateKey].fnb += Number(s.fnb_sales) || 0;
+          buckets[dateKey].expenses += Number(s.expenses_paid_cash) || 0;
+        });
+        return Object.keys(buckets)
+          .sort()
+          .slice(-7)
+          .map((key) => buckets[key]);
+      })()
+    : sampleWeeklyTrend;
 
   const streamBreakdownData = [
     { name: 'Παιχνίδια ΟΠΑΠ (KINO, Τζόκερ, Σκρατς)', value: Math.round(totalRevenueCalculated * 0.55), color: '#4f46e5' },
@@ -315,6 +334,11 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               </p>
             </div>
             <div className="flex items-center space-x-2">
+              {!hasRealShifts && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase font-mono">
+                  Ενδεικτικά Δεδομένα
+                </span>
+              )}
               <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700">
                 Εβδομαδιαία Εικόνα
               </span>
@@ -323,7 +347,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sampleWeeklyTrend} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart data={weeklyTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorOpap" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />

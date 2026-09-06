@@ -48,7 +48,7 @@ export const AuditLogViewer: React.FC = () => {
       </div>
 
       {/* Audit Trail List */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-slate-400">Φόρτωση καταγραφών ελέγχου...</div>
         ) : logs.length === 0 ? (
@@ -73,7 +73,7 @@ export const AuditLogViewer: React.FC = () => {
                   </div>
 
                   <div className="flex items-center space-x-2 text-xs text-slate-400">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <Clock aria-hidden="true" className="w-3.5 h-3.5 text-slate-400" />
                     <span>{new Date(log.created_at).toLocaleString('el-GR')}</span>
                   </div>
                 </div>
