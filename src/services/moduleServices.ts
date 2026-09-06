@@ -192,3 +192,80 @@ export async function deleteFnbInFirestore(id: string): Promise<void> {
     throw error;
   }
 }
+
+// ----------------------------------------------------
+// VLT TERMINALS SERVICE (manual meter-reading entry - Phase 1; a real
+// telemetry/hardware integration is a separate, later project)
+// ----------------------------------------------------
+const VLT_TERMINALS_TABLE = 'vlt_terminals';
+
+export interface VltTerminalRecord {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  code: string;
+  game_title: string;
+  status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
+  meter_in: number;
+  meter_out: number;
+  net_revenue: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchVltTerminalsFromFirestore(orgId: string, storeId?: string): Promise<VltTerminalRecord[]> {
+  try {
+    let q = supabase.from(VLT_TERMINALS_TABLE).select('*').eq('organization_id', orgId);
+    if (storeId && storeId !== 'ALL') q = q.eq('store_id', storeId);
+    const { data, error } = await q.order('code', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as VltTerminalRecord[];
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.LIST, VLT_TERMINALS_TABLE).catch(() => {});
+    return [];
+  }
+}
+
+export async function createVltTerminalInFirestore(
+  record: Omit<VltTerminalRecord, 'id' | 'net_revenue' | 'created_at' | 'updated_at'>
+): Promise<VltTerminalRecord> {
+  try {
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(VLT_TERMINALS_TABLE)
+      .insert(cleanData({ ...record, created_at: nowIso, updated_at: nowIso }))
+      .select()
+      .single();
+    if (error) throw error;
+    return data as VltTerminalRecord;
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.CREATE, VLT_TERMINALS_TABLE);
+    throw error;
+  }
+}
+
+export async function updateVltTerminalInFirestore(
+  id: string,
+  updates: Partial<Pick<VltTerminalRecord, 'code' | 'game_title' | 'status' | 'meter_in' | 'meter_out'>>
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from(VLT_TERMINALS_TABLE)
+      .update(cleanData({ ...updates, updated_at: new Date().toISOString() }))
+      .eq('id', id);
+    if (error) throw error;
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.UPDATE, `${VLT_TERMINALS_TABLE}/${id}`);
+    throw error;
+  }
+}
+
+export async function deleteVltTerminalInFirestore(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from(VLT_TERMINALS_TABLE).delete().eq('id', id);
+    if (error) throw error;
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.DELETE, `${VLT_TERMINALS_TABLE}/${id}`);
+    throw error;
+  }
+}

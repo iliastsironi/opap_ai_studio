@@ -5,6 +5,22 @@
   display: none !important;
 }
 
+/* Suppress native number-input spin buttons app-wide. Every numeric
+   field in this app is either a plain amount entry or paired with its
+   own custom +/- stepper buttons, so the browser's built-in up/down
+   arrows only ever compete with the digits for space - most visibly in
+   the cash-denomination counter's narrow stepper cells, where the
+   native spinner left almost no room for the quantity itself. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
 /* -------------------------------------------------------------
    PRINT-FRIENDLY CSS RULES FOR SHIFT RECEIPTS & PHYSICAL PRINTS
    ------------------------------------------------------------- */
