@@ -30,6 +30,10 @@ export const FnbManager: React.FC = () => {
   const [shiftFnbCardInput, setShiftFnbCardInput] = useState('');
   const [adjustingShift, setAdjustingShift] = useState(false);
 
+  // Delete Sale Confirmation
+  const [saleToDelete, setSaleToDelete] = useState<FnbRecord | null>(null);
+  const [isDeletingSale, setIsDeletingSale] = useState(false);
+
   const orgId = organization?.id || 'org_opap_demo';
 
   const loadFnbSales = async () => {
@@ -131,8 +135,10 @@ export const FnbManager: React.FC = () => {
     }
   };
 
-  const handleDeleteSale = async (sale: FnbRecord) => {
-    if (!confirm(`Διαγραφή πώλησης "${sale.item_name}" (${formatCurrency(sale.total_price)});`)) return;
+  const handleDeleteSale = async () => {
+    if (!saleToDelete) return;
+    const sale = saleToDelete;
+    setIsDeletingSale(true);
     try {
       await deleteFnbInFirestore(sale.id);
 
@@ -171,8 +177,11 @@ export const FnbManager: React.FC = () => {
 
       await loadFnbSales();
       await loadActiveShift();
+      setSaleToDelete(null);
     } catch (err) {
       console.error('Error deleting FnB sale:', err);
+    } finally {
+      setIsDeletingSale(false);
     }
   };
 
@@ -229,7 +238,7 @@ export const FnbManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
             <Coffee className="w-6 h-6" />
@@ -275,7 +284,7 @@ export const FnbManager: React.FC = () => {
 
       {/* Active Shift Sync Status Indicator */}
       {activeShift && (
-        <div className="bg-gradient-to-r from-amber-50 to-indigo-50 p-4 rounded-xl border border-amber-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-amber-50 to-indigo-50 p-4 rounded-2xl border border-amber-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0 font-extrabold text-sm">
               ☕
@@ -303,7 +312,7 @@ export const FnbManager: React.FC = () => {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Συνολικές Πωλήσεις FnB</p>
@@ -316,7 +325,7 @@ export const FnbManager: React.FC = () => {
           <p className="text-[11px] text-slate-400 mt-2">Απευθείας καταχώρηση στο Ζ του POS/Bar</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">FnB Μετρητά (Cash Inflow)</p>
@@ -329,7 +338,7 @@ export const FnbManager: React.FC = () => {
           <p className="text-[11px] text-slate-400 mt-2">Προστίθεται στο αναμενόμενο υπόλοιπο συρταριού</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">FnB Κάρτα (POS Bar)</p>
@@ -344,7 +353,7 @@ export const FnbManager: React.FC = () => {
       </div>
 
       {/* Sales List */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-bold text-slate-900 text-sm">Πρόσφατες Πωλήσεις Αναψυκτηρίου</h3>
           <span className="text-xs text-slate-500 font-mono">{fnbSales.length} Πωλήσεις</span>
@@ -387,9 +396,10 @@ export const FnbManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-600">{s.server_name}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDeleteSale(s)}
+                        onClick={() => setSaleToDelete(s)}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Διαγραφή και αμφίδρομη ενημέρωση βάρδιας"
+                        aria-label="Διαγραφή πώλησης"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -405,20 +415,21 @@ export const FnbManager: React.FC = () => {
       {/* New Sale Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <Coffee className="w-4 h-4 text-amber-400" />
                 Νέα Πώληση Αναψυκτηρίου (FnB)
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreateSale} className="p-4 space-y-3 text-xs">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
+                <label htmlFor="fnb-sale-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
+                  id="fnb-sale-store"
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -431,8 +442,9 @@ export const FnbManager: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Όνομα Προϊόντος / Είδους</label>
+                <label htmlFor="fnb-sale-item" className="block text-slate-700 font-semibold mb-1">Όνομα Προϊόντος / Είδους</label>
                 <input
+                  id="fnb-sale-item"
                   type="text"
                   placeholder="π.χ. Καφές Espresso / Αναψυκτικό"
                   required
@@ -441,10 +453,11 @@ export const FnbManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg p-2 font-bold"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Ποσότητα</label>
+                  <label htmlFor="fnb-sale-qty" className="block text-slate-700 font-semibold mb-1">Ποσότητα</label>
                   <input
+                    id="fnb-sale-qty"
                     type="number"
                     min="1"
                     required
@@ -454,8 +467,9 @@ export const FnbManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Τιμή Μονάδος (€)</label>
+                  <label htmlFor="fnb-sale-price" className="block text-slate-700 font-semibold mb-1">Τιμή Μονάδος (€)</label>
                   <input
+                    id="fnb-sale-price"
                     type="number"
                     step="0.10"
                     placeholder="2.00"
@@ -467,8 +481,9 @@ export const FnbManager: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Τρόπος Πληρωμής</label>
+                <label htmlFor="fnb-sale-payment" className="block text-slate-700 font-semibold mb-1">Τρόπος Πληρωμής</label>
                 <select
+                  id="fnb-sale-payment"
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -488,7 +503,7 @@ export const FnbManager: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold cursor-pointer"
+                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Καταχώρηση...' : 'Καταχώρηση Πώλησης'}
                 </button>
@@ -507,7 +522,7 @@ export const FnbManager: React.FC = () => {
                 <Coffee className="w-4 h-4 text-amber-400" />
                 Επεξεργασία FnB Ενεργής Βάρδιας ({activeShift.store_name})
               </h3>
-              <button onClick={() => setShowShiftAdjustModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setShowShiftAdjustModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -517,10 +532,11 @@ export const FnbManager: React.FC = () => {
               </p>
 
               <div>
-                <label className="block text-slate-800 font-bold mb-1">
+                <label htmlFor="fnb-shift-cash" className="block text-slate-800 font-bold mb-1">
                   FnB Μετρητά Ταμείου (€)
                 </label>
                 <input
+                  id="fnb-shift-cash"
                   type="number"
                   step="0.01"
                   required
@@ -531,10 +547,11 @@ export const FnbManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-800 font-bold mb-1">
+                <label htmlFor="fnb-shift-card" className="block text-slate-800 font-bold mb-1">
                   FnB Κάρτες POS (€)
                 </label>
                 <input
+                  id="fnb-shift-card"
                   type="number"
                   step="0.01"
                   required
@@ -562,12 +579,63 @@ export const FnbManager: React.FC = () => {
                 <button
                   type="submit"
                   disabled={adjustingShift}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {adjustingShift ? 'Αποθήκευση...' : 'Αποθήκευση & Συγχρονισμός'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Sale Confirmation Modal */}
+      {saleToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setSaleToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Πώλησης</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Διαγραφή πώλησης «{saleToDelete.item_name}» ({formatCurrency(saleToDelete.total_price)}); Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingSale}
+                onClick={() => setSaleToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingSale}
+                onClick={handleDeleteSale}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingSale ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

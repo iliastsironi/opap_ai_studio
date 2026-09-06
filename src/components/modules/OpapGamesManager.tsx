@@ -6,6 +6,7 @@ import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../ser
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { pickNum } from '../../services/financialCalculator.ts';
 
 interface OpapSummaryItem {
   game: string;
@@ -131,14 +132,14 @@ export const OpapGamesManager: React.FC = () => {
   };
 
   // Derive dynamic table data from active shift or fallback demo
-  const curGross = activeShift ? (Number(activeShift.arithmo_gross) || Number(activeShift.number_games_sales) || 1850) : 1850;
-  const curCancels = activeShift ? (Number(activeShift.arithmo_cancels) || Number(activeShift.number_games_cancellations) || 12) : 12;
-  const curPayouts = activeShift ? (Number(activeShift.arithmo_payouts) || Number(activeShift.number_games_payouts) || 1120) : 1120;
-  const curVouchers = activeShift ? (Number(activeShift.arithmo_vouchers) || Number(activeShift.vouchers) || 0) : 0;
-  const curStoixima = activeShift ? (Number(activeShift.pame_stoixima_balance) || 350) : 350;
-  const curScratchSales = activeShift ? (Number(activeShift.scratch_sales) || Number(activeShift.scratch_lotto_sales) || 340) : 340;
-  const curScratchPayouts = activeShift ? (Number(activeShift.scratch_payouts) || 90) : 90;
-  const curClever = activeShift ? (Number(activeShift.clever_point_total) || 120) : 120;
+  const curGross = activeShift ? pickNum(activeShift.arithmo_gross, activeShift.number_games_sales) : 1850;
+  const curCancels = activeShift ? pickNum(activeShift.arithmo_cancels, activeShift.number_games_cancellations) : 12;
+  const curPayouts = activeShift ? pickNum(activeShift.arithmo_payouts, activeShift.number_games_payouts) : 1120;
+  const curVouchers = activeShift ? pickNum(activeShift.arithmo_vouchers, activeShift.vouchers) : 0;
+  const curStoixima = activeShift ? pickNum(activeShift.pame_stoixima_balance) : 350;
+  const curScratchSales = activeShift ? pickNum(activeShift.scratch_sales, activeShift.scratch_lotto_sales) : 340;
+  const curScratchPayouts = activeShift ? pickNum(activeShift.scratch_payouts) : 90;
+  const curClever = activeShift ? pickNum(activeShift.clever_point_total) : 120;
 
   const gamesData: OpapSummaryItem[] = [
     {
@@ -182,7 +183,7 @@ export const OpapGamesManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
             <Ticket className="w-6 h-6" />
@@ -223,7 +224,7 @@ export const OpapGamesManager: React.FC = () => {
 
       {/* Active Shift Sync Banner */}
       {activeShift ? (
-        <div className="bg-gradient-to-r from-amber-50 to-indigo-50 p-4 rounded-xl border border-amber-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-amber-50 to-indigo-50 p-4 rounded-2xl border border-amber-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 font-extrabold text-sm">
               🎯
@@ -251,29 +252,29 @@ export const OpapGamesManager: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Ακαθάριστες Εισπράξεις ΟΠΑΠ (Gross Sales)</p>
-          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{totalGross.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalGross)}</h3>
           <p className="text-[11px] text-emerald-600 font-semibold mt-2 flex items-center gap-1">
             <TrendingUp className="w-3.5 h-3.5" /> Πωλήσεις δελτίων, κουπονιών & λαχείων
           </p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Πληρωμές Κερδών (Payouts)</p>
-          <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{totalPayouts.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalPayouts)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Εξόφληση δελτίων από ταμείο πρακτορείου</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρά Έσοδα ΟΠΑΠ (Net Revenue)</p>
-          <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{totalNet.toFixed(2)} €</h3>
+          <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Καθαρή συνεισφορά στο ταμείο βάρδιας</p>
         </div>
       </div>
 
       {/* Games Breakdown Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
             <Layers className="w-4 h-4 text-indigo-600" />
@@ -346,7 +347,7 @@ export const OpapGamesManager: React.FC = () => {
                 <h4 className="font-extrabold text-slate-900 text-xs uppercase">
                   🎯 Αριθμοπαιχνίδια (KINO, Τζόκερ, Powerspin κλπ.)
                 </h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">Πωλήσεις Gross (€)</label>
                     <input
@@ -391,7 +392,7 @@ export const OpapGamesManager: React.FC = () => {
               </div>
 
               {/* 2. Pame Stoixima & Scratch */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
                   <h4 className="font-extrabold text-slate-900 text-xs uppercase">⚽ Πάμε Στοίχημα</h4>
                   <div>
@@ -424,7 +425,7 @@ export const OpapGamesManager: React.FC = () => {
               {/* 3. Scratch & Lotteries */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <h4 className="font-extrabold text-slate-900 text-xs uppercase">🎟️ Σκρατς & Λαχεία</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">Πωλήσεις Σκρατς (€)</label>
                     <input

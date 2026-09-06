@@ -25,6 +25,7 @@ export const IncidentsManager: React.FC = () => {
   const [severity, setSeverity] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const orgId = organization?.id || 'org_opap_demo';
 
@@ -71,11 +72,14 @@ export const IncidentsManager: React.FC = () => {
   };
 
   const handleResolve = async (id: string) => {
+    setResolvingId(id);
     try {
       await updateIncidentStatusInFirestore(id, 'RESOLVED', 'Διευθετήθηκε από υπεύθυνο');
       await loadIncidents();
     } catch (e) {
       console.error(e);
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -89,7 +93,7 @@ export const IncidentsManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center text-rose-600 shrink-0">
             <AlertTriangle className="w-6 h-6" />
@@ -117,11 +121,13 @@ export const IncidentsManager: React.FC = () => {
       </div>
 
       {/* Filter and Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <label htmlFor="incidents-search" className="sr-only">Αναζήτηση συμβάντων</label>
             <input
+              id="incidents-search"
               type="text"
               placeholder="Αναζήτηση συμβάντων..."
               value={searchQuery}
@@ -193,9 +199,10 @@ export const IncidentsManager: React.FC = () => {
                       {inc.status !== 'RESOLVED' && (
                         <button
                           onClick={() => handleResolve(inc.id)}
-                          className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 cursor-pointer"
+                          disabled={resolvingId === inc.id}
+                          className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                          Επίλυση
+                          {resolvingId === inc.id ? 'Επίλυση...' : 'Επίλυση'}
                         </button>
                       )}
                     </td>
@@ -210,20 +217,21 @@ export const IncidentsManager: React.FC = () => {
       {/* New Incident Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-rose-400" />
                 Καταγραφή Νέου Συμβάντος / Αποκλίσεως
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreateIncident} className="p-4 space-y-3 text-xs">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
+                <label htmlFor="incident-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
+                  id="incident-store"
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -236,8 +244,9 @@ export const IncidentsManager: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Τίτλος Συμβάντος</label>
+                <label htmlFor="incident-title" className="block text-slate-700 font-semibold mb-1">Τίτλος Συμβάντος</label>
                 <input
+                  id="incident-title"
                   type="text"
                   placeholder="π.χ. Χρηματική Απόκλιση στο Κλείσιμο"
                   required
@@ -246,10 +255,11 @@ export const IncidentsManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg p-2 font-bold"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
+                  <label htmlFor="incident-category" className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
                   <select
+                    id="incident-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -262,8 +272,9 @@ export const IncidentsManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Σοβαρότητα</label>
+                  <label htmlFor="incident-severity" className="block text-slate-700 font-semibold mb-1">Σοβαρότητα</label>
                   <select
+                    id="incident-severity"
                     value={severity}
                     onChange={(e) => setSeverity(e.target.value as any)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -276,8 +287,9 @@ export const IncidentsManager: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Περιγραφή</label>
+                <label htmlFor="incident-description" className="block text-slate-700 font-semibold mb-1">Περιγραφή</label>
                 <textarea
+                  id="incident-description"
                   rows={3}
                   required
                   placeholder="Αναλυτικές πληροφορίες για το συμβάν..."
@@ -290,14 +302,14 @@ export const IncidentsManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Ακύρωση
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold"
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
                 </button>

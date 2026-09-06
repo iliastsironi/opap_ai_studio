@@ -32,6 +32,8 @@ export const ExpensesManager: React.FC = () => {
   const [receiptNumber, setReceiptNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; shiftId?: string; label: string } | null>(null);
+  const [isDeletingExpense, setIsDeletingExpense] = useState(false);
 
   const orgId = organization?.id || 'org_opap_demo';
 
@@ -201,8 +203,10 @@ export const ExpensesManager: React.FC = () => {
     }
   };
 
-  const handleDeleteExpense = async (id: string, shiftId?: string) => {
-    if (!confirm('Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το έξοδο;')) return;
+  const handleDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+    const { id } = expenseToDelete;
+    setIsDeletingExpense(true);
     try {
       await deleteExpenseInFirestore(id);
 
@@ -237,8 +241,11 @@ export const ExpensesManager: React.FC = () => {
       }
 
       await loadExpenses();
+      setExpenseToDelete(null);
     } catch (err) {
       console.error('Delete expense error:', err);
+    } finally {
+      setIsDeletingExpense(false);
     }
   };
 
@@ -271,7 +278,7 @@ export const ExpensesManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
             <Receipt className="w-6 h-6" />
@@ -302,7 +309,7 @@ export const ExpensesManager: React.FC = () => {
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Σύνολο Εξόδων (Φιλτραρισμένα)</p>
@@ -317,7 +324,7 @@ export const ExpensesManager: React.FC = () => {
           <p className="text-[11px] text-slate-400 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Πλήθος Εγγραφών</p>
@@ -330,7 +337,7 @@ export const ExpensesManager: React.FC = () => {
           <p className="text-[11px] text-slate-400 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Μέσο Έξοδο ανά Βάρδια</p>
@@ -347,11 +354,13 @@ export const ExpensesManager: React.FC = () => {
       </div>
 
       {/* Filter and Table Section */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <label htmlFor="expenses-search" className="sr-only">Αναζήτηση εξόδων</label>
             <input
+              id="expenses-search"
               type="text"
               placeholder="Αναζήτηση με περιγραφή, προμηθευτή ή ID..."
               value={searchQuery}
@@ -361,7 +370,9 @@ export const ExpensesManager: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
+            <label htmlFor="expenses-category-filter" className="sr-only">Φίλτρο κατηγορίας</label>
             <select
+              id="expenses-category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:outline-hidden"
@@ -413,9 +424,10 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDeleteExpense(exp.id, exp.shift_id)}
+                        onClick={() => setExpenseToDelete({ id: exp.id, shiftId: exp.shift_id, label: exp.recipient || exp.id })}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Διαγραφή εξόδου και αμφίδρομη ενημέρωση βάρδιας"
+                        aria-label="Διαγραφή εξόδου"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -431,20 +443,21 @@ export const ExpensesManager: React.FC = () => {
       {/* New Expense Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-indigo-400" />
                 Καταχώρηση Νέου Εξόδου Ταμείου
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreateExpense} className="p-4 space-y-3 text-xs">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
+                <label htmlFor="expense-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
+                  id="expense-store"
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
@@ -478,10 +491,11 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
+                  <label htmlFor="expense-category" className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
                   <select
+                    id="expense-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
@@ -496,8 +510,9 @@ export const ExpensesManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Ποσό (€)</label>
+                  <label htmlFor="expense-amount" className="block text-slate-700 font-semibold mb-1">Ποσό (€)</label>
                   <input
+                    id="expense-amount"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
@@ -508,10 +523,11 @@ export const ExpensesManager: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Τρόπος Πληρωμής</label>
+                  <label htmlFor="expense-payment-method" className="block text-slate-700 font-semibold mb-1">Τρόπος Πληρωμής</label>
                   <select
+                    id="expense-payment-method"
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as any)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white"
@@ -522,8 +538,9 @@ export const ExpensesManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Αρ. Απόδειξης/ΤΠΥ</label>
+                  <label htmlFor="expense-receipt-number" className="block text-slate-700 font-semibold mb-1">Αρ. Απόδειξης/ΤΠΥ</label>
                   <input
+                    id="expense-receipt-number"
                     type="text"
                     placeholder="π.χ. ΤΠΥ-1029"
                     value={receiptNumber}
@@ -533,7 +550,7 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
+                <label htmlFor="expense-supplier" className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-indigo-600" />
                     <span>Επιλογή Προμηθευτή / Παραλήπτη</span>
@@ -541,6 +558,7 @@ export const ExpensesManager: React.FC = () => {
                   <span className="text-[11px] font-normal text-slate-400">Επιλογή από λίστα</span>
                 </label>
                 <select
+                  id="expense-supplier"
                   value={selectedSupplierId}
                   onChange={(e) => handleSupplierSelect(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg p-2.5 bg-white font-medium text-slate-800 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -586,6 +604,7 @@ export const ExpensesManager: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Πληκτρολογήστε όνομα προμηθευτή / καταστήματος..."
+                      aria-label="Όνομα νέου προμηθευτή"
                       required
                       value={customRecipient}
                       onChange={(e) => {
@@ -598,8 +617,9 @@ export const ExpensesManager: React.FC = () => {
                 )}
               </div>
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Σημειώσεις / Αιτιολογία</label>
+                <label htmlFor="expense-notes" className="block text-slate-700 font-semibold mb-1">Σημειώσεις / Αιτιολογία</label>
                 <textarea
+                  id="expense-notes"
                   rows={2}
                   placeholder="Αιτιολογία δαπάνης..."
                   value={notes}
@@ -611,19 +631,70 @@ export const ExpensesManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50"
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Aκύρωση
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold"
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Expense Confirmation Modal */}
+      {expenseToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setExpenseToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Εξόδου</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «{expenseToDelete.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingExpense}
+                onClick={() => setExpenseToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingExpense}
+                onClick={handleDeleteExpense}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingExpense ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

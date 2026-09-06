@@ -51,6 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
     { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
     { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
     { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view' },
+    { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket, perm: 'opap.view' },
+    { id: 'vlt', label: 'Τερματικά VLTs', icon: Gamepad2, perm: 'vlt.view' },
     { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
     { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
     { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },

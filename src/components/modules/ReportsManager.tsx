@@ -48,6 +48,7 @@ import {
   Database,
   Check,
   HelpCircle,
+  X,
 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -81,12 +82,25 @@ import {
 import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { pickNum, safeNum } from '../../services/financialCalculator.ts';
+
+type ReportsTab = 'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED' | 'ROSTER';
+
+const REPORTS_TABS: Array<{ id: ReportsTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+  { id: 'OVERVIEW', label: 'Επισκόπηση & KPIs', icon: BarChart3 },
+  { id: 'PNL', label: 'Συνολικό P&L Καταστημάτων', icon: Receipt },
+  { id: 'DAILY_REPORT', label: 'Ημερήσιο Συγκεντρωτικό Βαρδιών', icon: Layers },
+  { id: 'EMPLOYEE_KPIS', label: 'KPIs Εργαζομένων', icon: Users },
+  { id: 'SHIFT_KPIS', label: 'KPIs Βαρδιών & VLTs Opapnet', icon: Clock },
+  { id: 'PAYROLL_FIXED', label: 'Μισθοδοσία & Πάγια Έξοδα', icon: DollarSign },
+  { id: 'ROSTER', label: 'Πρόγραμμα Προσωπικού', icon: Calendar },
+];
 
 export const ReportsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
   const { organization } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED' | 'ROSTER'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<ReportsTab>('OVERVIEW');
   const [loading, setLoading] = useState(false);
   const [seedingLoading, setSeedingLoading] = useState(false);
   const [seedSuccessMessage, setSeedSuccessMessage] = useState<string | null>(null);
@@ -104,6 +118,12 @@ export const ReportsManager: React.FC = () => {
   // Filtering
   const [selectedFilterStore, setSelectedFilterStore] = useState('ALL');
   const [employeeSearch, setEmployeeSearch] = useState('');
+
+  // Delete confirmation (Fixed / Corporate expense rows)
+  const [pendingDelete, setPendingDelete] = useState<{ type: 'FIXED' | 'CORP'; id: string; label: string } | null>(null);
+  const [isDeletingRecord, setIsDeletingRecord] = useState(false);
+  // Shared saving-state flag for the 5 Add-Record modals (only one can be open at a time)
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
 
   // Modals for Direct Entry
   const [showFixedModal, setShowFixedModal] = useState(false);
@@ -252,7 +272,7 @@ export const ReportsManager: React.FC = () => {
     ? rawShifts.slice(0, 15).reverse().map((s) => ({
         date: new Date(s.opened_at || s.closed_at || Date.now()).toLocaleDateString('el-GR', { month: 'numeric', day: 'numeric' }),
         revenue: Number(s.opap_gross_sales || 0) + Number(s.vlts_cash_in || 0) + Number(s.fnb_sales || 0),
-        vlt: Number(s.vlts_net || (Number(s.vlts_cash_in || 0) - Number(s.vlts_cash_out || 0))),
+        vlt: pickNum(s.vlts_net, safeNum(s.vlts_cash_in) - safeNum(s.vlts_cash_out)),
         expenses: Number(s.expenses_paid_cash || 0),
       }))
     : [
@@ -286,17 +306,19 @@ export const ReportsManager: React.FC = () => {
       store143344: Number(newFixedItem.store143344 || 0),
       total,
     };
-    await saveFixedExpense(orgId, item);
-    setShowFixedModal(false);
-    setNewFixedItem({ name: '', store100343: 0, store400298: 0, store100411: 0, store143344: 0 });
-    await loadAllFinancialData();
+    setIsSavingRecord(true);
+    try {
+      await saveFixedExpense(orgId, item);
+      setShowFixedModal(false);
+      setNewFixedItem({ name: '', store100343: 0, store400298: 0, store100411: 0, store143344: 0 });
+      await loadAllFinancialData();
+    } finally {
+      setIsSavingRecord(false);
+    }
   };
 
-  const handleDeleteFixedExpense = async (id: string) => {
-    if (confirm('Είστε βέβαιοι για τη διαγραφή του παγίου εξόδου;')) {
-      await deleteFixedExpense(id);
-      await loadAllFinancialData();
-    }
+  const handleDeleteFixedExpense = (id: string, name: string) => {
+    setPendingDelete({ type: 'FIXED', id, label: name });
   };
 
   const handleSaveCorpExpense = async (e: React.FormEvent) => {
@@ -308,16 +330,34 @@ export const ReportsManager: React.FC = () => {
       name: newCorpItem.name,
       amount: Number(newCorpItem.amount || 0),
     };
-    await saveCorporateExpense(orgId, item);
-    setShowCorpModal(false);
-    setNewCorpItem({ category: 'Εταιρικά Έξοδα', name: '', amount: 0 });
-    await loadAllFinancialData();
+    setIsSavingRecord(true);
+    try {
+      await saveCorporateExpense(orgId, item);
+      setShowCorpModal(false);
+      setNewCorpItem({ category: 'Εταιρικά Έξοδα', name: '', amount: 0 });
+      await loadAllFinancialData();
+    } finally {
+      setIsSavingRecord(false);
+    }
   };
 
-  const handleDeleteCorpExpense = async (id: string) => {
-    if (confirm('Είστε βέβαιοι για τη διαγραφή του εταιρικού εξόδου / δανείου;')) {
-      await deleteCorporateExpense(id);
+  const handleDeleteCorpExpense = (id: string, name: string) => {
+    setPendingDelete({ type: 'CORP', id, label: name });
+  };
+
+  const handleConfirmPendingDelete = async () => {
+    if (!pendingDelete) return;
+    setIsDeletingRecord(true);
+    try {
+      if (pendingDelete.type === 'FIXED') {
+        await deleteFixedExpense(pendingDelete.id);
+      } else {
+        await deleteCorporateExpense(pendingDelete.id);
+      }
       await loadAllFinancialData();
+      setPendingDelete(null);
+    } finally {
+      setIsDeletingRecord(false);
     }
   };
 
@@ -334,9 +374,14 @@ export const ReportsManager: React.FC = () => {
       difference: diff,
       status: Math.abs(diff) < 0.01 ? 'BALANCED' : 'DISCREPANCY',
     };
-    await saveVltReconciliation(orgId, rec);
-    setShowVltModal(false);
-    await loadAllFinancialData();
+    setIsSavingRecord(true);
+    try {
+      await saveVltReconciliation(orgId, rec);
+      setShowVltModal(false);
+      await loadAllFinancialData();
+    } finally {
+      setIsSavingRecord(false);
+    }
   };
 
   const handleSavePayroll = async (e: React.FormEvent) => {
@@ -357,8 +402,8 @@ export const ReportsManager: React.FC = () => {
       storeName: newPayrollItem.storeName || '100343 (ΟΠΑΠ)',
       storeId: newPayrollItem.storeId || '100343',
       baseSalary: base,
-      daysWorked: Number(newPayrollItem.daysWorked || 26),
-      hoursWorked: Number(newPayrollItem.hoursWorked || 208),
+      daysWorked: Number(newPayrollItem.daysWorked ?? 26),
+      hoursWorked: Number(newPayrollItem.hoursWorked ?? 208),
       overtimeHours: Number(newPayrollItem.overtimeHours || 0),
       bonus,
       totalPayroll: total,
@@ -366,9 +411,14 @@ export const ReportsManager: React.FC = () => {
       advancePayment: advance,
       cashInHand: hand,
     };
-    await savePayrollRecord(orgId, item);
-    setShowPayrollModal(false);
-    await loadAllFinancialData();
+    setIsSavingRecord(true);
+    try {
+      await savePayrollRecord(orgId, item);
+      setShowPayrollModal(false);
+      await loadAllFinancialData();
+    } finally {
+      setIsSavingRecord(false);
+    }
   };
 
   const handleOpenRosterEditor = (existing?: WeeklyRosterStore) => {
@@ -421,9 +471,14 @@ export const ReportsManager: React.FC = () => {
       storeName: editingRosterStoreName,
       schedule: editingScheduleRows,
     };
-    await saveRosterSchedule(orgId, rosterPayload);
-    setShowRosterModal(false);
-    await loadAllFinancialData();
+    setIsSavingRecord(true);
+    try {
+      await saveRosterSchedule(orgId, rosterPayload);
+      setShowRosterModal(false);
+      await loadAllFinancialData();
+    } finally {
+      setIsSavingRecord(false);
+    }
   };
 
   const handleExportExcel = () => {
@@ -442,7 +497,7 @@ export const ReportsManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
             <BarChart3 className="w-6 h-6" />
@@ -500,97 +555,29 @@ export const ReportsManager: React.FC = () => {
             <Check className="w-4 h-4 text-emerald-600" />
             <span>{seedSuccessMessage}</span>
           </div>
-          <button onClick={() => setSeedSuccessMessage(null)} className="text-emerald-600 hover:text-emerald-900 cursor-pointer">
-            ✕
+          <button onClick={() => setSeedSuccessMessage(null)} aria-label="Κλείσιμο" className="text-emerald-600 hover:text-emerald-900 cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* Navigation Tabs */}
       <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap gap-1">
-        <button
-          onClick={() => setActiveTab('OVERVIEW')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'OVERVIEW'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          <span>Επισκόπηση & KPIs</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('PNL')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'PNL'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>Συνολικό P&L Καταστημάτων</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('DAILY_REPORT')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'DAILY_REPORT'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Ημερήσιο Συγκεντρωτικό Βαρδιών</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('EMPLOYEE_KPIS')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'EMPLOYEE_KPIS'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>KPIs Εργαζομένων</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('SHIFT_KPIS')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'SHIFT_KPIS'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>KPIs Βαρδιών & VLTs Opapnet</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('PAYROLL_FIXED')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'PAYROLL_FIXED'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <DollarSign className="w-4 h-4" />
-          <span>Μισθοδοσία & Πάγια Έξοδα</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('ROSTER')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-            activeTab === 'ROSTER'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Πρόγραμμα Προσωπικού</span>
-        </button>
+        {REPORTS_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            aria-pressed={activeTab === id}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === id
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* TAB 1: EXECUTIVE OVERVIEW & CORE KPIS */}
@@ -599,7 +586,7 @@ export const ReportsManager: React.FC = () => {
           {/* Top 4 KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Total Revenue */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-indigo-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικός Τζίρος</p>
@@ -618,7 +605,7 @@ export const ReportsManager: React.FC = () => {
             </div>
 
             {/* Card 2: Total Expenses */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-rose-200 transition-all">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-rose-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Συνολικά Έξοδα (OPEX)</p>
@@ -637,7 +624,7 @@ export const ReportsManager: React.FC = () => {
             </div>
 
             {/* Card 3: Net Cash Profit */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-emerald-200 transition-all">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-emerald-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Καθαρά Κέρδη προ Φόρων</p>
@@ -658,7 +645,7 @@ export const ReportsManager: React.FC = () => {
             </div>
 
             {/* Card 4: Discrepancy & Shrinkage Rate */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:border-indigo-200 transition-all">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs hover:border-indigo-200 transition-all">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Δείκτης Απωλειών (Shrinkage)</p>
@@ -680,7 +667,7 @@ export const ReportsManager: React.FC = () => {
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart 1: Daily Revenue & Expenses Trend */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -744,7 +731,7 @@ export const ReportsManager: React.FC = () => {
             </div>
 
             {/* Chart 2: Cost Breakdown */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                   <PieIcon className="w-4 h-4 text-purple-600" />
@@ -790,7 +777,7 @@ export const ReportsManager: React.FC = () => {
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
                       <span className="text-slate-600 truncate max-w-[150px]">{item.name}</span>
                     </div>
-                    <span className="font-bold text-slate-900">€{item.value.toLocaleString('el-GR', { minimumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-slate-900">{formatCurrency(item.value)}</span>
                   </div>
                 ))}
               </div>
@@ -798,7 +785,7 @@ export const ReportsManager: React.FC = () => {
           </div>
 
           {/* Store Benchmarking KPIs Table */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -857,7 +844,7 @@ export const ReportsManager: React.FC = () => {
       {/* TAB 2: P&L SUMMARY STATEMENT */}
       {activeTab === 'PNL' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -960,7 +947,7 @@ export const ReportsManager: React.FC = () => {
       {/* TAB 3: EMPLOYEE KPIS & LEAGUE TABLE */}
       {activeTab === 'EMPLOYEE_KPIS' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -973,7 +960,9 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                <label htmlFor="employee-kpi-search" className="sr-only">Αναζήτηση υπαλλήλου</label>
                 <input
+                  id="employee-kpi-search"
                   type="text"
                   placeholder="Αναζήτηση υπαλλήλου..."
                   value={employeeSearch}
@@ -981,7 +970,9 @@ export const ReportsManager: React.FC = () => {
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
 
+                <label htmlFor="employee-kpi-store-filter" className="sr-only">Φίλτρο καταστήματος</label>
                 <select
+                  id="employee-kpi-store-filter"
                   value={selectedFilterStore}
                   onChange={(e) => setSelectedFilterStore(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer"
@@ -1054,7 +1045,7 @@ export const ReportsManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-700">
-                        €{e.activeCreditsGiven.toFixed(0)} / €{e.creditsCollected.toFixed(0)}
+                        {formatCurrency(e.activeCreditsGiven)} / {formatCurrency(e.creditsCollected)}
                       </td>
                       <td className="py-3.5 px-3 text-right font-mono text-slate-600">
                         {e.avgShiftClosingSpeedMinutes} min
@@ -1118,7 +1109,7 @@ export const ReportsManager: React.FC = () => {
           </div>
 
           {/* VLT Opapnet vs Shift Reconciliation Table */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -1178,7 +1169,7 @@ export const ReportsManager: React.FC = () => {
       {activeTab === 'PAYROLL_FIXED' && (
         <div className="space-y-6">
           {/* Payroll Breakdown Table */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -1235,7 +1226,7 @@ export const ReportsManager: React.FC = () => {
           </div>
 
           {/* Fixed Expenses Table */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -1279,9 +1270,10 @@ export const ReportsManager: React.FC = () => {
                       <td className="py-3 px-3 text-right font-extrabold text-rose-600">{formatCurrency(f.total)}</td>
                       <td className="py-3 px-3 text-center">
                         <button
-                          onClick={() => handleDeleteFixedExpense(f.id)}
+                          onClick={() => handleDeleteFixedExpense(f.id, f.name)}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
                           title="Διαγραφή παγίου"
+                          aria-label="Διαγραφή παγίου"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1294,7 +1286,7 @@ export const ReportsManager: React.FC = () => {
           </div>
 
           {/* Corporate Expenses & Loans Table */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -1332,9 +1324,10 @@ export const ReportsManager: React.FC = () => {
                       <td className="py-3 px-3 text-right font-mono font-extrabold text-blue-600">{formatCurrency(c.amount)}</td>
                       <td className="py-3 px-3 text-center">
                         <button
-                          onClick={() => handleDeleteCorpExpense(c.id)}
+                          onClick={() => handleDeleteCorpExpense(c.id, c.name)}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
                           title="Διαγραφή εταιρικού εξόδου"
+                          aria-label="Διαγραφή εταιρικού εξόδου"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1351,7 +1344,7 @@ export const ReportsManager: React.FC = () => {
       {/* TAB 6: ROSTER / WEEKLY SCHEDULE */}
       {activeTab === 'ROSTER' && (
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
@@ -1434,15 +1427,16 @@ export const ReportsManager: React.FC = () => {
                 <Building2 className="w-4 h-4 text-indigo-600" />
                 <span>Καταχώρηση Νέου Παγίου Εξόδου Καταστημάτων</span>
               </h3>
-              <button onClick={() => setShowFixedModal(false)} className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">
-                ✕
+              <button onClick={() => setShowFixedModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveFixedExpense} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Περιγραφή Παγίου Εξόδου</label>
+                <label htmlFor="fixed-exp-name" className="block font-bold text-slate-700 mb-1">Περιγραφή Παγίου Εξόδου</label>
                 <input
+                  id="fixed-exp-name"
                   type="text"
                   required
                   placeholder="π.χ. Ενοίκιο, ΕΥΔΑΠ, OTE VPN, TV/Nova, Λογιστής..."
@@ -1452,10 +1446,11 @@ export const ReportsManager: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">100343 ΟΠΑΠ (€)</label>
+                  <label htmlFor="fixed-exp-100343" className="block font-bold text-slate-700 mb-1">100343 ΟΠΑΠ (€)</label>
                   <input
+                    id="fixed-exp-100343"
                     type="number"
                     step="0.01"
                     value={newFixedItem.store100343 || ''}
@@ -1464,8 +1459,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">400298 Play Opap (€)</label>
+                  <label htmlFor="fixed-exp-400298" className="block font-bold text-slate-700 mb-1">400298 Play Opap (€)</label>
                   <input
+                    id="fixed-exp-400298"
                     type="number"
                     step="0.01"
                     value={newFixedItem.store400298 || ''}
@@ -1474,8 +1470,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">100411 ΟΠΑΠ (€)</label>
+                  <label htmlFor="fixed-exp-100411" className="block font-bold text-slate-700 mb-1">100411 ΟΠΑΠ (€)</label>
                   <input
+                    id="fixed-exp-100411"
                     type="number"
                     step="0.01"
                     value={newFixedItem.store100411 || ''}
@@ -1484,8 +1481,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">143344 Play Opap (€)</label>
+                  <label htmlFor="fixed-exp-143344" className="block font-bold text-slate-700 mb-1">143344 Play Opap (€)</label>
                   <input
+                    id="fixed-exp-143344"
                     type="number"
                     step="0.01"
                     value={newFixedItem.store143344 || ''}
@@ -1505,9 +1503,10 @@ export const ReportsManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                  disabled={isSavingRecord}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Αποθήκευση στο Firestore
+                  {isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση στο Firestore'}
                 </button>
               </div>
             </form>
@@ -1526,15 +1525,16 @@ export const ReportsManager: React.FC = () => {
                 <CreditCard className="w-4 h-4 text-indigo-600" />
                 <span>Καταχώρηση Εταιρικού Εξόδου ή Δανείου</span>
               </h3>
-              <button onClick={() => setShowCorpModal(false)} className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">
-                ✕
+              <button onClick={() => setShowCorpModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveCorpExpense} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Κατηγορία</label>
+                <label htmlFor="corp-exp-category" className="block font-bold text-slate-700 mb-1">Κατηγορία</label>
                 <select
+                  id="corp-exp-category"
                   value={newCorpItem.category}
                   onChange={(e) => setNewCorpItem({ ...newCorpItem, category: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
@@ -1547,8 +1547,9 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Περιγραφή / Δικαιούχος</label>
+                <label htmlFor="corp-exp-name" className="block font-bold text-slate-700 mb-1">Περιγραφή / Δικαιούχος</label>
                 <input
+                  id="corp-exp-name"
                   type="text"
                   required
                   placeholder="π.χ. Μ_Νίκος, Δάνειο ΕΤΕ, ΕΦΚΑ Μ_Περικλής..."
@@ -1559,8 +1560,9 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Ποσό (€)</label>
+                <label htmlFor="corp-exp-amount" className="block font-bold text-slate-700 mb-1">Ποσό (€)</label>
                 <input
+                  id="corp-exp-amount"
                   type="number"
                   step="0.01"
                   required
@@ -1581,9 +1583,10 @@ export const ReportsManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                  disabled={isSavingRecord}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Αποθήκευση στο Firestore
+                  {isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση στο Firestore'}
                 </button>
               </div>
             </form>
@@ -1602,15 +1605,16 @@ export const ReportsManager: React.FC = () => {
                 <Zap className="w-4 h-4 text-purple-600" />
                 <span>Καταχώρηση Εκκαθάρισης VLT Opapnet</span>
               </h3>
-              <button onClick={() => setShowVltModal(false)} className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">
-                ✕
+              <button onClick={() => setShowVltModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveVltRec} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Ημερομηνία Εκκαθάρισης</label>
+                <label htmlFor="vlt-rec-date" className="block font-bold text-slate-700 mb-1">Ημερομηνία Εκκαθάρισης</label>
                 <input
+                  id="vlt-rec-date"
                   type="text"
                   required
                   placeholder="π.χ. 1/9/2024"
@@ -1621,8 +1625,9 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Ποσό Εκκαθάρισης Opapnet (€)</label>
+                <label htmlFor="vlt-rec-opapnet" className="block font-bold text-slate-700 mb-1">Ποσό Εκκαθάρισης Opapnet (€)</label>
                 <input
+                  id="vlt-rec-opapnet"
                   type="number"
                   step="0.01"
                   required
@@ -1633,8 +1638,9 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Καταμέτρηση Ταμείου Βάρδιας (€)</label>
+                <label htmlFor="vlt-rec-counted" className="block font-bold text-slate-700 mb-1">Καταμέτρηση Ταμείου Βάρδιας (€)</label>
                 <input
+                  id="vlt-rec-counted"
                   type="number"
                   step="0.01"
                   required
@@ -1654,9 +1660,10 @@ export const ReportsManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                  disabled={isSavingRecord}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Αποθήκευση Εκκαθάρισης
+                  {isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση Εκκαθάρισης'}
                 </button>
               </div>
             </form>
@@ -1675,18 +1682,19 @@ export const ReportsManager: React.FC = () => {
                 <Users className="w-4 h-4 text-indigo-600" />
                 <span>Προσθήκη Εργαζομένου στη Μισθοδοσία</span>
               </h3>
-              <button onClick={() => setShowPayrollModal(false)} className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer">
-                ✕
+              <button onClick={() => setShowPayrollModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSavePayroll} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                <label htmlFor="payroll-user-select" className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
                   <span>Επιλογή Εργαζομένου (από Χρήστες)</span>
                   <span className="text-[10px] text-indigo-600 font-semibold">Λίστα Προσωπικού</span>
                 </label>
                 <select
+                  id="payroll-user-select"
                   value={newPayrollItem.name || ''}
                   onChange={(e) => {
                     const selectedName = e.target.value;
@@ -1722,10 +1730,11 @@ export const ReportsManager: React.FC = () => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Ονοματεπώνυμο (ή Προσαρμογή)</label>
+                  <label htmlFor="payroll-name" className="block font-bold text-slate-700 mb-1">Ονοματεπώνυμο (ή Προσαρμογή)</label>
                   <input
+                    id="payroll-name"
                     type="text"
                     required
                     placeholder="π.χ. Γιάννης Παπαδόπουλος"
@@ -1735,8 +1744,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Κατάστημα</label>
+                  <label htmlFor="payroll-store" className="block font-bold text-slate-700 mb-1">Κατάστημα</label>
                   <select
+                    id="payroll-store"
                     value={newPayrollItem.storeName}
                     onChange={(e) => setNewPayrollItem({ ...newPayrollItem, storeName: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
@@ -1750,10 +1760,11 @@ export const ReportsManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Βασικός (€)</label>
+                  <label htmlFor="payroll-base" className="block font-bold text-slate-700 mb-1">Βασικός (€)</label>
                   <input
+                    id="payroll-base"
                     type="number"
                     step="0.01"
                     value={newPayrollItem.baseSalary || ''}
@@ -1762,8 +1773,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Bonus (€)</label>
+                  <label htmlFor="payroll-bonus" className="block font-bold text-slate-700 mb-1">Bonus (€)</label>
                   <input
+                    id="payroll-bonus"
                     type="number"
                     step="0.01"
                     value={newPayrollItem.bonus || ''}
@@ -1772,8 +1784,9 @@ export const ReportsManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Προκαταβολή (€)</label>
+                  <label htmlFor="payroll-advance" className="block font-bold text-slate-700 mb-1">Προκαταβολή (€)</label>
                   <input
+                    id="payroll-advance"
                     type="number"
                     step="0.01"
                     value={newPayrollItem.advancePayment || ''}
@@ -1783,10 +1796,11 @@ export const ReportsManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Κατάθεση σε Τράπεζα (€)</label>
+                  <label htmlFor="payroll-bank" className="block font-bold text-slate-700 mb-1">Κατάθεση σε Τράπεζα (€)</label>
                   <input
+                    id="payroll-bank"
                     type="number"
                     step="0.01"
                     value={newPayrollItem.bankAmount || ''}
@@ -1800,14 +1814,16 @@ export const ReportsManager: React.FC = () => {
                     <input
                       type="number"
                       placeholder="Ημέρες"
-                      value={newPayrollItem.daysWorked || 26}
+                      aria-label="Ημέρες Εργασίας"
+                      value={newPayrollItem.daysWorked ?? 26}
                       onChange={(e) => setNewPayrollItem({ ...newPayrollItem, daysWorked: parseInt(e.target.value) || 0 })}
                       className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
                     />
                     <input
                       type="number"
                       placeholder="Ώρες"
-                      value={newPayrollItem.hoursWorked || 208}
+                      aria-label="Ώρες Εργασίας"
+                      value={newPayrollItem.hoursWorked ?? 208}
                       onChange={(e) => setNewPayrollItem({ ...newPayrollItem, hoursWorked: parseInt(e.target.value) || 0 })}
                       className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
                     />
@@ -1825,9 +1841,10 @@ export const ReportsManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs"
+                  disabled={isSavingRecord}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Αποθήκευση στη Μισθοδοσία
+                  {isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση στη Μισθοδοσία'}
                 </button>
               </div>
             </form>
@@ -1857,17 +1874,19 @@ export const ReportsManager: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowRosterModal(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg cursor-pointer"
+                aria-label="Κλείσιμο"
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveRosterSchedule} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Επιλογή Καταστήματος</label>
+                  <label htmlFor="roster-store-select" className="block font-bold text-slate-700 mb-1">Επιλογή Καταστήματος</label>
                   <select
+                    id="roster-store-select"
                     value={editingRosterStoreId}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1885,8 +1904,9 @@ export const ReportsManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Τίτλος / Ετικέτα Καταστήματος</label>
+                  <label htmlFor="roster-store-name" className="block font-bold text-slate-700 mb-1">Τίτλος / Ετικέτα Καταστήματος</label>
                   <input
+                    id="roster-store-name"
                     type="text"
                     value={editingRosterStoreName}
                     onChange={(e) => setEditingRosterStoreName(e.target.value)}
@@ -2074,13 +2094,67 @@ export const ReportsManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs flex items-center gap-1.5"
+                  disabled={isSavingRecord}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Αποθήκευση Προγράμματος στο Firestore</span>
+                  <span>{isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση Προγράμματος στο Firestore'}</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Expense Confirmation Modal */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">
+                {pendingDelete.type === 'FIXED' ? 'Διαγραφή Παγίου Εξόδου' : 'Διαγραφή Εταιρικού Εξόδου'}
+              </h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε σίγουροι ότι θέλετε να διαγράψετε «{pendingDelete.label}»; Η ενέργεια είναι οριστική.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingRecord}
+                onClick={() => setPendingDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingRecord}
+                onClick={handleConfirmPendingDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingRecord ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -54,6 +54,19 @@ export function safeNum(val: number | string | null | undefined): number {
 }
 
 /**
+  Returns the first candidate that actually has a value (a real 0 counts),
+  only falling through when every candidate is genuinely missing.
+  `Number(field) || fallback` treats a real 0 as falsy and silently
+  substitutes a wrong non-zero number instead — this avoids that bug.
+ */
+export function pickNum(...vals: Array<number | string | null | undefined>): number {
+  for (const v of vals) {
+    if (v !== null && v !== undefined && v !== '') return safeNum(v);
+  }
+  return 0;
+}
+
+/**
   Rounds a number to 2 decimal places to prevent floating-point precision issues.
  */
 export function roundCurrency(val: number): number {
