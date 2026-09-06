@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { EUR_DENOMINATIONS } from '../../services/financialCalculator.ts';
-import { RotateCcw, Banknote, Coins as CoinsIcon, Calculator } from 'lucide-react';
+import { RotateCcw, Banknote, Coins as CoinsIcon, Calculator, Minus, Plus, X } from 'lucide-react';
 
 export interface CashDenominationCounterProps {
   denominations: Record<string, number>;
@@ -163,7 +163,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
 
         {/* Counter Stepper Row */}
         <div
-          className={`flex items-center p-1 rounded-xl border shadow-2xs transition-all gap-1 ${
+          className={`flex items-center p-1 rounded-xl border shadow-2xs transition-all gap-2 ${
             isDark
               ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
               : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
@@ -183,8 +183,9 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                 : 'bg-white text-slate-800 hover:bg-slate-200 border border-slate-200/80 cursor-pointer'
             }`}
             title="Μείωση κατά 1 (-1)"
+            aria-label="Μείωση κατά 1"
           >
-            -
+            <Minus className="w-4 h-4" />
           </button>
 
           <div className="flex-1 min-w-0 flex items-center justify-center px-1">
@@ -218,8 +219,9 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
             } ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Αύξηση κατά 1 (+1)"
+            aria-label="Αύξηση κατά 1"
           >
-            +
+            <Plus className="w-4 h-4" />
           </button>
 
           {/* Reset-to-zero for this one denomination - kept separate from the
@@ -229,14 +231,15 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => updateCount(denom.key, -qty)}
-              className={`w-7 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
+              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
                 isDark
                   ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
                   : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
               }`}
               title="Μηδενισμός αξίας"
+              aria-label="Μηδενισμός αξίας"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -251,7 +254,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         className={`p-4 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
           isDark
             ? 'bg-slate-800/90 border-slate-700 text-slate-100 shadow-md'
-            : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
         }`}
       >
         <div className="flex items-center space-x-3">
@@ -335,7 +338,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             className={`px-4 py-2 rounded-xl border flex flex-col text-right ${
               isDark
                 ? 'bg-indigo-950/60 border-indigo-800/80 text-indigo-300'
-                : 'bg-indigo-50/90 border-indigo-150 text-indigo-950'
+                : 'bg-indigo-50/90 border-indigo-200 text-indigo-950'
             }`}
           >
             <span className="text-[10px] font-extrabold uppercase tracking-wider block opacity-80">

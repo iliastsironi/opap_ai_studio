@@ -419,7 +419,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
         </div>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-bold block text-[10px] uppercase mb-0.5 flex items-center gap-1">
               <Store className="w-3 h-3" /> Κατάστημα
@@ -461,7 +461,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       {/* ------------------------------------------------------------- */}
       {/* 4 TOP KEY METRICS TILES */}
       {/* ------------------------------------------------------------- */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
             1. Αρχικό Ταμείο
@@ -546,7 +546,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             <div className="py-2.5 flex items-center justify-between">
               <div>
                 <span className="font-bold text-slate-800 block">Αριθμοπαιχνίδια (Kino, Joker, etc)</span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-400 font-mono">
                   Πωλήσεις: {formatCurrency(safeNum(numberSales))} • Πληρωμές: -{formatCurrency(safeNum(numberPayouts))}
                 </span>
               </div>
@@ -565,13 +565,13 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowScratchDetails(!showScratchDetails)}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 transition-colors"
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 transition-colors cursor-pointer"
                       >
                         {showScratchDetails ? 'Απόκρυψη Αριθμών' : 'Αναλυτικοί Αριθμοί (Αρχικό - Τελικό)'}
                       </button>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                  <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
                     Πωλήσεις: {formatCurrency(safeNum(scratchSales))} • Εξαργυρώσεις: -{formatCurrency(safeNum(scratchPayouts))}
                   </span>
                 </div>
@@ -609,10 +609,10 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                         <span className="text-center text-slate-600">{lottery ? '—' : (item.backEndNo || '-')}</span>
                         <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? formatCurrency(rowTotal) : '-'}</span>
                         {qty > 0 && (
-                          <span className="col-span-7 text-[9px] text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
+                          <span className="col-span-7 text-[10px] text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
                         )}
                         {bundleTracked && (startSplit || endSplit) && (
-                          <span className="col-span-7 text-[9px] text-indigo-400 -mt-0.5">
+                          <span className="col-span-7 text-[10px] text-indigo-400 -mt-0.5">
                             {startSplit && <>Απόθεμα: {startSplit.bundles} πεντάδες + {startSplit.pieces} κομμάτια</>}
                             {startSplit && endSplit && ' · '}
                             {endSplit && <>Υπόλοιπο: {endSplit.bundles} πεντάδες + {endSplit.pieces} κομμάτια</>}
@@ -681,7 +681,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             <div className="py-2.5 flex items-center justify-between">
               <div>
                 <span className="font-bold text-slate-800 block">FnB & Αναψυκτήριο</span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-400 font-mono">
                   Μετρητά: {formatCurrency(safeNum(fnbCash))} • Κάρτα: {formatCurrency(safeNum(fnbCard))}
                 </span>
               </div>
@@ -711,7 +711,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Μετρητά & Κέρματα στο Ταμείο</span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slate-400 font-mono">
                     Χαρτονομίσματα ({formatCurrency(banknotesTotal)}) + Κέρματα ({formatCurrency(coinsTotal)})
                   </span>
                 </div>
@@ -741,7 +741,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <CreditCard className="w-4 h-4 text-indigo-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Πληρωμές με Κάρτα (POS)</span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slate-400 font-mono">
                     {savedStorePosItems && savedStorePosItems.length > 0
                       ? savedStorePosItems
                           .map((p) => `${p.name}: ${formatCurrency(safeNum(p.amount))}`)
@@ -778,7 +778,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               <div className="py-2.5 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block">Πιστώσεις & Επιστροφές</span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-slate-400 font-mono">
                     Πιστώσεις ({formatCurrency(safeNum(creditsGranted))}) • Επιστροφές ({formatCurrency(safeNum(customerReturns))})
                   </span>
                 </div>
