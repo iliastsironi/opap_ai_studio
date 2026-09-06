@@ -92,6 +92,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   });
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+  const [isSavingTiers, setIsSavingTiers] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
   const reloadCustomers = useCallback(async () => {
     setCustomers(await getCustomers(orgId, storeId));
@@ -99,6 +103,8 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   useEffect(() => {
     if (!isOpen) return;
+    setSearchQuery('');
+    setSelectedTierFilter('ALL');
     reloadCustomers();
     getStoreCreditTierConfigs(orgId, storeId).then((tiers) => {
       setTierConfigs(tiers);
@@ -141,54 +147,66 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || isSavingCustomer) return;
+    setIsSavingCustomer(true);
 
-    const desiredDebt = parseFloat(formData.current_debt) || 0;
-    const saved = await saveCustomer({
-      id: editingCustomer ? editingCustomer.id : undefined,
-      organization_id: orgId,
-      name: formData.name.trim(),
-      phone: formData.phone.trim(),
-      tier: formData.tier,
-      custom_limit: formData.custom_limit ? parseFloat(formData.custom_limit) : null,
-      notes: formData.notes.trim(),
-      store_id: storeId || 'store_opap_01',
-    });
-
-    // current_debt is trigger-maintained from customer_credit_transactions,
-    // not writable directly - record the delta as a standalone (no shift)
-    // adjustment transaction so manual corrections stay in the audit trail.
-    const priorDebt = editingCustomer ? editingCustomer.current_debt || 0 : 0;
-    if (Math.abs(desiredDebt - priorDebt) >= 0.005) {
-      await adjustCustomerDebt({
-        customerId: saved.id,
-        organizationId: orgId,
-        storeId: storeId || 'store_opap_01',
-        currentDebt: priorDebt,
-        desiredDebt,
-        createdByUserId: user?.id || '',
-        customerName: saved.name,
-        customerTier: saved.tier,
+    try {
+      const desiredDebt = parseFloat(formData.current_debt) || 0;
+      const saved = await saveCustomer({
+        id: editingCustomer ? editingCustomer.id : undefined,
+        organization_id: orgId,
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        tier: formData.tier,
+        custom_limit: formData.custom_limit ? parseFloat(formData.custom_limit) : null,
+        notes: formData.notes.trim(),
+        store_id: storeId || 'store_opap_01',
       });
-    }
 
-    await reloadCustomers();
-    setIsAddingNew(false);
-    setEditingCustomer(null);
+      // current_debt is trigger-maintained from customer_credit_transactions,
+      // not writable directly - record the delta as a standalone (no shift)
+      // adjustment transaction so manual corrections stay in the audit trail.
+      const priorDebt = editingCustomer ? editingCustomer.current_debt || 0 : 0;
+      if (Math.abs(desiredDebt - priorDebt) >= 0.005) {
+        await adjustCustomerDebt({
+          customerId: saved.id,
+          organizationId: orgId,
+          storeId: storeId || 'store_opap_01',
+          currentDebt: priorDebt,
+          desiredDebt,
+          createdByUserId: user?.id || '',
+          customerName: saved.name,
+          customerTier: saved.tier,
+        });
+      }
 
-    if (onCustomerSelected) {
-      onCustomerSelected(saved);
+      await reloadCustomers();
+      setIsAddingNew(false);
+      setEditingCustomer(null);
+
+      if (onCustomerSelected) {
+        onCustomerSelected(saved);
+      }
+    } finally {
+      setIsSavingCustomer(false);
     }
   };
 
-  const handleDeleteCustomer = async (id: string, name: string) => {
-    if (window.confirm(`Είστε σίγουροι ότι θέλετε να διαγράψετε τον πελάτη "${name}";`)) {
-      await deleteCustomer(id);
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    setIsDeletingCustomer(true);
+    try {
+      await deleteCustomer(customerToDelete.id);
       await reloadCustomers();
+      setCustomerToDelete(null);
+    } finally {
+      setIsDeletingCustomer(false);
     }
   };
 
   const handleSaveTierLimits = async () => {
+    if (isSavingTiers) return;
+    setIsSavingTiers(true);
     const updated: Record<CreditScoreTier, CreditTierConfig> = {
       ...tierConfigs,
       'A+': {
@@ -210,10 +228,14 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       },
     };
 
-    await saveStoreCreditTierConfigs(orgId, storeId || 'store_opap_01', updated);
-    setTierConfigs(updated);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    try {
+      await saveStoreCreditTierConfigs(orgId, storeId || 'store_opap_01', updated);
+      setTierConfigs(updated);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    } finally {
+      setIsSavingTiers(false);
+    }
   };
 
   // Calculations
@@ -253,6 +275,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
           <button
             type="button"
             onClick={onClose}
+            aria-label="Κλείσιμο"
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -355,8 +378,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
               {/* Filters & Search */}
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div className="relative w-full sm:w-72">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <label htmlFor="customer-directory-search" className="sr-only">Αναζήτηση πελατών</label>
                   <input
+                    id="customer-directory-search"
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -447,7 +472,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                             <td className="p-3 text-right font-mono">
                               <span
-                                className={`font-black px-2 py-0.5 rounded-md ${
+                                className={`font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
                                   debt > 0
                                     ? isOverLimit
                                       ? 'bg-rose-100 text-rose-800 border border-rose-300'
@@ -455,7 +480,9 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                     : 'text-slate-500'
                                 }`}
                               >
+                                {isOverLimit && <AlertTriangle className="w-3 h-3 shrink-0" />}
                                 {formatCurrency(debt)}
+                                {isOverLimit && <span className="font-sans font-bold text-[9px] uppercase">Υπέρβαση</span>}
                               </span>
                             </td>
 
@@ -464,7 +491,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                 <span className="text-emerald-600 font-black">Άπειρο</span>
                               ) : (
                                 <span
-                                  className={`font-black ${
+                                  className={`font-black inline-flex items-center gap-1 ${
                                     available <= 0
                                       ? 'text-rose-600 font-bold'
                                       : available < 50
@@ -473,6 +500,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                   }`}
                                 >
                                   {formatCurrency(available)}
+                                  {available <= 0 && <span className="font-sans font-bold text-[9px] uppercase">Μηδέν</span>}
                                 </span>
                               )}
                             </td>
@@ -497,6 +525,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                   onClick={() => handleOpenEditModal(cust)}
                                   className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                   title="Επεξεργασία"
+                                  aria-label="Επεξεργασία"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
@@ -504,9 +533,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                 {isOwnerOrManager && (
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteCustomer(cust.id, cust.name)}
+                                    onClick={() => setCustomerToDelete({ id: cust.id, name: cust.name })}
                                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                     title="Διαγραφή"
+                                    aria-label="Διαγραφή"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -566,10 +596,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                     {!editTierLimits['A+'].isUnlimited && (
                       <div>
-                        <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                        <label htmlFor="tier-limit-aplus" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                           Ποσό Ορίου (€):
                         </label>
                         <input
+                          id="tier-limit-aplus"
                           type="number"
                           value={editTierLimits['A+'].limit}
                           onChange={(e) =>
@@ -597,11 +628,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     Πελάτες που εξοφλούν σταθερά (π.χ. κάθε εβδομάδα ή τέλος του μήνα).
                   </p>
                   <div className="pt-2">
-                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-a" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
                       <input
+                        id="tier-limit-a"
                         type="number"
                         value={editTierLimits['A'].limit}
                         onChange={(e) =>
@@ -629,11 +661,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     Περιστασιακοί πελάτες ή νέα μέλη με περιορισμένο ιστορικό συναλλαγών.
                   </p>
                   <div className="pt-2">
-                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-b" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
                       <input
+                        id="tier-limit-b"
                         type="number"
                         value={editTierLimits['B'].limit}
                         onChange={(e) =>
@@ -661,11 +694,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     Επισφαλείς πελάτες με καθυστερήσεις. Απαιτείται άμεση εξόφληση πριν από κάθε νέα κίνηση.
                   </p>
                   <div className="pt-2">
-                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-c" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
                       <input
+                        id="tier-limit-c"
                         type="number"
                         value={editTierLimits['C'].limit}
                         onChange={(e) =>
@@ -692,9 +726,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 <button
                   type="button"
                   onClick={handleSaveTierLimits}
-                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all cursor-pointer"
+                  disabled={isSavingTiers}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
-                  Αποθήκευση Ορίων Credit Score
+                  {isSavingTiers ? 'Αποθήκευση...' : 'Αποθήκευση Ορίων Credit Score'}
                 </button>
               </div>
             </div>
@@ -715,7 +750,8 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 <button
                   type="button"
                   onClick={() => setIsAddingNew(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1"
+                  aria-label="Κλείσιμο"
+                  className="text-slate-400 hover:text-slate-600 p-1.5 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -723,10 +759,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
               <form onSubmit={handleSaveCustomer} className="space-y-3.5">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-name" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                     Ονοματεπώνυμο Πελάτη *
                   </label>
                   <input
+                    id="cust-name"
                     type="text"
                     required
                     value={formData.name}
@@ -737,10 +774,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-phone" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                     Τηλέφωνο Επικοινωνίας
                   </label>
                   <input
+                    id="cust-phone"
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -785,10 +823,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="cust-debt" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                       Τρέχουσα Οφειλή (€)
                     </label>
                     <input
+                      id="cust-debt"
                       type="number"
                       step="0.01"
                       value={formData.current_debt}
@@ -798,10 +837,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="cust-custom-limit" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                       Ειδικό Όριο (Προαιρετικό)
                     </label>
                     <input
+                      id="cust-custom-limit"
                       type="number"
                       step="0.01"
                       placeholder="Default"
@@ -813,10 +853,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-notes" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                     Σημειώσεις / Ιστορικό
                   </label>
                   <textarea
+                    id="cust-notes"
                     rows={2}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -835,12 +876,65 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer"
+                    disabled={isSavingCustomer}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer disabled:opacity-50"
                   >
-                    {editingCustomer ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Πελάτη'}
+                    {isSavingCustomer ? 'Αποθήκευση...' : editingCustomer ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Πελάτη'}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Customer Confirmation Modal */}
+        {customerToDelete && (
+          <div
+            className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+            onClick={() => setCustomerToDelete(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 text-rose-600">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Πελάτη</h4>
+              </div>
+              <p className="text-xs text-slate-600">
+                Είστε σίγουροι ότι θέλετε να διαγράψετε τον πελάτη «{customerToDelete.name}»; Το ιστορικό
+                συναλλαγών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.
+              </p>
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeletingCustomer}
+                  onClick={() => setCustomerToDelete(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingCustomer}
+                  onClick={handleDeleteCustomer}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isDeletingCustomer ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Διαγραφή...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Ναι, Διαγραφή</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

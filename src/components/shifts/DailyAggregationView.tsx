@@ -171,28 +171,32 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
 
             {/* Custom date input */}
             <div className="flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <Calendar aria-hidden="true" className="w-3.5 h-3.5 text-slate-400" />
+              <label htmlFor="daily-agg-date" className="sr-only">Επιλογή ημερομηνίας</label>
               <input
+                id="daily-agg-date"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-sm"
               />
             </div>
 
             {/* Previous/Next date buttons */}
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleJumpDate(-1)}
                 title="Προηγούμενη Ημέρα με Βάρδιες"
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer"
+                aria-label="Προηγούμενη Ημέρα με Βάρδιες"
+                className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => handleJumpDate(1)}
                 title="Επόμενη Ημέρα με Βάρδιες"
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer"
+                aria-label="Επόμενη Ημέρα με Βάρδιες"
+                className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 cursor-pointer"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -364,7 +368,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
           </div>
 
           {/* Daily Cash Reconciliation Step-by-Step Flow */}
-          <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4">
+          <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4 print:bg-white print:border-slate-300 print:[&_*]:text-black print:[&_*]:bg-white">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
               <div className="flex items-center space-x-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
@@ -478,7 +482,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-sm border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                     <th className="py-3 px-4 min-w-[200px]">Οικονομική Κατηγορία</th>
@@ -491,7 +495,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                             ? 'Απογευματινή'
                             : 'Βραδινή'}
                         </div>
-                        <div className="text-[10px] font-normal text-slate-400">
+                        <div className="text-[10px] font-normal text-slate-500">
                           {s.openedBy} ({s.registerId})
                         </div>
                       </th>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Printer, X, Download, FileText, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Shift, ShiftExpense } from '../../types/index.ts';
 import { safeNum, roundCurrency } from '../../services/financialCalculator.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 export interface ShiftReceiptData {
@@ -221,48 +222,48 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           {/* Αριθμοπαιχνίδια */}
           <div className="flex justify-between items-center">
             <span>Αριθμοπαιχνίδια (Gross):</span>
-            <span className="font-bold">{safeNum(data.arithmoGross ?? shift.arithmo_gross ?? shift.number_games_sales).toFixed(2)} €</span>
+            <span className="font-bold">{formatCurrency(safeNum(data.arithmoGross ?? shift.arithmo_gross ?? shift.number_games_sales))}</span>
           </div>
           {(safeNum(data.arithmoCancels ?? shift.arithmo_cancels) > 0) && (
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>- Ακυρώσεις:</span>
-              <span>-{safeNum(data.arithmoCancels ?? shift.arithmo_cancels).toFixed(2)} €</span>
+              <span>-{formatCurrency(safeNum(data.arithmoCancels ?? shift.arithmo_cancels))}</span>
             </div>
           )}
           {(safeNum(data.arithmoPayouts ?? shift.arithmo_payouts ?? shift.number_games_payouts) > 0) && (
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>- Πληρωμές Κερδών:</span>
-              <span>-{safeNum(data.arithmoPayouts ?? shift.arithmo_payouts ?? shift.number_games_payouts).toFixed(2)} €</span>
+              <span>-{formatCurrency(safeNum(data.arithmoPayouts ?? shift.arithmo_payouts ?? shift.number_games_payouts))}</span>
             </div>
           )}
           {(safeNum(data.arithmoVouchers ?? shift.arithmo_vouchers) !== 0) && (
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>± Vouchers ΟΠΑΠ:</span>
-              <span>{safeNum(data.arithmoVouchers ?? shift.arithmo_vouchers).toFixed(2)} €</span>
+              <span>{formatCurrency(safeNum(data.arithmoVouchers ?? shift.arithmo_vouchers))}</span>
             </div>
           )}
 
           {/* VLTs */}
           <div className="flex justify-between items-center pt-0.5">
             <span>PLAY VLTs (In):</span>
-            <span className="font-bold">{safeNum(data.vltsIn ?? shift.vlts_cash_in).toFixed(2)} €</span>
+            <span className="font-bold">{formatCurrency(safeNum(data.vltsIn ?? shift.vlts_cash_in))}</span>
           </div>
           {(safeNum(data.vltsOut ?? shift.vlts_cash_out) !== 0) && (
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>- VLTs Ροή / Out:</span>
-              <span>{safeNum(data.vltsOut ?? shift.vlts_cash_out).toFixed(2)} €</span>
+              <span>{formatCurrency(safeNum(data.vltsOut ?? shift.vlts_cash_out))}</span>
             </div>
           )}
 
           {/* Σκρατς & Λαχεία */}
           <div className="flex justify-between items-center pt-0.5">
             <span>Σκρατς / Λαχεία:</span>
-            <span className="font-bold">{safeNum(data.scratchSales ?? shift.scratch_sales ?? shift.scratch_lotto_sales).toFixed(2)} €</span>
+            <span className="font-bold">{formatCurrency(safeNum(data.scratchSales ?? shift.scratch_sales ?? shift.scratch_lotto_sales))}</span>
           </div>
           {(safeNum(data.scratchPayouts ?? shift.scratch_payouts) > 0) && (
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>- Εξαργυρώσεις Σκρατς:</span>
-              <span>-{safeNum(data.scratchPayouts ?? shift.scratch_payouts).toFixed(2)} €</span>
+              <span>-{formatCurrency(safeNum(data.scratchPayouts ?? shift.scratch_payouts))}</span>
             </div>
           )}
 
@@ -270,19 +271,19 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           {(safeNum(data.pameStoiximaBalance ?? shift.pame_stoixima_balance) !== 0) && (
             <div className="flex justify-between items-center pt-0.5">
               <span>Pame Stoixima / Virtuals:</span>
-              <span>{safeNum(data.pameStoiximaBalance ?? shift.pame_stoixima_balance).toFixed(2)} €</span>
+              <span>{formatCurrency(safeNum(data.pameStoiximaBalance ?? shift.pame_stoixima_balance))}</span>
             </div>
           )}
           {(safeNum(data.cleverPointTotal ?? shift.clever_point_total) !== 0) && (
             <div className="flex justify-between items-center">
               <span>Clever Point:</span>
-              <span>{safeNum(data.cleverPointTotal ?? shift.clever_point_total).toFixed(2)} €</span>
+              <span>{formatCurrency(safeNum(data.cleverPointTotal ?? shift.clever_point_total))}</span>
             </div>
           )}
           {(safeNum(data.ippodromosBalance ?? shift.ippodromos_balance) !== 0) && (
             <div className="flex justify-between items-center">
               <span>Ιππόδρομος:</span>
-              <span>{safeNum(data.ippodromosBalance ?? shift.ippodromos_balance).toFixed(2)} €</span>
+              <span>{formatCurrency(safeNum(data.ippodromosBalance ?? shift.ippodromos_balance))}</span>
             </div>
           )}
 
@@ -291,11 +292,11 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             <div className="flex justify-between items-center pt-0.5">
               <span>FnB (Μετρητά + POS):</span>
               <span className="font-bold">
-                {roundCurrency(
+                {formatCurrency(roundCurrency(
                   safeNum(data.fnbCash ?? shift.fnb_cash) +
                   safeNum(data.fnbCard ?? shift.fnb_card) ||
                   safeNum(data.fnbTotal ?? shift.fnb_sales)
-                ).toFixed(2)} €
+                ))}
               </span>
             </div>
           ) : null)}
@@ -313,13 +314,13 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           <div className="flex justify-between items-center">
             <span>Έξοδα ΓΠ (Μετρητά):</span>
             <span className="font-bold">
-              {safeNum(data.expensesGpCash ?? shift.opap_expenses ?? (shift.expenses_paid_cash ? shift.expenses_paid_cash : 0)).toFixed(2)} €
+              {formatCurrency(safeNum(data.expensesGpCash ?? shift.opap_expenses ?? (shift.expenses_paid_cash ? shift.expenses_paid_cash : 0)))}
             </span>
           </div>
           {(safeNum(data.expensesFnbCash ?? shift.fnb_expenses) > 0) && (
             <div className="flex justify-between items-center">
               <span>Έξοδα FnB (Μετρητά):</span>
-              <span className="font-bold">{safeNum(data.expensesFnbCash ?? shift.fnb_expenses).toFixed(2)} €</span>
+              <span className="font-bold">{formatCurrency(safeNum(data.expensesFnbCash ?? shift.fnb_expenses))}</span>
             </div>
           )}
 
@@ -327,9 +328,9 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           {Array.isArray(data.expensesList) && data.expensesList.length > 0 && (
             <div className="pt-1 pl-2 border-l border-slate-300 print:border-black my-1 space-y-0.5 text-[9.5px]">
               {data.expensesList.map((exp, idx) => (
-                <div key={exp.id || idx} className="flex justify-between items-center">
-                  <span className="truncate max-w-[180px]">{exp.recipient || exp.notes || exp.category || 'Έξοδο'}:</span>
-                  <span className="font-mono">{safeNum(exp.amount).toFixed(2)} €</span>
+                <div key={exp.id || idx} className="flex justify-between items-start gap-2">
+                  <span className="break-words">{exp.recipient || exp.notes || exp.category || 'Έξοδο'}:</span>
+                  <span className="font-mono shrink-0">{formatCurrency(safeNum(exp.amount))}</span>
                 </div>
               ))}
             </div>
@@ -338,10 +339,10 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           <div className="flex justify-between items-center font-bold pt-0.5 border-t border-dotted border-slate-300 print:border-black">
             <span>Σύνολο Εξόδων Μετρητών:</span>
             <span>
-              {safeNum(
+              {formatCurrency(safeNum(
                 data.expensesTotalCash ??
                 (safeNum(data.expensesGpCash) + safeNum(data.expensesFnbCash) || shift.expenses_paid_cash || 0)
-              ).toFixed(2)} €
+              ))}
             </span>
           </div>
         </div>
@@ -370,13 +371,13 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
                 <div key={b.key} className="flex justify-between items-center">
                   <span className="w-12">{b.label}</span>
                   <span className="text-center flex-1">x {qty}</span>
-                  <span className="w-16 text-right font-bold">{(qty * b.val).toFixed(2)} €</span>
+                  <span className="w-16 text-right font-bold">{formatCurrency(qty * b.val)}</span>
                 </div>
               );
             })}
             <div className="flex justify-between items-center font-bold text-[10px] pt-0.5 border-t border-dotted border-slate-300 print:border-black">
               <span>Σύνολο Χαρτονομισμάτων:</span>
-              <span>{banknotesTotal.toFixed(2)} €</span>
+              <span>{formatCurrency(banknotesTotal)}</span>
             </div>
           </div>
         </div>
@@ -396,13 +397,13 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
                 <div key={c.key} className="flex justify-between items-center">
                   <span className="w-12">{c.label}</span>
                   <span className="text-center flex-1">x {qty}</span>
-                  <span className="w-16 text-right font-bold">{(qty * c.val).toFixed(2)} €</span>
+                  <span className="w-16 text-right font-bold">{formatCurrency(qty * c.val)}</span>
                 </div>
               );
             })}
             <div className="flex justify-between items-center font-bold text-[10px] pt-0.5 border-t border-dotted border-slate-300 print:border-black">
               <span>Σύνολο Κερμάτων:</span>
-              <span>{coinsTotal.toFixed(2)} €</span>
+              <span>{formatCurrency(coinsTotal)}</span>
             </div>
           </div>
         </div>
@@ -411,36 +412,36 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
         <div className="mt-2 pt-1 border-t border-dotted border-slate-400 print:border-black space-y-1 text-[10.5px]">
           <div className="flex justify-between items-center font-bold">
             <span>Φυσικά Μετρητά Συρταριού:</span>
-            <span>{drawerCash.toFixed(2)} €</span>
+            <span>{formatCurrency(drawerCash)}</span>
           </div>
           {(safeNum(data.safeDrop ?? shift.bank_deposits ?? shift.safe_drop) > 0) && (
             <div className="flex justify-between items-center">
               <span>Χρηματοκιβώτιο (Safe Drop):</span>
-              <span className="font-bold">{safeNum(data.safeDrop ?? shift.bank_deposits ?? shift.safe_drop).toFixed(2)} €</span>
+              <span className="font-bold">{formatCurrency(safeNum(data.safeDrop ?? shift.bank_deposits ?? shift.safe_drop))}</span>
             </div>
           )}
           {(safeNum(data.totalStorePos ?? shift.card_payments) > 0) && (
             <div className="flex justify-between items-center">
               <span>POS Καρτών (Store POS):</span>
-              <span className="font-bold">{safeNum(data.totalStorePos ?? shift.card_payments).toFixed(2)} €</span>
+              <span className="font-bold">{formatCurrency(safeNum(data.totalStorePos ?? shift.card_payments))}</span>
             </div>
           )}
           {(safeNum(data.totalToraPos ?? (safeNum(shift.tora_pos1) + safeNum(shift.tora_pos2))) > 0) && (
             <div className="flex justify-between items-center">
               <span>TORA Direct POS:</span>
-              <span className="font-bold">{safeNum(data.totalToraPos ?? (safeNum(shift.tora_pos1) + safeNum(shift.tora_pos2))).toFixed(2)} €</span>
+              <span className="font-bold">{formatCurrency(safeNum(data.totalToraPos ?? (safeNum(shift.tora_pos1) + safeNum(shift.tora_pos2))))}</span>
             </div>
           )}
           {(safeNum(data.creditGranted ?? shift.customer_credit_granted) > 0) && (
             <div className="flex justify-between items-center">
               <span>Πιστώσεις Πελατών:</span>
-              <span>+{safeNum(data.creditGranted ?? shift.customer_credit_granted).toFixed(2)} €</span>
+              <span>+{formatCurrency(safeNum(data.creditGranted ?? shift.customer_credit_granted))}</span>
             </div>
           )}
           {(safeNum(data.creditCollected ?? shift.customer_credit_collected ?? shift.customer_returns) > 0) && (
             <div className="flex justify-between items-center">
               <span>Επιστροφές Πιστώσεων:</span>
-              <span>-{safeNum(data.creditCollected ?? shift.customer_credit_collected ?? shift.customer_returns).toFixed(2)} €</span>
+              <span>-{formatCurrency(safeNum(data.creditCollected ?? shift.customer_credit_collected ?? shift.customer_returns))}</span>
             </div>
           )}
         </div>
@@ -452,15 +453,15 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
       <div className="py-1 space-y-1 text-[11px]">
         <div className="flex justify-between items-center">
           <span>Αρχικό Ταμείο (Float):</span>
-          <span className="font-bold">{openingCash.toFixed(2)} €</span>
+          <span className="font-bold">{formatCurrency(openingCash)}</span>
         </div>
         <div className="flex justify-between items-center">
           <span>Αναμενόμενο Ταμείο:</span>
-          <span className="font-bold">{expectedCash.toFixed(2)} €</span>
+          <span className="font-bold">{formatCurrency(expectedCash)}</span>
         </div>
         <div className="flex justify-between items-center">
           <span>Καταμετρημένο Ταμείο:</span>
-          <span className="font-bold">{countedCash.toFixed(2)} €</span>
+          <span className="font-bold">{formatCurrency(countedCash)}</span>
         </div>
 
         <div className="border-t border-black my-1.5" />
@@ -471,7 +472,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             {toGreekUpper('Διαφορα Ταμειου (Αποκλιση)')}
           </div>
           <div className="text-sm font-black">
-            {discrepancy >= 0 ? '+' : ''}{discrepancy.toFixed(2)} €
+            {formatCurrency(discrepancy, { showSign: true })}
           </div>
           <div className="text-[9px] font-bold uppercase">
             {discrepancy === 0

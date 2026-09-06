@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Trash2,
@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Check,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -577,6 +578,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const [newPackModalRowId, setNewPackModalRowId] = useState<string | null>(null);
   const [newPackStartNo, setNewPackStartNo] = useState<string>('0');
   const [newPackBackEndNo, setNewPackBackEndNo] = useState<string>('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [rowToRemove, setRowToRemove] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!newPackModalRowId && !showResetConfirm && !rowToRemove) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNewPackModalRowId(null);
+        setShowResetConfirm(false);
+        setRowToRemove(null);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [newPackModalRowId, showResetConfirm, rowToRemove]);
 
   const handleUpdateRow = (id: string, field: keyof ScratchTicketRow, value: any) => {
     if (readOnly) return;
@@ -718,12 +734,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     const updated = rows.filter((r) => r.id !== id);
     onChangeRows(updated);
     saveScratchCatalog(updated);
+    setRowToRemove(null);
   };
 
   const handleReset = () => {
     if (readOnly) return;
     const reset = rows.map((r) => ({ ...r, endNo: '', backStartNo: '', manualQty: '' }));
     onChangeRows(reset);
+    setShowResetConfirm(false);
   };
 
   // calculateCombinedRowQty (front+back) here, not calculateRowQty (front
@@ -815,7 +833,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
             <button
               type="button"
-              onClick={handleReset}
+              onClick={() => setShowResetConfirm(true)}
               className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
               title="Καθαρισμός Μπροστά-Τελικό και Πίσω-Αρχικό (οι μετρήσεις πωλήσεων της βάρδιας)"
             >
@@ -858,21 +876,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
-              <th className="p-2.5 min-w-[150px]" rowSpan={2}>Παιχνίδι / Κωδικός</th>
-              <th className="p-2.5 w-16 text-right" rowSpan={2}>Τιμή (€)</th>
-              <th className="p-2 text-center bg-indigo-50/70 border-l border-indigo-100" colSpan={2}>
+              <th className="p-2.5 min-w-[150px]" rowSpan={2} scope="col">Παιχνίδι / Κωδικός</th>
+              <th className="p-2.5 w-16 text-right" rowSpan={2} scope="col">Τιμή (€)</th>
+              <th className="p-2 text-center bg-indigo-50/70 border-l border-indigo-100" colSpan={2} scope="colgroup">
                 <span className="text-indigo-700">Μπροστά</span>
                 <span className="block text-[9px] font-medium normal-case text-indigo-500/80 tracking-normal mt-0.5">Πώληση από την αρχή του πακέτου</span>
               </th>
-              <th className="p-2 text-center bg-purple-50/70 border-l border-purple-100" colSpan={2}>
+              <th className="p-2 text-center bg-purple-50/70 border-l border-purple-100" colSpan={2} scope="colgroup">
                 <span className="text-purple-700">Πίσω</span>
                 <span className="block text-[9px] font-medium normal-case text-purple-500/80 tracking-normal mt-0.5">Πώληση από το τέλος του πακέτου</span>
               </th>
-              <th className="p-2.5 w-24 text-center border-l border-slate-200" colSpan={2}>Σύνολο</th>
-              {!readOnly && canManage && <th className="p-2.5 w-20 text-center" rowSpan={2}>Ενέργειες</th>}
+              <th className="p-2.5 w-24 text-center border-l border-slate-200" colSpan={2} scope="colgroup">Σύνολο</th>
+              {!readOnly && canManage && <th className="p-2.5 w-20 text-center" rowSpan={2} scope="col">Ενέργειες</th>}
             </tr>
             <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
-              <th className="p-2 w-28 text-center bg-indigo-50/40">
+              <th className="p-2 w-28 text-center bg-indigo-50/40" scope="col">
                 <div className="flex items-center justify-center space-x-1">
                   <span>Αρχικό</span>
                   {!canEditLockedFields || !managerOverrideEnabled ? (
@@ -882,9 +900,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   ) : null}
                 </div>
               </th>
-              <th className="p-2 w-28 text-center bg-indigo-50/40">Τελικό</th>
-              <th className="p-2 w-28 text-center bg-purple-50/40">Αρχικό</th>
-              <th className="p-2 w-28 text-center bg-purple-50/40">
+              <th className="p-2 w-28 text-center bg-indigo-50/40" scope="col">Τελικό</th>
+              <th className="p-2 w-28 text-center bg-purple-50/40" scope="col">Αρχικό</th>
+              <th className="p-2 w-28 text-center bg-purple-50/40" scope="col">
                 <div className="flex items-center justify-center space-x-1">
                   <span>Τελικό</span>
                   {!canEditLockedFields || !managerOverrideEnabled ? (
@@ -894,8 +912,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   ) : null}
                 </div>
               </th>
-              <th className="p-2 w-20 text-center border-l border-slate-200">Τμχ</th>
-              <th className="p-2 w-24 text-right">Αξία (€)</th>
+              <th className="p-2 w-20 text-center border-l border-slate-200" scope="col">Τμχ</th>
+              <th className="p-2 w-24 text-right" scope="col">Αξία (€)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
@@ -996,8 +1014,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => setEditingRowId(row.id)}
-                                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition-opacity p-0.5 cursor-pointer"
+                                  className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
                                   title="Επεξεργασία ονόματος/τιμής"
+                                  aria-label="Επεξεργασία ονόματος/τιμής"
                                 >
                                   <Edit2 className="w-3 h-3" />
                                 </button>
@@ -1085,7 +1104,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               </div>
                             )}
                             {isBundleTracked && (
-                              <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
+                              <span className="text-[10px] font-bold text-slate-500 block mt-0.5">
                                 ≈ {startPiecesSplit.bundles} πεντ. + {startPiecesSplit.pieces} κομ.
                               </span>
                             )}
@@ -1148,12 +1167,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   truthy string), which must display exactly like never-touched
                                   (undefined) rows, not show a stale "sale recorded" state. */}
                               {bundleSaleCheck.soldPieces > 0 && (
-                                <span className="text-[9px] font-bold text-indigo-600 block">
+                                <span className="text-[10px] font-bold text-indigo-600 block">
                                   = {bundleSaleCheck.soldPieces} τμχ
                                 </span>
                               )}
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
-                                <span className="text-[9px] font-semibold text-emerald-600 block">
+                                <span className="text-[10px] font-semibold text-emerald-600 block">
                                   {/* "πεντ."/"κομ." abbreviations, not the earlier "A×B+C" notation -
                                       that read like an arithmetic formula rather than "A bundles + B
                                       pieces". Matches the same abbreviation used in the ≈X πεντ. + Y κομ.
@@ -1205,12 +1224,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               }
                             />
                             {isInvalidScratchEnd && (
-                              <span className="text-[9px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
+                              <span className="text-[10px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                 Τελικό &lt; Αρχικό
                               </span>
                             )}
                             {frontQty > 0 && !isInvalidScratchEnd && (
-                              <span className="text-[9px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                              <span className="text-[10px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
                             )}
                             </div>
                           )}
@@ -1247,12 +1266,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 }
                               />
                               {isInvalidBackStart && (
-                                <span className="text-[9px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
+                                <span className="text-[10px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                   Αρχικό &gt; Τελικό
                                 </span>
                               )}
                               {backQty > 0 && !isInvalidBackStart && (
-                                <span className="text-[9px] font-bold text-purple-500 block mt-0.5">{backQty} τμχ</span>
+                                <span className="text-[10px] font-bold text-purple-500 block mt-0.5">{backQty} τμχ</span>
                               )}
                             </div>
                           )}
@@ -1316,7 +1335,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         {/* Actions (Manager features) */}
                         {!readOnly && canManage && (
                           <td className="p-2 text-center">
-                            <div className="flex items-center justify-center space-x-1">
+                            <div className="flex items-center justify-center space-x-1.5">
                               {/* Open New Pack button - sets both locked baselines (Μπροστά-Αρχικό, Πίσω-Τελικό), Owner/Admin only */}
                               {canEditLockedFields && (
                                 <button
@@ -1327,8 +1346,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     const maxNo = getPackageMaxNumber(row.price);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
                                   }}
-                                  className="p-1 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer"
+                                  className="p-1.5 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer"
                                   title="Άνοιγμα Νέου Πακέτου (ορισμός Μπροστά-Αρχικό και Πίσω-Τελικό)"
+                                  aria-label="Άνοιγμα Νέου Πακέτου"
                                 >
                                   <PackagePlus className="w-3.5 h-3.5" />
                                 </button>
@@ -1338,7 +1358,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => setEditingRowId(null)}
-                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-1 py-0.5 cursor-pointer"
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-1.5 py-1 cursor-pointer"
                                 >
                                   OK
                                 </button>
@@ -1346,9 +1366,10 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                               <button
                                 type="button"
-                                onClick={() => handleRemoveRow(row.id)}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                                onClick={() => setRowToRemove(row.id)}
+                                className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 cursor-pointer"
                                 title="Διαγραφή παιχνιδιού"
+                                aria-label="Διαγραφή παιχνιδιού"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -1434,8 +1455,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow) : false;
         return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
+          onClick={() => setNewPackModalRowId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center space-x-2 text-indigo-900 border-b border-slate-100 pb-3">
               <PackagePlus className="w-5 h-5 text-indigo-600" />
               <h4 className="font-extrabold text-sm">Άνοιγμα Νέου Πακέτου{targetIsBundleTracked ? '' : ' Σκρατς'}</h4>
@@ -1508,6 +1535,90 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </div>
           </div>
         </div>
+        );
+      })()}
+
+      {/* Reset-All Confirmation Modal */}
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Καθαρισμός Όλων των Τελικών</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Αυτό θα διαγράψει το Μπροστά-Τελικό και το Πίσω-Αρχικό (τις μετρήσεις πωλήσεων της βάρδιας) από{' '}
+              <strong>όλα</strong> τα παιχνίδια του πίνακα ταυτόχρονα. Η ενέργεια δεν αναιρείται.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Ναι, Καθαρισμός Όλων</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Row Confirmation Modal */}
+      {rowToRemove && (() => {
+        const targetRow = rows.find((r) => r.id === rowToRemove);
+        return (
+          <div
+            className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+            onClick={() => setRowToRemove(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 text-rose-600">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Παιχνιδιού</h4>
+              </div>
+              <p className="text-xs text-slate-600">
+                Θέλετε να διαγράψετε το «{targetRow?.name}» από τον πίνακα; Τυχόν καταχωρημένες τιμές αυτού του παιχνιδιού για τη βάρδια θα χαθούν.
+              </p>
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRowToRemove(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRow(rowToRemove)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Ναι, Διαγραφή</span>
+                </button>
+              </div>
+            </div>
+          </div>
         );
       })()}
 

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Lock,
   Unlock,
+  X,
 } from 'lucide-react';
 import { Customer, CustomerCredit, CreditScoreTier, CreditTierConfig } from '../../types/index.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -49,6 +50,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 }) => {
   const [directoryModalOpen, setDirectoryModalOpen] = useState(false);
   const [managerBypassEnabled, setManagerBypassEnabled] = useState(false);
+  const [creditIdxToRemove, setCreditIdxToRemove] = useState<number | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [tierConfigs, setTierConfigs] = useState<Record<CreditScoreTier, CreditTierConfig>>(
     DEFAULT_CREDIT_TIER_CONFIGS
@@ -92,6 +94,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
     if (readOnly) return;
     const updated = customerCredits.filter((_, i) => i !== index);
     onChangeCredits(updated);
+    setCreditIdxToRemove(null);
   };
 
   const handleUpdateCredit = (index: number, field: keyof CustomerCredit, value: any) => {
@@ -282,7 +285,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                   {/* Customer Selection */}
                   <div className="sm:col-span-4">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-customer-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Πελάτης (Λίστα & Score)
                     </label>
 
@@ -298,6 +301,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                     ) : (
                       <div className="space-y-1">
                         <select
+                          id={`credit-customer-${idx}`}
                           value={cred.customer_id || cred.customer_name || ''}
                           onChange={(e) => {
                             const val = e.target.value;
@@ -327,7 +331,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
                   {/* Transaction Type */}
                   <div className="sm:col-span-4">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-type-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Τύπος Κίνησης
                     </label>
                     {readOnly ? (
@@ -336,6 +340,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       </span>
                     ) : (
                       <select
+                        id={`credit-type-${idx}`}
                         value={cred.type || 'GRANTED'}
                         onChange={(e) =>
                           handleUpdateCredit(idx, 'type', e.target.value as 'GRANTED' | 'COLLECTED')
@@ -354,11 +359,12 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
                   {/* Amount */}
                   <div className="sm:col-span-3">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-amount-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Ποσό (€)
                     </label>
                     <div className="relative">
                       <input
+                        id={`credit-amount-${idx}`}
                         type="number"
                         step="0.01"
                         disabled={readOnly}
@@ -367,7 +373,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         onChange={(e) =>
                           handleUpdateCredit(idx, 'amount', parseFloat(e.target.value) || 0)
                         }
-                        className={`w-full px-3 py-2 rounded-xl border text-xs font-black font-mono ${
+                        className={`w-full px-3 py-2 rounded-xl border text-sm font-black font-mono ${
                           isOverLimit
                             ? 'bg-rose-50 border-rose-400 text-rose-950 focus:ring-rose-500'
                             : 'bg-white border-slate-300 text-slate-900 focus:ring-indigo-500'
@@ -382,9 +388,10 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                     <div className="sm:col-span-1 flex justify-end pt-4 sm:pt-0">
                       <button
                         type="button"
-                        onClick={() => handleRemoveCredit(idx)}
+                        onClick={() => setCreditIdxToRemove(idx)}
                         className="p-2 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
                         title="Διαγραφή γραμμής"
+                        aria-label="Διαγραφή γραμμής"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -400,9 +407,10 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       <button
                         type="button"
                         onClick={() => setQuickCreateOpenIdx(null)}
-                        className="text-slate-400 hover:text-slate-600"
+                        aria-label="Κλείσιμο"
+                        className="text-slate-400 hover:text-slate-600 cursor-pointer p-1.5"
                       >
-                        ✕
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -521,6 +529,51 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
           })}
         </div>
       )}
+
+      {/* Remove Credit Confirmation Modal */}
+      {creditIdxToRemove !== null && (() => {
+        const target = customerCredits[creditIdxToRemove];
+        return (
+          <div
+            className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+            onClick={() => setCreditIdxToRemove(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 text-rose-600">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Γραμμής Πίστωσης</h4>
+              </div>
+              <p className="text-xs text-slate-600">
+                Θέλετε να διαγράψετε αυτή τη γραμμή{target?.customer_name ? ` (${target.customer_name}` : ''}
+                {target?.amount ? `, ${formatCurrency(Number(target.amount))}` : ''}
+                {target?.customer_name ? ')' : ''}; Η ενέργεια δεν αναιρείται.
+              </p>
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCreditIdxToRemove(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCredit(creditIdxToRemove)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Ναι, Διαγραφή</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Directory & Tier Settings Modal */}
       <CustomerCreditDirectoryModal
