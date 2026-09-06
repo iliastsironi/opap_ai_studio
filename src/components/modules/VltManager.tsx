@@ -1,27 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, Activity, Server, Zap, ShieldCheck, Cpu, Edit3, RefreshCw, X, Clock } from 'lucide-react';
+import { Gamepad2, Edit3, RefreshCw, X, Clock, Plus, Trash2, Pencil } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
+import {
+  fetchVltTerminalsFromFirestore,
+  createVltTerminalInFirestore,
+  updateVltTerminalInFirestore,
+  deleteVltTerminalInFirestore,
+  VltTerminalRecord,
+} from '../../services/moduleServices.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 
-interface VltTerminal {
-  id: string;
-  code: string;
-  game_title: string;
-  status: 'ONLINE' | 'OFFLINE' | 'MAINTENANCE';
-  meter_in: number;
-  meter_out: number;
-  net_revenue: number;
-}
+const ELEVATED_ROLE_CODES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'];
 
 export const VltManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
-  const { organization } = useAuth();
+  const { organization, roles, hasPermission } = useAuth();
   const orgId = organization?.id || 'org_opap_demo';
+  const canManageTerminals =
+    roles?.some((r) => ELEVATED_ROLE_CODES.includes(r.code)) || hasPermission('*');
 
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,13 +35,114 @@ export const VltManager: React.FC = () => {
   const [vltsOut, setVltsOut] = useState('');
   const [vltsOutType, setVltsOutType] = useState<'NEGATIVE' | 'POSITIVE'>('NEGATIVE');
 
-  const [terminals] = useState<VltTerminal[]>([
-    { id: 'VLT-01', code: 'PLAY-ATH-001', game_title: 'Sizzling Hot Deluxe', status: 'ONLINE', meter_in: 450.0, meter_out: 280.0, net_revenue: 170.0 },
-    { id: 'VLT-02', code: 'PLAY-ATH-002', game_title: 'Book of Ra Magic', status: 'ONLINE', meter_in: 680.0, meter_out: 410.0, net_revenue: 270.0 },
-    { id: 'VLT-03', code: 'PLAY-ATH-003', game_title: 'Lucky Lady\'s Charm', status: 'ONLINE', meter_in: 320.0, meter_out: 190.0, net_revenue: 130.0 },
-    { id: 'VLT-04', code: 'PLAY-ATH-004', game_title: 'Lord of the Ocean', status: 'ONLINE', meter_in: 510.0, meter_out: 340.0, net_revenue: 170.0 },
-    { id: 'VLT-05', code: 'PLAY-ATH-005', game_title: 'Dolphin\'s Pearl Deluxe', status: 'MAINTENANCE', meter_in: 0.0, meter_out: 0.0, net_revenue: 0.0 },
-  ]);
+  // Terminals - real, persisted rows (manual entry; see moduleServices.ts)
+  const [terminals, setTerminals] = useState<VltTerminalRecord[]>([]);
+  const [loadingTerminals, setLoadingTerminals] = useState(true);
+
+  // Add/Edit Terminal Modal
+  const [showTerminalModal, setShowTerminalModal] = useState(false);
+  const [editingTerminalId, setEditingTerminalId] = useState<string | null>(null);
+  const [terminalFormError, setTerminalFormError] = useState<string | null>(null);
+  const [isSavingTerminal, setIsSavingTerminal] = useState(false);
+  const [formCode, setFormCode] = useState('');
+  const [formGameTitle, setFormGameTitle] = useState('');
+  const [formStatus, setFormStatus] = useState<'ONLINE' | 'OFFLINE' | 'MAINTENANCE'>('ONLINE');
+  const [formMeterIn, setFormMeterIn] = useState('0');
+  const [formMeterOut, setFormMeterOut] = useState('0');
+
+  // Delete Terminal Confirmation
+  const [terminalToDelete, setTerminalToDelete] = useState<VltTerminalRecord | null>(null);
+  const [isDeletingTerminal, setIsDeletingTerminal] = useState(false);
+
+  const targetStoreId = selectedStoreId && selectedStoreId !== 'ALL' ? selectedStoreId : stores[0]?.id;
+
+  const loadTerminals = async () => {
+    setLoadingTerminals(true);
+    if (!targetStoreId) {
+      setTerminals([]);
+      setLoadingTerminals(false);
+      return;
+    }
+    try {
+      const data = await fetchVltTerminalsFromFirestore(orgId, targetStoreId);
+      setTerminals(data);
+    } finally {
+      setLoadingTerminals(false);
+    }
+  };
+
+  const openAddTerminalModal = () => {
+    setEditingTerminalId(null);
+    setFormCode(`PLAY-${String(terminals.length + 1).padStart(3, '0')}`);
+    setFormGameTitle('');
+    setFormStatus('ONLINE');
+    setFormMeterIn('0');
+    setFormMeterOut('0');
+    setTerminalFormError(null);
+    setShowTerminalModal(true);
+  };
+
+  const openEditTerminalModal = (t: VltTerminalRecord) => {
+    setEditingTerminalId(t.id);
+    setFormCode(t.code);
+    setFormGameTitle(t.game_title);
+    setFormStatus(t.status);
+    setFormMeterIn(String(t.meter_in));
+    setFormMeterOut(String(t.meter_out));
+    setTerminalFormError(null);
+    setShowTerminalModal(true);
+  };
+
+  const handleSaveTerminal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetStoreId) return;
+    if (!formCode.trim()) {
+      setTerminalFormError('Παρακαλώ εισάγετε κωδικό τερματικού.');
+      return;
+    }
+    setTerminalFormError(null);
+    setIsSavingTerminal(true);
+    try {
+      const payload = {
+        code: formCode.trim(),
+        game_title: formGameTitle.trim(),
+        status: formStatus,
+        meter_in: parseFloat(formMeterIn) || 0,
+        meter_out: parseFloat(formMeterOut) || 0,
+      };
+      if (editingTerminalId) {
+        await updateVltTerminalInFirestore(editingTerminalId, payload);
+      } else {
+        await createVltTerminalInFirestore({
+          organization_id: orgId,
+          store_id: targetStoreId,
+          ...payload,
+        });
+      }
+      await loadTerminals();
+      setShowTerminalModal(false);
+    } catch (err: any) {
+      setTerminalFormError(err.message || 'Αποτυχία αποθήκευσης τερματικού.');
+    } finally {
+      setIsSavingTerminal(false);
+    }
+  };
+
+  const handleConfirmDeleteTerminal = async () => {
+    if (!terminalToDelete) return;
+    setIsDeletingTerminal(true);
+    try {
+      await deleteVltTerminalInFirestore(terminalToDelete.id);
+      await loadTerminals();
+      setTerminalToDelete(null);
+    } finally {
+      setIsDeletingTerminal(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTerminals();
+  }, [targetStoreId, orgId]);
 
   const loadActiveShiftData = async () => {
     setLoading(true);
@@ -111,14 +213,14 @@ export const VltManager: React.FC = () => {
     }
   };
 
-  const demoIn = terminals.reduce((sum, t) => sum + t.meter_in, 0);
-  const demoOut = terminals.reduce((sum, t) => sum + t.meter_out, 0);
+  const terminalsIn = terminals.reduce((sum, t) => sum + t.meter_in, 0);
+  const terminalsOut = terminals.reduce((sum, t) => sum + t.meter_out, 0);
   const cashOutAbs =
     activeShift?.vlts_cash_out !== null && activeShift?.vlts_cash_out !== undefined
       ? Math.abs(safeNum(activeShift.vlts_cash_out))
       : undefined;
-  const totalIn = activeShift ? pickNum(activeShift.vlts_in, activeShift.vlts_cash_in, demoIn) : demoIn;
-  const totalOut = activeShift ? pickNum(activeShift.vlts_out, cashOutAbs, demoOut) : demoOut;
+  const totalIn = activeShift ? pickNum(activeShift.vlts_in, activeShift.vlts_cash_in, terminalsIn) : terminalsIn;
+  const totalOut = activeShift ? pickNum(activeShift.vlts_out, cashOutAbs, terminalsOut) : terminalsOut;
   const totalNet = totalIn - totalOut;
 
   return (
@@ -215,48 +317,94 @@ export const VltManager: React.FC = () => {
       {/* Terminals Grid */}
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Ανά Τερματικό</h3>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase font-mono">
-          Ενδεικτικά Δεδομένα
-        </span>
+        {canManageTerminals && (
+          <button
+            onClick={openAddTerminalModal}
+            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold transition-colors flex items-center space-x-1.5 shadow-xs cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Προσθήκη Τερματικού</span>
+          </button>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {terminals.map((t) => (
-          <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">{t.code}</span>
-                <h4 className="font-bold text-slate-900 text-sm">{t.game_title}</h4>
-              </div>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
-                  t.status === 'ONLINE'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : t.status === 'OFFLINE'
-                    ? 'bg-rose-100 text-rose-800'
-                    : 'bg-amber-100 text-amber-800'
-                }`}
-              >
-                {t.status}
-              </span>
-            </div>
 
-            <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
-              <div className="bg-slate-50 p-2 rounded">
-                <p className="text-[10px] text-slate-400 font-medium">In</p>
-                <p className="text-xs font-extrabold text-slate-800 font-mono">{formatCurrency(t.meter_in)}</p>
+      {loadingTerminals ? (
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
+          Φόρτωση τερματικών...
+        </div>
+      ) : terminals.length === 0 ? (
+        <div className="bg-slate-50 p-8 rounded-2xl border border-dashed border-slate-300 text-center">
+          <p className="text-xs text-slate-500">Δεν έχουν καταχωρηθεί τερματικά VLT για αυτό το κατάστημα.</p>
+          {canManageTerminals && (
+            <button
+              onClick={openAddTerminalModal}
+              className="mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-colors inline-flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Προσθήκη Πρώτου Τερματικού</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {terminals.map((t) => (
+            <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">{t.code}</span>
+                  <h4 className="font-bold text-slate-900 text-sm">{t.game_title || '—'}</h4>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
+                      t.status === 'ONLINE'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : t.status === 'OFFLINE'
+                        ? 'bg-rose-100 text-rose-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {t.status}
+                  </span>
+                  {canManageTerminals && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditTerminalModal(t)}
+                        aria-label={`Επεξεργασία ${t.code}`}
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setTerminalToDelete(t)}
+                        aria-label={`Διαγραφή ${t.code}`}
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="bg-slate-50 p-2 rounded">
-                <p className="text-[10px] text-slate-400 font-medium">Out</p>
-                <p className="text-xs font-extrabold text-rose-600 font-mono">{formatCurrency(t.meter_out)}</p>
-              </div>
-              <div className="bg-indigo-50 p-2 rounded">
-                <p className="text-[10px] text-indigo-500 font-medium">Net</p>
-                <p className="text-xs font-extrabold text-indigo-700 font-mono">{formatCurrency(t.net_revenue)}</p>
+
+              <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+                <div className="bg-slate-50 p-2 rounded">
+                  <p className="text-[10px] text-slate-400 font-medium">In</p>
+                  <p className="text-xs font-extrabold text-slate-800 font-mono">{formatCurrency(t.meter_in)}</p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded">
+                  <p className="text-[10px] text-slate-400 font-medium">Out</p>
+                  <p className="text-xs font-extrabold text-rose-600 font-mono">{formatCurrency(t.meter_out)}</p>
+                </div>
+                <div className="bg-indigo-50 p-2 rounded">
+                  <p className="text-[10px] text-indigo-500 font-medium">Net</p>
+                  <p className="text-xs font-extrabold text-indigo-700 font-mono">{formatCurrency(t.net_revenue)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Edit Shift VLT Modal */}
       {showEditModal && activeShift && (
@@ -348,6 +496,157 @@ export const VltManager: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Terminal Modal */}
+      {showTerminalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <Gamepad2 className="w-4 h-4 text-purple-400" />
+                {editingTerminalId ? 'Επεξεργασία Τερματικού' : 'Νέο Τερματικό VLT'}
+              </h3>
+              <button
+                onClick={() => setShowTerminalModal(false)}
+                aria-label="Κλείσιμο"
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTerminal} className="p-5 space-y-4 text-xs">
+              {terminalFormError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-2.5 text-[11px] font-medium">
+                  {terminalFormError}
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="terminal-code" className="block text-slate-700 font-bold mb-1">
+                  Κωδικός Τερματικού
+                </label>
+                <input
+                  id="terminal-code"
+                  type="text"
+                  value={formCode}
+                  onChange={(e) => setFormCode(e.target.value)}
+                  placeholder="π.χ. PLAY-ATH-001"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="terminal-game" className="block text-slate-700 font-bold mb-1">
+                  Τίτλος Παιχνιδιού
+                </label>
+                <input
+                  id="terminal-game"
+                  type="text"
+                  value={formGameTitle}
+                  onChange={(e) => setFormGameTitle(e.target.value)}
+                  placeholder="π.χ. Sizzling Hot Deluxe"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="terminal-status" className="block text-slate-700 font-bold mb-1">
+                  Κατάσταση
+                </label>
+                <select
+                  id="terminal-status"
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as 'ONLINE' | 'OFFLINE' | 'MAINTENANCE')}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm bg-white"
+                >
+                  <option value="ONLINE">ONLINE</option>
+                  <option value="OFFLINE">OFFLINE</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="terminal-meter-in" className="block text-slate-700 font-bold mb-1">
+                    Meter In (€)
+                  </label>
+                  <input
+                    id="terminal-meter-in"
+                    type="number"
+                    step="0.01"
+                    value={formMeterIn}
+                    onChange={(e) => setFormMeterIn(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="terminal-meter-out" className="block text-slate-700 font-bold mb-1">
+                    Meter Out (€)
+                  </label>
+                  <input
+                    id="terminal-meter-out"
+                    type="number"
+                    step="0.01"
+                    value={formMeterOut}
+                    onChange={(e) => setFormMeterOut(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTerminalModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTerminal}
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSavingTerminal ? 'Αποθήκευση...' : 'Αποθήκευση'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Terminal Confirmation */}
+      {terminalToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
+            <div className="p-5 space-y-3">
+              <h3 className="font-bold text-sm text-slate-900">Διαγραφή Τερματικού;</h3>
+              <p className="text-xs text-slate-600">
+                Θα διαγραφεί οριστικά το τερματικό <span className="font-mono font-bold">{terminalToDelete.code}</span>
+                {terminalToDelete.game_title ? ` (${terminalToDelete.game_title})` : ''}. Η ενέργεια δεν αναιρείται.
+              </p>
+              <div className="pt-2 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setTerminalToDelete(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-xs font-bold"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteTerminal}
+                  disabled={isDeletingTerminal}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-xs"
+                >
+                  {isDeletingTerminal ? 'Διαγραφή...' : 'Διαγραφή'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

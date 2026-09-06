@@ -188,7 +188,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <Minus className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 min-w-0 flex items-center justify-center px-1">
+          <div className="flex-1 min-w-14 flex items-center justify-center px-1">
             <input
               type="number"
               min="0"
@@ -200,7 +200,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               }}
               onChange={(e) => setDirectCount(denom.key, e.target.value)}
               placeholder="0"
-              className={`w-full text-center font-black font-mono text-lg bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
+              className={`w-full min-w-0 text-center font-black font-mono text-lg bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
                 isDark
                   ? 'text-white placeholder:text-slate-600'
                   : 'text-slate-900 placeholder:text-slate-400'
