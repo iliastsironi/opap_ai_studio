@@ -10,6 +10,14 @@ export interface CashDenominationCounterProps {
   theme?: 'light' | 'dark';
 }
 
+// Ceiling per denomination, not just a floor of 0. Nothing enforced an upper
+// bound before, so a fat-fingered extra digit (e.g. 4440 instead of 444)
+// silently produced a five-figure subtotal for a single denomination. 999
+// still comfortably covers real per-denomination piece counts (coin bags in
+// particular routinely run into the hundreds) while blocking that whole
+// class of typo.
+const MAX_QUANTITY = 999;
+
 export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = ({
   denominations,
   onChange,
@@ -23,7 +31,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
   const updateCount = (key: string, delta: number) => {
     if (readOnly) return;
     const current = denominations[key] || 0;
-    const nextVal = Math.max(0, current + delta);
+    const nextVal = Math.min(MAX_QUANTITY, Math.max(0, current + delta));
     onChange({
       ...denominations,
       [key]: nextVal,
@@ -40,9 +48,10 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
       return;
     }
     const parsed = parseInt(val, 10);
+    const clamped = isNaN(parsed) || parsed < 0 ? 0 : Math.min(MAX_QUANTITY, parsed);
     onChange({
       ...denominations,
-      [key]: isNaN(parsed) || parsed < 0 ? 0 : parsed,
+      [key]: clamped,
     });
   };
 
@@ -192,6 +201,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <input
               type="number"
               min="0"
+              max={MAX_QUANTITY}
               step="1"
               disabled={readOnly}
               value={qty === 0 ? '0' : qty}
@@ -213,12 +223,14 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
 
           <button
             type="button"
-            disabled={readOnly}
+            disabled={readOnly || qty >= MAX_QUANTITY}
             onClick={() => updateCount(denom.key, 1)}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-base text-white active:scale-95 transition-all cursor-pointer shadow-2xs select-none shrink-0 ${
-              isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
-            } ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Αύξηση κατά 1 (+1)"
+            className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-base text-white active:scale-95 transition-all select-none shrink-0 ${
+              readOnly || qty >= MAX_QUANTITY
+                ? 'bg-slate-300 cursor-not-allowed'
+                : `cursor-pointer shadow-2xs ${isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`
+            }`}
+            title={qty >= MAX_QUANTITY ? `Μέγιστη ποσότητα (${MAX_QUANTITY})` : 'Αύξηση κατά 1 (+1)'}
             aria-label="Αύξηση κατά 1"
           >
             <Plus className="w-4 h-4" />
