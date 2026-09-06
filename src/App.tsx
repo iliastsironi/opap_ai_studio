@@ -2,17 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { TenantProvider } from './context/TenantContext.tsx';
 import { ProtectedLayout } from './components/layout/ProtectedLayout.tsx';
-import { DashboardOverview } from './components/admin/DashboardOverview.tsx';
-import { StoresManager } from './components/admin/StoresManager.tsx';
-import { UsersManager } from './components/admin/UsersManager.tsx';
-import { RolesManager } from './components/admin/RolesManager.tsx';
-import { AuditLogViewer } from './components/admin/AuditLogViewer.tsx';
-import { OrganizationSettings } from './components/admin/OrganizationSettings.tsx';
-import { OnboardingWizard } from './components/onboarding/OnboardingWizard.tsx';
 import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
-import { SuppliersManager } from './components/admin/SuppliersManager.tsx';
-import { InstructionsPage } from './components/instructions/InstructionsPage.tsx';
-import { CopilotPage } from './components/copilot/CopilotPage.tsx';
 import { ShieldAlert, Clock } from 'lucide-react';
 
 const ExpensesManager = lazy(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
@@ -21,6 +11,16 @@ const VltManager = lazy(() => import('./components/modules/VltManager.tsx').then
 const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
 const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
 const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
+const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
+const StoresManager = lazy(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
+const UsersManager = lazy(() => import('./components/admin/UsersManager.tsx').then((m) => ({ default: m.UsersManager })));
+const RolesManager = lazy(() => import('./components/admin/RolesManager.tsx').then((m) => ({ default: m.RolesManager })));
+const AuditLogViewer = lazy(() => import('./components/admin/AuditLogViewer.tsx').then((m) => ({ default: m.AuditLogViewer })));
+const OrganizationSettings = lazy(() => import('./components/admin/OrganizationSettings.tsx').then((m) => ({ default: m.OrganizationSettings })));
+const SuppliersManager = lazy(() => import('./components/admin/SuppliersManager.tsx').then((m) => ({ default: m.SuppliersManager })));
+const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard.tsx').then((m) => ({ default: m.OnboardingWizard })));
+const InstructionsPage = lazy(() => import('./components/instructions/InstructionsPage.tsx').then((m) => ({ default: m.InstructionsPage })));
+const CopilotPage = lazy(() => import('./components/copilot/CopilotPage.tsx').then((m) => ({ default: m.CopilotPage })));
 
 const ModuleLoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center py-24">

@@ -2407,15 +2407,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="text-xs font-bold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
                   {storePosItems.length} Τερματικά POS
                 </span>
-                <button
-                  type="button"
-                  onClick={handleAddTerminal}
-                  className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
-                  title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στο Tora Direct)"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Προσθήκη POS</span>
-                </button>
+                {(canManage || managerUnlockedPos) && (
+                  <button
+                    type="button"
+                    onClick={handleAddTerminal}
+                    className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
+                    title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στο Tora Direct)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Προσθήκη POS</span>
+                  </button>
+                )}
                 <span className="text-xs font-black text-indigo-800 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs font-mono">
                   Σύνολο POS: {formatCurrency(totalStorePos)}
                 </span>
@@ -2430,16 +2432,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
                         Μηχάνημα #{idx + 1}
                       </span>
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
-                        className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
-                        placeholder={`Pos #${idx + 1}`}
-                      />
+                      {canManage || managerUnlockedPos ? (
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
+                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
+                          placeholder={`Pos #${idx + 1}`}
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-slate-800 truncate">{item.name}</span>
+                      )}
                     </div>
 
-                    {storePosItems.length > 1 && (
+                    {(canManage || managerUnlockedPos) && storePosItems.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveTerminal(idx)}

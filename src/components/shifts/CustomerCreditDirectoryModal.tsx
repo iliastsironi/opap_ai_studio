@@ -17,6 +17,8 @@ import {
   TrendingDown,
   TrendingUp,
   Award,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Customer, CreditScoreTier, CreditTierConfig } from '../../types/index.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -41,6 +43,8 @@ interface CustomerCreditDirectoryModalProps {
   onCustomerSelected?: (customer: Customer) => void;
 }
 
+const CUSTOMERS_PAGE_SIZE = 20;
+
 export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModalProps> = ({
   isOpen,
   onClose,
@@ -58,6 +62,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTierFilter, setSelectedTierFilter] = useState<string>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Customer Edit/Add Modal State
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -105,6 +110,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     if (!isOpen) return;
     setSearchQuery('');
     setSelectedTierFilter('ALL');
+    setCurrentPage(1);
     reloadCustomers();
     getStoreCreditTierConfigs(orgId, storeId).then((tiers) => {
       setTierConfigs(tiers);
@@ -116,6 +122,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       });
     });
   }, [isOpen, orgId, storeId, reloadCustomers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedTierFilter]);
 
   if (!isOpen) return null;
 
@@ -249,6 +259,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   const totalOutstandingDebt = customers.reduce((acc, c) => acc + (c.current_debt || 0), 0);
   const totalDebtorsCount = customers.filter((c) => (c.current_debt || 0) > 0).length;
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / CUSTOMERS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedCustomers = filteredCustomers.slice(
+    (pageSafe - 1) * CUSTOMERS_PAGE_SIZE,
+    pageSafe * CUSTOMERS_PAGE_SIZE
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
@@ -431,7 +448,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         </td>
                       </tr>
                     ) : (
-                      filteredCustomers.map((cust) => {
+                      paginatedCustomers.map((cust) => {
                         const { limit, isUnlimited, tierConfig } = getCustomerCreditLimit(cust, tierConfigs);
                         const debt = cust.current_debt || 0;
                         const available = isUnlimited ? Infinity : Math.max(0, limit - debt);
@@ -550,6 +567,36 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   </tbody>
                 </table>
               </div>
+
+              {filteredCustomers.length > CUSTOMERS_PAGE_SIZE && (
+                <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+                  <span>
+                    {(pageSafe - 1) * CUSTOMERS_PAGE_SIZE + 1}-
+                    {Math.min(pageSafe * CUSTOMERS_PAGE_SIZE, filteredCustomers.length)} από {filteredCustomers.length} πελάτες
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={pageSafe <= 1}
+                      aria-label="Προηγούμενη σελίδα"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={pageSafe >= totalPages}
+                      aria-label="Επόμενη σελίδα"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
