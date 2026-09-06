@@ -85,8 +85,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [approveSucceeded, setApproveSucceeded] = useState(false);
+  const [reopenSucceededMsg, setReopenSucceededMsg] = useState<string | null>(null);
 
   if (!isOpen || !shift) return null;
+
+  const approvalDiscrepancy = safeNum(shift.discrepancy);
+  const isShiftBalanced = Math.abs(approvalDiscrepancy) < 0.01;
 
   const isManagerOrOwner =
     roles?.some((r) =>
@@ -112,10 +118,13 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         manager_notes: managerNotes || 'Εγκρίθηκε από τον διευθυντή',
       });
 
+      setShowApproveConfirm(false);
+      setApproveSucceeded(true);
       onRefresh();
-      onClose();
+      setTimeout(() => onClose(), 900);
     } catch (err: any) {
       setError(err.message);
+      setShowApproveConfirm(false);
     } finally {
       setLoading(false);
     }
@@ -139,8 +148,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       });
 
       setShowReopenModal(false);
+      setReopenSucceededMsg(
+        actionType === 'CORRECTION' ? 'Το αίτημα διόρθωσης στάλθηκε' : 'Η βάρδια ανοίχθηκε ξανά'
+      );
       onRefresh();
-      onClose();
+      setTimeout(() => onClose(), 900);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -159,7 +171,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h3 className="font-black text-base sm:text-lg">Επιθεώρηση & Έγκριση Βάρδιας</h3>
+                <h2 className="font-black text-base sm:text-lg">Επιθεώρηση & Έγκριση Βάρδιας</h2>
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                     (SHIFT_STATUS_STYLES[shift.status] ?? { badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30' }).badge
@@ -175,6 +187,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Κλείσιμο"
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -329,13 +342,13 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
                         Οικονομικό Ισοζύγιο Ταμείου
                       </span>
-                      <h4 className="text-lg font-black tracking-tight">
+                      <h3 className="text-lg font-black tracking-tight">
                         {isBalanced
                           ? 'Ταμείο Πλήρως Ισοσκελισμένο'
                           : discrepancy > 0
                           ? `Πλεόνασμα Ταμείου (${formatCurrency(discrepancy, { showSign: true })})`
                           : `Έλλειμμα Ταμείου (${formatCurrency(discrepancy)})`}
-                      </h4>
+                      </h3>
                     </div>
                   </div>
 
@@ -367,7 +380,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <span>1. Αναφορές (Εκκαθάριση Συστημάτων)</span>
                     </div>
 
-                    <div className="p-3.5 space-y-3 text-xs">
+                    <div className="p-3.5 space-y-3 text-sm">
                       {/* Block 1: Παιχνίδια ΟΠΑΠ */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
@@ -503,7 +516,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <span>2. Καταμέτρηση (Φυσική Καταμέτρηση)</span>
                     </div>
 
-                    <div className="p-3.5 space-y-3 text-xs">
+                    <div className="p-3.5 space-y-3 text-sm">
                       {/* Block 1: Αρχικό κεφάλαιο */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
@@ -552,7 +565,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             const qty = Math.floor(safeNum(rawQty));
                             const subtotal = roundCurrency(qty * c.val);
                             return (
-                              <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
+                              <div key={c.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-sm">
                                 <span className="font-mono text-slate-300 font-bold w-12">{c.label}</span>
                                 <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
                                 <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
@@ -587,7 +600,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             const qty = Math.floor(safeNum(rawQty));
                             const subtotal = roundCurrency(qty * n.val);
                             return (
-                              <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-xs">
+                              <div key={n.key} className="flex justify-between items-center py-0.5 border-b border-slate-800/60 text-sm">
                                 <span className="font-mono text-slate-300 font-bold w-12">{n.label}</span>
                                 <span className="font-mono text-slate-200 font-bold text-center flex-1">{qty} τμχ</span>
                                 <span className="font-mono font-bold text-white w-20 text-right">{formatCurrency(subtotal)}</span>
@@ -686,9 +699,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
                         <div className="flex items-center space-x-2">
                           <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
+                          <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
                             Έλεγχος Σκρατς & Λαχείων Βάρδιας (Καταμέτρηση Τεμαχίων)
-                          </h4>
+                          </h3>
                         </div>
                         <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
                           {totalSold} τμχ • {formatCurrency(totalVal)}
@@ -696,7 +709,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse font-mono">
+                        <table className="w-full text-left text-sm border-collapse font-mono">
                           <thead>
                             <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase">
                               <th className="py-1.5 px-2">Παιχνίδι</th>
@@ -775,9 +788,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
                         <div className="flex items-center space-x-2">
                           <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
-                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
+                          <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
                             Πιστώσεις & Εισπράξεις Πελατών Βάρδιας (Τεφτέρι)
-                          </h4>
+                          </h3>
                         </div>
                         <span className="text-[11px] font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-800/60">
                           {creditsList.length} κινήσεις
@@ -785,7 +798,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
+                        <table className="w-full text-left text-sm border-collapse">
                           <thead>
                             <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase font-mono">
                               <th className="py-1.5 px-2">Πελάτης</th>
@@ -852,7 +865,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                 {/* Employee / Manager Notes Preview */}
                 {(shift.employee_notes || shift.manager_notes) && (
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-sm">
                     {shift.employee_notes && (
                       <div>
                         <span className="font-bold text-slate-700 block">Σημειώσεις Υπαλλήλου:</span>
@@ -902,10 +915,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               {/* Expenses & Receipts */}
               {shift.expenses && shift.expenses.length > 0 ? (
                 <div>
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
                     <Receipt className="w-4 h-4 text-indigo-600" />
                     <span>Καταχωρημένα Έξοδα Βάρδιας ({shift.expenses.length})</span>
-                  </h4>
+                  </h3>
                   <div className="space-y-2">
                     {shift.expenses.map((exp) => (
                       <div
@@ -1000,12 +1013,12 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
             {shift.status === 'SUBMITTED' && canApprove && (
               <button
-                onClick={handleApprove}
+                onClick={() => setShowApproveConfirm(true)}
                 disabled={loading}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm flex items-center space-x-2 shadow-md cursor-pointer transition-all active:scale-95"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{loading ? 'Έγκριση...' : 'Έγκριση Βάρδιας'}</span>
+                <span>Έγκριση Βάρδιας</span>
               </button>
             )}
           </div>
@@ -1016,20 +1029,21 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       {showReopenModal && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
-            <h4 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+            <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
               <ShieldAlert className="w-5 h-5 text-rose-600" />
               <span>Αίτηση Διόρθωσης Βάρδιας</span>
-            </h4>
+            </h3>
             <p className="text-xs text-slate-600">
               Εισάγετε την αιτιολογία για την οποία ζητάτε από τον υπάλληλο να διορθώσει τη βάρδια.
             </p>
 
             <form onSubmit={handleReopenSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="reopen-action-type" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Ενέργεια
                 </label>
                 <select
+                  id="reopen-action-type"
                   value={actionType}
                   onChange={(e) => setActionType(e.target.value as any)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
@@ -1040,10 +1054,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="reopen-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Αιτιολογία & Οδηγίες <span className="text-rose-500">*</span>
                 </label>
                 <textarea
+                  id="reopen-notes"
                   value={managerNotes}
                   onChange={(e) => setManagerNotes(e.target.value)}
                   placeholder="Π.χ. Παρακαλώ επανακαταμετρήστε τα πληρωθέντα δελτία ΟΠΑΠ..."
@@ -1074,6 +1089,100 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         </div>
       )}
 
+      {/* Approve Confirmation Modal */}
+      {showApproveConfirm && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-3 text-emerald-600">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Έγκριση Βάρδιας</h3>
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  {shift.store_name} • {shift.register_id}
+                </span>
+              </div>
+            </div>
+
+            {!isShiftBalanced ? (
+              <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 space-y-1.5 text-xs text-rose-950">
+                <p className="font-bold flex items-center space-x-1.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>Αυτή η βάρδια έχει απόκλιση ταμείου</span>
+                </p>
+                <p>
+                  Διαφορά: <strong>{formatCurrency(approvalDiscrepancy, { showSign: true })}</strong>. Επιβεβαιώστε ότι
+                  θέλετε να εγκρίνετε τη βάρδια παρά την απόκλιση.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-700">
+                Η βάρδια είναι ισοσκελισμένη. Μετά την έγκριση, η βάρδια οριστικοποιείται.
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setShowApproveConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleApprove}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Έγκριση...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Έγκριση</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Brief success confirmation before closing */}
+      {approveSucceeded && (
+        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-3 text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <p className="font-extrabold text-slate-900">Η βάρδια εγκρίθηκε</p>
+          </div>
+        </div>
+      )}
+
+      {reopenSucceededMsg && (
+        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-3 text-center">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <p className="font-extrabold text-slate-900">{reopenSucceededMsg}</p>
+          </div>
+        </div>
+      )}
+
       {/* Image Preview Modal */}
       {selectedReceiptUrl && (
         <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
@@ -1082,7 +1191,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               <span className="font-bold text-sm text-slate-900">Προεπισκόπηση Απόδειξης</span>
               <button
                 onClick={() => setSelectedReceiptUrl(null)}
-                className="p-1 text-slate-400 hover:text-slate-800"
+                aria-label="Κλείσιμο"
+                className="p-1 text-slate-400 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

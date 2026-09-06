@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import {
   Clock,
   Play,
@@ -37,15 +37,31 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftStatus } from '../../types/index.ts';
 import { ShiftOpeningModal } from './ShiftOpeningModal.tsx';
-import { ShiftClosingWizard } from './ShiftClosingWizard.tsx';
 import { ShiftDetailsModal } from './ShiftDetailsModal.tsx';
 import { ShiftReceiptPrintView } from './ShiftReceiptPrintView.tsx';
 import { safeNum } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { ShiftTemplateConfigurator } from './ShiftTemplateConfigurator.tsx';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
-import { DailyAggregationView } from './DailyAggregationView.tsx';
 import { DailyShiftReportModal } from './DailyShiftReportModal.tsx';
+
+// Lazy-loaded: each is only mounted behind a condition (active wizard / active
+// manager tab), so keeping them out of the main chunk avoids shipping the
+// wizard's ~3000 lines and the aggregation view's chart deps to every visitor.
+const ShiftClosingWizard = lazy(() =>
+  import('./ShiftClosingWizard.tsx').then((m) => ({ default: m.ShiftClosingWizard }))
+);
+const ShiftTemplateConfigurator = lazy(() =>
+  import('./ShiftTemplateConfigurator.tsx').then((m) => ({ default: m.ShiftTemplateConfigurator }))
+);
+const DailyAggregationView = lazy(() =>
+  import('./DailyAggregationView.tsx').then((m) => ({ default: m.DailyAggregationView }))
+);
+
+const LazyLoadingFallback: React.FC = () => (
+  <div className="flex items-center justify-center py-24">
+    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import {
   fetchShiftsFromFirestore,
@@ -132,12 +148,14 @@ export const ShiftsManager: React.FC = () => {
   const [receiptShift, setReceiptShift] = useState<Shift | null>(null);
   const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
   const [isDeletingShift, setIsDeletingShift] = useState(false);
+  const [deleteShiftError, setDeleteShiftError] = useState<string | null>(null);
 
   const orgId = organization?.id || 'org_opap_demo';
 
   // Delete draft shift handler (Owner / Manager privilege)
   const handleDeleteShift = async (shiftToDel: Shift) => {
     setIsDeletingShift(true);
+    setDeleteShiftError(null);
     try {
       await deleteShiftFromFirestore(shiftToDel.id);
       if (activeShift?.id === shiftToDel.id) {
@@ -149,7 +167,7 @@ export const ShiftsManager: React.FC = () => {
       setShiftToDelete(null);
       await fetchShifts();
     } catch (err: any) {
-      alert(err.message || 'Σφάλμα κατά τη διαγραφή του προχείρου βάρδιας');
+      setDeleteShiftError(err.message || 'Σφάλμα κατά τη διαγραφή του προχείρου βάρδιας');
     } finally {
       setIsDeletingShift(false);
     }
@@ -247,14 +265,16 @@ export const ShiftsManager: React.FC = () => {
   // If active closing wizard is open
   if (wizardShift) {
     return (
-      <ShiftClosingWizard
-        shift={wizardShift}
-        onBack={() => setWizardShift(null)}
-        onSubmitted={() => {
-          setWizardShift(null);
-          fetchShifts();
-        }}
-      />
+      <Suspense fallback={<LazyLoadingFallback />}>
+        <ShiftClosingWizard
+          shift={wizardShift}
+          onBack={() => setWizardShift(null)}
+          onSubmitted={() => {
+            setWizardShift(null);
+            fetchShifts();
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -340,7 +360,7 @@ export const ShiftsManager: React.FC = () => {
                 onClick={() => setManagerTab('SHIFTS')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                   managerTab === 'SHIFTS'
-                    ? 'bg-white text-slate-900 shadow-xs'
+                    ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -387,6 +407,7 @@ export const ShiftsManager: React.FC = () => {
               onClick={fetchShifts}
               className="p-2 rounded-xl border border-slate-200/90 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer"
               title={toGreekUpper('Ανανεωση')}
+              aria-label="Ανανέωση"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
@@ -472,14 +493,18 @@ export const ShiftsManager: React.FC = () => {
       </div>
 
       {managerTab === 'TEMPLATE' && isOwnerOrAdmin ? (
-        <ShiftTemplateConfigurator />
+        <Suspense fallback={<LazyLoadingFallback />}>
+          <ShiftTemplateConfigurator />
+        </Suspense>
       ) : managerTab === 'DAILY_REPORT' ? (
-        <DailyAggregationView
-          shifts={shifts}
-          stores={effectiveStores}
-          currentStoreId={currentStore?.id || selectedStoreFilter}
-          onOpenShiftDetails={(s) => setDetailsShift(s)}
-        />
+        <Suspense fallback={<LazyLoadingFallback />}>
+          <DailyAggregationView
+            shifts={shifts}
+            stores={effectiveStores}
+            currentStoreId={currentStore?.id || selectedStoreFilter}
+            onOpenShiftDetails={(s) => setDetailsShift(s)}
+          />
+        </Suspense>
       ) : (
         <>
           {/* Manager Awaiting Approval Notification Banner (Tablet Responsive Grid) */}
@@ -661,8 +686,10 @@ export const ShiftsManager: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
               {/* Search Field (lg:col-span-5) */}
               <div className="lg:col-span-5 relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <label htmlFor="shifts-search" className="sr-only">Αναζήτηση βαρδιών</label>
+                <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
+                  id="shifts-search"
                   type="text"
                   placeholder="Αναζήτηση με χειριστή, κατάστημα, ταμείο..."
                   value={searchQuery}
@@ -673,7 +700,9 @@ export const ShiftsManager: React.FC = () => {
 
               {/* Store & Status Filters (lg:col-span-5) */}
               <div className="lg:col-span-5 grid grid-cols-2 gap-2">
+                <label htmlFor="shifts-store-filter" className="sr-only">Φίλτρο καταστήματος</label>
                 <select
+                  id="shifts-store-filter"
                   value={selectedStoreFilter}
                   onChange={(e) => setSelectedStoreFilter(e.target.value)}
                   className="w-full px-2.5 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white"
@@ -686,7 +715,9 @@ export const ShiftsManager: React.FC = () => {
                   ))}
                 </select>
 
+                <label htmlFor="shifts-status-filter" className="sr-only">Φίλτρο κατάστασης</label>
                 <select
+                  id="shifts-status-filter"
                   value={selectedStatusFilter}
                   onChange={(e) => setSelectedStatusFilter(e.target.value)}
                   className="w-full px-2.5 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white"
@@ -895,6 +926,7 @@ export const ShiftsManager: React.FC = () => {
                           onClick={() => setShiftToDelete(s)}
                           className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
                           title="Διαγραφή Προχείρου Βάρδιας (Μόνο Ιδιοκτήτης / Διαχειριστής)"
+                          aria-label="Διαγραφή Προχείρου Βάρδιας"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -927,7 +959,15 @@ export const ShiftsManager: React.FC = () => {
                       <tr
                         key={s.id}
                         onClick={() => setDetailsShift(s)}
-                        className={`transition-colors cursor-pointer group ${
+                        tabIndex={0}
+                        role="button"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setDetailsShift(s);
+                          }
+                        }}
+                        className={`transition-colors cursor-pointer group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${
                           s.status === 'SUBMITTED'
                             ? 'bg-amber-50/40 hover:bg-amber-100/60 border-l-4 border-l-amber-500'
                             : s.status === 'OPEN'
@@ -1071,6 +1111,7 @@ export const ShiftsManager: React.FC = () => {
                               onClick={() => setReceiptShift(s)}
                               className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
                               title="Εκτύπωση Θερμικής Απόδειξης"
+                              aria-label="Εκτύπωση Θερμικής Απόδειξης"
                             >
                               <Printer className="w-3.5 h-3.5 text-indigo-600" />
                             </button>
@@ -1083,6 +1124,7 @@ export const ShiftsManager: React.FC = () => {
                                   onClick={() => setShiftToDelete(s)}
                                   className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
                                   title="Διαγραφή Προχείρου Βάρδιας"
+                                  aria-label="Διαγραφή Προχείρου Βάρδιας"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -1209,11 +1251,20 @@ export const ShiftsManager: React.FC = () => {
               </p>
             </div>
 
+            {deleteShiftError && (
+              <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
+                {deleteShiftError}
+              </div>
+            )}
+
             <div className="flex items-center justify-end space-x-2 pt-2">
               <button
                 type="button"
                 disabled={isDeletingShift}
-                onClick={() => setShiftToDelete(null)}
+                onClick={() => {
+                  setShiftToDelete(null);
+                  setDeleteShiftError(null);
+                }}
                 className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {toGreekUpper('Ακυρωση')}

@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Info,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { ShiftTemplateConfig, TemplateFieldConfig } from '../../types/index.ts';
 import {
@@ -42,6 +43,8 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Active View Tab
   const [activeTab, setActiveTab] = useState<'FIELDS' | 'PREVIEW' | 'MODULES'>('FIELDS');
@@ -52,6 +55,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   // New / Edit Custom Field Modal State
   const [showFieldModal, setShowFieldModal] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [fieldModalError, setFieldModalError] = useState<string | null>(null);
 
   // Form Fields State for Modal
   const [fieldLabel, setFieldLabel] = useState('');
@@ -97,25 +101,25 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     setSuccessMsg(null);
+    setErrorMsg(null);
     try {
       await saveShiftTemplateConfig(template);
       setSuccessMsg('Η διαμόρφωση του προτύπου βάρδιας αποθηκεύτηκε με επιτυχία!');
     } catch (err: any) {
-      alert('Σφάλμα κατά την αποθήκευση: ' + err.message);
+      setErrorMsg('Σφάλμα κατά την αποθήκευση: ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleResetDefaults = () => {
-    if (confirm('Θέλετε να επαναφέρετε τη φόρμα στις προεπιλεγμένες ρυθμίσεις του καταστήματος;')) {
-      setTemplate({
-        ...DEFAULT_OPAP_SHIFT_TEMPLATE,
-        organization_id: orgId,
-        store_id: storeId,
-      });
-      setSuccessMsg('Εγινε επαναφορά στις προεπιλογές!');
-    }
+    setTemplate({
+      ...DEFAULT_OPAP_SHIFT_TEMPLATE,
+      organization_id: orgId,
+      store_id: storeId,
+    });
+    setSuccessMsg('Εγινε επαναφορά στις προεπιλογές!');
+    setShowResetConfirm(false);
   };
 
   const handleOpenAddField = () => {
@@ -127,6 +131,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     setFieldRequired(false);
     setFieldDescription('');
     setFieldPlaceholder('');
+    setFieldModalError(null);
     setShowFieldModal(true);
   };
 
@@ -140,14 +145,16 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     setFieldRequired(field.required);
     setFieldDescription(field.description || '');
     setFieldPlaceholder(field.placeholder || '');
+    setFieldModalError(null);
     setShowFieldModal(true);
   };
 
   const handleSaveFieldFromModal = () => {
     if (!fieldLabel.trim()) {
-      alert('Παρακαλώ εισάγετε όνομα/ετικέτα πεδίου.');
+      setFieldModalError('Παρακαλώ εισάγετε όνομα/ετικέτα πεδίου.');
       return;
     }
+    setFieldModalError(null);
 
     const keyToUse = fieldKey.trim()
       ? fieldKey.trim().toLowerCase().replace(/\s+/g, '_')
@@ -219,7 +226,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const handleRemoveCustomField = (id: string) => {
     const field = template.custom_fields?.find((f) => f.id === id);
     if (field?.isSystemManaged) {
-      alert('Τα συστημικά πεδία δεν μπορούν να διαγραφούν. Μπορείτε να τα απενεργοποιήσετε.');
+      setErrorMsg('Τα συστημικά πεδία δεν μπορούν να διαγραφούν. Μπορείτε να τα απενεργοποιήσετε.');
       return;
     }
     setTemplate((prev) => ({
@@ -329,7 +336,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
           <div className="flex items-center space-x-2.5">
             <button
-              onClick={handleResetDefaults}
+              onClick={() => setShowResetConfirm(true)}
               className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-all cursor-pointer"
             >
               <RefreshCcw className="w-3.5 h-3.5" />
@@ -367,10 +374,60 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           </div>
           <button
             onClick={() => setSuccessMsg(null)}
-            className="text-emerald-700 hover:text-emerald-900 font-bold ml-4 cursor-pointer"
+            aria-label="Κλείσιμο"
+            className="text-emerald-700 hover:text-emerald-900 font-bold ml-4 cursor-pointer p-0.5"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => setErrorMsg(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-700 hover:text-rose-900 font-bold ml-4 cursor-pointer p-0.5"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
+            <div className="flex items-center space-x-3 text-amber-600">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <RefreshCcw className="w-5 h-5 text-amber-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Επαναφορά Προεπιλογών</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Θέλετε να επαναφέρετε τη φόρμα στις προεπιλεγμένες ρυθμίσεις του καταστήματος; Οι τρέχουσες ρυθμίσεις θα αντικατασταθούν.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={handleResetDefaults}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <RefreshCcw className="w-3.5 h-3.5" />
+                <span>Ναι, Επαναφορά</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -447,7 +504,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                   onClick={() => setFieldFilter(f.id as any)}
                   className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
                     fieldFilter === f.id
-                      ? 'bg-slate-900 text-white shadow-2xs'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
@@ -507,20 +564,22 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                     {/* Actions & Toggles */}
                     <div className="flex items-center space-x-2 border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
                       {/* Reorder Buttons */}
-                      <div className="flex flex-col space-y-0.5">
+                      <div className="flex flex-col space-y-2">
                         <button
                           onClick={() => handleMoveField(idx, 'UP')}
                           disabled={idx === 0}
-                          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          className="p-2.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                           title="Μετακίνηση Πάνω"
+                          aria-label="Μετακίνηση Πάνω"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleMoveField(idx, 'DOWN')}
                           disabled={idx === filteredFields.length - 1}
-                          className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          className="p-2.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                           title="Μετακίνηση Κάτω"
+                          aria-label="Μετακίνηση Κάτω"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
                         </button>
@@ -563,6 +622,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                             onClick={() => handleOpenEditField(field)}
                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
                             title="Επεξεργασία Πεδίου"
+                            aria-label="Επεξεργασία Πεδίου"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
@@ -571,6 +631,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                             onClick={() => handleRemoveCustomField(field.id)}
                             className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                             title="Διαγραφή Πεδίου"
+                            aria-label="Διαγραφή Πεδίου"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -853,7 +914,17 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <div
                   key={mod.key}
                   onClick={() => handleToggleModule(mod.key)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                  role="switch"
+                  aria-checked={isEnabled}
+                  aria-label={mod.title}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleToggleModule(mod.key);
+                    }
+                  }}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isEnabled
                       ? 'bg-indigo-50/50 border-indigo-200'
                       : 'bg-slate-50 border-slate-200 opacity-60'
@@ -887,30 +958,38 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowFieldModal(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
+                aria-label="Κλείσιμο"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-4 text-xs">
               <div>
-                <label className="font-bold text-slate-800 block mb-1">
+                <label htmlFor="field-label" className="font-bold text-slate-800 block mb-1">
                   Όνομα / Ετικέτα Πεδίου <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="field-label"
                   type="text"
                   value={fieldLabel}
                   onChange={(e) => setFieldLabel(e.target.value)}
                   placeholder="π.χ. Κατάθεση Safe Drop / Έξοδα Καθαριστικών"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-900 font-medium"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl focus:outline-none text-slate-900 font-medium ${
+                    fieldModalError ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-indigo-600'
+                  }`}
                 />
+                {fieldModalError && (
+                  <p className="text-rose-600 font-semibold mt-1">{fieldModalError}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-slate-800 block mb-1">Τύπος Πεδίου:</label>
+                  <label htmlFor="field-type" className="font-bold text-slate-800 block mb-1">Τύπος Πεδίου:</label>
                   <select
+                    id="field-type"
                     value={fieldType}
                     onChange={(e) => setFieldType(e.target.value as any)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-600 font-semibold"
@@ -923,8 +1002,9 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-800 block mb-1">Ενότητα Τοποθέτησης:</label>
+                  <label htmlFor="field-section" className="font-bold text-slate-800 block mb-1">Ενότητα Τοποθέτησης:</label>
                   <select
+                    id="field-section"
                     value={fieldSection}
                     onChange={(e) => setFieldSection(e.target.value as any)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-600 font-semibold"
@@ -936,10 +1016,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-800 block mb-1">
+                <label htmlFor="field-description" className="font-bold text-slate-800 block mb-1">
                   Βοηθητικό Κείμενο (Description / Tooltip):
                 </label>
                 <input
+                  id="field-description"
                   type="text"
                   value={fieldDescription}
                   onChange={(e) => setFieldDescription(e.target.value)}
@@ -949,10 +1030,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-bold text-slate-800 block mb-1">
+                <label htmlFor="field-placeholder" className="font-bold text-slate-800 block mb-1">
                   Παράδειγμα / Placeholder:
                 </label>
                 <input
+                  id="field-placeholder"
                   type="text"
                   value={fieldPlaceholder}
                   onChange={(e) => setFieldPlaceholder(e.target.value)}
