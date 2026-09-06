@@ -25,7 +25,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, deleteExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
+import { fetchExpensesFromFirestore, deleteExpenseInFirestore, ExpenseRecord, fetchVltTerminalsFromFirestore } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -691,6 +691,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // Auto-sync expenses state
   const [isSyncingExpenses, setIsSyncingExpenses] = useState<boolean>(false);
   const [syncNotification, setSyncNotification] = useState<string | null>(null);
+  const [isSyncingVlts, setIsSyncingVlts] = useState<boolean>(false);
+  const [vltsSyncNotification, setVltsSyncNotification] = useState<string | null>(null);
 
   const syncExpensesFromStore = async (isManual = false) => {
     setIsSyncingExpenses(true);
@@ -749,6 +751,36 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       console.warn('Error syncing expenses in wizard:', err);
     } finally {
       setIsSyncingExpenses(false);
+    }
+  };
+
+  // Manual-only (no auto-run on mount, unlike syncExpensesFromStore): this
+  // overwrites the two VLT fields outright rather than merging a list, so it
+  // must stay an explicit, reviewable action the user chooses to take rather
+  // than something that fires silently whenever the wizard opens.
+  const handleFillVltsFromTerminals = async () => {
+    setIsSyncingVlts(true);
+    setVltsSyncNotification(null);
+    try {
+      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+      const terminals = await fetchVltTerminalsFromFirestore(orgId, shift.store_id);
+      if (terminals.length === 0) {
+        setVltsSyncNotification('Δεν βρέθηκαν καταχωρημένα τερματικά VLT για αυτό το κατάστημα.');
+        return;
+      }
+      const sumIn = terminals.reduce((sum, t) => sum + safeNum(t.meter_in), 0);
+      const sumOut = terminals.reduce((sum, t) => sum + safeNum(t.meter_out), 0);
+      setVltsIn(sumIn.toFixed(2));
+      setVltsOut(sumOut.toFixed(2));
+      setVltsOutType('NEGATIVE');
+      setVltsSyncNotification(
+        `Συμπληρώθηκε από ${terminals.length} τερματικά VLT — Είσπραξη: ${formatCurrency(sumIn)}, Πληρωμές: ${formatCurrency(sumOut)}.`
+      );
+    } catch (err) {
+      console.warn('Error filling VLTs from terminals:', err);
+      setVltsSyncNotification('Αποτυχία ανάκτησης δεδομένων από τα Τερματικά VLT.');
+    } finally {
+      setIsSyncingVlts(false);
     }
   };
 
@@ -1944,14 +1976,44 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
             {/* 5. VLTs (PLAY) */}
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
                 <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
                   <span>🎰 PLAY VLTs</span>
                 </h4>
-                <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                  Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleFillVltsFromTerminals}
+                    disabled={isSyncingVlts}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    title="Συμπλήρωση από τις τρέχουσες μετρήσεις των Τερματικών VLT (ενότητα Τερματικά VLTs)"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingVlts ? 'animate-spin text-indigo-600' : ''}`} />
+                    <span>{isSyncingVlts ? 'Ανάκτηση...' : 'Συμπλήρωση από Τερματικά'}</span>
+                  </button>
+                  <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                    Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
+                  </span>
+                </div>
               </div>
+
+              {vltsSyncNotification && (
+                <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold animate-fadeIn">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>{vltsSyncNotification}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVltsSyncNotification(null)}
+                    aria-label="Κλείσιμο ειδοποίησης"
+                    className="text-indigo-400 hover:text-indigo-700 ml-2 cursor-pointer p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
