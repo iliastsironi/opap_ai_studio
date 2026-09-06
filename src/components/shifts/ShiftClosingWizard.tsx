@@ -758,6 +758,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // overwrites the two VLT fields outright rather than merging a list, so it
   // must stay an explicit, reviewable action the user chooses to take rather
   // than something that fires silently whenever the wizard opens.
+  //
+  // TEMPORARY, UNCONFIRMED ASSUMPTION (flagged to the user, not yet
+  // resolved): sums each terminal's meter_in/meter_out as this period's
+  // total, matching how VltManager already treats those fields (plain
+  // overwritable numbers, no reading history). Real VLT meters are often
+  // true lifetime/cumulative counters instead, where period revenue is a
+  // delta between a start-of-shift and end-of-shift reading. If that turns
+  // out to be the case here, this whole function needs to change to compute
+  // a delta against a stored prior reading, not just sum current values -
+  // and vlt_terminals (supabase/migrations/0009_vlt_terminals.sql) would
+  // need a reading-history table rather than a single current-value row.
   const handleFillVltsFromTerminals = async () => {
     setIsSyncingVlts(true);
     setVltsSyncNotification(null);
@@ -1986,7 +1997,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     onClick={handleFillVltsFromTerminals}
                     disabled={isSyncingVlts}
                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    title="Συμπλήρωση από τις τρέχουσες μετρήσεις των Τερματικών VLT (ενότητα Τερματικά VLTs)"
+                    title="Συμπλήρωση από τις τρέχουσες μετρήσεις των Τερματικών VLT (ενότητα Τερματικά VLTs). Προσωρινή λογική - βλ. σημείωση παρακάτω."
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isSyncingVlts ? 'animate-spin text-indigo-600' : ''}`} />
                     <span>{isSyncingVlts ? 'Ανάκτηση...' : 'Συμπλήρωση από Τερματικά'}</span>
@@ -1996,6 +2007,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   </span>
                 </div>
               </div>
+
+              <p className="text-[10px] text-amber-700 flex items-start gap-1">
+                <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                <span>
+                  Προσωρινή λογική «Συμπλήρωση από Τερματικά»: αθροίζει τις τρέχουσες μετρήσεις κάθε τερματικού ως
+                  σύνολο τρέχουσας περιόδου, όχι ως αθροιστικό (lifetime) μετρητή. Αν επιβεβαιωθεί ότι οι μετρητές VLT
+                  είναι αθροιστικοί, ο υπολογισμός εδώ πρέπει να αλλάξει σε διαφορά μέτρησης έναρξης/λήξης βάρδιας.
+                </span>
+              </p>
 
               {vltsSyncNotification && (
                 <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold animate-fadeIn">
