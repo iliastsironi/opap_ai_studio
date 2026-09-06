@@ -6,6 +6,7 @@ import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../ser
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 
 interface VltTerminal {
   id: string;
@@ -110,14 +111,20 @@ export const VltManager: React.FC = () => {
     }
   };
 
-  const totalIn = activeShift ? (Number(activeShift.vlts_in) || Number(activeShift.vlts_cash_in) || terminals.reduce((sum, t) => sum + t.meter_in, 0)) : terminals.reduce((sum, t) => sum + t.meter_in, 0);
-  const totalOut = activeShift ? (Number(activeShift.vlts_out) || Math.abs(Number(activeShift.vlts_cash_out) || 0) || terminals.reduce((sum, t) => sum + t.meter_out, 0)) : terminals.reduce((sum, t) => sum + t.meter_out, 0);
+  const demoIn = terminals.reduce((sum, t) => sum + t.meter_in, 0);
+  const demoOut = terminals.reduce((sum, t) => sum + t.meter_out, 0);
+  const cashOutAbs =
+    activeShift?.vlts_cash_out !== null && activeShift?.vlts_cash_out !== undefined
+      ? Math.abs(safeNum(activeShift.vlts_cash_out))
+      : undefined;
+  const totalIn = activeShift ? pickNum(activeShift.vlts_in, activeShift.vlts_cash_in, demoIn) : demoIn;
+  const totalOut = activeShift ? pickNum(activeShift.vlts_out, cashOutAbs, demoOut) : demoOut;
   const totalNet = totalIn - totalOut;
 
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 bg-purple-50 border border-purple-100 rounded-xl flex items-center justify-center text-purple-600 shrink-0">
             <Gamepad2 className="w-6 h-6" />
@@ -158,7 +165,7 @@ export const VltManager: React.FC = () => {
 
       {/* Active Shift Sync Banner */}
       {activeShift ? (
-        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-2xl border border-purple-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 font-extrabold text-sm">
               🎰
@@ -186,19 +193,19 @@ export const VltManager: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Εισπράξεων (Meter In)</p>
           <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalIn)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Πληρωμών (Meter Out)</p>
           <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalOut)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Εκδόσεις TITO & payouts παικτών</p>
         </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρό Έσοδο VLTs (Net Revenue)</p>
           <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
           <p className="text-[11px] text-slate-400 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
@@ -206,9 +213,15 @@ export const VltManager: React.FC = () => {
       </div>
 
       {/* Terminals Grid */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Ανά Τερματικό</h3>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase font-mono">
+          Ενδεικτικά Δεδομένα
+        </span>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {terminals.map((t) => (
-          <div key={t.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+          <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">{t.code}</span>
@@ -218,6 +231,8 @@ export const VltManager: React.FC = () => {
                 className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
                   t.status === 'ONLINE'
                     ? 'bg-emerald-100 text-emerald-800'
+                    : t.status === 'OFFLINE'
+                    ? 'bg-rose-100 text-rose-800'
                     : 'bg-amber-100 text-amber-800'
                 }`}
               >
@@ -228,15 +243,15 @@ export const VltManager: React.FC = () => {
             <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
               <div className="bg-slate-50 p-2 rounded">
                 <p className="text-[10px] text-slate-400 font-medium">In</p>
-                <p className="text-xs font-extrabold text-slate-800">{t.meter_in.toFixed(0)} €</p>
+                <p className="text-xs font-extrabold text-slate-800 font-mono">{formatCurrency(t.meter_in)}</p>
               </div>
               <div className="bg-slate-50 p-2 rounded">
                 <p className="text-[10px] text-slate-400 font-medium">Out</p>
-                <p className="text-xs font-extrabold text-rose-600">{t.meter_out.toFixed(0)} €</p>
+                <p className="text-xs font-extrabold text-rose-600 font-mono">{formatCurrency(t.meter_out)}</p>
               </div>
               <div className="bg-indigo-50 p-2 rounded">
                 <p className="text-[10px] text-indigo-500 font-medium">Net</p>
-                <p className="text-xs font-extrabold text-indigo-700">{t.net_revenue.toFixed(0)} €</p>
+                <p className="text-xs font-extrabold text-indigo-700 font-mono">{formatCurrency(t.net_revenue)}</p>
               </div>
             </div>
           </div>
@@ -252,7 +267,7 @@ export const VltManager: React.FC = () => {
                 <Gamepad2 className="w-4 h-4 text-purple-400" />
                 Συγχρονισμός VLTs Βάρδιας ({activeShift.store_name})
               </h3>
-              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setShowEditModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -263,10 +278,11 @@ export const VltManager: React.FC = () => {
               </p>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">
+                <label htmlFor="vlt-in" className="block text-slate-700 font-bold mb-1">
                   VLTs Εισροές / Meter In (€)
                 </label>
                 <input
+                  id="vlt-in"
                   type="number"
                   step="0.01"
                   value={vltsIn}
@@ -278,14 +294,15 @@ export const VltManager: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-slate-700 font-bold">
+                  <label htmlFor="vlt-out" className="block text-slate-700 font-bold">
                     VLTs Εκροές / Meter Out (€)
                   </label>
-                  <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg">
+                  <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
                     <button
                       type="button"
                       onClick={() => setVltsOutType('NEGATIVE')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                      aria-pressed={vltsOutType === 'NEGATIVE'}
+                      className={`px-3 py-2 rounded text-[10px] font-bold cursor-pointer ${
                         vltsOutType === 'NEGATIVE' ? 'bg-rose-600 text-white shadow-2xs' : 'text-slate-600'
                       }`}
                     >
@@ -294,7 +311,8 @@ export const VltManager: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setVltsOutType('POSITIVE')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+                      aria-pressed={vltsOutType === 'POSITIVE'}
+                      className={`px-3 py-2 rounded text-[10px] font-bold cursor-pointer ${
                         vltsOutType === 'POSITIVE' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600'
                       }`}
                     >
@@ -303,6 +321,7 @@ export const VltManager: React.FC = () => {
                   </div>
                 </div>
                 <input
+                  id="vlt-out"
                   type="number"
                   step="0.01"
                   value={vltsOut}
@@ -323,7 +342,7 @@ export const VltManager: React.FC = () => {
                 <button
                   type="submit"
                   disabled={savingShift}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {savingShift ? 'Αποθήκευση...' : 'Αποθήκευση & Συγχρονισμός'}
                 </button>

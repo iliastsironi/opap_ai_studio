@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { TenantProvider } from './context/TenantContext.tsx';
 import { ProtectedLayout } from './components/layout/ProtectedLayout.tsx';
@@ -10,16 +10,23 @@ import { AuditLogViewer } from './components/admin/AuditLogViewer.tsx';
 import { OrganizationSettings } from './components/admin/OrganizationSettings.tsx';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard.tsx';
 import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
-import { ExpensesManager } from './components/modules/ExpensesManager.tsx';
 import { SuppliersManager } from './components/admin/SuppliersManager.tsx';
-import { OpapGamesManager } from './components/modules/OpapGamesManager.tsx';
-import { VltManager } from './components/modules/VltManager.tsx';
-import { FnbManager } from './components/modules/FnbManager.tsx';
-import { IncidentsManager } from './components/modules/IncidentsManager.tsx';
-import { ReportsManager } from './components/modules/ReportsManager.tsx';
 import { InstructionsPage } from './components/instructions/InstructionsPage.tsx';
 import { CopilotPage } from './components/copilot/CopilotPage.tsx';
 import { ShieldAlert, Clock } from 'lucide-react';
+
+const ExpensesManager = lazy(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
+const OpapGamesManager = lazy(() => import('./components/modules/OpapGamesManager.tsx').then((m) => ({ default: m.OpapGamesManager })));
+const VltManager = lazy(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
+const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
+const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
+const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
+
+const ModuleLoadingFallback: React.FC = () => (
+  <div className="flex items-center justify-center py-24">
+    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 const TAB_PERMISSIONS: Record<string, string> = {
   dashboard: 'dashboard.view',
@@ -115,7 +122,9 @@ export default function App() {
       <TenantProvider>
         <ProtectedLayout>
           {(currentTab, setCurrentTab) => (
-            <AppContent currentTab={currentTab} setCurrentTab={setCurrentTab} />
+            <Suspense fallback={<ModuleLoadingFallback />}>
+              <AppContent currentTab={currentTab} setCurrentTab={setCurrentTab} />
+            </Suspense>
           )}
         </ProtectedLayout>
       </TenantProvider>
