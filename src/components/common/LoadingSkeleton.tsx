@@ -2,7 +2,7 @@ import React from 'react';
 
 export const GlobalLoadingSkeleton: React.FC = () => {
   return (
-    <div className="w-full space-y-6 animate-pulse p-2">
+    <div className="w-full space-y-6 animate-pulse p-2" role="status" aria-live="polite" aria-label="Φόρτωση περιεχομένου">
       {/* Top Banner Skeleton */}
       <div className="h-28 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 rounded-2xl border border-slate-200/60 p-6 flex items-center justify-between">
         <div className="space-y-3">

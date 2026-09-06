@@ -99,7 +99,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2" aria-hidden="true">
           <div className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
           <div className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
           <div className={`w-3 h-3 rounded-full ${step >= 3 ? 'bg-indigo-600' : 'bg-slate-200'}`} />
@@ -114,15 +114,27 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
 
       {/* Step 1: Org Details */}
       {step === 1 && (
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!legalName || !tradeName || !vatNumber) {
+              setError('Παρακαλώ συμπληρώστε τα υποχρεωτικά πεδία.');
+              return;
+            }
+            setError(null);
+            setStep(2);
+          }}
+        >
           <div className="flex items-center space-x-2 text-indigo-700 font-bold text-sm">
             <Building2 className="w-5 h-5" />
             <span>1. Στοιχεία Εταιρείας / Οργανισμού</span>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Εταιρική Επωνυμία</label>
+            <label htmlFor="onboarding-legal-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Εταιρική Επωνυμία</label>
             <input
+              id="onboarding-legal-name"
               type="text"
               value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
@@ -133,8 +145,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Διακριτικός Τίτλος</label>
+            <label htmlFor="onboarding-trade-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Διακριτικός Τίτλος</label>
             <input
+              id="onboarding-trade-name"
               type="text"
               value={tradeName}
               onChange={(e) => setTradeName(e.target.value)}
@@ -144,10 +157,11 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ (VAT)</label>
+              <label htmlFor="onboarding-vat" className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ (VAT)</label>
               <input
+                id="onboarding-vat"
                 type="text"
                 value={vatNumber}
                 onChange={(e) => setVatNumber(e.target.value)}
@@ -158,8 +172,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔΟΫ</label>
+              <label htmlFor="onboarding-tax-office" className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔΟΫ</label>
               <input
+                id="onboarding-tax-office"
                 type="text"
                 value={taxOffice}
                 onChange={(e) => setTaxOffice(e.target.value)}
@@ -171,34 +186,39 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
 
           <div className="flex justify-end pt-4">
             <button
-              onClick={() => {
-                if (!legalName || !tradeName || !vatNumber) {
-                  setError('Παρακαλώ συμπληρώστε τα υποχρεωτικά πεδία.');
-                  return;
-                }
-                setError(null);
-                setStep(2);
-              }}
+              type="submit"
               className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
             >
               <span>Επόμενο: Αρχικό Κατάστημα</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Step 2: Store Details */}
       {step === 2 && (
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!storeName || !storeCode) {
+              setError('Παρακαλώ συμπληρώστε τα στοιχεία καταστήματος.');
+              return;
+            }
+            setError(null);
+            setStep(3);
+          }}
+        >
           <div className="flex items-center space-x-2 text-indigo-700 font-bold text-sm">
             <StoreIcon className="w-5 h-5" />
             <span>2. Στοιχεία Αρχικού Καταστήματος</span>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Καταστήματος</label>
+            <label htmlFor="onboarding-store-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Καταστήματος</label>
             <input
+              id="onboarding-store-code"
               type="text"
               value={storeCode}
               onChange={(e) => setStoreCode(e.target.value)}
@@ -209,8 +229,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Καταστήματος</label>
+            <label htmlFor="onboarding-store-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Καταστήματος</label>
             <input
+              id="onboarding-store-name"
               type="text"
               value={storeName}
               onChange={(e) => setStoreName(e.target.value)}
@@ -221,8 +242,9 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τύπος Λειτουργίας</label>
+            <label htmlFor="onboarding-store-type" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τύπος Λειτουργίας</label>
             <select
+              id="onboarding-store-type"
               value={storeType}
               onChange={(e) => setStoreType(e.target.value as StoreType)}
               className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -237,6 +259,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
 
           <div className="flex items-center justify-between pt-4">
             <button
+              type="button"
               onClick={() => setStep(1)}
               className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
@@ -245,26 +268,25 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             </button>
 
             <button
-              onClick={() => {
-                if (!storeName || !storeCode) {
-                  setError('Παρακαλώ συμπληρώστε τα στοιχεία καταστήματος.');
-                  return;
-                }
-                setError(null);
-                setStep(3);
-              }}
+              type="submit"
               className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
             >
               <span>Επόμενο: Επιβεβαίωση</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Step 3: Review & Submit */}
       {step === 3 && (
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmitOnboarding();
+          }}
+        >
           <div className="flex items-center space-x-2 text-indigo-700 font-bold text-sm">
             <CheckCircle2 className="w-5 h-5" />
             <span>3. Επιβεβαίωση & Δημιουργία</span>
@@ -279,6 +301,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
 
           <div className="flex items-center justify-between pt-4">
             <button
+              type="button"
               onClick={() => setStep(2)}
               className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
             >
@@ -287,7 +310,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             </button>
 
             <button
-              onClick={handleSubmitOnboarding}
+              type="submit"
               disabled={submitting}
               className="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
@@ -295,7 +318,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               <span>{submitting ? 'Δημιουργία...' : 'Ολοκλήρωση Onboarding'}</span>
             </button>
           </div>
-        </div>
+        </form>
       )}
     </div>
   );

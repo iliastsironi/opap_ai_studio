@@ -66,6 +66,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   const visibleNavItems = navItems.filter((item) => !item.perm || hasPermission(item.perm));
   const visibleOperationalModules = operationalModules.filter((mod) => !mod.perm || hasPermission(mod.perm));
 
+  const selectTab = (tabId: string) => {
+    setCurrentTab(tabId);
+    if (window.innerWidth < 768) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -98,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
           <button
             onClick={() => setIsOpen(false)}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Close sidebar"
+            aria-label="Απόκρυψη πλευρικού πάνελ"
             title="Απόκρυψη πλευρικού πάνελ"
           >
             <X className="w-5 h-5" />
@@ -115,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
+      <nav aria-label="Κύρια πλοήγηση" className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
         {visibleNavItems.length > 0 && (
           <div>
             <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
@@ -128,12 +135,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
                 return (
                   <button
                     key={item.id}
-                    onClick={() => {
-                      setCurrentTab(item.id);
-                      if (window.innerWidth < 768) {
-                        setIsOpen(false);
-                      }
-                    }}
+                    onClick={() => selectTab(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                       isActive
                         ? 'bg-indigo-50 text-indigo-700 font-bold'
@@ -163,12 +166,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
               return (
                 <button
                   key={mod.id}
-                  onClick={() => {
-                    setCurrentTab(mod.id);
-                    if (window.innerWidth < 768) {
-                      setIsOpen(false);
-                    }
-                  }}
+                  onClick={() => selectTab(mod.id)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-bold'
@@ -197,12 +196,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
               return (
                 <button
                   key={hMod.id}
-                  onClick={() => {
-                    setCurrentTab(hMod.id);
-                    if (window.innerWidth < 768) {
-                      setIsOpen(false);
-                    }
-                  }}
+                  onClick={() => selectTab(hMod.id)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-bold'
@@ -220,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
           </div>
         </div>
 
-      </div>
+      </nav>
 
       {/* Role Footer */}
       <div className="p-3 border-t border-slate-100 bg-white">

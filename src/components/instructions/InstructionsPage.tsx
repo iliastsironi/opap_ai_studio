@@ -95,8 +95,10 @@ export const InstructionsPage: React.FC = () => {
 
           {/* Search Bar */}
           <div className="pt-2 relative max-w-xl">
-            <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search aria-hidden="true" className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <label htmlFor="instructions-search" className="sr-only">Αναζήτηση στις οδηγίες</label>
             <input
+              id="instructions-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -133,6 +135,7 @@ export const InstructionsPage: React.FC = () => {
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setSelectedCategory('all')}
+              aria-pressed={selectedCategory === 'all'}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
                 selectedCategory === 'all'
                   ? 'bg-indigo-600 text-white shadow-xs'
@@ -143,6 +146,7 @@ export const InstructionsPage: React.FC = () => {
             </button>
             <button
               onClick={() => setSelectedCategory('operational')}
+              aria-pressed={selectedCategory === 'operational'}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
                 selectedCategory === 'operational'
                   ? 'bg-indigo-600 text-white shadow-xs'
@@ -153,6 +157,7 @@ export const InstructionsPage: React.FC = () => {
             </button>
             <button
               onClick={() => setSelectedCategory('management')}
+              aria-pressed={selectedCategory === 'management'}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
                 selectedCategory === 'management'
                   ? 'bg-indigo-600 text-white shadow-xs'
@@ -172,6 +177,7 @@ export const InstructionsPage: React.FC = () => {
                 <button
                   key={sec.id}
                   onClick={() => scrollToSection(sec.id)}
+                  aria-current={isActive ? 'true' : undefined}
                   className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-all ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100'
@@ -189,6 +195,7 @@ export const InstructionsPage: React.FC = () => {
 
             <button
               onClick={() => scrollToSection('faq')}
+              aria-current={activeSectionId === 'faq' ? 'true' : undefined}
               className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-all mt-2 pt-2 border-t border-slate-100 ${
                 activeSectionId === 'faq'
                   ? 'bg-amber-50 text-amber-800 font-bold border border-amber-200'
@@ -206,8 +213,8 @@ export const InstructionsPage: React.FC = () => {
         {/* Content Sections Area */}
         <div className="lg:col-span-3 space-y-8">
           {filteredSections.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-xs">
-              <Search className="w-8 h-8 text-slate-300 mx-auto" />
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-3 shadow-2xs">
+              <Search aria-hidden="true" className="w-8 h-8 text-slate-300 mx-auto" />
               <h3 className="text-sm font-bold text-slate-800">Δεν βρέθηκαν αποτελέσματα</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Δοκιμάστε να αλλάξετε τους όρους αναζήτησης ή να επιλέξετε την κατηγορία "Όλα".
@@ -229,7 +236,7 @@ export const InstructionsPage: React.FC = () => {
                 <section
                   key={sec.id}
                   id={`section-${sec.id}`}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-5 transition-all hover:border-slate-300"
+                  className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-5 transition-all hover:border-slate-300"
                 >
                   {/* Section Title Header */}
                   <div className="flex items-start justify-between border-b border-slate-100 pb-4">
@@ -320,7 +327,7 @@ export const InstructionsPage: React.FC = () => {
           )}
 
           {/* FAQ Accordion Section */}
-          <section id="section-faq" className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-5">
+          <section id="section-faq" className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-5">
             <div className="flex items-center space-x-3 border-b border-slate-100 pb-4">
               <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">
                 <HelpCircle className="w-5 h-5" />
@@ -343,6 +350,7 @@ export const InstructionsPage: React.FC = () => {
                   >
                     <button
                       onClick={() => setExpandedFaq(isOpen ? null : faq.id)}
+                      aria-expanded={isOpen}
                       className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 text-left transition-colors cursor-pointer"
                     >
                       <div className="flex items-center space-x-3 pr-2">
