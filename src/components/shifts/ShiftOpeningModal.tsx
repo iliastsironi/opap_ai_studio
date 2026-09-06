@@ -228,6 +228,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Κλείσιμο"
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -249,10 +250,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </span>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="opening-store" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                 {toGreekUpper('Καταστημα')} <span className="text-rose-500">*</span>
               </label>
               <select
+                id="opening-store"
                 value={selectedStoreId}
                 onChange={(e) => setSelectedStoreId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -270,10 +272,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Cash Register */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="opening-register" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                   {toGreekUpper('Ταμειο / Register')}
                 </label>
                 <select
+                  id="opening-register"
                   value={registerId}
                   onChange={(e) => setRegisterId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -286,10 +289,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
               {/* Shift Type */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="opening-shift-type" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                   {toGreekUpper('Τυπος Βαρδιας')}
                 </label>
                 <select
+                  id="opening-shift-type"
                   value={shiftType}
                   onChange={(e) => setShiftType(e.target.value as ShiftType)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -348,14 +352,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   </span>
                 )}
               </span>
-              <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+              <span className="text-xs font-black font-mono text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
                 {toGreekUpper('Συνολο')}: {formatCurrency(totalOpeningCash)}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                <label htmlFor="opening-banknotes" className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
                     <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
@@ -363,13 +367,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 </label>
                 <div className="relative">
                   <input
+                    id="opening-banknotes"
                     type="text"
                     inputMode="decimal"
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
                     disabled={shiftType !== 'MORNING' && isAutoFetched}
-                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold text-slate-900 ${
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
                         : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
@@ -383,7 +388,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                <label htmlFor="opening-coins" className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>🪙 {toGreekUpper('Κερματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
                     <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
@@ -391,13 +396,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 </label>
                 <div className="relative">
                   <input
+                    id="opening-coins"
                     type="text"
                     inputMode="decimal"
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
                     disabled={shiftType !== 'MORNING' && isAutoFetched}
-                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold text-slate-900 ${
+                    className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
                         : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
@@ -420,10 +426,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Group 3: Operational Notes */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="opening-notes" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
               {toGreekUpper('Σημειωσεις Εναρξης (Προαιρετικο)')}
             </label>
             <textarea
+              id="opening-notes"
               value={openingNotes}
               onChange={(e) => setOpeningNotes(e.target.value)}
               placeholder={
