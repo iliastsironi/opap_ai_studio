@@ -99,6 +99,11 @@ export const SuppliersManager: React.FC = () => {
   const [orderError, setOrderError] = useState<string | null>(null);
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingSupplier, setIsDeletingSupplier] = useState(false);
+  const [isSavingSupplier, setIsSavingSupplier] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const loadSuppliers = async () => {
     setLoading(true);
@@ -187,6 +192,7 @@ export const SuppliersManager: React.FC = () => {
       return;
     }
 
+    setIsSavingSupplier(true);
     try {
       if (editingSupplier) {
         await updateSupplierInFirestore(editingSupplier.id, {
@@ -227,6 +233,8 @@ export const SuppliersManager: React.FC = () => {
       setShowAddModal(false);
     } catch (err: any) {
       setFormError(err.message || 'Αποτυχία αποθήκευσης προμηθευτή');
+    } finally {
+      setIsSavingSupplier(false);
     }
   };
 
@@ -245,6 +253,7 @@ export const SuppliersManager: React.FC = () => {
       return;
     }
 
+    setIsSavingOrder(true);
     try {
       await createSupplierOrderInFirestore({
         organization_id: orgId,
@@ -264,6 +273,8 @@ export const SuppliersManager: React.FC = () => {
       setShowOrderModal(false);
     } catch (err: any) {
       setOrderError(err.message || 'Αποτυχία καταχώρησης παραγγελίας');
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -282,19 +293,27 @@ export const SuppliersManager: React.FC = () => {
         setPreviewOrder({ ...previewOrder, status: newStatus });
       }
     } catch (err: any) {
-      alert(err.message || 'Αποτυχία ενημέρωσης κατάστασης');
+      setErrorMsg(err.message || 'Αποτυχία ενημέρωσης κατάστασης');
     }
   };
 
-  const handleDeleteSupplier = async (id: string, name: string) => {
-    if (window.confirm(`Είστε βέβαιοι ότι θέλετε να διαγράψετε τον προμηθευτή "${name}";`)) {
-      try {
-        await deleteSupplierInFirestore(id);
-        setSuccessMsg(`Ο προμηθευτής "${name}" διαγράφηκε.`);
-        await loadSuppliers();
-      } catch (e: any) {
-        alert(e.message || 'Αποτυχία διαγραφής');
-      }
+  const handleDeleteSupplier = (id: string, name: string) => {
+    setSupplierToDelete({ id, name });
+  };
+
+  const handleConfirmDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    const { id, name } = supplierToDelete;
+    setIsDeletingSupplier(true);
+    try {
+      await deleteSupplierInFirestore(id);
+      setSuccessMsg(`Ο προμηθευτής "${name}" διαγράφηκε.`);
+      await loadSuppliers();
+      setSupplierToDelete(null);
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Αποτυχία διαγραφής');
+    } finally {
+      setIsDeletingSupplier(false);
     }
   };
 
@@ -331,11 +350,24 @@ export const SuppliersManager: React.FC = () => {
       {successMsg && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-2xs">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <CheckCircle2 aria-hidden="true" className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="text-emerald-700 font-bold hover:opacity-80 cursor-pointer">
-            ✕
+          <button onClick={() => setSuccessMsg(null)} aria-label="Κλείσιμο" className="text-emerald-700 font-bold hover:opacity-80 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Error Notification */}
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-2xs">
+          <div className="flex items-center space-x-2">
+            <AlertCircle aria-hidden="true" className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg(null)} aria-label="Κλείσιμο" className="text-rose-700 font-bold hover:opacity-80 cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -407,8 +439,10 @@ export const SuppliersManager: React.FC = () => {
           {/* Filter & Summary Toolbar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <label htmlFor="suppliers-search" className="sr-only">Αναζήτηση προμηθευτών</label>
               <input
+                id="suppliers-search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -418,7 +452,9 @@ export const SuppliersManager: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
+              <label htmlFor="suppliers-category-filter" className="sr-only">Φίλτρο κατηγορίας</label>
               <select
+                id="suppliers-category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer"
@@ -449,12 +485,12 @@ export const SuppliersManager: React.FC = () => {
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 text-[10px]">
                     <tr>
-                      <th className="p-4">Κωδικός & Επωνυμία</th>
-                      <th className="p-4">Φορολογικά Στοιχεία</th>
-                      <th className="p-4">Κατηγορία Προμηθειών</th>
-                      <th className="p-4">Επικοινωνία</th>
-                      <th className="p-4 text-right">Υπόλοιπο Οφειλής</th>
-                      <th className="p-4 text-center">Ενέργειες</th>
+                      <th scope="col" className="p-4">Κωδικός & Επωνυμία</th>
+                      <th scope="col" className="p-4">Φορολογικά Στοιχεία</th>
+                      <th scope="col" className="p-4">Κατηγορία Προμηθειών</th>
+                      <th scope="col" className="p-4">Επικοινωνία</th>
+                      <th scope="col" className="p-4 text-right">Υπόλοιπο Οφειλής</th>
+                      <th scope="col" className="p-4 text-center">Ενέργειες</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -527,6 +563,7 @@ export const SuppliersManager: React.FC = () => {
                               onClick={() => setPreviewSupplier(sup)}
                               className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                               title="Προεπισκόπηση & Καρτέλα"
+                              aria-label="Προεπισκόπηση & Καρτέλα"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -534,6 +571,7 @@ export const SuppliersManager: React.FC = () => {
                               onClick={() => openNewOrderModal(sup.id)}
                               className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="Νέα Παραγγελία"
+                              aria-label="Νέα Παραγγελία"
                             >
                               <ShoppingBag className="w-4 h-4" />
                             </button>
@@ -541,6 +579,7 @@ export const SuppliersManager: React.FC = () => {
                               onClick={() => openEditModal(sup)}
                               className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                               title="Επεξεργασία"
+                              aria-label="Επεξεργασία"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -548,6 +587,7 @@ export const SuppliersManager: React.FC = () => {
                               onClick={() => handleDeleteSupplier(sup.id, sup.company_name)}
                               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                               title="Διαγραφή"
+                              aria-label="Διαγραφή"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -614,8 +654,10 @@ export const SuppliersManager: React.FC = () => {
           {/* Orders Search and Filter Bar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <label htmlFor="orders-search" className="sr-only">Αναζήτηση παραγγελιών</label>
               <input
+                id="orders-search"
                 type="text"
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
@@ -665,12 +707,12 @@ export const SuppliersManager: React.FC = () => {
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200 text-[10px]">
                     <tr>
-                      <th className="p-4">Κωδικός & Ημερομηνία</th>
-                      <th className="p-4">Προμηθευτής</th>
-                      <th className="p-4">Περιγραφή Ειδών</th>
-                      <th className="p-4">Κατάσταση</th>
-                      <th className="p-4 text-right">Συνολικό Ποσό</th>
-                      <th className="p-4 text-center">Ενέργειες</th>
+                      <th scope="col" className="p-4">Κωδικός & Ημερομηνία</th>
+                      <th scope="col" className="p-4">Προμηθευτής</th>
+                      <th scope="col" className="p-4">Περιγραφή Ειδών</th>
+                      <th scope="col" className="p-4">Κατάσταση</th>
+                      <th scope="col" className="p-4 text-right">Συνολικό Ποσό</th>
+                      <th scope="col" className="p-4 text-center">Ενέργειες</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -734,6 +776,7 @@ export const SuppliersManager: React.FC = () => {
                               onClick={() => setPreviewOrder(ord)}
                               className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                               title="Προεπισκόπηση Παραγγελίας"
+                              aria-label="Προεπισκόπηση Παραγγελίας"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -765,6 +808,7 @@ export const SuppliersManager: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setPreviewSupplier(null)}
+              aria-label="Κλείσιμο"
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -773,7 +817,7 @@ export const SuppliersManager: React.FC = () => {
             {/* Header */}
             <div className="flex items-start space-x-3 pr-8">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg shrink-0 shadow-2xs">
-                <Building2 className="w-6 h-6" />
+                <Building2 aria-hidden="true" className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -792,7 +836,7 @@ export const SuppliersManager: React.FC = () => {
             </div>
 
             {/* Tax & Contact Cards Grid */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Φορολογικα Στοιχεία</p>
                 <p className="font-mono font-bold text-slate-900">ΑΦΜ: {previewSupplier.vat_number || '-'}</p>
@@ -899,13 +943,14 @@ export const SuppliersManager: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
             <button
               onClick={() => setPreviewOrder(null)}
+              aria-label="Κλείσιμο"
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <ShoppingBag className="w-5 h-5 text-indigo-600" />
+              <ShoppingBag aria-hidden="true" className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-extrabold text-slate-900">Δελτίο Παραγγελίας #{previewOrder.order_number}</h2>
             </div>
 
@@ -989,8 +1034,9 @@ export const SuppliersManager: React.FC = () => {
 
             <form onSubmit={handleSaveOrder} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Προμηθευτής</label>
+                <label htmlFor="order-supplier" className="block text-xs font-bold text-slate-700 uppercase mb-1">Προμηθευτής</label>
                 <select
+                  id="order-supplier"
                   value={orderSupplierId}
                   onChange={(e) => setOrderSupplierId(e.target.value)}
                   required
@@ -1004,10 +1050,11 @@ export const SuppliersManager: React.FC = () => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Αρ. Παραγγελίας</label>
+                  <label htmlFor="order-number" className="block text-xs font-bold text-slate-700 uppercase mb-1">Αρ. Παραγγελίας</label>
                   <input
+                    id="order-number"
                     type="text"
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
@@ -1016,8 +1063,9 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ημερομηνία</label>
+                  <label htmlFor="order-date" className="block text-xs font-bold text-slate-700 uppercase mb-1">Ημερομηνία</label>
                   <input
+                    id="order-date"
                     type="date"
                     value={orderDate}
                     onChange={(e) => setOrderDate(e.target.value)}
@@ -1028,8 +1076,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Περιγραφή Ειδών / Ποσότητες</label>
+                <label htmlFor="order-items-desc" className="block text-xs font-bold text-slate-700 uppercase mb-1">Περιγραφή Ειδών / Ποσότητες</label>
                 <textarea
+                  id="order-items-desc"
                   value={orderItemsDesc}
                   onChange={(e) => setOrderItemsDesc(e.target.value)}
                   rows={3}
@@ -1039,10 +1088,11 @@ export const SuppliersManager: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Αναμενόμενη Παράδοση</label>
+                  <label htmlFor="order-expected-delivery" className="block text-xs font-bold text-slate-700 uppercase mb-1">Αναμενόμενη Παράδοση</label>
                   <input
+                    id="order-expected-delivery"
                     type="date"
                     value={orderExpectedDelivery}
                     onChange={(e) => setOrderExpectedDelivery(e.target.value)}
@@ -1050,8 +1100,9 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Συνολικό Ποσό (€)</label>
+                  <label htmlFor="order-amount" className="block text-xs font-bold text-slate-700 uppercase mb-1">Συνολικό Ποσό (€)</label>
                   <input
+                    id="order-amount"
                     type="number"
                     step="0.01"
                     value={orderAmount}
@@ -1063,8 +1114,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Σημειώσεις / Οδηγίες Παράδοσης</label>
+                <label htmlFor="order-notes" className="block text-xs font-bold text-slate-700 uppercase mb-1">Σημειώσεις / Οδηγίες Παράδοσης</label>
                 <input
+                  id="order-notes"
                   type="text"
                   value={orderNotes}
                   onChange={(e) => setOrderNotes(e.target.value)}
@@ -1083,9 +1135,10 @@ export const SuppliersManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                  disabled={isSavingOrder}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Καταχώρηση
+                  {isSavingOrder ? 'Καταχώρηση...' : 'Καταχώρηση'}
                 </button>
               </div>
             </form>
@@ -1109,10 +1162,11 @@ export const SuppliersManager: React.FC = () => {
             )}
 
             <form onSubmit={handleSaveSupplier} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
+                  <label htmlFor="supplier-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
                   <input
+                    id="supplier-code"
                     type="text"
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value)}
@@ -1121,8 +1175,9 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατηγορία</label>
+                  <label htmlFor="supplier-category" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατηγορία</label>
                   <select
+                    id="supplier-category"
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value as Supplier['category'])}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -1137,8 +1192,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Επωνυμία Εταιρείας</label>
+                <label htmlFor="supplier-company-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Επωνυμία Εταιρείας</label>
                 <input
+                  id="supplier-company-name"
                   type="text"
                   value={formCompanyName}
                   onChange={(e) => setFormCompanyName(e.target.value)}
@@ -1149,8 +1205,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Διακριτικός Τίτλος (Προαιρετικό)</label>
+                <label htmlFor="supplier-trade-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Διακριτικός Τίτλος (Προαιρετικό)</label>
                 <input
+                  id="supplier-trade-name"
                   type="text"
                   value={formTradeName}
                   onChange={(e) => setFormTradeName(e.target.value)}
@@ -1159,10 +1216,11 @@ export const SuppliersManager: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ (Προαιρετικό)</label>
+                  <label htmlFor="supplier-vat" className="block text-xs font-bold text-slate-700 uppercase mb-1">ΑΦΜ (Προαιρετικό)</label>
                   <input
+                    id="supplier-vat"
                     type="text"
                     value={formVat}
                     onChange={(e) => setFormVat(e.target.value)}
@@ -1171,8 +1229,9 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔOΥ (Προαιρετικό)</label>
+                  <label htmlFor="supplier-tax-office" className="block text-xs font-bold text-slate-700 uppercase mb-1">ΔOΥ (Προαιρετικό)</label>
                   <input
+                    id="supplier-tax-office"
                     type="text"
                     value={formTaxOffice}
                     onChange={(e) => setFormTaxOffice(e.target.value)}
@@ -1182,10 +1241,11 @@ export const SuppliersManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>
+                  <label htmlFor="supplier-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>
                   <input
+                    id="supplier-phone"
                     type="text"
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
@@ -1194,8 +1254,9 @@ export const SuppliersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email (Προαιρετικό)</label>
+                  <label htmlFor="supplier-email" className="block text-xs font-bold text-slate-700 uppercase mb-1">Email (Προαιρετικό)</label>
                   <input
+                    id="supplier-email"
                     type="email"
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
@@ -1206,8 +1267,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Διεύθυνση (Προαιρετικό)</label>
+                <label htmlFor="supplier-address" className="block text-xs font-bold text-slate-700 uppercase mb-1">Διεύθυνση (Προαιρετικό)</label>
                 <input
+                  id="supplier-address"
                   type="text"
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
@@ -1217,8 +1279,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Αρχικό Υπόλοιπο Οφειλής (€)</label>
+                <label htmlFor="supplier-balance" className="block text-xs font-bold text-slate-700 uppercase mb-1">Αρχικό Υπόλοιπο Οφειλής (€)</label>
                 <input
+                  id="supplier-balance"
                   type="number"
                   step="0.01"
                   value={formBalance}
@@ -1228,8 +1291,9 @@ export const SuppliersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Σημειώσεις</label>
+                <label htmlFor="supplier-notes" className="block text-xs font-bold text-slate-700 uppercase mb-1">Σημειώσεις</label>
                 <textarea
+                  id="supplier-notes"
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   rows={2}
@@ -1248,12 +1312,65 @@ export const SuppliersManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                  disabled={isSavingSupplier}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingSupplier ? 'Ενημέρωση' : 'Αποθήκευση'}
+                  {isSavingSupplier ? 'Αποθήκευση...' : editingSupplier ? 'Ενημέρωση' : 'Αποθήκευση'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Supplier Confirmation Modal */}
+      {supplierToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setSupplierToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Προμηθευτή</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε βέβαιοι ότι θέλετε να διαγράψετε τον προμηθευτή «{supplierToDelete.name}»; Το ιστορικό
+              παραγγελιών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.
+            </p>
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingSupplier}
+                onClick={() => setSupplierToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingSupplier}
+                onClick={handleConfirmDeleteSupplier}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingSupplier ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,12 @@ export const StoresManager: React.FC = () => {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepts, setLoadingDepts] = useState(false);
+  const [deptsLoadError, setDeptsLoadError] = useState<string | null>(null);
+  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+  const [isDeletingStore, setIsDeletingStore] = useState(false);
+  const [deleteStoreError, setDeleteStoreError] = useState<string | null>(null);
+  const [isSavingStore, setIsSavingStore] = useState(false);
+  const [isSavingDept, setIsSavingDept] = useState(false);
 
   // Add / Edit Store Form Modal
   const [showStoreModal, setShowStoreModal] = useState(false);
@@ -49,15 +55,14 @@ export const StoresManager: React.FC = () => {
   const handleSelectStore = async (st: Store) => {
     setSelectedStore(st);
     setLoadingDepts(true);
+    setDeptsLoadError(null);
     try {
       const orgId = organization?.id || 'org_opap_demo';
       const data = await fetchDepartmentsForStore(st.id, orgId);
       setDepartments(data);
     } catch (err) {
-      setDepartments([
-        { id: 'd1', store_id: st.id, organization_id: 'org_opap_demo', code: 'OPAP-MAIN', name: 'Κύρια Αίθουσα ΟΠΑΠ', is_active: true, created_at: new Date().toISOString() },
-        { id: 'd2', store_id: st.id, organization_id: 'org_opap_demo', code: 'VLT-HALL', name: 'Αίθουσα PLAY/VLTs', is_active: true, created_at: new Date().toISOString() },
-      ]);
+      setDepartments([]);
+      setDeptsLoadError('Αποτυχία φόρτωσης τμημάτων για αυτό το κατάστημα. Δοκιμάστε ξανά.');
     } finally {
       setLoadingDepts(false);
     }
@@ -90,23 +95,31 @@ export const StoresManager: React.FC = () => {
     setShowStoreModal(true);
   };
 
-  const handleDeleteStore = async (st: Store, e?: React.MouseEvent) => {
+  const handleDeleteStore = (st: Store, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!window.confirm(`Είστε βέβαιοι ότι θέλετε να διαγράψετε το κατάστημα "${st.name}" (${st.code});`)) {
-      return;
-    }
+    setDeleteStoreError(null);
+    setStoreToDelete(st);
+  };
 
+  const handleConfirmDeleteStore = async () => {
+    if (!storeToDelete) return;
+    setIsDeletingStore(true);
+    setDeleteStoreError(null);
     try {
-      await deleteStoreFromFirestore(st.id);
+      await deleteStoreFromFirestore(storeToDelete.id);
       await refreshStores();
+      setStoreToDelete(null);
     } catch (err: any) {
-      alert(err.message || 'Αποτυχία διαγραφής καταστήματος');
+      setDeleteStoreError(err.message || 'Αποτυχία διαγραφής καταστήματος');
+    } finally {
+      setIsDeletingStore(false);
     }
   };
 
   const handleSaveStore = async (e: React.FormEvent) => {
     e.preventDefault();
     setStoreFormError(null);
+    setIsSavingStore(true);
 
     try {
       if (editingStoreId) {
@@ -141,6 +154,8 @@ export const StoresManager: React.FC = () => {
       setShowStoreModal(false);
     } catch (err: any) {
       setStoreFormError(err.message || 'Αποτυχία αποθήκευσης καταστήματος');
+    } finally {
+      setIsSavingStore(false);
     }
   };
 
@@ -148,6 +163,7 @@ export const StoresManager: React.FC = () => {
     e.preventDefault();
     if (!selectedStore) return;
     setAddDeptError(null);
+    setIsSavingDept(true);
 
     try {
       const orgId = organization?.id || 'org_opap_demo';
@@ -165,6 +181,8 @@ export const StoresManager: React.FC = () => {
       setNewDeptName('');
     } catch (err: any) {
       setAddDeptError(err.message || 'Αποτυχία δημιουργίας τμήματος');
+    } finally {
+      setIsSavingDept(false);
     }
   };
 
@@ -206,8 +224,16 @@ export const StoresManager: React.FC = () => {
               return (
                 <div
                   key={st.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectStore(st)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer group relative ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelectStore(st);
+                    }
+                  }}
+                  className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer group relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isSelected
                       ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
                       : 'bg-white border-slate-200 hover:border-slate-300'
@@ -227,15 +253,17 @@ export const StoresManager: React.FC = () => {
                       <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100">
                         <button
                           onClick={(e) => handleOpenEditModal(st, e)}
-                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
                           title="Επεξεργασία Καταστήματος"
+                          aria-label="Επεξεργασία Καταστήματος"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={(e) => handleDeleteStore(st, e)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
                           title="Διαγραφή Καταστήματος"
+                          aria-label="Διαγραφή Καταστήματος"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -261,7 +289,7 @@ export const StoresManager: React.FC = () => {
         {/* Right Details View */}
         <div className="lg:col-span-2 space-y-6">
           {selectedStore ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-6">
               <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
                 <div>
                   <div className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-md text-xs font-bold font-mono">
@@ -355,6 +383,8 @@ export const StoresManager: React.FC = () => {
 
                 {loadingDepts ? (
                   <p className="text-xs text-slate-400">Φόρτωση τμημάτων...</p>
+                ) : deptsLoadError ? (
+                  <p className="text-xs text-rose-600 font-semibold">{deptsLoadError}</p>
                 ) : departments.length === 0 ? (
                   <p className="text-xs text-slate-400 italic">Δεν έχουν οριστεί τμήματα για αυτό το κατάστημα.</p>
                 ) : (
@@ -368,7 +398,7 @@ export const StoresManager: React.FC = () => {
                           <p className="text-xs font-mono font-bold text-indigo-700">{dept.code}</p>
                           <p className="text-xs font-bold text-slate-900 mt-0.5">{dept.name}</p>
                         </div>
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        <CheckCircle aria-hidden="true" className="w-4 h-4 text-emerald-500" />
                       </div>
                     ))}
                   </div>
@@ -398,10 +428,11 @@ export const StoresManager: React.FC = () => {
             )}
 
             <form onSubmit={handleSaveStore} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
+                  <label htmlFor="store-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
                   <input
+                    id="store-code"
                     type="text"
                     value={storeCode}
                     onChange={(e) => setStoreCode(e.target.value)}
@@ -412,8 +443,9 @@ export const StoresManager: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Πλήθος POS</label>
+                  <label htmlFor="store-pos-count" className="block text-xs font-bold text-slate-700 uppercase mb-1">Πλήθος POS</label>
                   <input
+                    id="store-pos-count"
                     type="number"
                     min="0"
                     max="50"
@@ -426,8 +458,9 @@ export const StoresManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Καταστήματος</label>
+                <label htmlFor="store-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Καταστήματος</label>
                 <input
+                  id="store-name"
                   type="text"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
@@ -438,8 +471,9 @@ export const StoresManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τύπος Καταστήματος</label>
+                <label htmlFor="store-type" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τύπος Καταστήματος</label>
                 <select
+                  id="store-type"
                   value={storeType}
                   onChange={(e) => setStoreType(e.target.value as StoreType)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -453,8 +487,9 @@ export const StoresManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Διεύθυνση</label>
+                <label htmlFor="store-address" className="block text-xs font-bold text-slate-700 uppercase mb-1">Διεύθυνση</label>
                 <input
+                  id="store-address"
                   type="text"
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
@@ -463,10 +498,11 @@ export const StoresManager: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
+                  <label htmlFor="store-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
                   <input
+                    id="store-phone"
                     type="text"
                     value={storePhone}
                     onChange={(e) => setStorePhone(e.target.value)}
@@ -476,8 +512,9 @@ export const StoresManager: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ωράριο</label>
+                  <label htmlFor="store-hours" className="block text-xs font-bold text-slate-700 uppercase mb-1">Ωράριο</label>
                   <input
+                    id="store-hours"
                     type="text"
                     value={storeHours}
                     onChange={(e) => setStoreHours(e.target.value)}
@@ -497,9 +534,10 @@ export const StoresManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                  disabled={isSavingStore}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
+                  {isSavingStore ? 'Αποθήκευση...' : editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
                 </button>
               </div>
             </form>
@@ -521,8 +559,9 @@ export const StoresManager: React.FC = () => {
 
             <form onSubmit={handleCreateDepartment} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Τμήματος</label>
+                <label htmlFor="dept-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Τμήματος</label>
                 <input
+                  id="dept-code"
                   type="text"
                   value={newDeptCode}
                   onChange={(e) => setNewDeptCode(e.target.value)}
@@ -533,8 +572,9 @@ export const StoresManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Τμήματος</label>
+                <label htmlFor="dept-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα Τμήματος</label>
                 <input
+                  id="dept-name"
                   type="text"
                   value={newDeptName}
                   onChange={(e) => setNewDeptName(e.target.value)}
@@ -554,12 +594,68 @@ export const StoresManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                  disabled={isSavingDept}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Προσθήκη Τμήματος
+                  {isSavingDept ? 'Προσθήκη...' : 'Προσθήκη Τμήματος'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Store Confirmation Modal */}
+      {storeToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setStoreToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Καταστήματος</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε βέβαιοι ότι θέλετε να διαγράψετε το κατάστημα «{storeToDelete.name}» ({storeToDelete.code});
+              Η ενέργεια είναι οριστική και επηρεάζει όλα τα τμήματα και τις καταχωρήσεις που συνδέονται με αυτό.
+            </p>
+            {deleteStoreError && (
+              <p className="text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg">{deleteStoreError}</p>
+            )}
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingStore}
+                onClick={() => setStoreToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingStore}
+                onClick={handleConfirmDeleteStore}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingStore ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

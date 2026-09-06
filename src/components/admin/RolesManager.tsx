@@ -18,7 +18,7 @@ export const RolesManager: React.FC = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {roles.map((r) => (
               <div key={r.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
@@ -42,9 +42,9 @@ export const RolesManager: React.FC = () => {
               <table className="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-xl">
                 <thead className="bg-slate-100 text-slate-800 font-bold">
                   <tr>
-                    <th className="p-3 border-b">Module</th>
-                    <th className="p-3 border-b">Κωδικός Δικαιώματος</th>
-                    <th className="p-3 border-b">Περιγραφή</th>
+                    <th scope="col" className="p-3 border-b">Module</th>
+                    <th scope="col" className="p-3 border-b">Κωδικός Δικαιώματος</th>
+                    <th scope="col" className="p-3 border-b">Περιγραφή</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

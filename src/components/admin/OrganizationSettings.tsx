@@ -17,6 +17,7 @@ export const OrganizationSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +134,16 @@ export const OrganizationSettings: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            {billingMessage && (
+              <span className="text-xs font-semibold text-emerald-300">{billingMessage}</span>
+            )}
             <button
               type="button"
-              onClick={() => alert('Το πλάνο σας είναι ήδη Enterprise SaaS Live!')}
+              onClick={() => {
+                setBillingMessage('Το πλάνο σας είναι ήδη Enterprise SaaS Live!');
+                setTimeout(() => setBillingMessage(null), 4000);
+              }}
               className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
             >
               <span>Διαχείριση Τιμολόγησης</span>
@@ -147,7 +154,7 @@ export const OrganizationSettings: React.FC = () => {
       </div>
 
       {/* Main Settings Form */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 max-w-2xl">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 max-w-2xl">
         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center space-x-2">
           <Building2 className="w-4 h-4 text-indigo-600" />
           <span>Εταιρικά & Φορολογικά Στοιχεία</span>
@@ -168,10 +175,11 @@ export const OrganizationSettings: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+            <label htmlFor="org-legal-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Εταιρική Επωνυμία (Legal Name)
             </label>
             <input
+              id="org-legal-name"
               type="text"
               value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
@@ -181,10 +189,11 @@ export const OrganizationSettings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+            <label htmlFor="org-trade-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Διακριτικός Τίτλος (Trade Name)
             </label>
             <input
+              id="org-trade-name"
               type="text"
               value={tradeName}
               onChange={(e) => setTradeName(e.target.value)}
@@ -193,12 +202,13 @@ export const OrganizationSettings: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <label htmlFor="org-vat" className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 ΑΦΜ (VAT Number)
               </label>
               <input
+                id="org-vat"
                 type="text"
                 value={organization?.vat_number || ''}
                 disabled
@@ -207,10 +217,11 @@ export const OrganizationSettings: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <label htmlFor="org-tax-office" className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 ΔΟΫ (Tax Office)
               </label>
               <input
+                id="org-tax-office"
                 type="text"
                 value={taxOffice}
                 onChange={(e) => setTaxOffice(e.target.value)}
@@ -220,10 +231,11 @@ export const OrganizationSettings: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+            <label htmlFor="org-address" className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Έδρα / Διεύθυνση
             </label>
             <input
+              id="org-address"
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -231,12 +243,13 @@ export const OrganizationSettings: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <label htmlFor="org-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Τηλέφωνο Επικοινωνίας
               </label>
               <input
+                id="org-phone"
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -245,10 +258,11 @@ export const OrganizationSettings: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <label htmlFor="org-email" className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Email Επικοινωνίας
               </label>
               <input
+                id="org-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

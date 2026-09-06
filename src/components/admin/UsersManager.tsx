@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, UserX, AlertCircle } from 'lucide-react';
+import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
@@ -40,6 +40,12 @@ export const UsersManager: React.FC = () => {
   const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE' | 'PENDING'>('ACTIVE');
   const [editStoreIds, setEditStoreIds] = useState<string[]>([]);
   const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const openEditModal = (u: any) => {
     setEditingUser(u);
@@ -60,6 +66,7 @@ export const UsersManager: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
     setEditError(null);
+    setIsSavingUser(true);
 
     try {
       const assignedStoresList = stores
@@ -86,18 +93,29 @@ export const UsersManager: React.FC = () => {
       await fetchUsers();
     } catch (err: any) {
       setEditError(err.message || 'Αποτυχία ενημέρωσης χρήστη');
+    } finally {
+      setIsSavingUser(false);
     }
   };
 
-  const handleDeleteUser = async (u: any) => {
-    if (window.confirm(`Είστε βέβαιοι ότι θέλετε να διαγράψετε τον εργαζόμενο "${u.first_name} ${u.last_name}";`)) {
-      try {
-        await deleteUserInFirestore(u.id);
-        setSuccessNotification(`Ο εργαζόμενος "${u.first_name} ${u.last_name}" διαγράφηκε επιτυχώς.`);
-        await fetchUsers();
-      } catch (err: any) {
-        alert(err.message || 'Αποτυχία διαγραφής εργαζομένου');
-      }
+  const handleDeleteUser = (u: any) => {
+    setDeleteUserError(null);
+    setUserToDelete(u);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    setDeleteUserError(null);
+    try {
+      await deleteUserInFirestore(userToDelete.id);
+      setSuccessNotification(`Ο εργαζόμενος "${userToDelete.first_name} ${userToDelete.last_name}" διαγράφηκε επιτυχώς.`);
+      await fetchUsers();
+      setUserToDelete(null);
+    } catch (err: any) {
+      setDeleteUserError(err.message || 'Αποτυχία διαγραφής εργαζομένου');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -128,6 +146,7 @@ export const UsersManager: React.FC = () => {
     }
 
     setInviteError(null);
+    setIsInviting(true);
 
     try {
       // Creates both the Supabase Auth account and the users profile row
@@ -174,6 +193,8 @@ export const UsersManager: React.FC = () => {
       setSelectedStoreIds([]);
     } catch (err: any) {
       setInviteError(err.message || 'Αποτυχία πρόσκλησης χρήστη');
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -189,19 +210,20 @@ export const UsersManager: React.FC = () => {
     <div className="space-y-6">
       {/* Last Invite Info Copy Box */}
       {lastInviteInfo && (
-        <div className="p-4 bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-2xl shadow-xs space-y-3">
+        <div className="p-4 bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+              <CheckCircle2 aria-hidden="true" className="w-5 h-5 text-indigo-600 flex-shrink-0" />
               <span className="font-bold text-sm">
                 Στοιχεία Πρόσκλησης Εργαζομένου: {lastInviteInfo.name} ({lastInviteInfo.email})
               </span>
             </div>
             <button
               onClick={() => setLastInviteInfo(null)}
+              aria-label="Κλείσιμο"
               className="text-indigo-600 hover:text-indigo-900 font-bold text-xs cursor-pointer"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -218,12 +240,13 @@ export const UsersManager: React.FC = () => {
                 navigator.clipboard.writeText(
                   `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΟρίστε τον κωδικό πρόσβασής σας εδώ: ${lastInviteInfo.inviteLink}`
                 );
-                alert('Ο σύνδεσμος πρόσκλησης αντιγράφηκε στο πρόχειρο!');
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2500);
               }}
               className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Αντιγραφή Συνδέσμου Πρόσκλησης</span>
+              <Send aria-hidden="true" className="w-3.5 h-3.5" />
+              <span>{linkCopied ? 'Αντιγράφηκε!' : 'Αντιγραφή Συνδέσμου Πρόσκλησης'}</span>
             </button>
             <p className="text-[11px] text-slate-500">
               * Ο χρήστης έλαβε επίσης αυτόματο email με τον ίδιο σύνδεσμο.
@@ -236,14 +259,15 @@ export const UsersManager: React.FC = () => {
       {successNotification && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 aria-hidden="true" className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             <span>{successNotification}</span>
           </div>
           <button
             onClick={() => setSuccessNotification(null)}
+            aria-label="Κλείσιμο"
             className="text-emerald-700 hover:text-emerald-900 font-bold ml-4 cursor-pointer"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -276,7 +300,7 @@ export const UsersManager: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-slate-400 text-sm">Φόρτωση χρηστών...</div>
         ) : users.length === 0 ? (
@@ -286,12 +310,12 @@ export const UsersManager: React.FC = () => {
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider border-b border-slate-200">
                 <tr>
-                  <th className="p-4">Χρήστης</th>
-                  <th className="p-4">Επικοινωνία</th>
-                  <th className="p-4">Ρόλος Οργανισμού</th>
-                  <th className="p-4">Ανατεθειμένα Καταστήματα</th>
-                  <th className="p-4">Κατάσταση</th>
-                  <th className="p-4 text-center">Ενέργειες</th>
+                  <th scope="col" className="p-4">Χρήστης</th>
+                  <th scope="col" className="p-4">Επικοινωνία</th>
+                  <th scope="col" className="p-4">Ρόλος Οργανισμού</th>
+                  <th scope="col" className="p-4">Ανατεθειμένα Καταστήματα</th>
+                  <th scope="col" className="p-4">Κατάσταση</th>
+                  <th scope="col" className="p-4 text-center">Ενέργειες</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -380,6 +404,7 @@ export const UsersManager: React.FC = () => {
                           onClick={() => openEditModal(u)}
                           className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                           title="Επεξεργασία Εργαζομένου"
+                          aria-label="Επεξεργασία Εργαζομένου"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -387,6 +412,7 @@ export const UsersManager: React.FC = () => {
                           onClick={() => handleDeleteUser(u)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Διαγραφή Εργαζομένου"
+                          aria-label="Διαγραφή Εργαζομένου"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -413,10 +439,11 @@ export const UsersManager: React.FC = () => {
             )}
 
             <form onSubmit={handleInviteUser} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
+                  <label htmlFor="invite-first-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
                   <input
+                    id="invite-first-name"
                     type="text"
                     value={inviteFirstName}
                     onChange={(e) => setInviteFirstName(e.target.value)}
@@ -426,8 +453,9 @@ export const UsersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Επώνυμο</label>
+                  <label htmlFor="invite-last-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Επώνυμο</label>
                   <input
+                    id="invite-last-name"
                     type="text"
                     value={inviteLastName}
                     onChange={(e) => setInviteLastName(e.target.value)}
@@ -439,8 +467,9 @@ export const UsersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                <label htmlFor="invite-email" className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
                 <input
+                  id="invite-email"
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
@@ -451,8 +480,9 @@ export const UsersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>
+                <label htmlFor="invite-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>
                 <input
+                  id="invite-phone"
                   type="text"
                   value={invitePhone}
                   onChange={(e) => setInvitePhone(e.target.value)}
@@ -462,8 +492,9 @@ export const UsersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ρόλος Χρήστη</label>
+                <label htmlFor="invite-role" className="block text-xs font-bold text-slate-700 uppercase mb-1">Ρόλος Χρήστη</label>
                 <select
+                  id="invite-role"
                   value={inviteRoleCode}
                   onChange={(e) => setInviteRoleCode(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -476,10 +507,10 @@ export const UsersManager: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <fieldset>
+                <legend className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Ανατεθειμένα Καταστήματα ({selectedStoreIds.length})
-                </label>
+                </legend>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2.5 bg-slate-50">
                   {stores.map((st) => {
                     const isChecked = selectedStoreIds.includes(st.id);
@@ -499,7 +530,7 @@ export const UsersManager: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
 
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
                 <button
@@ -511,9 +542,10 @@ export const UsersManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer"
+                  disabled={isInviting}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Προσθήκη Χρήστη
+                  {isInviting ? 'Αποστολή...' : 'Προσθήκη Χρήστη'}
                 </button>
               </div>
             </form>
@@ -534,10 +566,11 @@ export const UsersManager: React.FC = () => {
             )}
 
             <form onSubmit={handleUpdateUser} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
+                  <label htmlFor="edit-first-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
                   <input
+                    id="edit-first-name"
                     type="text"
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
@@ -546,8 +579,9 @@ export const UsersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Επώνυμο</label>
+                  <label htmlFor="edit-last-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Επώνυμο</label>
                   <input
+                    id="edit-last-name"
                     type="text"
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
@@ -557,10 +591,11 @@ export const UsersManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Εργαζομένου</label>
+                  <label htmlFor="edit-employee-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Εργαζομένου</label>
                   <input
+                    id="edit-employee-code"
                     type="text"
                     value={editEmployeeCode}
                     onChange={(e) => setEditEmployeeCode(e.target.value)}
@@ -569,8 +604,9 @@ export const UsersManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
+                  <label htmlFor="edit-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο</label>
                   <input
+                    id="edit-phone"
                     type="text"
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
@@ -581,8 +617,9 @@ export const UsersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ρόλος Εργαζομένου</label>
+                <label htmlFor="edit-role" className="block text-xs font-bold text-slate-700 uppercase mb-1">Ρόλος Εργαζομένου</label>
                 <select
+                  id="edit-role"
                   value={editRoleCode}
                   onChange={(e) => setEditRoleCode(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -596,8 +633,9 @@ export const UsersManager: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατάσταση Χρήστη</label>
+                <label htmlFor="edit-status" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατάσταση Χρήστη</label>
                 <select
+                  id="edit-status"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as any)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
@@ -607,10 +645,10 @@ export const UsersManager: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              <fieldset>
+                <legend className="block text-xs font-bold text-slate-700 uppercase mb-1">
                   Ανατεθειμένα Καταστήματα ({editStoreIds.length})
-                </label>
+                </legend>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2.5 bg-slate-50">
                   {stores.map((st) => {
                     const isChecked = editStoreIds.includes(st.id);
@@ -636,7 +674,7 @@ export const UsersManager: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
 
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
                 <button
@@ -648,12 +686,68 @@ export const UsersManager: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+                  disabled={isSavingUser}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Αποθήκευση Αλλαγών
+                  {isSavingUser ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div
+          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
+          onClick={() => setUserToDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Εργαζομένου</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Είστε βέβαιοι ότι θέλετε να διαγράψετε τον εργαζόμενο «{userToDelete.first_name} {userToDelete.last_name}»;
+              Η ενέργεια είναι οριστική και αφαιρεί την πρόσβασή του στην εφαρμογή.
+            </p>
+            {deleteUserError && (
+              <p className="text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg">{deleteUserError}</p>
+            )}
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={handleConfirmDeleteUser}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Διαγραφή...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ναι, Διαγραφή</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
