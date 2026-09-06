@@ -172,7 +172,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
 
         {/* Counter Stepper Row */}
         <div
-          className={`flex items-center p-1 rounded-xl border shadow-2xs transition-all gap-2 ${
+          className={`flex items-center p-0.5 rounded-xl border shadow-2xs transition-all gap-0.5 ${
             isDark
               ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
               : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
@@ -182,7 +182,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             type="button"
             disabled={readOnly || qty <= 0}
             onClick={() => updateCount(denom.key, -1)}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-base shrink-0 active:scale-95 transition-all select-none ${
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-base shrink-0 active:scale-95 transition-all select-none ${
               readOnly || qty <= 0
                 ? isDark
                   ? 'bg-slate-900 text-slate-700 cursor-not-allowed'
@@ -197,7 +197,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <Minus className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 min-w-14 flex items-center justify-center px-1">
+          <div className="flex-1 min-w-20 flex items-center justify-center px-1">
             <input
               type="number"
               min="0"
@@ -225,7 +225,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             type="button"
             disabled={readOnly || qty >= MAX_QUANTITY}
             onClick={() => updateCount(denom.key, 1)}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center font-black text-base text-white active:scale-95 transition-all select-none shrink-0 ${
+            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-base text-white active:scale-95 transition-all select-none shrink-0 ${
               readOnly || qty >= MAX_QUANTITY
                 ? 'bg-slate-300 cursor-not-allowed'
                 : `cursor-pointer shadow-2xs ${isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`
@@ -243,7 +243,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => updateCount(denom.key, -qty)}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
                 isDark
                   ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
                   : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
@@ -443,7 +443,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             </div>
 
             {/* Banknotes Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
               {banknotes.map((denom) => renderDenomCard(denom, false))}
             </div>
           </div>
@@ -527,7 +527,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             </div>
 
             {/* Coins Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
               {coins.map((denom) => renderDenomCard(denom, true))}
             </div>
           </div>
