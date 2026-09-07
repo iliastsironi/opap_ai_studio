@@ -1377,24 +1377,26 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           </td>
                         )}
                       </tr>
-                      {isEditing && isLottery && canEditLockedFields && (
+                      {isEditing && canEditLockedFields && (
                         <tr>
                           <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-3 pt-0">
                             <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-lg space-y-2.5">
                               <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">
-                                Ρυθμίσεις Πώλησης Λαχείου
+                                Ρυθμίσεις Καταμέτρησης
                               </p>
                               <div className="flex flex-wrap items-center gap-4">
-                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={isBundleTracked}
-                                    onChange={(e) => handleToggleBundleTracking(row.id, e.target.checked)}
-                                    className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
-                                  />
-                                  <span>Πώληση σε πεντάδες + κομμάτια</span>
-                                </label>
-                                {isBundleTracked && (
+                                {isLottery && (
+                                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={isBundleTracked}
+                                      onChange={(e) => handleToggleBundleTracking(row.id, e.target.checked)}
+                                      className="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                                    />
+                                    <span>Πώληση σε πεντάδες + κομμάτια</span>
+                                  </label>
+                                )}
+                                {isLottery && isBundleTracked && (
                                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                                     <span>Τεμάχια ανά πεντάδα:</span>
                                     <input
@@ -1416,7 +1418,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   <span>Πώληση και από Πίσω πλευρά</span>
                                 </label>
                               </div>
-                              {isBundleTracked && (
+                              {isLottery && isBundleTracked && (
                                 <p className="text-[10px] text-slate-500">
                                   Τιμή ανά κομμάτι: {formatCurrency(row.price)} · Τιμή ανά πεντάδα: {formatCurrency((Number(row.price) || 0) * rowBundleSize)}
                                 </p>
