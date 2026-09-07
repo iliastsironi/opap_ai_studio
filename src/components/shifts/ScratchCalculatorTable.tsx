@@ -15,6 +15,7 @@ import {
   Check,
   AlertCircle,
   AlertTriangle,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -1042,17 +1043,37 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   </span>
                                 )}
                               </div>
-                              {!readOnly && canManage && (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingRowId(row.id)}
-                                  className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
-                                  title="Επεξεργασία ονόματος/τιμής"
-                                  aria-label="Επεξεργασία ονόματος/τιμής"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                              )}
+                              <div className="flex items-center space-x-1 shrink-0">
+                                {/* Dedicated, always-visible entry point to the counting-mode
+                                    panel (Μπροστά/Πίσω, πεντάδες/κομμάτια) - previously only
+                                    reachable by first discovering that the muted, hover-only
+                                    "edit name/price" pencil also happened to reveal it. Same
+                                    editingRowId state as the pencil below (both open the same
+                                    combined edit row), just a second, clearly-labeled way in. */}
+                                {!readOnly && canEditLockedFields && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRowId(row.id)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer text-[10px] font-bold"
+                                    title="Ρυθμίσεις Καταμέτρησης (Μπροστά/Πίσω, Πεντάδες/Κομμάτια)"
+                                    aria-label="Ρυθμίσεις Καταμέτρησης"
+                                  >
+                                    <Settings2 className="w-3 h-3" />
+                                    <span className="hidden sm:inline">Ρυθμίσεις</span>
+                                  </button>
+                                )}
+                                {!readOnly && canManage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRowId(row.id)}
+                                    className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
+                                    title="Επεξεργασία ονόματος/τιμής"
+                                    aria-label="Επεξεργασία ονόματος/τιμής"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           )}
                         </td>
