@@ -46,6 +46,10 @@ export interface ScratchTicketRow {
   // so every row that predates this toggle keeps behaving exactly as it
   // always did until an Owner/Admin explicitly changes it.
   backSideEnabled?: boolean;
+  // Explicit mode discriminator - see getCountingMode. Never inferred as
+  // 'manual' (only ever set explicitly, e.g. on the e-Λαϊκό preset), so no
+  // row saved before this field existed can be misclassified by it.
+  countingMode?: 'range' | 'bundle' | 'manual';
 }
 
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
@@ -79,6 +83,11 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   // price is PER PIECE for a bundle-tracked row (see isBundleTrackedRow) -
   // €2/piece x 5 pieces/bundle = €10/bundle, matching the real product.
   { id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 2, startNo: '', endNo: '', bundleSize: 5 },
+  // No pack/position tracking - the employee just types how many were sold
+  // this shift. category must keep matching isLotteryRow's "λαχεί" test
+  // (the name "e-Λαϊκό" alone does not) so this stays back-side-off by the
+  // same default as every other Λαχεία row.
+  { id: 'scr_elaiko', name: 'e-Λαϊκό', category: 'Λαχεία', price: 10, startNo: '', endNo: '', countingMode: 'manual' },
   { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
   { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
   { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
@@ -236,6 +245,7 @@ export function carryOverScratchInventory(
         manualQty: '',
         bundleSize: prev.bundleSize,
         backSideEnabled: prev.backSideEnabled,
+        countingMode: prev.countingMode,
         saleBundles: '',
         salePieces: '',
       });
@@ -278,6 +288,20 @@ export function isLotteryRow(row: ScratchTicketRow): boolean {
 
 export function isBundleTrackedRow(row: ScratchTicketRow): boolean {
   return !!row.bundleSize && row.bundleSize > 0;
+}
+
+// The three counting modes are mutually exclusive and must be read through
+// this function, not inferred ad hoc from which optional fields happen to
+// be set - manualQty (unlike bundleSize/backSideEnabled) is a per-entry
+// value that's legitimately empty most of the shift regardless of mode, so
+// "manualQty is set" cannot mean "this is a manual row" the way "bundleSize
+// is set" can mean "this is a bundle row". countingMode is the single
+// source of truth for that; undefined falls back to the pre-existing
+// bundle-vs-range inference so every row saved before this field existed
+// keeps behaving exactly as it always did.
+export function getCountingMode(row: ScratchTicketRow): 'range' | 'bundle' | 'manual' {
+  if (row.countingMode) return row.countingMode;
+  return isBundleTrackedRow(row) ? 'bundle' : 'range';
 }
 
 // Whether a row has a Πίσω (back) side to sell from at all. Falls back to
@@ -395,7 +419,8 @@ export function formatTicketNumber(raw: string | number | undefined): string {
 // clamped to 0 if invalid/reversed). Empty Τελικό = no sale recorded yet,
 // never a fabricated 0-turns-negative or phantom sale.
 export function calculateRowQty(row: ScratchTicketRow): number {
-  if (row.manualQty !== undefined && row.manualQty !== '') {
+  if (getCountingMode(row) === 'manual') {
+    if (row.manualQty === undefined || row.manualQty === '') return 0;
     const q = parseInt(row.manualQty, 10);
     return isNaN(q) || q < 0 ? 0 : q;
   }
@@ -484,6 +509,11 @@ export interface ScratchRowValidationResult {
 // the UI (inline feedback) and before persisting (defense in depth).
 export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationResult {
   const errors: string[] = [];
+  // Checked before the category-based lottery skip below: a manual-mode row
+  // priced at e.g. €10 (300/10 = 30, a valid pieceCount) would otherwise
+  // reach and pass the pack-size checks further down, which make no sense
+  // for a product with no start/end pack position at all.
+  if (getCountingMode(row) === 'manual') return { errors, isValid: true };
   if (isLotteryRow(row)) return { errors, isValid: true };
 
   const pieceCount = getPackagePieceCount(row.price);
@@ -759,7 +789,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const grandTotalSales = scratchSales + lotterySales;
   const rowValidationErrors = new Map<string, string[]>();
   for (const r of rows) {
-    const errors = isBundleTrackedRow(r) ? validateBundleSaleEntry(r).errors : validateScratchRow(r).errors;
+    const mode = getCountingMode(r);
+    const errors = mode === 'bundle' ? validateBundleSaleEntry(r).errors : mode === 'manual' ? [] : validateScratchRow(r).errors;
     if (errors.length > 0) rowValidationErrors.set(r.id, errors);
   }
 
@@ -948,6 +979,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   {catRows.map((row) => {
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
+                    const isManual = getCountingMode(row) === 'manual';
                     const rowHasBackSide = hasBackSide(row);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
@@ -1057,6 +1089,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Μπροστά - Αρχικό (Locked for regular employee, editable by Owner/Admin when override active) */}
                         <td className="p-2 text-center bg-indigo-50/20">
+                          {isManual ? (
+                            <span className="text-slate-300 text-xs">—</span>
+                          ) : (
                           <div className="relative inline-block w-full max-w-[100px]">
                             <input
                               type="text"
@@ -1109,6 +1144,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               </span>
                             )}
                           </div>
+                          )}
                         </td>
 
                         {/* Μπροστά - Τελικό: for bundle-tracked rows (Λαϊκό Λαχείο), the User enters
@@ -1116,7 +1152,24 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             endNo gets computed automatically (handleUpdateBundleSale), keeping its
                             existing "remaining after" meaning unchanged. */}
                         <td className="p-2 text-center bg-indigo-50/20">
-                          {isBundleTracked ? (
+                          {isManual ? (
+                            <div className="relative inline-block w-full max-w-[100px]">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                disabled={readOnly}
+                                value={row.manualQty || ''}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onChange={(e) => handleUpdateRow(row.id, 'manualQty', e.target.value.replace(/[^0-9]/g, ''))}
+                                placeholder="0"
+                                title="Πλήθος που πωλήθηκε αυτή τη βάρδια"
+                                className="w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700"
+                              />
+                              {frontQty > 0 && (
+                                <span className="text-[10px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                              )}
+                            </div>
+                          ) : isBundleTracked ? (
                             <div className="w-full max-w-[160px] mx-auto space-y-1">
                               {/* Was a single flex row with "×N +" squeezed between the two inputs -
                                   on a narrow rendered column that separator (shrink-0) took priority
@@ -1336,8 +1389,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         {!readOnly && canManage && (
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center space-x-1.5">
-                              {/* Open New Pack button - sets both locked baselines (Μπροστά-Αρχικό, Πίσω-Τελικό), Owner/Admin only */}
-                              {canEditLockedFields && (
+                              {/* Open New Pack button - sets both locked baselines (Μπροστά-Αρχικό, Πίσω-Τελικό), Owner/Admin only. Meaningless for a manual-mode row (no physical pack to number). */}
+                              {canEditLockedFields && !isManual && (
                                 <button
                                   type="button"
                                   onClick={() => {
