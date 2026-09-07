@@ -35,8 +35,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
-import { Shift, ShiftStatus } from '../../types/index.ts';
+import { Shift } from '../../types/index.ts';
 import { ShiftOpeningModal } from './ShiftOpeningModal.tsx';
+import { ShiftStatusBadge } from '../ui/StatusBadge.tsx';
 import { ShiftDetailsModal } from './ShiftDetailsModal.tsx';
 import { ShiftReceiptPrintView } from './ShiftReceiptPrintView.tsx';
 import { safeNum } from '../../services/financialCalculator.ts';
@@ -283,53 +284,6 @@ export const ShiftsManager: React.FC = () => {
     hasPermission('shifts.create') ||
     hasPermission('shifts.view') ||
     true;
-
-  // Status badge helper function (pure Greek uppercase without accents)
-  const renderStatusBadge = (status: ShiftStatus | string) => {
-    switch (status) {
-      case 'APPROVED':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-            {toGreekUpper('Εγκεκριμενη')}
-          </span>
-        );
-      case 'SUBMITTED':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
-            {toGreekUpper('Εκκρεμει Εγκριση')}
-          </span>
-        );
-      case 'CORRECTION_REQUESTED':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span>
-            {toGreekUpper('Αιτημα Διορθωσης')}
-          </span>
-        );
-      case 'OPEN':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span>
-            {toGreekUpper('Ανοιχτη')}
-          </span>
-        );
-      case 'DRAFT_CLOSING':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></span>
-            {toGreekUpper('Προχειρο')}
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            {toGreekUpper(status)}
-          </span>
-        );
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -821,7 +775,9 @@ export const ShiftsManager: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="shrink-0">{renderStatusBadge(s.status)}</div>
+                    <div className="shrink-0">
+                      <ShiftStatusBadge status={s.status} />
+                    </div>
                   </div>
 
                   {/* Card Body - Cashier & Financial Matrix Group */}
@@ -1066,7 +1022,7 @@ export const ShiftsManager: React.FC = () => {
 
                         {/* 9. Κατάσταση */}
                         <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                          {renderStatusBadge(s.status)}
+                          <ShiftStatusBadge status={s.status} />
                         </td>
 
                         {/* 10. Ενέργειες */}
