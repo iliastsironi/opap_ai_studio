@@ -8,6 +8,9 @@ import {
   splitPiecesIntoBundles,
   validateBundleSaleEntry,
   calculateRowTotal,
+  calculateRowQty,
+  getCountingMode,
+  validateScratchRow,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -174,5 +177,73 @@ describe('Λαϊκό Λαχείο bundle/piece dual-unit tracking', () => {
       const scratchRow: ScratchTicketRow = { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '', backSideEnabled: false };
       expect(hasBackSide(scratchRow)).toBe(false);
     });
+  });
+});
+
+// e-Λαϊκό: a third counting mode with no pack/position tracking at all -
+// the employee just types how many were sold this shift. countingMode is
+// an explicit discriminator, not inferred from field presence, because
+// manualQty (unlike bundleSize) is legitimately empty most of the shift
+// regardless of mode - "manualQty happens to be set" cannot mean "this is
+// a manual row" the way "bundleSize is set" can mean "this is a bundle row".
+function elaikoRow(overrides: Partial<ScratchTicketRow> = {}): ScratchTicketRow {
+  return {
+    id: 'scr_elaiko', name: 'e-Λαϊκό', category: 'Λαχεία', price: 10,
+    startNo: '', endNo: '', countingMode: 'manual',
+    ...overrides,
+  };
+}
+
+describe('getCountingMode (explicit discriminator, falls back to legacy inference)', () => {
+  it('every row saved before this field existed infers exactly as isBundleTrackedRow already said', () => {
+    expect(getCountingMode(laikoRow())).toBe('bundle');
+    expect(getCountingMode({ id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '' })).toBe('range');
+  });
+
+  it('an explicit countingMode always wins, regardless of bundleSize', () => {
+    expect(getCountingMode(elaikoRow())).toBe('manual');
+    expect(getCountingMode(elaikoRow({ countingMode: 'range' }))).toBe('range');
+  });
+
+  it('manual is never inferred - only ever set explicitly - so no legacy row can be misread as manual', () => {
+    const legacyRow: ScratchTicketRow = { id: 'x', name: 'X', category: 'Λαχεία', price: 10, startNo: '', endNo: '' };
+    expect(getCountingMode(legacyRow)).not.toBe('manual');
+  });
+});
+
+describe('e-Λαϊκό manual counting mode', () => {
+  it('row total is manualQty x price, with no start/end pack math involved', () => {
+    const row = elaikoRow({ manualQty: '7' });
+    expect(calculateRowQty(row)).toBe(7);
+    expect(calculateRowTotal(row)).toBe(70);
+  });
+
+  it('an empty or unset manualQty counts as zero sold, not a fabricated sale', () => {
+    expect(calculateRowQty(elaikoRow({ manualQty: '' }))).toBe(0);
+    expect(calculateRowQty(elaikoRow({ manualQty: undefined }))).toBe(0);
+  });
+
+  it('a stray manualQty on a non-manual row is ignored - the mode gate, not field presence, decides', () => {
+    // Before this fix, calculateRowQty checked manualQty first regardless of
+    // mode - a Σκρατς or bundle row with a leftover manualQty value would
+    // have silently bypassed all its normal start/end or bundle math.
+    const scratchRow: ScratchTicketRow = {
+      id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5,
+      startNo: '10', endNo: '15', manualQty: '999',
+    };
+    expect(calculateRowQty(scratchRow)).toBe(5); // 15 - 10, manualQty ignored
+  });
+
+  it('has no back side by default, same as every other Λαχεία row', () => {
+    expect(hasBackSide(elaikoRow())).toBe(false);
+  });
+
+  it('validateScratchRow short-circuits for manual mode even at a price that cleanly divides the 300 face-value constant', () => {
+    // getPackagePieceCount(10) = 300/10 = 30, a valid integer - without the
+    // explicit mode guard (checked before the category-based lottery skip),
+    // a manual-mode row at this price could reach and pass pack-size checks
+    // that make no sense for a product with no physical pack at all.
+    const result = validateScratchRow(elaikoRow({ manualQty: '999' }));
+    expect(result).toEqual({ errors: [], isValid: true });
   });
 });

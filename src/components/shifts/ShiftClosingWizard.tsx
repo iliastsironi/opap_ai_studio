@@ -271,6 +271,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             // the current catalog only for a row untouched in this shift.
             bundleSize: match.bundleSize !== undefined ? match.bundleSize : item.bundleSize,
             backSideEnabled: match.backSideEnabled !== undefined ? match.backSideEnabled : item.backSideEnabled,
+            countingMode: match.countingMode !== undefined ? match.countingMode : item.countingMode,
           });
         } else {
           merged.push(item);
