@@ -26,7 +26,7 @@ import { Shift, ShiftTemplateConfig } from '../../types/index.ts';
 import { safeNum, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { DEFAULT_OPAP_SHIFT_TEMPLATE } from '../../services/shiftTemplateService.ts';
-import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isLotteryRow, isBundleTrackedRow, parseNonNegativeInt, splitPiecesIntoBundles } from './ScratchCalculatorTable.tsx';
+import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isBundleTrackedRow, getCountingMode, hasBackSide, parseNonNegativeInt, splitPiecesIntoBundles } from './ScratchCalculatorTable.tsx';
 
 interface ShiftLedgerSheetProps {
   shift?: Partial<Shift>;
@@ -592,7 +592,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                     <span className="text-right">Σύνολο (€)</span>
                   </div>
                   {savedScratchItems.map((item: any, idx: number) => {
-                    const lottery = isLotteryRow(item);
+                    const isManual = getCountingMode(item) === 'manual';
                     const qty = calculateRowQty(item) + calculateBackRowQty(item);
                     const rowTotal = calculateRowTotal(item);
                     const bundleTracked = isBundleTrackedRow(item);
@@ -603,10 +603,10 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                     return (
                       <div key={item.id || idx} className="grid grid-cols-7 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
                         <span className="col-span-2 font-bold font-sans text-slate-900">{item.name} ({item.price}€)</span>
-                        <span className="text-center text-slate-600">{item.startNo !== '' ? item.startNo : '-'}</span>
-                        <span className="text-center text-slate-600">{item.endNo !== '' ? item.endNo : '-'}</span>
-                        <span className="text-center text-slate-600">{lottery ? '—' : (item.backStartNo || '-')}</span>
-                        <span className="text-center text-slate-600">{lottery ? '—' : (item.backEndNo || '-')}</span>
+                        <span className="text-center text-slate-600">{isManual ? '—' : (item.startNo !== '' ? item.startNo : '-')}</span>
+                        <span className="text-center text-slate-600">{isManual ? (item.manualQty || '-') : (item.endNo !== '' ? item.endNo : '-')}</span>
+                        <span className="text-center text-slate-600">{!hasBackSide(item) ? '—' : (item.backStartNo || '-')}</span>
+                        <span className="text-center text-slate-600">{!hasBackSide(item) ? '—' : (item.backEndNo || '-')}</span>
                         <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? formatCurrency(rowTotal) : '-'}</span>
                         {qty > 0 && (
                           <span className="col-span-7 text-[10px] text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
