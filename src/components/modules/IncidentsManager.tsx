@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, CheckCircle, Search } from 'lucide-react';
+import { AlertTriangle, Plus, CheckCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -17,6 +17,12 @@ export const IncidentsManager: React.FC = () => {
   const [incidents, setIncidents] = useState<IncidentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const INCIDENTS_PAGE_SIZE = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // New Incident Modal
   const [showModal, setShowModal] = useState(false);
@@ -84,12 +90,16 @@ export const IncidentsManager: React.FC = () => {
     }
   };
 
-  const filtered = incidents.filter(
+  const filteredIncidents = incidents.filter(
     (inc) =>
       inc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inc.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / INCIDENTS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedIncidents = filteredIncidents.slice((pageSafe - 1) * INCIDENTS_PAGE_SIZE, pageSafe * INCIDENTS_PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -152,14 +162,14 @@ export const IncidentsManager: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.length === 0 ? (
+              {filteredIncidents.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic">
                     Δεν βρέθηκαν καταγεγραμμένα συμβάντα.
                   </td>
                 </tr>
               ) : (
-                filtered.map((inc) => (
+                paginatedIncidents.map((inc) => (
                   <tr key={inc.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{inc.id}</p>
@@ -214,6 +224,36 @@ export const IncidentsManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {filteredIncidents.length > INCIDENTS_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * INCIDENTS_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * INCIDENTS_PAGE_SIZE, filteredIncidents.length)} από {filteredIncidents.length} συμβάντα
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New Incident Modal */}
       <Modal

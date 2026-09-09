@@ -1,20 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { History, ShieldAlert, User, Clock, Terminal } from 'lucide-react';
+import { History, ShieldAlert, User, Clock, Terminal, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { AuditLog } from '../../types/index.js';
-import { fetchAuditLogsFromFirestore } from '../../services/auditLogService.ts';
+import { fetchAuditLogsFromFirestore, AUDIT_LOGS_PAGE_SIZE } from '../../services/auditLogService.ts';
 
 export const AuditLogViewer: React.FC = () => {
   const { organization } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const fetchAuditLogs = async () => {
+  const totalPages = Math.max(1, Math.ceil(totalCount / AUDIT_LOGS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+
+  const fetchAuditLogs = async (page: number) => {
     if (!organization?.id) return;
     setLoading(true);
     try {
-      const data = await fetchAuditLogsFromFirestore(organization.id);
+      const { logs: data, totalCount: count } = await fetchAuditLogsFromFirestore(organization.id, page);
       setLogs(data);
+      setTotalCount(count);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
     } finally {
@@ -23,8 +29,16 @@ export const AuditLogViewer: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchAuditLogs();
-  }, [organization?.id]);
+    fetchAuditLogs(pageSafe);
+  }, [organization?.id, pageSafe]);
+
+  const handleRefresh = () => {
+    if (currentPage === 1) {
+      fetchAuditLogs(1);
+    } else {
+      setCurrentPage(1);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -40,7 +54,7 @@ export const AuditLogViewer: React.FC = () => {
         </div>
 
         <button
-          onClick={fetchAuditLogs}
+          onClick={handleRefresh}
           className="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
         >
           Ανανέωση
@@ -88,6 +102,36 @@ export const AuditLogViewer: React.FC = () => {
           </div>
         )}
       </div>
+
+      {totalCount > AUDIT_LOGS_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * AUDIT_LOGS_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * AUDIT_LOGS_PAGE_SIZE, totalCount)} από {totalCount} καταγραφές
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={loading || pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={loading || pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

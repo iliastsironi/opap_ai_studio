@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X } from 'lucide-react';
+import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
@@ -14,6 +14,8 @@ export const UsersManager: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<Role[]>(DEMO_ROLES);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const USERS_PAGE_SIZE = 20;
 
   // Invite Modal
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -208,6 +210,10 @@ export const UsersManager: React.FC = () => {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(users.length / USERS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedUsers = users.slice((pageSafe - 1) * USERS_PAGE_SIZE, pageSafe * USERS_PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Last Invite Info Copy Box */}
@@ -321,7 +327,7 @@ export const UsersManager: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {users.map((u) => (
+                {paginatedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="p-4 font-medium">
                       <div className="flex items-center space-x-3">
@@ -427,6 +433,36 @@ export const UsersManager: React.FC = () => {
           </div>
         )}
       </div>
+
+      {users.length > USERS_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * USERS_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * USERS_PAGE_SIZE, users.length)} από {users.length} χρήστες
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Invite Modal */}
       <Modal
