@@ -333,6 +333,13 @@ export interface ShiftTemplateConfig {
   show_fnb: boolean;
   show_coins_breakdown: boolean;
   show_notes_breakdown: boolean;
+  // Org/store-level defaults for how never-explicitly-configured Σκρατς/
+  // Λαχεία rows count: front-only vs front+back for Σκρατς, and plain
+  // pieces vs €10 bundles for Λαχεία. A row's own explicit override (set
+  // via the calculator's Ρυθμίσεις Καταμέτρησης panel) always wins - see
+  // applyCountingDefaults in ScratchCalculatorTable.tsx.
+  scratch_backside_default: boolean;
+  lottery_bundle_default: boolean;
   custom_fields: TemplateFieldConfig[];
   updated_at?: string;
 }

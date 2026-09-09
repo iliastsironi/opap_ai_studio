@@ -11,6 +11,7 @@ import {
   calculateRowQty,
   getCountingMode,
   validateScratchRow,
+  applyCountingDefaults,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -245,5 +246,74 @@ describe('e-Λαϊκό manual counting mode', () => {
     // that make no sense for a product with no physical pack at all.
     const result = validateScratchRow(elaikoRow({ manualQty: '999' }));
     expect(result).toEqual({ errors: [], isValid: true });
+  });
+});
+
+// Phase 4: org/store admin defaults (Configurator -> "Καταμέτρηση Σκρατς &
+// Λαχείων"), applied once via ShiftClosingWizard to any row still on its
+// historical hardcoded default. The defaults themselves live on
+// shift_templates (0010_scratch_counting_defaults.sql); this only tests the
+// pure merge function, not the DB round-trip.
+describe('applyCountingDefaults (org/store defaults, never overwrite an explicit value)', () => {
+  const scratchRow = (overrides: Partial<ScratchTicketRow> = {}): ScratchTicketRow => ({
+    id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '',
+    ...overrides,
+  });
+
+  it('fills backSideEnabled on an untouched Σκρατς row from scratch_backside_default', () => {
+    const onResult = applyCountingDefaults([scratchRow()], { scratch_backside_default: true, lottery_bundle_default: false });
+    expect(onResult[0].backSideEnabled).toBe(true);
+
+    const offResult = applyCountingDefaults([scratchRow()], { scratch_backside_default: false, lottery_bundle_default: false });
+    expect(offResult[0].backSideEnabled).toBe(false);
+  });
+
+  it('fills bundleSize on an untouched Λαχεία row from lottery_bundle_default (5 = on, 0 = explicit off)', () => {
+    const untouchedLottery = () => ({ id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow);
+
+    const onResult = applyCountingDefaults([untouchedLottery()], { scratch_backside_default: true, lottery_bundle_default: true });
+    expect(onResult[0].bundleSize).toBe(5);
+
+    const offResult = applyCountingDefaults([untouchedLottery()], { scratch_backside_default: true, lottery_bundle_default: false });
+    expect(offResult[0].bundleSize).toBe(0);
+  });
+
+  it('never overwrites an already-explicit value, including the bundleSize: 0 "explicit off" sentinel', () => {
+    // A manager turned bundle-tracking off on this specific row (bundleSize:
+    // 0, not undefined) - an org default later flipping ON must not
+    // resurrect it, or an admin's per-row "off" would silently reverse
+    // itself the next time the org toggle changes.
+    const explicitlyOff = { ...laikoRow(), bundleSize: 0 };
+    const result = applyCountingDefaults([explicitlyOff, scratchRow({ backSideEnabled: false })], {
+      scratch_backside_default: true,
+      lottery_bundle_default: true,
+    });
+    expect(result[0].bundleSize).toBe(0);
+    expect(result[1].backSideEnabled).toBe(false);
+  });
+
+  it('never touches Λαϊκό Λαχείο - its bundleSize: 5 catalog default reflects real 5-piece packaging, not an admin-configurable default', () => {
+    const result = applyCountingDefaults([laikoRow()], { scratch_backside_default: true, lottery_bundle_default: false });
+    expect(result[0].bundleSize).toBe(5);
+  });
+
+  it('never touches manual-mode rows (e-Λαϊκό) - neither concept applies to a row with no pack tracking', () => {
+    const result = applyCountingDefaults([elaikoRow()], { scratch_backside_default: true, lottery_bundle_default: true });
+    expect(result[0].backSideEnabled).toBeUndefined();
+    expect(result[0].bundleSize).toBeUndefined();
+  });
+
+  it('keeps scratch_backside_default scoped to Σκρατς and lottery_bundle_default scoped to Λαχεία - no cross-category leak', () => {
+    const untouchedLottery = { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow;
+    const result = applyCountingDefaults([scratchRow(), untouchedLottery], {
+      scratch_backside_default: true,
+      lottery_bundle_default: true,
+    });
+    // Σκρατς row: only backSideEnabled gets filled, bundleSize stays untouched (undefined).
+    expect(result[0].backSideEnabled).toBe(true);
+    expect(result[0].bundleSize).toBeUndefined();
+    // Λαχεία row: only bundleSize gets filled, backSideEnabled stays untouched (undefined, so hasBackSide still infers false).
+    expect(result[1].bundleSize).toBe(5);
+    expect(result[1].backSideEnabled).toBeUndefined();
   });
 });

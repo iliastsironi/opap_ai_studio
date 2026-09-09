@@ -312,6 +312,39 @@ export function hasBackSide(row: ScratchTicketRow): boolean {
   return row.backSideEnabled ?? !isLotteryRow(row);
 }
 
+export interface ScratchCountingDefaults {
+  scratch_backside_default: boolean;
+  lottery_bundle_default: boolean;
+}
+
+// Fills in the admin-configured org/store default for backSideEnabled
+// (Σκρατς rows only - scratch_backside_default) and bundleSize (Λαχεία
+// rows only - lottery_bundle_default) on any row that hasn't been
+// explicitly set one way or the other. Never overwrites a value that's
+// already defined, whether that came from a manager's own toggle or a
+// catalog preset that already hardcodes it (e.g. Λαϊκό Λαχείο's
+// bundleSize: 5, which reflects real 5-piece packaging and isn't meant to
+// be admin-configurable at all). Skips manual-mode rows (e-Λαϊκό)
+// entirely - neither concept applies to a row with no pack/position
+// tracking.
+export function applyCountingDefaults(
+  rows: ScratchTicketRow[],
+  defaults: ScratchCountingDefaults
+): ScratchTicketRow[] {
+  return rows.map((row) => {
+    if (getCountingMode(row) === 'manual') return row;
+    const lottery = isLotteryRow(row);
+    let next = row;
+    if (!lottery && row.backSideEnabled === undefined) {
+      next = { ...next, backSideEnabled: defaults.scratch_backside_default };
+    }
+    if (lottery && row.bundleSize === undefined) {
+      next = { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
+    }
+    return next;
+  });
+}
+
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
 // fabricated sale, matches every other empty-field convention in this
 // file). Decimals, negatives, and non-numeric strings all report as
@@ -698,8 +731,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       if (enabled) return { ...r, bundleSize: r.bundleSize || 5 };
       // Turning it off: clear the sale-entry fields too, they're meaningless
       // without a bundle size to normalize against. endNo (the actual
-      // remaining count) is left untouched - it's still valid as a plain reading.
-      return { ...r, bundleSize: undefined, saleBundles: undefined, salePieces: undefined };
+      // remaining count) is left untouched - it's still valid as a plain
+      // reading. bundleSize: 0, not undefined - an explicit sentinel so this
+      // "off" survives an org default later turning bundle-tracking on by
+      // default (applyCountingDefaults only fills in bundleSize when it's
+      // undefined). isBundleTrackedRow/the `|| 5` display fallback/the DB
+      // trigger's NULLIF(...)::INT > 0 check all already treat 0 and
+      // undefined identically, so this is behavior-neutral on its own.
+      return { ...r, bundleSize: 0, saleBundles: undefined, salePieces: undefined };
     });
     onChangeRows(updated);
     saveScratchCatalog(updated);
