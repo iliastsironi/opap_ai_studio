@@ -947,6 +947,75 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 3 (cont.): SCRATCH/LOTTERY COUNTING DEFAULTS */}
+      {activeTab === 'MODULES' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
+              <Calculator className="w-4 h-4 text-indigo-600" />
+              <span>Καταμέτρηση Σκρατς & Λαχείων</span>
+            </h2>
+            <span className="text-xs text-slate-500 font-medium">
+              Προεπιλογή για γραμμές που δεν έχουν ρυθμιστεί χειροκίνητα
+            </span>
+          </div>
+          <p className="text-micro text-slate-500">
+            Ισχύει μόνο σε γραμμές χωρίς δική τους ρύθμιση. Μια χειροκίνητη επιλογή στο «Ρυθμίσεις
+            Καταμέτρησης» μιας συγκεκριμένης γραμμής (στο ίδιο το φύλλο βάρδιας) υπερισχύει πάντα αυτής
+            της προεπιλογής.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              {
+                key: 'scratch_backside_default' as keyof ShiftTemplateConfig,
+                title: 'Σκρατς: Πώληση Μπροστά + Πίσω',
+                desc: 'Ενεργό = νέα Σκρατς μετρώνται και από τις δύο πλευρές. Ανενεργό = μόνο Μπροστά.',
+              },
+              {
+                key: 'lottery_bundle_default' as keyof ShiftTemplateConfig,
+                title: 'Λαχεία: Καταμέτρηση σε Πεντάδες',
+                desc: 'Ενεργό = νέα Λαχεία μετρώνται ως δεσμίδες (πεντάδες/κομμάτια). Ανενεργό = απλά τεμάχια.',
+              },
+            ].map((mod) => {
+              const isEnabled = Boolean(template[mod.key]);
+              return (
+                <div
+                  key={mod.key}
+                  onClick={() => handleToggleModule(mod.key)}
+                  role="switch"
+                  aria-checked={isEnabled}
+                  aria-label={mod.title}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleToggleModule(mod.key);
+                    }
+                  }}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    isEnabled
+                      ? 'bg-indigo-50/50 border-indigo-200'
+                      : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">{mod.title}</h4>
+                    <p className="text-micro text-slate-500 mt-0.5">{mod.desc}</p>
+                  </div>
+
+                  {isEnabled ? (
+                    <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                  ) : (
+                    <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Modal: Add or Edit Custom Field */}
       {showFieldModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">

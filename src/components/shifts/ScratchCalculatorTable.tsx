@@ -15,6 +15,7 @@ import {
   Check,
   AlertCircle,
   AlertTriangle,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -309,6 +310,39 @@ export function getCountingMode(row: ScratchTicketRow): 'range' | 'bundle' | 'ma
 // explicitly set backSideEnabled, so this stays a pure opt-in change.
 export function hasBackSide(row: ScratchTicketRow): boolean {
   return row.backSideEnabled ?? !isLotteryRow(row);
+}
+
+export interface ScratchCountingDefaults {
+  scratch_backside_default: boolean;
+  lottery_bundle_default: boolean;
+}
+
+// Fills in the admin-configured org/store default for backSideEnabled
+// (Σκρατς rows only - scratch_backside_default) and bundleSize (Λαχεία
+// rows only - lottery_bundle_default) on any row that hasn't been
+// explicitly set one way or the other. Never overwrites a value that's
+// already defined, whether that came from a manager's own toggle or a
+// catalog preset that already hardcodes it (e.g. Λαϊκό Λαχείο's
+// bundleSize: 5, which reflects real 5-piece packaging and isn't meant to
+// be admin-configurable at all). Skips manual-mode rows (e-Λαϊκό)
+// entirely - neither concept applies to a row with no pack/position
+// tracking.
+export function applyCountingDefaults(
+  rows: ScratchTicketRow[],
+  defaults: ScratchCountingDefaults
+): ScratchTicketRow[] {
+  return rows.map((row) => {
+    if (getCountingMode(row) === 'manual') return row;
+    const lottery = isLotteryRow(row);
+    let next = row;
+    if (!lottery && row.backSideEnabled === undefined) {
+      next = { ...next, backSideEnabled: defaults.scratch_backside_default };
+    }
+    if (lottery && row.bundleSize === undefined) {
+      next = { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
+    }
+    return next;
+  });
 }
 
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
@@ -697,8 +731,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       if (enabled) return { ...r, bundleSize: r.bundleSize || 5 };
       // Turning it off: clear the sale-entry fields too, they're meaningless
       // without a bundle size to normalize against. endNo (the actual
-      // remaining count) is left untouched - it's still valid as a plain reading.
-      return { ...r, bundleSize: undefined, saleBundles: undefined, salePieces: undefined };
+      // remaining count) is left untouched - it's still valid as a plain
+      // reading. bundleSize: 0, not undefined - an explicit sentinel so this
+      // "off" survives an org default later turning bundle-tracking on by
+      // default (applyCountingDefaults only fills in bundleSize when it's
+      // undefined). isBundleTrackedRow/the `|| 5` display fallback/the DB
+      // trigger's NULLIF(...)::INT > 0 check all already treat 0 and
+      // undefined identically, so this is behavior-neutral on its own.
+      return { ...r, bundleSize: 0, saleBundles: undefined, salePieces: undefined };
     });
     onChangeRows(updated);
     saveScratchCatalog(updated);
@@ -1042,17 +1082,37 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   </span>
                                 )}
                               </div>
-                              {!readOnly && canManage && (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingRowId(row.id)}
-                                  className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
-                                  title="Επεξεργασία ονόματος/τιμής"
-                                  aria-label="Επεξεργασία ονόματος/τιμής"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                              )}
+                              <div className="flex items-center space-x-1 shrink-0">
+                                {/* Dedicated, always-visible entry point to the counting-mode
+                                    panel (Μπροστά/Πίσω, πεντάδες/κομμάτια) - previously only
+                                    reachable by first discovering that the muted, hover-only
+                                    "edit name/price" pencil also happened to reveal it. Same
+                                    editingRowId state as the pencil below (both open the same
+                                    combined edit row), just a second, clearly-labeled way in. */}
+                                {!readOnly && canEditLockedFields && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRowId(row.id)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer text-micro font-bold"
+                                    title="Ρυθμίσεις Καταμέτρησης (Μπροστά/Πίσω, Πεντάδες/Κομμάτια)"
+                                    aria-label="Ρυθμίσεις Καταμέτρησης"
+                                  >
+                                    <Settings2 className="w-3 h-3" />
+                                    <span className="hidden sm:inline">Ρυθμίσεις</span>
+                                  </button>
+                                )}
+                                {!readOnly && canManage && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingRowId(row.id)}
+                                    className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
+                                    title="Επεξεργασία ονόματος/τιμής"
+                                    aria-label="Επεξεργασία ονόματος/τιμής"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           )}
                         </td>

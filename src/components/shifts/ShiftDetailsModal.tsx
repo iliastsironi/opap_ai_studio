@@ -41,6 +41,8 @@ import {
   calculateCombinedRowQty,
   isLotteryRow,
   isBundleTrackedRow,
+  getCountingMode,
+  hasBackSide,
   parseNonNegativeInt,
   splitPiecesIntoBundles,
   ScratchTicketRow,
@@ -709,7 +711,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             {activeItems.map((r, idx) => {
                               const qty = calculateCombinedRowQty(r);
                               const val = calculateRowTotal(r);
-                              const lottery = isLotteryRow(r);
+                              const isManual = getCountingMode(r) === 'manual';
                               const bundleTracked = isBundleTrackedRow(r);
                               const bundleSize = r.bundleSize || 5;
                               const startSplit = bundleTracked ? splitPiecesIntoBundles(parseNonNegativeInt(r.startNo).value, bundleSize) : null;
@@ -726,23 +728,35 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   </td>
                                   <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">
-                                    {r.startNo || '-'}
-                                    {startSplit && (
-                                      <div className="text-micro font-sans font-normal text-amber-500/80 normal-case">
-                                        {startSplit.bundles} πεντ. + {startSplit.pieces} τμχ
-                                      </div>
+                                    {isManual ? (
+                                      <span className="text-slate-500">—</span>
+                                    ) : (
+                                      <>
+                                        {r.startNo || '-'}
+                                        {startSplit && (
+                                          <div className="text-micro font-sans font-normal text-amber-500/80 normal-case">
+                                            {startSplit.bundles} πεντ. + {startSplit.pieces} τμχ
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                   </td>
                                   <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">
-                                    {r.endNo || '-'}
-                                    {endSplit && (
-                                      <div className="text-micro font-sans font-normal text-indigo-400/80 normal-case">
-                                        {endSplit.bundles} πεντ. + {endSplit.pieces} τμχ
-                                      </div>
+                                    {isManual ? (
+                                      r.manualQty || '-'
+                                    ) : (
+                                      <>
+                                        {r.endNo || '-'}
+                                        {endSplit && (
+                                          <div className="text-micro font-sans font-normal text-indigo-400/80 normal-case">
+                                            {endSplit.bundles} πεντ. + {endSplit.pieces} τμχ
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                   </td>
-                                  <td className="py-1.5 px-2 text-center text-slate-300 font-bold">{lottery ? '—' : (r.backStartNo || '-')}</td>
-                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{lottery ? '—' : (r.backEndNo || '-')}</td>
+                                  <td className="py-1.5 px-2 text-center text-slate-300 font-bold">{!hasBackSide(r) ? '—' : (r.backStartNo || '-')}</td>
+                                  <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{!hasBackSide(r) ? '—' : (r.backEndNo || '-')}</td>
                                   <td className="py-1.5 px-2 text-center font-bold text-white">
                                     <span className={qty > 0 ? 'bg-indigo-900/80 px-2 py-0.5 rounded text-indigo-200' : 'text-slate-500'}>
                                       {qty}

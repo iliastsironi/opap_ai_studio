@@ -15,6 +15,11 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   show_fnb: true,
   show_coins_breakdown: true,
   show_notes_breakdown: true,
+  // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
+  // Λαχεία: plain pieces) - existing orgs see zero behavior change until an
+  // owner flips one of these in the Configurator.
+  scratch_backside_default: true,
+  lottery_bundle_default: false,
   custom_fields: [
     // System-Managed Calculation Fields
     {
