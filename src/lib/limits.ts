@@ -11,6 +11,12 @@ export const MAX_DENOMINATION_QUANTITY = 999;
 /** Max value for a single euro-amount field (sales, meters, expenses, etc.). */
 export const MAX_CURRENCY_AMOUNT = 99999.99;
 
+/** Max length for a single-line name, label, code, or title field. */
+export const MAX_LABEL_LENGTH = 100;
+
+/** Max length for a notes, description, or other free-text field. */
+export const MAX_NOTES_LENGTH = 500;
+
 /**
  * Parses a field as a non-negative decimal amount, bounded by `max`. Empty/
  * undefined -> 0 (matches parseNonNegativeInt's convention for empty

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -505,6 +506,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="invite-first-name"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={inviteFirstName}
                     onChange={(e) => setInviteFirstName(e.target.value)}
                     placeholder="Γιώργος"
@@ -517,6 +519,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="invite-last-name"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={inviteLastName}
                     onChange={(e) => setInviteLastName(e.target.value)}
                     placeholder="Παπαδόπουλος"
@@ -531,6 +534,7 @@ export const UsersManager: React.FC = () => {
                 <input
                   id="invite-email"
                   type="email"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="employee@company.gr"
@@ -544,6 +548,7 @@ export const UsersManager: React.FC = () => {
                 <input
                   id="invite-phone"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={invitePhone}
                   onChange={(e) => setInvitePhone(e.target.value)}
                   placeholder="+30 697 0000000"
@@ -636,6 +641,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="edit-first-name"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
                     required
@@ -647,6 +653,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="edit-last-name"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
                     required
@@ -661,6 +668,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="edit-employee-code"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={editEmployeeCode}
                     onChange={(e) => setEditEmployeeCode(e.target.value)}
                     placeholder="EMP-001"
@@ -672,6 +680,7 @@ export const UsersManager: React.FC = () => {
                   <input
                     id="edit-phone"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
                     placeholder="+30 697 0000000"

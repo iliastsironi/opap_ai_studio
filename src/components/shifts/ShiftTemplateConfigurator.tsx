@@ -34,6 +34,7 @@ import {
 } from '../../services/shiftTemplateService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
+import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -1030,6 +1031,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <input
                   id="field-label"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={fieldLabel}
                   onChange={(e) => setFieldLabel(e.target.value)}
                   placeholder="π.χ. Κατάθεση Safe Drop / Έξοδα Καθαριστικών"
@@ -1079,6 +1081,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <input
                   id="field-description"
                   type="text"
+                  maxLength={MAX_NOTES_LENGTH}
                   value={fieldDescription}
                   onChange={(e) => setFieldDescription(e.target.value)}
                   placeholder="π.χ. Ποσό που τοποθετήθηκε στο χρηματοκιβώτιο..."
@@ -1093,6 +1096,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <input
                   id="field-placeholder"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={fieldPlaceholder}
                   onChange={(e) => setFieldPlaceholder(e.target.value)}
                   placeholder="π.χ. 0.00"

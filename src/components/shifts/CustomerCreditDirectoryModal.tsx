@@ -32,6 +32,7 @@ import {
   getCustomerCreditLimit,
 } from '../../services/customerCreditService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -808,6 +809,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   <input
                     id="cust-name"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -823,6 +825,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   <input
                     id="cust-phone"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="π.χ. 697 123 4567"
@@ -902,6 +905,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   <textarea
                     id="cust-notes"
                     rows={2}
+                    maxLength={MAX_NOTES_LENGTH}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="π.χ. Τακτικός παίκτης Joker, εξοφλεί κάθε αρχή του μήνα..."

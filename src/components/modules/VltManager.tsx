@@ -14,6 +14,7 @@ import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -415,6 +416,7 @@ export const VltManager: React.FC = () => {
                 <input
                   id="terminal-code"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   placeholder="π.χ. PLAY-ATH-001"
@@ -429,6 +431,7 @@ export const VltManager: React.FC = () => {
                 <input
                   id="terminal-game"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={formGameTitle}
                   onChange={(e) => setFormGameTitle(e.target.value)}
                   placeholder="π.χ. Sizzling Hot Deluxe"
