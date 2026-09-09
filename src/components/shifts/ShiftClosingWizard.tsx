@@ -40,7 +40,9 @@ import {
   carryOverScratchInventory,
   getLatestStoreScratchInventory,
   saveLatestStoreScratchInventory,
+  applyCountingDefaults,
 } from './ScratchCalculatorTable.tsx';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -294,6 +296,33 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
     return catalog;
   });
+
+  // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
+  // Λαχείων") into any scratch row still on its historical hardcoded
+  // default. Async, so it necessarily runs a tick after scratchRows' own
+  // synchronous initializer above - applyCountingDefaults only ever fills
+  // an undefined field, so this can never clobber a row this shift (or an
+  // earlier explicit toggle carried in via the catalog) has already set.
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+    getShiftTemplateConfig(orgId, shift.store_id)
+      .then((config) => {
+        if (cancelled) return;
+        setScratchRows((prev) =>
+          applyCountingDefaults(prev, {
+            scratch_backside_default: config.scratch_backside_default,
+            lottery_bundle_default: config.lottery_bundle_default,
+          })
+        );
+      })
+      .catch((err) => {
+        console.warn('[ShiftClosingWizard] Could not load scratch counting defaults:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.id, shift.organization_id, shift.store_id, organization?.id]);
 
   // Auto-calculated total from scratch & lottery rows
   const autoCalculatedScratchSales = useMemo(() => {
