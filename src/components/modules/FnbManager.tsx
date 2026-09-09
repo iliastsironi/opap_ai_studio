@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, Trash2, Clock, RefreshCw } from 'lucide-react';
+import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, Trash2, Clock, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchFnbFromFirestore, createFnbInFirestore, deleteFnbInFirestore, FnbRecord } from '../../services/moduleServices.ts';
@@ -17,6 +17,8 @@ export const FnbManager: React.FC = () => {
   const [fnbSales, setFnbSales] = useState<FnbRecord[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const FNB_PAGE_SIZE = 20;
 
   // New Sale Modal
   const [showModal, setShowModal] = useState(false);
@@ -189,6 +191,10 @@ export const FnbManager: React.FC = () => {
 
   const totalSales = cashSales + cardSales;
 
+  const totalPages = Math.max(1, Math.ceil(fnbSales.length / FNB_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedFnbSales = fnbSales.slice((pageSafe - 1) * FNB_PAGE_SIZE, pageSafe * FNB_PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -314,7 +320,7 @@ export const FnbManager: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                fnbSales.map((s) => (
+                paginatedFnbSales.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{s.id}</p>
@@ -345,6 +351,36 @@ export const FnbManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {fnbSales.length > FNB_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * FNB_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * FNB_PAGE_SIZE, fnbSales.length)} από {fnbSales.length} πωλήσεις
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New Sale Modal */}
       <Modal

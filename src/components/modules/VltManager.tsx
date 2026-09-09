@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, RefreshCw, Clock, Plus, Trash2, Pencil } from 'lucide-react';
+import { Gamepad2, RefreshCw, Clock, Plus, Trash2, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
@@ -32,6 +32,8 @@ export const VltManager: React.FC = () => {
   // Terminals - real, persisted rows (manual entry; see moduleServices.ts)
   const [terminals, setTerminals] = useState<VltTerminalRecord[]>([]);
   const [loadingTerminals, setLoadingTerminals] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const TERMINALS_PAGE_SIZE = 20;
 
   // Add/Edit Terminal Modal
   const [showTerminalModal, setShowTerminalModal] = useState(false);
@@ -169,6 +171,10 @@ export const VltManager: React.FC = () => {
   const totalOut = activeShift ? pickNum(activeShift.vlts_out, cashOutAbs, terminalsOut) : terminalsOut;
   const totalNet = totalIn - totalOut;
 
+  const totalPages = Math.max(1, Math.ceil(terminals.length / TERMINALS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedTerminals = terminals.slice((pageSafe - 1) * TERMINALS_PAGE_SIZE, pageSafe * TERMINALS_PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -278,7 +284,7 @@ export const VltManager: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {terminals.map((t) => (
+          {paginatedTerminals.map((t) => (
             <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <div className="flex justify-between items-start">
                 <div>
@@ -334,6 +340,36 @@ export const VltManager: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {terminals.length > TERMINALS_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * TERMINALS_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * TERMINALS_PAGE_SIZE, terminals.length)} από {terminals.length} τερματικά
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 

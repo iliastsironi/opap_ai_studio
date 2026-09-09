@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2 } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
@@ -21,6 +21,12 @@ export const ExpensesManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const EXPENSES_PAGE_SIZE = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -190,6 +196,10 @@ export const ExpensesManager: React.FC = () => {
 
   const totalExpenseAmount = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
 
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / EXPENSES_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedExpenses = filteredExpenses.slice((pageSafe - 1) * EXPENSES_PAGE_SIZE, pageSafe * EXPENSES_PAGE_SIZE);
+
   const getCategoryBadge = (cat: string) => {
     switch (cat) {
       case 'CLEANING':
@@ -338,7 +348,7 @@ export const ExpensesManager: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredExpenses.map((exp) => (
+                paginatedExpenses.map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{exp.id}</p>
@@ -369,6 +379,36 @@ export const ExpensesManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {filteredExpenses.length > EXPENSES_PAGE_SIZE && (
+        <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+          <span>
+            {(pageSafe - 1) * EXPENSES_PAGE_SIZE + 1}-
+            {Math.min(pageSafe * EXPENSES_PAGE_SIZE, filteredExpenses.length)} από {filteredExpenses.length} έξοδα
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={pageSafe <= 1}
+              aria-label="Προηγούμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={pageSafe >= totalPages}
+              aria-label="Επόμενη σελίδα"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New Expense Modal */}
       <Modal

@@ -11,6 +11,7 @@ import {
   Eye,
   Building2,
   Coins,
+  ChevronLeft,
   ChevronRight,
   Printer,
   ShieldCheck,
@@ -139,6 +140,15 @@ export const ShiftsManager: React.FC = () => {
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const SHIFTS_PAGE_SIZE = 20;
+
+  // Reset to page 1 whenever what the user is filtering/searching for
+  // changes - but not on every live-subscription push, which would
+  // otherwise snap the page back on every unrelated shift update org-wide.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStoreFilter, selectedStatusFilter]);
 
   // Modals & Active Wizard
   const [showOpeningModal, setShowOpeningModal] = useState(false);
@@ -238,6 +248,10 @@ export const ShiftsManager: React.FC = () => {
         s.shift_type?.toLowerCase().includes(q)
     );
   }, [shifts, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredShifts.length / SHIFTS_PAGE_SIZE));
+  const pageSafe = Math.min(currentPage, totalPages);
+  const paginatedShifts = filteredShifts.slice((pageSafe - 1) * SHIFTS_PAGE_SIZE, pageSafe * SHIFTS_PAGE_SIZE);
 
   // Key KPI metrics
   const metrics = useMemo(() => {
@@ -737,7 +751,7 @@ export const ShiftsManager: React.FC = () => {
           ) : viewMode === 'CARDS' ? (
             /* Tablet Responsive Grid Cards */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredShifts.map((s) => (
+              {paginatedShifts.map((s) => (
                 <div
                   key={s.id}
                   className={`bg-white rounded-2xl border transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between overflow-hidden ${
@@ -911,7 +925,7 @@ export const ShiftsManager: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-                    {filteredShifts.map((s) => (
+                    {paginatedShifts.map((s) => (
                       <tr
                         key={s.id}
                         onClick={() => setDetailsShift(s)}
@@ -1137,6 +1151,36 @@ export const ShiftsManager: React.FC = () => {
                     </tr>
                   </tfoot>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {filteredShifts.length > SHIFTS_PAGE_SIZE && (
+            <div className="flex items-center justify-between text-xs text-slate-500 font-medium px-1">
+              <span>
+                {(pageSafe - 1) * SHIFTS_PAGE_SIZE + 1}-
+                {Math.min(pageSafe * SHIFTS_PAGE_SIZE, filteredShifts.length)} από {filteredShifts.length} βάρδιες
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={pageSafe <= 1}
+                  aria-label="Προηγούμενη σελίδα"
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={pageSafe >= totalPages}
+                  aria-label="Επόμενη σελίδα"
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
