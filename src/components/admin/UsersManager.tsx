@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const UsersManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -427,18 +429,40 @@ export const UsersManager: React.FC = () => {
       </div>
 
       {/* Invite Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Πρόσκληση Νέου Χρήστη</h2>
-
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        headerStyle="bordered"
+        title="Πρόσκληση Νέου Χρήστη"
+        size="lg"
+        bodyAsForm
+        onSubmit={handleInviteUser}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowInviteModal(false)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={isInviting}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isInviting ? 'Αποστολή...' : 'Προσθήκη Χρήστη'}
+            </button>
+          </>
+        }
+      >
             {inviteError && (
               <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
                 {inviteError}
               </div>
             )}
 
-            <form onSubmit={handleInviteUser} className="space-y-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="invite-first-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
@@ -532,40 +556,44 @@ export const UsersManager: React.FC = () => {
                 </div>
               </fieldset>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isInviting}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isInviting ? 'Αποστολή...' : 'Προσθήκη Χρήστη'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Edit User Modal */}
-      {showEditModal && editingUser && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Επεξεργασία Στοιχείων Εργαζομένου</h2>
-
+      <Modal
+        isOpen={showEditModal && !!editingUser}
+        onClose={() => setShowEditModal(false)}
+        headerStyle="bordered"
+        title="Επεξεργασία Στοιχείων Εργαζομένου"
+        size="lg"
+        bodyAsForm
+        onSubmit={handleUpdateUser}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowEditModal(false)}
+              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingUser}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSavingUser ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
+            </button>
+          </>
+        }
+      >
             {editError && (
               <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
                 {editError}
               </div>
             )}
 
-            <form onSubmit={handleUpdateUser} className="space-y-3.5">
+            <div className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="edit-first-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>
@@ -676,81 +704,29 @@ export const UsersManager: React.FC = () => {
                 </div>
               </fieldset>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingUser}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingUser ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Delete User Confirmation Modal */}
-      {userToDelete && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setUserToDelete(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Εργαζομένου</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Είστε βέβαιοι ότι θέλετε να διαγράψετε τον εργαζόμενο «{userToDelete.first_name} {userToDelete.last_name}»;
-              Η ενέργεια είναι οριστική και αφαιρεί την πρόσβασή του στην εφαρμογή.
-            </p>
+      <ConfirmDialog
+        isOpen={!!userToDelete}
+        onCancel={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDeleteUser}
+        tone="destructive"
+        title="Διαγραφή Εργαζομένου"
+        message={
+          <>
+            Είστε βέβαιοι ότι θέλετε να διαγράψετε τον εργαζόμενο «{userToDelete?.first_name} {userToDelete?.last_name}»;
+            Η ενέργεια είναι οριστική και αφαιρεί την πρόσβασή του στην εφαρμογή.
             {deleteUserError && (
-              <p className="text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg">{deleteUserError}</p>
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteUserError}</p>
             )}
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={isDeletingUser}
-                onClick={() => setUserToDelete(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingUser}
-                onClick={handleConfirmDeleteUser}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isDeletingUser ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Διαγραφή...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Ναι, Διαγραφή</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        }
+        confirmLabel="Ναι, Διαγραφή"
+        isLoading={isDeletingUser}
+        loadingLabel="Διαγραφή..."
+      />
     </div>
   );
 };

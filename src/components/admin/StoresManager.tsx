@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Department, Store, StoreType } from '../../types/index.js';
 import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestore, fetchDepartmentsForStore, createDepartmentInFirestore } from '../../services/storeService.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const StoresManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -414,20 +416,40 @@ export const StoresManager: React.FC = () => {
       </div>
 
       {/* Add / Edit Store Modal */}
-      {showStoreModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">
-              {editingStoreId ? 'Επεξεργασία Καταστήματος' : 'Δημιουργία Νέου Καταστήματος'}
-            </h2>
-
+      <Modal
+        isOpen={showStoreModal}
+        onClose={() => setShowStoreModal(false)}
+        headerStyle="bordered"
+        title={editingStoreId ? 'Επεξεργασία Καταστήματος' : 'Δημιουργία Νέου Καταστήματος'}
+        size="md"
+        bodyAsForm
+        onSubmit={handleSaveStore}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowStoreModal(false)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingStore}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSavingStore ? 'Αποθήκευση...' : editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
+            </button>
+          </>
+        }
+      >
             {storeFormError && (
               <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
                 {storeFormError}
               </div>
             )}
 
-            <form onSubmit={handleSaveStore} className="space-y-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="store-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
@@ -524,40 +546,44 @@ export const StoresManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowStoreModal(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingStore}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingStore ? 'Αποθήκευση...' : editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Add Department Modal */}
-      {showAddDeptModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Προσθήκη Νέου Τμήματος</h2>
-
+      <Modal
+        isOpen={showAddDeptModal}
+        onClose={() => setShowAddDeptModal(false)}
+        headerStyle="bordered"
+        title="Προσθήκη Νέου Τμήματος"
+        size="md"
+        bodyAsForm
+        onSubmit={handleCreateDepartment}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddDeptModal(false)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingDept}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSavingDept ? 'Προσθήκη...' : 'Προσθήκη Τμήματος'}
+            </button>
+          </>
+        }
+      >
             {addDeptError && (
               <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-lg text-xs font-semibold">
                 {addDeptError}
               </div>
             )}
 
-            <form onSubmit={handleCreateDepartment} className="space-y-4">
+            <div className="space-y-4">
               <div>
                 <label htmlFor="dept-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός Τμήματος</label>
                 <input
@@ -584,81 +610,29 @@ export const StoresManager: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddDeptModal(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingDept}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingDept ? 'Προσθήκη...' : 'Προσθήκη Τμήματος'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Delete Store Confirmation Modal */}
-      {storeToDelete && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setStoreToDelete(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Καταστήματος</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Είστε βέβαιοι ότι θέλετε να διαγράψετε το κατάστημα «{storeToDelete.name}» ({storeToDelete.code});
-              Η ενέργεια είναι οριστική και επηρεάζει όλα τα τμήματα και τις καταχωρήσεις που συνδέονται με αυτό.
-            </p>
+      <ConfirmDialog
+        isOpen={!!storeToDelete}
+        onCancel={() => setStoreToDelete(null)}
+        onConfirm={handleConfirmDeleteStore}
+        tone="destructive"
+        title="Διαγραφή Καταστήματος"
+        message={
+          <>
+            Είστε βέβαιοι ότι θέλετε να διαγράψετε το κατάστημα «{storeToDelete?.name}» ({storeToDelete?.code});
+            Η ενέργεια είναι οριστική και επηρεάζει όλα τα τμήματα και τις καταχωρήσεις που συνδέονται με αυτό.
             {deleteStoreError && (
-              <p className="text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg">{deleteStoreError}</p>
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteStoreError}</p>
             )}
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={isDeletingStore}
-                onClick={() => setStoreToDelete(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingStore}
-                onClick={handleConfirmDeleteStore}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isDeletingStore ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Διαγραφή...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Ναι, Διαγραφή</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        }
+        confirmLabel="Ναι, Διαγραφή"
+        isLoading={isDeletingStore}
+        loadingLabel="Διαγραφή..."
+      />
     </div>
   );
 };

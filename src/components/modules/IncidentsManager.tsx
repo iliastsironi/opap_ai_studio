@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, CheckCircle, Search, X } from 'lucide-react';
+import { AlertTriangle, Plus, CheckCircle, Search } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { Modal } from '../ui/Modal.tsx';
 import {
   fetchIncidentsFromFirestore,
   createIncidentInFirestore,
@@ -215,19 +216,34 @@ export const IncidentsManager: React.FC = () => {
       </div>
 
       {/* New Incident Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-400" />
-                Καταγραφή Νέου Συμβάντος / Αποκλίσεως
-              </h3>
-              <button onClick={() => setShowModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateIncident} className="p-4 space-y-3 text-xs">
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        icon={AlertTriangle}
+        title="Καταγραφή Νέου Συμβάντος / Αποκλίσεως"
+        size="md"
+        bodyAsForm
+        onSubmit={handleCreateIncident}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
+            </button>
+          </>
+        }
+      >
+            <div className="space-y-3 text-xs">
               <div>
                 <label htmlFor="incident-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
@@ -298,26 +314,8 @@ export const IncidentsManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg p-2"
                 />
               </div>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
     </div>
   );
 };
