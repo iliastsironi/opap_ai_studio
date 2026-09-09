@@ -1,15 +1,20 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Badge } from './Badge.tsx';
+import { Badge, BadgeTone } from './Badge.tsx';
 
-export type StatCardTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent';
+// 'primary' (indigo) is this app's actual dominant accent color (see the
+// design-convention comment in src/index.css) - not part of Badge's
+// success/warning/danger/info/accent semantic-state palette, but needed
+// here since a plain informational KPI icon (e.g. total revenue) is
+// exactly what a card's own brand color, not a status color, belongs on.
+export type StatCardTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'primary';
 export type StatCardSize = 'hero' | 'standard' | 'compact';
 
 export interface StatCardTrend {
   direction: 'up' | 'down' | 'flat';
   label: string;
-  tone?: 'success' | 'warning' | 'danger' | 'neutral';
+  tone?: BadgeTone;
 }
 
 export interface StatCardProps {
@@ -34,6 +39,7 @@ const CARD_TONE_CLASSES: Record<StatCardTone, string> = {
   danger: 'bg-rose-50/70 border-rose-100',
   info: 'bg-blue-50/70 border-blue-100',
   accent: 'bg-purple-50/70 border-purple-100',
+  primary: 'bg-indigo-50/70 border-indigo-100',
 };
 
 const ICON_BOX_TONE_CLASSES: Record<StatCardTone, string> = {
@@ -43,6 +49,7 @@ const ICON_BOX_TONE_CLASSES: Record<StatCardTone, string> = {
   danger: 'bg-rose-50 text-rose-600 border-rose-100',
   info: 'bg-blue-50 text-blue-600 border-blue-100',
   accent: 'bg-purple-50 text-purple-600 border-purple-100',
+  primary: 'bg-indigo-50 text-indigo-600 border-indigo-100',
 };
 
 const TREND_TONE: Record<'up' | 'down' | 'flat', 'success' | 'danger' | 'neutral'> = {
