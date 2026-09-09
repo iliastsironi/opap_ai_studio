@@ -564,7 +564,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => handleRemoveCredit(creditIdxToRemove)}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Ναι, Διαγραφή</span>

@@ -421,7 +421,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <button
                 type="button"
                 onClick={handleResetDefaults}
-                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
               >
                 <RefreshCcw className="w-3.5 h-3.5" />
                 <span>Ναι, Επαναφορά</span>
@@ -438,7 +438,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => setActiveTab('FIELDS')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'FIELDS'
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -453,7 +453,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => setActiveTab('MODULES')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'MODULES'
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -465,7 +465,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => setActiveTab('PREVIEW')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'PREVIEW'
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -477,7 +477,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         {activeTab === 'FIELDS' && (
           <button
             onClick={handleOpenAddField}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer self-start sm:self-auto"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Προσθήκη Πεδίου</span>
@@ -1137,7 +1137,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSaveFieldFromModal}
-                className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm cursor-pointer"
+                className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
               >
                 {editingFieldId ? 'Ενημέρωση' : 'Προσθήκη'}
               </button>

@@ -73,7 +73,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <button
                   onClick={this.handleReset}
-                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-sm active:scale-95"
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl transition-all shadow-xs active:scale-95"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Επανεκκίνηση & Δοκιμή Ξανά</span>

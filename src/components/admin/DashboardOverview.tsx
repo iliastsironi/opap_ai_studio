@@ -160,14 +160,14 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => onNavigate('reports')}
-            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
+            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-1.5"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>P&L, KPIs & Excel</span>
           </button>
           <button
             onClick={() => onNavigate('shifts')}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center space-x-2"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-2"
           >
             <Clock className="w-4 h-4" />
             <span>Βάρδιες & Ταμείο</span>

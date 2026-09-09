@@ -370,7 +370,7 @@ export const ShiftsManager: React.FC = () => {
             {canCreate && (
               <button
                 onClick={() => setShowOpeningModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all whitespace-nowrap cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>{toGreekUpper('Εναρξη Νεας Βαρδιας')}</span>
@@ -608,7 +608,7 @@ export const ShiftsManager: React.FC = () => {
                 <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center justify-end gap-2">
                   <button
                     onClick={() => handleOpenWizard(activeShift)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-sm transition-all cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition-all cursor-pointer"
                   >
                     <span>{toGreekUpper('Οδηγος Κλεισιματος')}</span>
                     <ChevronRight className="w-4 h-4" />
@@ -1229,7 +1229,7 @@ export const ShiftsManager: React.FC = () => {
                 type="button"
                 disabled={isDeletingShift}
                 onClick={() => handleDeleteShift(shiftToDelete)}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
               >
                 {isDeletingShift ? (
                   <>

@@ -967,7 +967,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   type="button"
                   disabled={isDeletingCustomer}
                   onClick={handleDeleteCustomer}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isDeletingCustomer ? (
                     <>

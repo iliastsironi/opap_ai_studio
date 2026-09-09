@@ -9,6 +9,31 @@
   --text-micro--line-height: 1rem;
 }
 
+/* ---------------------------------------------------------------
+   DESIGN CONVENTIONS (documented, not enforced by tooling - a
+   design-token audit found the palette and card layout already
+   consistent app-wide; this just writes down what every screen had
+   already converged on independently, so it stays that way instead
+   of drifting the next time someone reaches for a color/shadow class).
+   --------------------------------------------------------------- */
+
+/* Color roles - plain Tailwind palette, no custom color tokens:
+   - indigo   primary / accent (buttons, active states, links)
+   - slate    neutral scaffold (text, borders, backgrounds)
+   - emerald  success / positive
+   - amber    warning / caution
+   - rose     danger / destructive
+   - blue, purple  narrow, deliberate module-specific accents
+                   (e.g. an "info" badge tone, the VLT module) -
+                   not competing primaries, don't expand their use. */
+
+/* Card recipe (main content card on every screen):
+   bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 */
+
+/* Button shadow: shadow-xs on every primary/danger action button.
+   (shadow-sm is not part of this app's button vocabulary - if you
+   see it on a button, it's drift, not a second valid option.) */
+
 /* Hide print-only elements by default on screen */
 .print-only {
   display: none !important;
