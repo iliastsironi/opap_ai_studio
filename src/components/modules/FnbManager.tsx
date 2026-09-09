@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, X, Trash2, Clock, RefreshCw, Edit3 } from 'lucide-react';
+import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, X, Trash2, Clock, RefreshCw } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchFnbFromFirestore, createFnbInFirestore, deleteFnbInFirestore, FnbRecord } from '../../services/moduleServices.ts';
@@ -23,12 +23,6 @@ export const FnbManager: React.FC = () => {
   const [unitPrice, setUnitPrice] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [submitting, setSubmitting] = useState(false);
-
-  // Shift FnB Adjust Modal
-  const [showShiftAdjustModal, setShowShiftAdjustModal] = useState(false);
-  const [shiftFnbCashInput, setShiftFnbCashInput] = useState('');
-  const [shiftFnbCardInput, setShiftFnbCardInput] = useState('');
-  const [adjustingShift, setAdjustingShift] = useState(false);
 
   // Delete Sale Confirmation
   const [saleToDelete, setSaleToDelete] = useState<FnbRecord | null>(null);
@@ -54,10 +48,6 @@ export const FnbManager: React.FC = () => {
     try {
       const shift = await fetchActiveShiftFromFirestore(orgId, sId);
       setActiveShift(shift);
-      if (shift) {
-        setShiftFnbCashInput(String(shift.fnb_cash || '0'));
-        setShiftFnbCardInput(String(shift.fnb_card || '0'));
-      }
     } catch (e) {
       console.warn('Could not load active shift for FnB', e);
     }
@@ -185,46 +175,6 @@ export const FnbManager: React.FC = () => {
     }
   };
 
-  const handleSaveShiftFnbAdjust = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeShift) return;
-    setAdjustingShift(true);
-    try {
-      const cashVal = parseFloat(shiftFnbCashInput) || 0;
-      const cardVal = parseFloat(shiftFnbCardInput) || 0;
-      const totalVal = cashVal + cardVal;
-
-      await updateShiftInFirestore(activeShift.id, {
-        fnb_cash: cashVal,
-        fnb_card: cardVal,
-        fnb_sales: totalVal,
-      });
-
-      if (typeof window !== 'undefined') {
-        try {
-          const draftKey = `shift_draft_${activeShift.id}`;
-          const rawDraft = localStorage.getItem(draftKey);
-          if (rawDraft) {
-            const parsed = JSON.parse(rawDraft);
-            parsed.fnb_cash = cashVal;
-            parsed.fnb_card = cardVal;
-            parsed.fnb_sales = totalVal;
-            localStorage.setItem(draftKey, JSON.stringify(parsed));
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      await loadActiveShift();
-      setShowShiftAdjustModal(false);
-    } catch (err) {
-      console.error('Error adjusting shift FnB:', err);
-    } finally {
-      setAdjustingShift(false);
-    }
-  };
-
   const cashSales = fnbSales
     .filter((s) => s.payment_method === 'CASH')
     .reduce((sum, s) => sum + s.total_price, 0);
@@ -244,34 +194,14 @@ export const FnbManager: React.FC = () => {
             <Coffee className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">FnB & Αναψυκτήριο (Bar Reconciliation)</h1>
-              <span className="text-xs font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-                ΑΜΦΙΔΡΟΜΟΣ ΣΥΓΧΡΟΝΙΣΜΟΣ
-              </span>
-            </div>
+            <h1 className="text-xl font-bold text-slate-900">FnB & Αναψυκτήριο (Bar Reconciliation)</h1>
             <p className="text-xs text-slate-500 mt-1">
-              Καταγραφή πωλήσεων καφέ, ποτών & σνακ. Αμφίδρομη σύνδεση με το κλείσιμο βάρδιας & ταμείο.
+              Καταγραφή πωλήσεων καφέ, ποτών & σνακ. Κάθε πώληση ενημερώνει αυτόματα τα σύνολα FnB της ενεργής βάρδιας.
             </p>
           </div>
         </div>
 
         <div className="flex items-center space-x-3">
-          {activeShift && (
-            <button
-              onClick={() => {
-                setShiftFnbCashInput(String(activeShift.fnb_cash || '0'));
-                setShiftFnbCardInput(String(activeShift.fnb_card || '0'));
-                setShowShiftAdjustModal(true);
-              }}
-              className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer"
-              title="Επεξεργασία συνόλων FnB ενεργής βάρδιας"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Σύνολα Βάρδιας</span>
-            </button>
-          )}
-
           <button
             onClick={() => setShowModal(true)}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs cursor-pointer"
@@ -506,82 +436,6 @@ export const FnbManager: React.FC = () => {
                   className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Καταχώρηση...' : 'Καταχώρηση Πώλησης'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Adjust Shift FnB Direct Modal */}
-      {showShiftAdjustModal && activeShift && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Coffee className="w-4 h-4 text-amber-400" />
-                Επεξεργασία FnB Ενεργής Βάρδιας ({activeShift.store_name})
-              </h3>
-              <button onClick={() => setShowShiftAdjustModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSaveShiftFnbAdjust} className="p-5 space-y-4 text-xs">
-              <p className="text-slate-600">
-                Ορίστε απευθείας τα ποσά FnB για την ενεργή βάρδια. Οι αλλαγές θα συγχρονιστούν αμφίδρομα με το κλείσιμο της βάρδιας.
-              </p>
-
-              <div>
-                <label htmlFor="fnb-shift-cash" className="block text-slate-800 font-bold mb-1">
-                  FnB Μετρητά Ταμείου (€)
-                </label>
-                <input
-                  id="fnb-shift-cash"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={shiftFnbCashInput}
-                  onChange={(e) => setShiftFnbCashInput(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl p-2.5 font-mono text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="fnb-shift-card" className="block text-slate-800 font-bold mb-1">
-                  FnB Κάρτες POS (€)
-                </label>
-                <input
-                  id="fnb-shift-card"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={shiftFnbCardInput}
-                  onChange={(e) => setShiftFnbCardInput(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl p-2.5 font-mono text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <span className="font-bold text-slate-700">Συνολικό FnB Βάρδιας:</span>
-                <span className="font-mono font-extrabold text-sm text-indigo-700">
-                  {formatCurrency((parseFloat(shiftFnbCashInput) || 0) + (parseFloat(shiftFnbCardInput) || 0))}
-                </span>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowShiftAdjustModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={adjustingShift}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {adjustingShift ? 'Αποθήκευση...' : 'Αποθήκευση & Συγχρονισμός'}
                 </button>
               </div>
             </form>
