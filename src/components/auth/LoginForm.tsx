@@ -282,7 +282,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
 
         {/* Demo Accounts Quick Select */}
         <div className="mt-6 pt-5 border-t border-slate-800">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
+          <p className="text-micro font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
             Δοκιμαστικοί Λογαριασμοί Demo
           </p>
           <div className="grid grid-cols-1 gap-2">
@@ -295,7 +295,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <UserCheck className="w-4 h-4 text-indigo-400" />
                 <span className="font-semibold text-slate-200">Ιδιοκτήτης (Owner)</span>
               </div>
-              <span className="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono">
+              <span className="text-micro bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono">
                 owner@shiftledger.gr
               </span>
             </button>
@@ -309,7 +309,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <Building2 className="w-4 h-4 text-emerald-400" />
                 <span className="font-semibold text-slate-200">Διευθυντής Καταστήματος</span>
               </div>
-              <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-mono">
+              <span className="text-micro bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-mono">
                 manager@shiftledger.gr
               </span>
             </button>
@@ -323,7 +323,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <ShieldCheck className="w-4 h-4 text-sky-400" />
                 <span className="font-semibold text-slate-200">Υπάλληλος Βάρδιας</span>
               </div>
-              <span className="text-[10px] bg-sky-950 text-sky-300 px-2 py-0.5 rounded font-mono">
+              <span className="text-micro bg-sky-950 text-sky-300 px-2 py-0.5 rounded font-mono">
                 employee@shiftledger.gr
               </span>
             </button>

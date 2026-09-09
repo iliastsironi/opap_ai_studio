@@ -244,7 +244,7 @@ export const StoresManager: React.FC = () => {
                       <span className="text-xs font-mono font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded">
                         {st.code}
                       </span>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <span className="text-micro font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                         Ενεργό
                       </span>
                     </div>
@@ -274,7 +274,7 @@ export const StoresManager: React.FC = () => {
                   <h3 className="font-bold text-slate-900 text-sm mt-2">{st.name}</h3>
                   <p className="text-xs text-slate-500 mt-0.5 truncate">{st.address || 'Χωρίς διεύθυνση'}</p>
 
-                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-micro">
                     <span className="text-slate-500 font-medium">{st.operating_hours || '08:00 - 23:30'}</span>
                     <span className="font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-md">
                       {posCount} POS

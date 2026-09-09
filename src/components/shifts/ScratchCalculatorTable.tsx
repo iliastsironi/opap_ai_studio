@@ -873,13 +873,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <Info className="w-3.5 h-3.5" />
             </button>
             {canEditLockedFields && (
-              <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+              <span className="text-micro font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-indigo-600" />
                 Διαχειριστής (Πρόσβαση σε Αρχικό & Νέα Πακέτα)
               </span>
             )}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-micro text-slate-500 mt-1">
             Το <strong className="text-slate-700">Μπροστά-Αρχικό</strong> μεταφέρεται αυτόματα από το προηγούμενο <strong className="text-slate-700">Μπροστά-Τελικό</strong>, και το <strong className="text-slate-700">Πίσω-Τελικό</strong> από το προηγούμενο <strong className="text-slate-700">Πίσω-Αρχικό</strong>. Ο υπάλληλος συμπληρώνει μόνο το Μπροστά-Τελικό και το Πίσω-Αρχικό στο κλείσιμο.
           </p>
         </div>
@@ -929,7 +929,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       {/* Info notice about scratch vs lotteries calculation rules - collapsed by
           default so returning users reach the table immediately; still one click away. */}
       {showRulesInfo && (
-        <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-[11px] text-indigo-900">
+        <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start space-x-2 text-micro text-indigo-900">
           <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <p>
@@ -946,21 +946,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
+            <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
               <th className="p-2.5 min-w-[150px]" rowSpan={2} scope="col">Παιχνίδι / Κωδικός</th>
               <th className="p-2.5 w-16 text-right" rowSpan={2} scope="col">Τιμή (€)</th>
               <th className="p-2 text-center bg-indigo-50/70 border-l border-indigo-100" colSpan={2} scope="colgroup">
                 <span className="text-indigo-700">Μπροστά</span>
-                <span className="block text-[9px] font-medium normal-case text-indigo-500/80 tracking-normal mt-0.5">Πώληση από την αρχή του πακέτου</span>
+                <span className="block text-micro font-medium normal-case text-indigo-500/80 tracking-normal mt-0.5">Πώληση από την αρχή του πακέτου</span>
               </th>
               <th className="p-2 text-center bg-purple-50/70 border-l border-purple-100" colSpan={2} scope="colgroup">
                 <span className="text-purple-700">Πίσω</span>
-                <span className="block text-[9px] font-medium normal-case text-purple-500/80 tracking-normal mt-0.5">Πώληση από το τέλος του πακέτου</span>
+                <span className="block text-micro font-medium normal-case text-purple-500/80 tracking-normal mt-0.5">Πώληση από το τέλος του πακέτου</span>
               </th>
               <th className="p-2.5 w-24 text-center border-l border-slate-200" colSpan={2} scope="colgroup">Σύνολο</th>
               {!readOnly && canManage && <th className="p-2.5 w-20 text-center" rowSpan={2} scope="col">Ενέργειες</th>}
             </tr>
-            <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
+            <tr className="bg-slate-100/80 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
               <th className="p-2 w-28 text-center bg-indigo-50/40" scope="col">
                 <div className="flex items-center justify-center space-x-1">
                   <span>Αρχικό</span>
@@ -1008,7 +1008,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>
                           {cat}
                         </span>
-                        <span className="text-[11px] font-bold text-slate-700 font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                        <span className="text-micro font-bold text-slate-700 font-mono bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
                           {catQty} τμχ • <span className="text-emerald-700 font-black">{formatCurrency(catTotal)}</span>
                         </span>
                       </div>
@@ -1077,7 +1077,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               <div className="flex items-center space-x-1.5">
                                 <span>{row.name}</span>
                                 {row.isNewPack && (
-                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
+                                  <span className="bg-emerald-100 text-emerald-800 text-micro font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
                                     Νέο Πακέτο
                                   </span>
                                 )}
@@ -1093,7 +1093,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setEditingRowId(row.id)}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer text-[10px] font-bold"
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer text-micro font-bold"
                                     title="Ρυθμίσεις Καταμέτρησης (Μπροστά/Πίσω, Πεντάδες/Κομμάτια)"
                                     aria-label="Ρυθμίσεις Καταμέτρησης"
                                   >
@@ -1132,7 +1132,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
                               />
                               {isBundleTracked && (
-                                <p className="text-[9px] text-slate-500 mt-0.5 whitespace-nowrap">
+                                <p className="text-micro text-slate-500 mt-0.5 whitespace-nowrap">
                                   /κομμάτιο (≈{formatCurrency((Number(row.price) || 0) * rowBundleSize)}/{rowBundleSize}άδα)
                                 </p>
                               )}
@@ -1141,7 +1141,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
                               {formatCurrency(row.price)}
                               {isBundleTracked && (
-                                <span className="block text-[9px] font-semibold text-slate-400">/κομμάτιο</span>
+                                <span className="block text-micro font-semibold text-slate-400">/κομμάτιο</span>
                               )}
                             </span>
                           )}
@@ -1199,7 +1199,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               </div>
                             )}
                             {isBundleTracked && (
-                              <span className="text-[10px] font-bold text-slate-500 block mt-0.5">
+                              <span className="text-micro font-bold text-slate-500 block mt-0.5">
                                 ≈ {startPiecesSplit.bundles} πεντ. + {startPiecesSplit.pieces} κομ.
                               </span>
                             )}
@@ -1226,7 +1226,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 className="w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700"
                               />
                               {frontQty > 0 && (
-                                <span className="text-[10px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                                <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
                               )}
                             </div>
                           ) : isBundleTracked ? (
@@ -1280,12 +1280,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   truthy string), which must display exactly like never-touched
                                   (undefined) rows, not show a stale "sale recorded" state. */}
                               {bundleSaleCheck.soldPieces > 0 && (
-                                <span className="text-[10px] font-bold text-indigo-600 block">
+                                <span className="text-micro font-bold text-indigo-600 block">
                                   = {bundleSaleCheck.soldPieces} τμχ
                                 </span>
                               )}
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
-                                <span className="text-[10px] font-semibold text-emerald-600 block">
+                                <span className="text-micro font-semibold text-emerald-600 block">
                                   {/* "πεντ."/"κομ." abbreviations, not the earlier "A×B+C" notation -
                                       that read like an arithmetic formula rather than "A bundles + B
                                       pieces". Matches the same abbreviation used in the ≈X πεντ. + Y κομ.
@@ -1337,12 +1337,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               }
                             />
                             {isInvalidScratchEnd && (
-                              <span className="text-[10px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
+                              <span className="text-micro font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                 Τελικό &lt; Αρχικό
                               </span>
                             )}
                             {frontQty > 0 && !isInvalidScratchEnd && (
-                              <span className="text-[10px] font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                              <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
                             )}
                             </div>
                           )}
@@ -1379,12 +1379,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 }
                               />
                               {isInvalidBackStart && (
-                                <span className="text-[10px] font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
+                                <span className="text-micro font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                   Αρχικό &gt; Τελικό
                                 </span>
                               )}
                               {backQty > 0 && !isInvalidBackStart && (
-                                <span className="text-[10px] font-bold text-purple-500 block mt-0.5">{backQty} τμχ</span>
+                                <span className="text-micro font-bold text-purple-500 block mt-0.5">{backQty} τμχ</span>
                               )}
                             </div>
                           )}
@@ -1494,7 +1494,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         <tr>
                           <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-3 pt-0">
                             <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-lg space-y-2.5">
-                              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">
+                              <p className="text-micro font-bold text-indigo-700 uppercase tracking-wide">
                                 Ρυθμίσεις Καταμέτρησης
                               </p>
                               <div className="flex flex-wrap items-center gap-4">
@@ -1532,7 +1532,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 </label>
                               </div>
                               {isLottery && isBundleTracked && (
-                                <p className="text-[10px] text-slate-500">
+                                <p className="text-micro text-slate-500">
                                   Τιμή ανά κομμάτι: {formatCurrency(row.price)} · Τιμή ανά πεντάδα: {formatCurrency((Number(row.price) || 0) * rowBundleSize)}
                                 </p>
                               )}
@@ -1543,7 +1543,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                       {rowErrors.length > 0 && (
                         <tr>
                           <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-2 pt-0">
-                            <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 space-y-0.5">
+                            <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-micro text-rose-800 space-y-0.5">
                               {rowErrors.map((err, i) => (
                                 <p key={i} className="flex items-start space-x-1.5">
                                   <AlertCircle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
@@ -1590,7 +1590,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </p>
 
             <div>
-              <label className="text-[11px] font-bold text-indigo-700 uppercase block mb-1">
+              <label className="text-micro font-bold text-indigo-700 uppercase block mb-1">
                 {targetIsBundleTracked ? 'Αρχικό σύνολο κομματιών:' : 'Μπροστά - Αρχικό (πώληση από την αρχή):'}
               </label>
               <input
@@ -1603,7 +1603,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 autoFocus
               />
               {targetIsBundleTracked && (
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-micro text-slate-500 mt-1">
                   Η τιμή καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια{' '}
                   {(() => {
                     const n = parseNonNegativeInt(newPackStartNo).value;
@@ -1616,7 +1616,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
             {targetHasBackSide && (
               <div>
-                <label className="text-[11px] font-bold text-purple-700 uppercase block mb-1">
+                <label className="text-micro font-bold text-purple-700 uppercase block mb-1">
                   Πίσω - Τελικό (πώληση από το τέλος):
                 </label>
                 <input
@@ -1627,7 +1627,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   className="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500"
                   placeholder="π.χ. 299"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
+                <p className="text-micro text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
               </div>
             )}
 
@@ -1747,12 +1747,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </span>
           </div>
           {scratchPieces > 0 && lotteryPieces > 0 && (
-            <span className="text-slate-600 font-mono text-[11px]">
+            <span className="text-slate-600 font-mono text-micro">
               (Σκρατς: {scratchPieces} τμχ • Λαχεία: {lotteryPieces} τμχ)
             </span>
           )}
           {(scratchFrontPieces > 0 || scratchBackPieces > 0) && (
-            <span className="text-[11px] font-mono flex items-center gap-1.5">
+            <span className="text-micro font-mono flex items-center gap-1.5">
               <span className="text-indigo-700 font-bold">Μπροστά: {scratchFrontPieces} τμχ</span>
               <span className="text-slate-300">•</span>
               <span className="text-purple-700 font-bold">Πίσω: {scratchBackPieces} τμχ</span>
@@ -1760,7 +1760,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           )}
         </div>
         <div className="text-right flex items-center space-x-2">
-          <span className="text-[11px] text-slate-600 font-semibold">Σύνολο Αξίας Πωλήσεων Σκρατς & Λαχείων:</span>
+          <span className="text-micro text-slate-600 font-semibold">Σύνολο Αξίας Πωλήσεων Σκρατς & Λαχείων:</span>
           <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
             {formatCurrency(grandTotalSales)}
           </span>

@@ -339,7 +339,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
-                      <span className="text-[10px] uppercase font-bold text-slate-300 block">Απόκλιση</span>
+                      <span className="text-micro uppercase font-bold text-slate-300 block">Απόκλιση</span>
                       <span
                         className={`text-xl sm:text-2xl font-black font-mono ${
                           isBalanced
@@ -368,7 +368,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     <div className="p-3.5 space-y-3 text-sm">
                       {/* Block 1: Παιχνίδια ΟΠΑΠ */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Παιχνίδια
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -387,7 +387,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 2: VLTs (Play OPAP) */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           VLTs
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -406,7 +406,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 3: Λαχεία & Σκρατς */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Λαχεία & Σκρατς
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -425,7 +425,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 4: Tora Direct */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Tora Direct
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -444,7 +444,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 5: FnB */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           FnB
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -463,7 +463,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 6: POS Αφαιρέσεις */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           POS Αφαιρέσεις
                         </div>
                         {toraPosItems.length > 0 ? (
@@ -504,7 +504,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     <div className="p-3.5 space-y-3 text-sm">
                       {/* Block 1: Αρχικό κεφάλαιο */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Αρχικό κεφάλαιο
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -531,7 +531,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 2: Κέρματα Ταμείου */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Κέρματα Ταμείου
                         </div>
                         <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
@@ -566,7 +566,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 3: Μετρητά Ταμείου */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Μετρητά Ταμείου
                         </div>
                         <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
@@ -601,7 +601,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 4: Ταμείο */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-[11px] uppercase tracking-wider">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Ταμείο (Τελική Συμφωνία)
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
@@ -688,7 +688,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             Έλεγχος Σκρατς & Λαχείων Βάρδιας (Καταμέτρηση Τεμαχίων)
                           </h3>
                         </div>
-                        <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
+                        <span className="text-micro font-mono font-bold text-amber-300 bg-amber-950/60 px-2.5 py-0.5 rounded-md border border-amber-800/60">
                           {totalSold} τμχ • {formatCurrency(totalVal)}
                         </span>
                       </div>
@@ -696,7 +696,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm border-collapse font-mono">
                           <thead>
-                            <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase">
+                            <tr className="text-slate-400 border-b border-slate-800 text-micro uppercase">
                               <th className="py-1.5 px-2">Παιχνίδι</th>
                               <th className="py-1.5 px-2 text-right">Τιμή</th>
                               <th className="py-1.5 px-2 text-center text-indigo-400">Μπρ. Αρχικό</th>
@@ -721,7 +721,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   <td className="py-1.5 px-2 font-sans font-bold text-slate-200">
                                     {r.name}
                                     {r.isNewPack && (
-                                      <span className="ml-2 text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">
+                                      <span className="ml-2 text-micro bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">
                                         Νέο
                                       </span>
                                     )}
@@ -734,7 +734,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       <>
                                         {r.startNo || '-'}
                                         {startSplit && (
-                                          <div className="text-[9px] font-sans font-normal text-amber-500/80 normal-case">
+                                          <div className="text-micro font-sans font-normal text-amber-500/80 normal-case">
                                             {startSplit.bundles} πεντ. + {startSplit.pieces} τμχ
                                           </div>
                                         )}
@@ -748,7 +748,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       <>
                                         {r.endNo || '-'}
                                         {endSplit && (
-                                          <div className="text-[9px] font-sans font-normal text-indigo-400/80 normal-case">
+                                          <div className="text-micro font-sans font-normal text-indigo-400/80 normal-case">
                                             {endSplit.bundles} πεντ. + {endSplit.pieces} τμχ
                                           </div>
                                         )}
@@ -789,7 +789,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             Πιστώσεις & Εισπράξεις Πελατών Βάρδιας (Τεφτέρι)
                           </h3>
                         </div>
-                        <span className="text-[11px] font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-800/60">
+                        <span className="text-micro font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-800/60">
                           {creditsList.length} κινήσεις
                         </span>
                       </div>
@@ -797,7 +797,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm border-collapse">
                           <thead>
-                            <tr className="text-slate-400 border-b border-slate-800 text-[10px] uppercase font-mono">
+                            <tr className="text-slate-400 border-b border-slate-800 text-micro uppercase font-mono">
                               <th className="py-1.5 px-2">Πελάτης</th>
                               <th className="py-1.5 px-2 text-center">Credit Score</th>
                               <th className="py-1.5 px-2 text-center">Τύπος Κίνησης</th>
@@ -815,7 +815,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   </td>
                                   <td className="py-1.5 px-2 text-center">
                                     <span
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-black font-mono ${
+                                      className={`px-1.5 py-0.5 rounded text-micro font-black font-mono ${
                                         cred.customer_tier === 'A+'
                                           ? 'bg-purple-900/80 text-purple-300 border border-purple-700'
                                           : cred.customer_tier === 'A'
@@ -830,7 +830,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   </td>
                                   <td className="py-1.5 px-2 text-center">
                                     <span
-                                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      className={`px-2 py-0.5 rounded text-micro font-bold ${
                                         isCollected
                                           ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                                           : 'bg-amber-950 text-amber-300 border border-amber-800'
@@ -839,7 +839,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       {isCollected ? 'Είσπραξη / Εξόφληση' : 'Νέα Πίστωση (Χρέωση)'}
                                     </span>
                                   </td>
-                                  <td className="py-1.5 px-2 text-slate-400 text-[11px] italic">
+                                  <td className="py-1.5 px-2 text-slate-400 text-micro italic">
                                     {cred.notes || '-'}
                                   </td>
                                   <td
@@ -1096,7 +1096,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-900">Έγκριση Βάρδιας</h3>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
                   {shift.store_name} • {shift.register_id}
                 </span>
               </div>

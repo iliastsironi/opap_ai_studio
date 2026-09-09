@@ -1407,7 +1407,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
               <div>
                 <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Προχείρου Βάρδιας</h4>
-                <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                <span className="text-micro font-bold text-rose-600 uppercase tracking-wider">
                   ΕΝΕΡΓΕΙΑ ΙΔΙΟΚΤΗΤΗ / ΔΙΑΧΕΙΡΙΣΤΗ
                 </span>
               </div>
@@ -1417,7 +1417,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <p className="font-bold">
                 Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας ({shift.store_name} - {shift.register_id});
               </p>
-              <p className="text-[11px] text-rose-700">
+              <p className="text-micro text-rose-700">
                 ⚠️ Όλα τα πρόχειρα καταγεγραμμένα στοιχεία της βάρδιας θα διαγραφούν οριστικά.
               </p>
             </div>
@@ -1473,7 +1473,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
               <div>
                 <h4 className="text-base font-extrabold text-slate-900">Οριστική Υποβολή Βάρδιας</h4>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
                   {shift.store_name} • {shift.register_id}
                 </span>
               </div>
@@ -1571,12 +1571,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           {/* Real-time Summary Card Header */}
           <div className="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 flex items-center space-x-5 shadow-inner">
             <div className="text-right sm:text-left">
-              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Αναμενόμενο Ταμείο</p>
+              <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">Αναμενόμενο Ταμείο</p>
               <p className="text-xl font-black text-emerald-400">{formatCurrency(expectedCash)}</p>
             </div>
             <div className="h-10 w-px bg-slate-700"></div>
             <div>
-              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Μετρημένα</p>
+              <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">Μετρημένα</p>
               <p className="text-xl font-black text-indigo-300">{formatCurrency(countedCash)}</p>
             </div>
           </div>
@@ -1603,7 +1603,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               >
                 <Icon className="w-4 h-4 mb-1" />
                 <span className="text-xs truncate w-full hidden sm:inline">{step.name}</span>
-                <span className="text-[11px] font-bold sm:hidden">{step.num}</span>
+                <span className="text-micro font-bold sm:hidden">{step.num}</span>
               </button>
             );
           })}
@@ -1803,7 +1803,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <span className="flex items-center space-x-1.5">
                       <span>Σύνολο Πωλήσεων Σκρατς & Λαχείων (€)</span>
                     </span>
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center space-x-1">
+                    <span className="text-micro text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center space-x-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600 inline" />
                       <span>{scratchSalesManualOverride ? 'Χειροκίνητη Τιμή' : 'Αυτόματος Υπολογισμός'}</span>
                     </span>
@@ -1827,7 +1827,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       €
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-1 text-[11px]">
+                  <div className="flex items-center justify-between mt-1 text-micro">
                     <p className="text-slate-500">
                       {scratchSalesManualOverride
                         ? 'Χειροκίνητη καταχώρηση ποσού.'
@@ -1843,7 +1843,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           setScratchSalesManualOverride(true);
                         }
                       }}
-                      className="text-indigo-600 hover:text-indigo-800 font-bold text-[10px] underline ml-2 shrink-0 cursor-pointer"
+                      className="text-indigo-600 hover:text-indigo-800 font-bold text-micro underline ml-2 shrink-0 cursor-pointer"
                     >
                       {scratchSalesManualOverride ? 'Επαναφορά σε αυτόματο' : 'Χειροκίνητη αλλαγή'}
                     </button>
@@ -1852,7 +1852,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-rose-800 mb-1 flex items-center justify-between">
                     <span>Εξαργυρώσεις Σκρατς (€)</span>
-                    <span className="text-[10px] text-rose-600 font-normal">Πληρωμές κερδών</span>
+                    <span className="text-micro text-rose-600 font-normal">Πληρωμές κερδών</span>
                   </label>
                   <div className="relative">
                     <input
@@ -1879,7 +1879,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
                     <span>📱 Tora Direct (Υπηρεσίες Tora)</span>
                   </h4>
-                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                  <p className="text-micro font-medium text-slate-500 mt-0.5">
                     Εισάγετε τα ποσά από τα τερματικά Tora Direct — Κοινά φυσικά μηχανήματα POS με τις πληρωμές καρτών
                   </p>
                 </div>
@@ -1909,7 +1909,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 relative group shadow-2xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-1.5 min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
+                        <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
                           Μηχάνημα #{idx + 1}
                         </span>
                         {canManage || managerUnlockedPos ? (
@@ -1963,7 +1963,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   📍 Clever Point
                 </label>
                 <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">Σύνολο (€)</span>
+                  <span className="text-micro font-semibold text-slate-500">Σύνολο (€)</span>
                   <input
                     type="number"
                     step="0.01"
@@ -1982,7 +1982,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   🏇 Ιππόδρομος
                 </label>
                 <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
+                  <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
                   <input
                     type="number"
                     step="0.01"
@@ -2001,7 +2001,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   ⚽ Pame Stoixima | Virtuals
                 </label>
                 <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
+                  <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
                   <input
                     type="number"
                     step="0.01"
@@ -2038,7 +2038,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </div>
               </div>
 
-              <p className="text-[10px] text-amber-700 flex items-start gap-1">
+              <p className="text-micro text-amber-700 flex items-start gap-1">
                 <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                 <span>
                   Προσωρινή λογική «Συμπλήρωση από Τερματικά»: αθροίζει τις τρέχουσες μετρήσεις κάθε τερματικού ως
@@ -2133,7 +2133,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       }`}
                     />
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p className="text-micro text-slate-500 mt-1">
                     {vltsOutType === 'NEGATIVE'
                       ? '🔴 Εκροή / Πληρωμή (αφαιρείται από το ταμείο)'
                       : '🟢 Είσπραξη / Πλεόνασμα (προστίθεται στο ταμείο)'}
@@ -2473,13 +2473,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
             <div className="flex items-center space-x-3">
               <div className="text-right bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
-                <span className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                <span className="text-micro font-extrabold text-slate-600 uppercase tracking-wider block">
                   Μετρητά Συρταριού
                 </span>
                 <span className="text-xl font-black text-slate-900">{formatCurrency(countedCash)}</span>
               </div>
               <div className="text-right bg-indigo-600 text-white px-4 py-2 rounded-2xl border border-indigo-700 shadow-xs">
-                <span className="text-[10px] font-extrabold text-indigo-100 uppercase tracking-wider block">
+                <span className="text-micro font-extrabold text-indigo-100 uppercase tracking-wider block">
                   Σύνολο Καταμέτρησης
                 </span>
                 <span className="text-xl font-black text-white">{formatCurrency(totalReconciliationCount)}</span>
@@ -2492,7 +2492,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <span className="font-bold flex items-center space-x-1">
               <span>🧮 Τύπος Υπολογισμού:</span>
             </span>
-            <span className="font-mono text-[11px] bg-white px-2.5 py-1 rounded-xl border border-indigo-100 text-indigo-900 font-medium">
+            <span className="font-mono text-micro bg-white px-2.5 py-1 rounded-xl border border-indigo-100 text-indigo-900 font-medium">
               (Μετρημένα + POS + Έξοδα + Πιστώσεις - Επιστροφές) - Αρχικό
             </span>
           </div>
@@ -2511,7 +2511,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <h4 className="font-extrabold text-sm text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
                   <span>💳 Πωλήσεις POS Καταστήματος (POS Καταμέτρησης)</span>
                 </h4>
-                <p className="text-[11px] font-medium text-indigo-700/80 mt-0.5">
+                <p className="text-micro font-medium text-indigo-700/80 mt-0.5">
                   Τερματικά POS για πωλήσεις κάρτας — Υπολογίζονται απευθείας στο Σύνολο Καταμέτρησης
                 </p>
               </div>
@@ -2541,7 +2541,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <div key={item.id} className="bg-white p-3.5 rounded-xl border border-indigo-150 space-y-2 relative group shadow-2xs">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-1.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
+                      <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
                         Μηχάνημα #{idx + 1}
                       </span>
                       {canManage || managerUnlockedPos ? (
@@ -2626,7 +2626,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <p className="text-3xl font-black text-emerald-400 mt-1 font-mono">
                 {formatCurrency(totalReconciliationCount)}
               </p>
-              <p className="text-[10px] text-indigo-200/80 mt-1 font-medium">
+              <p className="text-micro text-indigo-200/80 mt-1 font-medium">
                 Μετρητά + POS + Έξοδα + Πιστώσεις - Επιστροφές - Αρχικό
               </p>
             </div>
@@ -2638,7 +2638,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <p className="text-2xl font-black text-indigo-950 mt-1">
                 {formatCurrency(countedCash)}
               </p>
-              <p className="text-[11px] text-indigo-700/80 mt-1">
+              <p className="text-micro text-indigo-700/80 mt-1">
                 Από καταμέτρηση χαρτονομισμάτων.
               </p>
             </div>
@@ -2650,7 +2650,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <p className="text-2xl font-black text-slate-900 mt-1">
                 {formatCurrency(expectedCash)}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">
+              <p className="text-micro text-slate-500 mt-1">
                 Βάσει εισροών/εκροών συστήματος.
               </p>
             </div>
@@ -2756,7 +2756,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <div className="p-3.5 space-y-3.5 text-xs">
                   {/* 1. Ελληνικά Λαχεία | Σκρατς */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ελληνικά Λαχεία | Σκρατς
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2775,7 +2775,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 2. Tora */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Tora
                     </div>
                     {toraPosItems.map((item, idx) => (
@@ -2792,7 +2792,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 3. Clever Point */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Clever Point
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold pt-0.5">
@@ -2803,7 +2803,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 4. Ιππόδρομος */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ιππόδρομος
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2814,7 +2814,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 5. VLTs */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       VLTs
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2831,7 +2831,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 6. Pame Stoixima | Virtuals */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Pame Stoixima | Virtuals
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2842,7 +2842,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 7. Αριθμοπαιχνίδια */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Αριθμοπαιχνίδια
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2871,7 +2871,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* 8. Ταμείο FnB */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ταμείο FnB
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2906,7 +2906,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <div className="p-3.5 space-y-3.5 text-xs">
                   {/* Block 1: Αρχικό κεφάλαιο */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Αρχικό κεφάλαιο
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
@@ -2933,7 +2933,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* Block 2: Κέρματα Ταμείου */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Κέρματα Ταμείου
                     </div>
                     <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
@@ -2968,7 +2968,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* Block 3: Μετρητά Ταμείου */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Μετρητά Ταμείου
                     </div>
                     <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
@@ -3003,7 +3003,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                   {/* Block 4: Ταμείο */}
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
-                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-[11px] uppercase tracking-wider">
+                    <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ταμείο
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">

@@ -188,25 +188,25 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
   }, [isOpen, isInline, onClose]);
 
   const receiptContent = (
-    <div className="receipt-print-wrapper bg-white text-black text-[11px] font-mono leading-tight p-4 sm:p-5 max-w-[340px] mx-auto border border-dashed border-slate-300 sm:rounded-lg shadow-sm print:border-none print:shadow-none print:p-0 print:max-w-full">
+    <div className="receipt-print-wrapper bg-white text-black text-micro font-mono leading-tight p-4 sm:p-5 max-w-[340px] mx-auto border border-dashed border-slate-300 sm:rounded-lg shadow-sm print:border-none print:shadow-none print:p-0 print:max-w-full">
       {/* RECEIPT HEADER */}
       <div className="text-center space-y-1 pb-2">
         <div className="font-black text-sm uppercase tracking-wider">
           {toGreekUpper(storeName)}
         </div>
-        <div className="text-[10px] text-slate-700 print:text-black">
+        <div className="text-micro text-slate-700 print:text-black">
           ΠΡΑΚΤΟΡΕΙΟ ΟΠΑΠ • ΚΩΔ. {storeCode}
         </div>
-        <div className="text-[10px] text-slate-700 print:text-black">
+        <div className="text-micro text-slate-700 print:text-black">
           ΤΑΜΕΙΟ: {registerId} • ΒΑΡΔΙΑ: {shiftTypeDisplay()}
         </div>
-        <div className="text-[10px] font-semibold text-slate-800 print:text-black">
+        <div className="text-micro font-semibold text-slate-800 print:text-black">
           ΧΕΙΡΙΣΤΗΣ: {toGreekUpper(cashierName)}
         </div>
-        <div className="text-[9px] text-slate-500 print:text-black">
+        <div className="text-micro text-slate-500 print:text-black">
           ΕΝΑΡΞΗ: {formatDate(openedAt)}
         </div>
-        <div className="text-[9px] text-slate-500 print:text-black">
+        <div className="text-micro text-slate-500 print:text-black">
           ΚΛΕΙΣΙΜΟ: {formatDate(closedAt)}
         </div>
       </div>
@@ -215,10 +215,10 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
       {/* SECTION 1: ΠΩΛΗΣΕΙΣ & ΕΙΣΠΡΑΞΕΙΣ */}
       <div className="py-1">
-        <div className="text-center font-bold text-[10px] uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
+        <div className="text-center font-bold text-micro uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
           --- {toGreekUpper('Πωλησεις & Εισπραξεις')} ---
         </div>
-        <div className="space-y-1 pt-1 text-[10.5px]">
+        <div className="space-y-1 pt-1 text-micro">
           {/* Αριθμοπαιχνίδια */}
           <div className="flex justify-between items-center">
             <span>Αριθμοπαιχνίδια (Gross):</span>
@@ -307,10 +307,10 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
       {/* SECTION 2: ΕΞΟΔΑ & ΠΛΗΡΩΜΕΣ ΜΕΤΡΗΤΩΝ */}
       <div className="py-1">
-        <div className="text-center font-bold text-[10px] uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
+        <div className="text-center font-bold text-micro uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
           --- {toGreekUpper('Εξοδα & Πληρωμες')} ---
         </div>
-        <div className="space-y-1 pt-1 text-[10.5px]">
+        <div className="space-y-1 pt-1 text-micro">
           <div className="flex justify-between items-center">
             <span>Έξοδα ΓΠ (Μετρητά):</span>
             <span className="font-bold">
@@ -326,7 +326,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
           {/* Itemized Expenses list if available */}
           {Array.isArray(data.expensesList) && data.expensesList.length > 0 && (
-            <div className="pt-1 pl-2 border-l border-slate-300 print:border-black my-1 space-y-0.5 text-[9.5px]">
+            <div className="pt-1 pl-2 border-l border-slate-300 print:border-black my-1 space-y-0.5 text-micro">
               {data.expensesList.map((exp, idx) => (
                 <div key={exp.id || idx} className="flex justify-between items-start gap-2">
                   <span className="break-words">{exp.recipient || exp.notes || exp.category || 'Έξοδο'}:</span>
@@ -352,18 +352,18 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
       {/* SECTION 3: ΚΑΤΑΜΕΤΡΗΣΗ ΤΑΜΕΙΟΥ & ΧΑΡΤΟΝΟΜΙΣΜΑΤΑ */}
       <div className="py-1">
-        <div className="text-center font-bold text-[10px] uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
+        <div className="text-center font-bold text-micro uppercase tracking-wider py-0.5 bg-slate-100 print:bg-transparent text-slate-800 print:text-black">
           --- {toGreekUpper('Καταμετρηση Μετρητων')} ---
         </div>
         
         {/* Banknotes Subtable */}
         <div className="pt-1">
-          <div className="text-[9.5px] font-bold text-slate-700 print:text-black border-b border-dotted border-slate-300 print:border-black pb-0.5 flex justify-between">
+          <div className="text-micro font-bold text-slate-700 print:text-black border-b border-dotted border-slate-300 print:border-black pb-0.5 flex justify-between">
             <span>Χαρτονόμισμα</span>
             <span>Ποσότητα</span>
             <span className="text-right">Σύνολο</span>
           </div>
-          <div className="space-y-0.5 pt-0.5 text-[10px]">
+          <div className="space-y-0.5 pt-0.5 text-micro">
             {banknoteList.map((b) => {
               const qty = getDenomQty(b.key);
               if (qty === 0) return null;
@@ -375,7 +375,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
                 </div>
               );
             })}
-            <div className="flex justify-between items-center font-bold text-[10px] pt-0.5 border-t border-dotted border-slate-300 print:border-black">
+            <div className="flex justify-between items-center font-bold text-micro pt-0.5 border-t border-dotted border-slate-300 print:border-black">
               <span>Σύνολο Χαρτονομισμάτων:</span>
               <span>{formatCurrency(banknotesTotal)}</span>
             </div>
@@ -384,12 +384,12 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
         {/* Coins Subtable */}
         <div className="pt-2">
-          <div className="text-[9.5px] font-bold text-slate-700 print:text-black border-b border-dotted border-slate-300 print:border-black pb-0.5 flex justify-between">
+          <div className="text-micro font-bold text-slate-700 print:text-black border-b border-dotted border-slate-300 print:border-black pb-0.5 flex justify-between">
             <span>Κέρμα</span>
             <span>Ποσότητα</span>
             <span className="text-right">Σύνολο</span>
           </div>
-          <div className="space-y-0.5 pt-0.5 text-[10px]">
+          <div className="space-y-0.5 pt-0.5 text-micro">
             {coinList.map((c) => {
               const qty = getDenomQty(c.key, c.altKey);
               if (qty === 0) return null;
@@ -401,7 +401,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
                 </div>
               );
             })}
-            <div className="flex justify-between items-center font-bold text-[10px] pt-0.5 border-t border-dotted border-slate-300 print:border-black">
+            <div className="flex justify-between items-center font-bold text-micro pt-0.5 border-t border-dotted border-slate-300 print:border-black">
               <span>Σύνολο Κερμάτων:</span>
               <span>{formatCurrency(coinsTotal)}</span>
             </div>
@@ -409,7 +409,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
         </div>
 
         {/* Other Elements in Cash Register */}
-        <div className="mt-2 pt-1 border-t border-dotted border-slate-400 print:border-black space-y-1 text-[10.5px]">
+        <div className="mt-2 pt-1 border-t border-dotted border-slate-400 print:border-black space-y-1 text-micro">
           <div className="flex justify-between items-center font-bold">
             <span>Φυσικά Μετρητά Συρταριού:</span>
             <span>{formatCurrency(drawerCash)}</span>
@@ -450,7 +450,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
       <div className="receipt-hr-double my-2 border-t-2 border-slate-900 print:border-black" />
 
       {/* SECTION 4: ΤΑΜΕΙΑΚΟ ΙΣΟΖΥΓΙΟ & ΑΠΟΚΛΙΣΗ */}
-      <div className="py-1 space-y-1 text-[11px]">
+      <div className="py-1 space-y-1 text-micro">
         <div className="flex justify-between items-center">
           <span>Αρχικό Ταμείο (Float):</span>
           <span className="font-bold">{formatCurrency(openingCash)}</span>
@@ -468,13 +468,13 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
         {/* Discrepancy Highlight */}
         <div className="p-2 border border-black rounded text-center space-y-0.5">
-          <div className="text-[10px] font-bold uppercase tracking-wider">
+          <div className="text-micro font-bold uppercase tracking-wider">
             {toGreekUpper('Διαφορα Ταμειου (Αποκλιση)')}
           </div>
           <div className="text-sm font-black">
             {formatCurrency(discrepancy, { showSign: true })}
           </div>
-          <div className="text-[9px] font-bold uppercase">
+          <div className="text-micro font-bold uppercase">
             {discrepancy === 0
               ? '✓ ΤΑΜΕΙΟ ΙΣΟΣΚΕΛΙΣΜΕΝΟ'
               : discrepancy > 0
@@ -486,13 +486,13 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
 
       {/* SECTION 5: ΣΗΜΕΙΩΣΕΙΣ & ΥΠΟΓΡΑΦΕΣ */}
       {(data.employeeNotes || shift.employee_notes) && (
-        <div className="pt-2 text-[10px]">
+        <div className="pt-2 text-micro">
           <span className="font-bold">Σημειώσεις: </span>
           <span className="italic">{data.employeeNotes || shift.employee_notes}</span>
         </div>
       )}
 
-      <div className="pt-4 pb-2 space-y-5 text-[10px]">
+      <div className="pt-4 pb-2 space-y-5 text-micro">
         <div className="flex justify-between items-end pt-2">
           <div className="text-center w-36">
             <div className="border-b border-black w-full mb-1"></div>
@@ -504,7 +504,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
           </div>
         </div>
 
-        <div className="text-center text-[8.5px] text-slate-500 print:text-black pt-2">
+        <div className="text-center text-micro text-slate-500 print:text-black pt-2">
           *** SHIFTLEDGER POS SYSTEM • {new Date().toLocaleString('el-GR')} ***
         </div>
       </div>
@@ -558,7 +558,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             </div>
             <div>
               <h4 className="text-sm font-black text-white">Προεπισκόπηση Τελικής Απόδειξης</h4>
-              <p className="text-[10px] text-slate-300">Format εκτυπωτή αποδείξεων (Thermal 80mm / A4)</p>
+              <p className="text-micro text-slate-300">Format εκτυπωτή αποδείξεων (Thermal 80mm / A4)</p>
             </div>
           </div>
           {/* Prominent Close X Button */}

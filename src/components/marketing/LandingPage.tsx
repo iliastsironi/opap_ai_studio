@@ -187,9 +187,9 @@ const DashboardPreview: React.FC = () => (
       { label: 'SAFE DROP (€)', value: '€4.500,00', tag: 'Ασφαλισμένα', tagColor: 'text-indigo-700 bg-indigo-50' },
     ].map((stat) => (
       <div key={stat.label} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-        <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+        <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">{stat.label}</p>
         <p className="text-lg font-black text-slate-900 mt-1">{stat.value}</p>
-        <span className={`inline-block mt-1.5 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${stat.tagColor}`}>
+        <span className={`inline-block mt-1.5 text-micro font-extrabold px-1.5 py-0.5 rounded-full ${stat.tagColor}`}>
           {stat.tag}
         </span>
       </div>
@@ -199,7 +199,7 @@ const DashboardPreview: React.FC = () => (
 
 const ShiftsTablePreview: React.FC = () => (
   <div className="overflow-x-auto">
-    <table className="w-full text-left text-[11px]">
+    <table className="w-full text-left text-micro">
       <thead>
         <tr className="text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-200">
           <th className="py-2 pr-3">Κατάστημα &amp; Ταμείο</th>
@@ -216,7 +216,7 @@ const ShiftsTablePreview: React.FC = () => (
           <td className="py-2.5 pr-3 text-slate-600">€1.240,00</td>
           <td className="py-2.5 pr-3 font-bold text-emerald-600">€0,00</td>
           <td className="py-2.5">
-            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+            <span className="text-micro font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
               ΕΓΚΕΚΡΙΜΕΝΗ
             </span>
           </td>
@@ -227,7 +227,7 @@ const ShiftsTablePreview: React.FC = () => (
           <td className="py-2.5 pr-3 text-slate-600">€860,00</td>
           <td className="py-2.5 pr-3 font-bold text-slate-400">—</td>
           <td className="py-2.5">
-            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+            <span className="text-micro font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
               ΠΡΟΧΕΙΡΟ
             </span>
           </td>
@@ -242,7 +242,7 @@ const LaikoTablePreview: React.FC = () => (
     <div className="bg-white rounded-xl border border-slate-200 p-3.5 flex items-center justify-between gap-3">
       <div>
         <p className="font-bold text-slate-800 text-sm">Λαϊκό Λαχείο</p>
-        <p className="text-[11px] text-slate-500">€2,00 / κομμάτιο</p>
+        <p className="text-micro text-slate-500">€2,00 / κομμάτιο</p>
       </div>
       <div className="flex items-center space-x-1.5">
         <div className="w-9 h-9 rounded-lg border-2 border-indigo-200 bg-white flex items-center justify-center font-mono font-black text-sm text-slate-900">
@@ -254,7 +254,7 @@ const LaikoTablePreview: React.FC = () => (
         </div>
       </div>
     </div>
-    <p className="text-[10px] text-emerald-600 font-semibold px-1">Μένουν: 20 πεντ. + 2 κομ. στο απόθεμα</p>
+    <p className="text-micro text-emerald-600 font-semibold px-1">Μένουν: 20 πεντ. + 2 κομ. στο απόθεμα</p>
   </div>
 );
 
@@ -515,7 +515,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-3 right-6 bg-emerald-500 text-emerald-950 text-[11px] font-bold px-3 py-1 rounded-full">
+                  <span className="absolute -top-3 right-6 bg-emerald-500 text-emerald-950 text-micro font-bold px-3 py-1 rounded-full">
                     {plan.badge}
                   </span>
                 )}

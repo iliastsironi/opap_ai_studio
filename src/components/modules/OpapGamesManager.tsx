@@ -233,7 +233,7 @@ export const OpapGamesManager: React.FC = () => {
               <p className="text-xs font-bold text-slate-900">
                 Ενεργή Βάρδια: {activeShift.store_name} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
               </p>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-micro text-slate-600 mt-0.5">
                 Όλες οι καταχωρήσεις πωλήσεων και κερδών ενημερώνουν αυτόματα το ταμείο και το κλείσιμο της βάρδιας.
               </p>
             </div>
@@ -255,7 +255,7 @@ export const OpapGamesManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Ακαθάριστες Εισπράξεις ΟΠΑΠ (Gross Sales)</p>
           <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalGross)}</h3>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-2 flex items-center gap-1">
+          <p className="text-micro text-emerald-600 font-semibold mt-2 flex items-center gap-1">
             <TrendingUp className="w-3.5 h-3.5" /> Πωλήσεις δελτίων, κουπονιών & λαχείων
           </p>
         </div>
@@ -263,13 +263,13 @@ export const OpapGamesManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Πληρωμές Κερδών (Payouts)</p>
           <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalPayouts)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Εξόφληση δελτίων από ταμείο πρακτορείου</p>
+          <p className="text-micro text-slate-400 mt-2">Εξόφληση δελτίων από ταμείο πρακτορείου</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρά Έσοδα ΟΠΑΠ (Net Revenue)</p>
           <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Καθαρή συνεισφορά στο ταμείο βάρδιας</p>
+          <p className="text-micro text-slate-400 mt-2">Καθαρή συνεισφορά στο ταμείο βάρδιας</p>
         </div>
       </div>
 

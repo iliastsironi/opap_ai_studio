@@ -101,7 +101,7 @@ export const Modal: React.FC<ModalProps> = ({
                 <h3 id={titleId} className="font-bold text-sm truncate">
                   {title}
                 </h3>
-                {subtitle && <p className="text-[11px] text-slate-400 truncate">{subtitle}</p>}
+                {subtitle && <p className="text-micro text-slate-400 truncate">{subtitle}</p>}
               </div>
               {badge}
             </div>

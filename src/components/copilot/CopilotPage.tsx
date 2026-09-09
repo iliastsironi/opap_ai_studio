@@ -232,12 +232,12 @@ export const CopilotPage: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-base font-black text-slate-900">AI Copilot ShiftLedger</h1>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-micro font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                 Live Assistant
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">
+            <p className="text-micro text-slate-500 font-medium">
               Έξυπνος βοηθός με πλήρη γνώση των οδηγιών και των δεδομένων του πρακτορείου
             </p>
           </div>
@@ -289,7 +289,7 @@ export const CopilotPage: React.FC = () => {
                     : 'bg-white text-slate-800 border-slate-200/80 rounded-tl-xs'
                 }`}
               >
-                <div className="flex items-center justify-between text-[10px] opacity-75 pb-1 border-b border-current/10 gap-4">
+                <div className="flex items-center justify-between text-micro opacity-75 pb-1 border-b border-current/10 gap-4">
                   <span className="font-bold">{isUser ? userName : 'AI Copilot'}</span>
                   <span>{msg.timestamp}</span>
                 </div>
@@ -333,7 +333,7 @@ export const CopilotPage: React.FC = () => {
       {/* Suggestion Prompt Chips */}
       {messages.length <= 2 && (
         <div className="space-y-1.5 shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <p className="text-micro font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
             <Lightbulb className="w-3 h-3 text-amber-500" />
             <span>Προτεινόμενες Ερωτήσεις:</span>
           </p>
@@ -342,7 +342,7 @@ export const CopilotPage: React.FC = () => {
               <button
                 key={idx}
                 onClick={() => handleSendMessage(sug)}
-                className="px-3 py-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 border border-slate-200 hover:border-indigo-200 rounded-xl text-[11px] font-semibold transition-all cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 border border-slate-200 hover:border-indigo-200 rounded-xl text-micro font-semibold transition-all cursor-pointer shadow-2xs"
               >
                 {sug}
               </button>

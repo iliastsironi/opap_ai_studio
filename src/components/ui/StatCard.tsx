@@ -80,7 +80,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         <div className={`text-3xl font-black text-emerald-400 mt-1 ${valueMono ? 'font-mono' : ''} ${valueClassName}`}>
           {value}
         </div>
-        {caption && <p className="text-[10px] text-indigo-200/80 mt-1 font-medium">{caption}</p>}
+        {caption && <p className="text-micro text-indigo-200/80 mt-1 font-medium">{caption}</p>}
       </div>
     );
   }
@@ -102,7 +102,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div className={`p-5 rounded-2xl border shadow-2xs ${CARD_TONE_CLASSES[tone]}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">{label}</span>
         {Icon && (
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center border shrink-0 ${ICON_BOX_TONE_CLASSES[resolvedIconTone]}`}
@@ -122,9 +122,9 @@ export const StatCard: React.FC<StatCardProps> = ({
         )}
       </div>
 
-      {caption && <p className="text-[11px] text-slate-500 font-medium mt-1">{caption}</p>}
+      {caption && <p className="text-micro text-slate-500 font-medium mt-1">{caption}</p>}
 
-      {footer && <div className="mt-3 pt-3 border-t border-slate-100 text-[11px]">{footer}</div>}
+      {footer && <div className="mt-3 pt-3 border-t border-slate-100 text-micro">{footer}</div>}
     </div>
   );
 };

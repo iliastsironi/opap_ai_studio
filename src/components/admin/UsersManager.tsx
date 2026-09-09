@@ -248,7 +248,7 @@ export const UsersManager: React.FC = () => {
               <Send aria-hidden="true" className="w-3.5 h-3.5" />
               <span>{linkCopied ? 'Αντιγράφηκε!' : 'Αντιγραφή Συνδέσμου Πρόσκλησης'}</span>
             </button>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-micro text-slate-500">
               * Ο χρήστης έλαβε επίσης αυτόματο email με τον ίδιο σύνδεσμο.
             </p>
           </div>
@@ -331,7 +331,7 @@ export const UsersManager: React.FC = () => {
                           <p className="font-bold text-slate-900 text-sm">
                             {u.first_name} {u.last_name}
                           </p>
-                          <p className="text-[11px] text-slate-400 font-mono">{u.employee_code || 'EMP-N/A'}</p>
+                          <p className="text-micro text-slate-400 font-mono">{u.employee_code || 'EMP-N/A'}</p>
                         </div>
                       </div>
                     </td>
@@ -356,14 +356,14 @@ export const UsersManager: React.FC = () => {
                         {u.roles?.map((r: any) => (
                           <span
                             key={r.id}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-micro font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
                           >
                             <Shield className="w-3 h-3 mr-1" />
                             {r.name}
                           </span>
                         ))}
                         {(!u.roles || u.roles.length === 0) && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-micro font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                             <Shield className="w-3 h-3 mr-1" />
                             {u.role_name || u.role_code || 'Εργαζόμενος'}
                           </span>
@@ -376,7 +376,7 @@ export const UsersManager: React.FC = () => {
                         {(u.assigned_stores || u.stores)?.map((as: any, idx: number) => (
                           <span
                             key={as.store_id || idx}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700"
+                            className="inline-flex items-center px-2 py-0.5 rounded text-micro font-medium bg-slate-100 text-slate-700"
                           >
                             <StoreIcon className="w-3 h-3 mr-1 text-slate-400" />
                             {as.store_code || as.store_name}
@@ -387,7 +387,7 @@ export const UsersManager: React.FC = () => {
 
                     <td className="p-4">
                       <span
-                        className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        className={`inline-flex items-center text-micro font-bold px-2.5 py-0.5 rounded-full border ${
                           u.is_active !== false && u.status !== 'INACTIVE'
                             ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                             : 'text-rose-700 bg-rose-50 border-rose-200'
