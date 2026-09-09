@@ -1138,7 +1138,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 type="button"
                 disabled={loading}
                 onClick={handleApprove}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>

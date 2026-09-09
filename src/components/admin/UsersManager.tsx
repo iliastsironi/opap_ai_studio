@@ -291,7 +291,7 @@ export const UsersManager: React.FC = () => {
               }
               setShowInviteModal(true);
             }}
-            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-all cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Πρόσκληση Χρήστη</span>
@@ -543,7 +543,7 @@ export const UsersManager: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isInviting}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isInviting ? 'Αποστολή...' : 'Προσθήκη Χρήστη'}
                 </button>
@@ -733,7 +733,7 @@ export const UsersManager: React.FC = () => {
                 type="button"
                 disabled={isDeletingUser}
                 onClick={handleConfirmDeleteUser}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
               >
                 {isDeletingUser ? (
                   <>

@@ -1444,7 +1444,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 type="button"
                 disabled={isDeletingDraft}
                 onClick={handleDeleteDraft}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
               >
                 {isDeletingDraft ? (
                   <>
@@ -1515,7 +1515,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSubmitShift}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>
@@ -2607,7 +2607,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 type="button"
                 id="btn-preview-receipt-step5"
                 onClick={() => setShowReceiptModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center space-x-2 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center space-x-2 shadow-xs hover:shadow-md transition-all cursor-pointer active:scale-95"
                 title="Προεπισκόπηση τελικής απόδειξης βάρδιας"
               >
                 <Eye className="w-4 h-4 text-white" />
@@ -3131,7 +3131,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <button
             type="button"
             onClick={() => handleStepChange(currentStep + 1)}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1"
           >
             <span>Επόμενο Βήμα</span>
             <ChevronRight className="w-4 h-4" />
