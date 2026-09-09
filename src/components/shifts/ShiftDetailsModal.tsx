@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  X,
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
@@ -25,6 +24,8 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Shift } from '../../types/index.ts';
 import { ShiftStatusBadge } from '../ui/StatusBadge.tsx';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
@@ -152,34 +153,21 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 my-4 sm:my-8 flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-xs">
-              <Scale className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h2 className="font-black text-base sm:text-lg">Επιθεώρηση & Έγκριση Βάρδιας</h2>
-                <ShiftStatusBadge status={shift.status} variant="glass" />
-              </div>
-              <p className="text-xs text-slate-300 mt-0.5">
-                {shift.store_name} ({shift.register_id}) • Υπεύθυνος: <span className="font-bold text-white">{shift.opened_by_user_name || 'Υπάλληλος'}</span>
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Κλείσιμο"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
+    <>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      icon={Scale}
+      title="Επιθεώρηση & Έγκριση Βάρδιας"
+      badge={<ShiftStatusBadge status={shift.status} variant="glass" />}
+      subtitle={
+        <>
+          {shift.store_name} ({shift.register_id}) • Υπεύθυνος: <span className="font-bold text-white">{shift.opened_by_user_name || 'Υπάλληλος'}</span>
+        </>
+      }
+      size="5xl"
+    >
+      <div className="space-y-5">
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
               {error}
@@ -1019,88 +1007,91 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               </button>
             )}
           </div>
-        </div>
       </div>
+    </Modal>
 
       {/* Reopen / Request Correction Sub-modal */}
-      {showReopenModal && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <ShieldAlert className="w-5 h-5 text-rose-600" />
-              <span>Αίτηση Διόρθωσης Βάρδιας</span>
-            </h3>
-            <p className="text-xs text-slate-600">
-              Εισάγετε την αιτιολογία για την οποία ζητάτε από τον υπάλληλο να διορθώσει τη βάρδια.
-            </p>
+      <Modal
+        isOpen={showReopenModal}
+        onClose={() => setShowReopenModal(false)}
+        layer="stacked"
+        icon={ShieldAlert}
+        title="Αίτηση Διόρθωσης Βάρδιας"
+        size="sm"
+        bodyAsForm
+        onSubmit={handleReopenSubmit}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowReopenModal(false)}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
+            >
+              {loading ? 'Αποστολή...' : 'Επιβεβαίωση Αίτησης'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Εισάγετε την αιτιολογία για την οποία ζητάτε από τον υπάλληλο να διορθώσει τη βάρδια.
+          </p>
 
-            <form onSubmit={handleReopenSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="reopen-action-type" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Ενέργεια
-                </label>
-                <select
-                  id="reopen-action-type"
-                  value={actionType}
-                  onChange={(e) => setActionType(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                >
-                  <option value="CORRECTION">Αίτηση Διόρθωσης (Correction Requested)</option>
-                  <option value="REOPEN">Πλήρες Επανάννοιγμα Βάρδιας (Reopened)</option>
-                </select>
-              </div>
+          <div>
+            <label htmlFor="reopen-action-type" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Ενέργεια
+            </label>
+            <select
+              id="reopen-action-type"
+              value={actionType}
+              onChange={(e) => setActionType(e.target.value as any)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+            >
+              <option value="CORRECTION">Αίτηση Διόρθωσης (Correction Requested)</option>
+              <option value="REOPEN">Πλήρες Επανάννοιγμα Βάρδιας (Reopened)</option>
+            </select>
+          </div>
 
-              <div>
-                <label htmlFor="reopen-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Αιτιολογία & Οδηγίες <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  id="reopen-notes"
-                  value={managerNotes}
-                  onChange={(e) => setManagerNotes(e.target.value)}
-                  placeholder="Π.χ. Παρακαλώ επανακαταμετρήστε τα πληρωθέντα δελτία ΟΠΑΠ..."
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-900"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowReopenModal(false)}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-                >
-                  {loading ? 'Αποστολή...' : 'Επιβεβαίωση Αίτησης'}
-                </button>
-              </div>
-            </form>
+          <div>
+            <label htmlFor="reopen-notes" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Αιτιολογία & Οδηγίες <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              id="reopen-notes"
+              value={managerNotes}
+              onChange={(e) => setManagerNotes(e.target.value)}
+              placeholder="Π.χ. Παρακαλώ επανακαταμετρήστε τα πληρωθέντα δελτία ΟΠΑΠ..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-900"
+              required
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
       {/* Approve Confirmation Modal */}
-      {showApproveConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
-            <div className="flex items-center space-x-3 text-emerald-600">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">Έγκριση Βάρδιας</h3>
-                <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
-                  {shift.store_name} • {shift.register_id}
-                </span>
-              </div>
-            </div>
+      <ConfirmDialog
+        isOpen={showApproveConfirm}
+        onCancel={() => setShowApproveConfirm(false)}
+        onConfirm={handleApprove}
+        tone="positive"
+        layer="stacked"
+        title="Έγκριση Βάρδιας"
+        isLoading={loading}
+        loadingLabel="Έγκριση..."
+        confirmLabel="Ναι, Έγκριση"
+        message={
+          <div className="space-y-3">
+            <span className="text-micro font-bold text-slate-500 uppercase tracking-wider block">
+              {shift.store_name} • {shift.register_id}
+            </span>
 
             {!isShiftBalanced ? (
               <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 space-y-1.5 text-xs text-rose-950">
@@ -1124,84 +1115,59 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 {error}
               </div>
             )}
-
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => setShowApproveConfirm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleApprove}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Έγκριση...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Ναι, Έγκριση</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        }
+      />
 
       {/* Brief success confirmation before closing */}
-      {approveSucceeded && (
-        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-3 text-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-            </div>
-            <p className="font-extrabold text-slate-900">Η βάρδια εγκρίθηκε</p>
+      <Modal
+        isOpen={approveSucceeded}
+        onClose={() => setApproveSucceeded(false)}
+        layer="stacked"
+        headerStyle="none"
+        size="sm"
+        closeOnBackdropClick
+      >
+        <div className="flex flex-col items-center space-y-3 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
           </div>
+          <p className="font-extrabold text-slate-900">Η βάρδια εγκρίθηκε</p>
         </div>
-      )}
+      </Modal>
 
-      {reopenSucceededMsg && (
-        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-3 text-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-            </div>
-            <p className="font-extrabold text-slate-900">{reopenSucceededMsg}</p>
+      <Modal
+        isOpen={!!reopenSucceededMsg}
+        onClose={() => setReopenSucceededMsg(null)}
+        layer="stacked"
+        headerStyle="none"
+        size="sm"
+        closeOnBackdropClick
+      >
+        <div className="flex flex-col items-center space-y-3 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
           </div>
+          <p className="font-extrabold text-slate-900">{reopenSucceededMsg}</p>
         </div>
-      )}
+      </Modal>
 
       {/* Image Preview Modal */}
-      {selectedReceiptUrl && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl p-4 max-w-lg w-full space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-sm text-slate-900">Προεπισκόπηση Απόδειξης</span>
-              <button
-                onClick={() => setSelectedReceiptUrl(null)}
-                aria-label="Κλείσιμο"
-                className="p-1 text-slate-400 hover:text-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <img
-              src={selectedReceiptUrl}
-              alt="Receipt Preview"
-              className="w-full max-h-[70vh] object-contain rounded-lg border border-slate-200"
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={!!selectedReceiptUrl}
+        onClose={() => setSelectedReceiptUrl(null)}
+        layer="stacked"
+        headerStyle="bordered"
+        title="Προεπισκόπηση Απόδειξης"
+        size="lg"
+        closeOnBackdropClick
+      >
+        <img
+          src={selectedReceiptUrl || ''}
+          alt="Receipt Preview"
+          className="w-full max-h-[70vh] object-contain rounded-lg border border-slate-200"
+        />
+      </Modal>
 
       {/* Print Thermal Receipt Modal */}
       <ShiftReceiptPrintView
@@ -1262,6 +1228,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
       />
-    </div>
+    </>
   );
 };

@@ -34,6 +34,8 @@ import {
 } from '../../services/shiftTemplateService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
@@ -398,38 +400,16 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         </div>
       )}
 
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
-            <div className="flex items-center space-x-3 text-amber-600">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <RefreshCcw className="w-5 h-5 text-amber-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Επαναφορά Προεπιλογών</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Θέλετε να επαναφέρετε τη φόρμα στις προεπιλεγμένες ρυθμίσεις του καταστήματος; Οι τρέχουσες ρυθμίσεις θα αντικατασταθούν.
-            </p>
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={handleResetDefaults}
-                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-              >
-                <RefreshCcw className="w-3.5 h-3.5" />
-                <span>Ναι, Επαναφορά</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onCancel={() => setShowResetConfirm(false)}
+        onConfirm={handleResetDefaults}
+        tone="neutral"
+        icon={RefreshCcw}
+        title="Επαναφορά Προεπιλογών"
+        message="Θέλετε να επαναφέρετε τη φόρμα στις προεπιλεγμένες ρυθμίσεις του καταστήματος; Οι τρέχουσες ρυθμίσεις θα αντικατασταθούν."
+        confirmLabel="Ναι, Επαναφορά"
+      />
 
       {/* Main Mode Navigation Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
@@ -1017,23 +997,31 @@ export const ShiftTemplateConfigurator: React.FC = () => {
       )}
 
       {/* Modal: Add or Edit Custom Field */}
-      {showFieldModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
-                {editingFieldId ? 'Επεξεργασία Πεδίου Βάρδιας' : 'Προσθήκη Νέου Πεδίου Βάρδιας'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowFieldModal(false)}
-                aria-label="Κλείσιμο"
-                className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
+      <Modal
+        isOpen={showFieldModal}
+        onClose={() => setShowFieldModal(false)}
+        headerStyle="bordered"
+        title={editingFieldId ? 'Επεξεργασία Πεδίου Βάρδιας' : 'Προσθήκη Νέου Πεδίου Βάρδιας'}
+        size="lg"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowFieldModal(false)}
+              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveFieldFromModal}
+              className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
+            >
+              {editingFieldId ? 'Ενημέρωση' : 'Προσθήκη'}
+            </button>
+          </>
+        }
+      >
             <div className="space-y-4 text-xs">
               <div>
                 <label htmlFor="field-label" className="font-bold text-slate-800 block mb-1">
@@ -1125,26 +1113,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 </label>
               </div>
             </div>
-
-            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowFieldModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveFieldFromModal}
-                className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
-              >
-                {editingFieldId ? 'Ενημέρωση' : 'Προσθήκη'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };
