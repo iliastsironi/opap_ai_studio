@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, AlertCircle, X, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
+import { Clock, Play, AlertCircle, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
@@ -8,6 +8,7 @@ import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../servi
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { Modal } from '../ui/Modal.tsx';
 import {
   carryOverScratchInventory,
   getLatestStoreScratchInventory,
@@ -206,36 +207,52 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150 my-auto max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-              <Play className="w-5 h-5 ml-0.5 fill-white" />
-            </div>
-            <div>
-              <h3 className="font-extrabold text-base tracking-tight">
-                {toGreekUpper('Εναρξη Νεας Βαρδιας')}
-              </h3>
-              <p className="text-xs text-slate-300">
-                {shiftType === 'MORNING'
-                  ? 'Ορισμός αρχικού ταμείου από διαχειριστή'
-                  : 'Αυτόματη μεταφορά ταμείου από προηγούμενη βάρδια'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Κλείσιμο"
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const footerActions = (
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+      >
+        {toGreekUpper('Ακυρωση')}
+      </button>
+      <button
+        type="submit"
+        disabled={loading || fetchingPrev}
+        className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+      >
+        {loading ? (
+          <>
+            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>Άνοιγμα...</span>
+          </>
+        ) : (
+          <>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{toGreekUpper('Επιβεβαιωση & Εναρξη')}</span>
+          </>
+        )}
+      </button>
+    </>
+  );
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={toGreekUpper('Εναρξη Νεας Βαρδιας')}
+      subtitle={
+        shiftType === 'MORNING'
+          ? 'Ορισμός αρχικού ταμείου από διαχειριστή'
+          : 'Αυτόματη μεταφορά ταμείου από προηγούμενη βάρδια'
+      }
+      icon={Play}
+      size="lg"
+      bodyAsForm
+      onSubmit={handleSubmit}
+      footer={footerActions}
+    >
+      <div className="space-y-4 text-xs">
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start space-x-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -442,36 +459,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
-
-          {/* Modal Actions */}
-          <div className="pt-3 flex items-center justify-end space-x-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              {toGreekUpper('Ακυρωση')}
-            </button>
-            <button
-              type="submit"
-              disabled={loading || fetchingPrev}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Άνοιγμα...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{toGreekUpper('Επιβεβαιωση & Εναρξη')}</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+    </Modal>
   );
 };

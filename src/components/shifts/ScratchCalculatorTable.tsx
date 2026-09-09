@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export interface ScratchTicketRow {
   id: string;
@@ -1570,19 +1572,35 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow) : false;
         return (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
-          onClick={() => setNewPackModalRowId(null)}
+        <Modal
+          isOpen
+          onClose={() => setNewPackModalRowId(null)}
+          closeOnBackdropClick
+          headerStyle="bordered"
+          icon={PackagePlus}
+          title={`Άνοιγμα Νέου Πακέτου${targetIsBundleTracked ? '' : ' Σκρατς'}`}
+          size="sm"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setNewPackModalRowId(null)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyNewPack(newPackModalRowId)}
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Εφαρμογή Νέου Πακέτου</span>
+              </button>
+            </>
+          }
         >
-          <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-2 text-indigo-900 border-b border-slate-100 pb-3">
-              <PackagePlus className="w-5 h-5 text-indigo-600" />
-              <h4 className="font-extrabold text-sm">Άνοιγμα Νέου Πακέτου{targetIsBundleTracked ? '' : ' Σκρατς'}</h4>
-            </div>
-
+          <div className="space-y-4">
             <p className="text-xs text-slate-600">
               {targetIsBundleTracked
                 ? 'Το προηγούμενο απόθεμα ολοκληρώθηκε. Ορίστε το αρχικό σύνολο του νέου αποθέματος:'
@@ -1630,110 +1648,41 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 <p className="text-micro text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
               </div>
             )}
-
-            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setNewPackModalRowId(null)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={() => handleApplyNewPack(newPackModalRowId)}
-                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Εφαρμογή Νέου Πακέτου</span>
-              </button>
-            </div>
           </div>
-        </div>
+        </Modal>
         );
       })()}
 
       {/* Reset-All Confirmation Modal */}
-      {showResetConfirm && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setShowResetConfirm(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Καθαρισμός Όλων των Τελικών</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Αυτό θα διαγράψει το Μπροστά-Τελικό και το Πίσω-Αρχικό (τις μετρήσεις πωλήσεων της βάρδιας) από{' '}
-              <strong>όλα</strong> τα παιχνίδια του πίνακα ταυτόχρονα. Η ενέργεια δεν αναιρείται.
-            </p>
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Ναι, Καθαρισμός Όλων</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onCancel={() => setShowResetConfirm(false)}
+        onConfirm={handleReset}
+        tone="destructive"
+        icon={AlertTriangle}
+        title="Καθαρισμός Όλων των Τελικών"
+        message={
+          <>
+            Αυτό θα διαγράψει το Μπροστά-Τελικό και το Πίσω-Αρχικό (τις μετρήσεις πωλήσεων της βάρδιας) από{' '}
+            <strong>όλα</strong> τα παιχνίδια του πίνακα ταυτόχρονα. Η ενέργεια δεν αναιρείται.
+          </>
+        }
+        confirmLabel="Ναι, Καθαρισμός Όλων"
+      />
 
       {/* Remove Row Confirmation Modal */}
       {rowToRemove && (() => {
         const targetRow = rows.find((r) => r.id === rowToRemove);
         return (
-          <div
-            className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-            onClick={() => setRowToRemove(null)}
-          >
-            <div
-              className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center space-x-3 text-rose-600">
-                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                  <Trash2 className="w-5 h-5 text-rose-600" />
-                </div>
-                <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Παιχνιδιού</h4>
-              </div>
-              <p className="text-xs text-slate-600">
-                Θέλετε να διαγράψετε το «{targetRow?.name}» από τον πίνακα; Τυχόν καταχωρημένες τιμές αυτού του παιχνιδιού για τη βάρδια θα χαθούν.
-              </p>
-              <div className="flex items-center justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setRowToRemove(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRow(rowToRemove)}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Ναι, Διαγραφή</span>
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmDialog
+            isOpen
+            onCancel={() => setRowToRemove(null)}
+            onConfirm={() => handleRemoveRow(rowToRemove)}
+            tone="destructive"
+            title="Διαγραφή Παιχνιδιού"
+            message={`Θέλετε να διαγράψετε το «${targetRow?.name}» από τον πίνακα; Τυχόν καταχωρημένες τιμές αυτού του παιχνιδιού για τη βάρδια θα χαθούν.`}
+            confirmLabel="Ναι, Διαγραφή"
+          />
         );
       })()}
 
