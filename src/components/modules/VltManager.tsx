@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, Edit3, RefreshCw, X, Clock, Plus, Trash2, Pencil } from 'lucide-react';
+import { Gamepad2, RefreshCw, X, Clock, Plus, Trash2, Pencil } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
+import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import {
   fetchVltTerminalsFromFirestore,
   createVltTerminalInFirestore,
@@ -26,14 +26,6 @@ export const VltManager: React.FC = () => {
 
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Edit Shift VLT Modal
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [savingShift, setSavingShift] = useState(false);
-
-  const [vltsIn, setVltsIn] = useState('');
-  const [vltsOut, setVltsOut] = useState('');
-  const [vltsOutType, setVltsOutType] = useState<'NEGATIVE' | 'POSITIVE'>('NEGATIVE');
 
   // Terminals - real, persisted rows (manual entry; see moduleServices.ts)
   const [terminals, setTerminals] = useState<VltTerminalRecord[]>([]);
@@ -154,11 +146,6 @@ export const VltManager: React.FC = () => {
     try {
       const shift = await fetchActiveShiftFromFirestore(orgId, sId);
       setActiveShift(shift);
-      if (shift) {
-        setVltsIn(String(shift.vlts_in || shift.vlts_cash_in || 0));
-        setVltsOut(String(shift.vlts_out || Math.abs(shift.vlts_cash_out || 0) || 0));
-        setVltsOutType(shift.vlts_out_type || ((shift.vlts_cash_out ?? -1) >= 0 ? 'POSITIVE' : 'NEGATIVE'));
-      }
     } catch (e) {
       console.warn('Could not load active shift in VltManager', e);
     } finally {
@@ -169,49 +156,6 @@ export const VltManager: React.FC = () => {
   useEffect(() => {
     loadActiveShiftData();
   }, [selectedStoreId, orgId]);
-
-  const handleSaveShiftVlts = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeShift) return;
-    setSavingShift(true);
-    try {
-      const inVal = parseFloat(vltsIn) || 0;
-      const outVal = parseFloat(vltsOut) || 0;
-      const signedOut = vltsOutType === 'NEGATIVE' ? -outVal : outVal;
-
-      const updates: Partial<Shift> = {
-        vlts_in: inVal,
-        vlts_out: outVal,
-        vlts_out_type: vltsOutType,
-        vlts_cash_in: inVal,
-        vlts_cash_out: signedOut,
-        vlts_net: inVal + signedOut,
-      };
-
-      await updateShiftInFirestore(activeShift.id, updates);
-
-      if (typeof window !== 'undefined') {
-        try {
-          const draftKey = `shift_draft_${activeShift.id}`;
-          const rawDraft = localStorage.getItem(draftKey);
-          if (rawDraft) {
-            const parsed = JSON.parse(rawDraft);
-            Object.assign(parsed, updates);
-            localStorage.setItem(draftKey, JSON.stringify(parsed));
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      await loadActiveShiftData();
-      setShowEditModal(false);
-    } catch (err) {
-      console.error('Error saving VLTs to shift:', err);
-    } finally {
-      setSavingShift(false);
-    }
-  };
 
   const terminalsIn = terminals.reduce((sum, t) => sum + t.meter_in, 0);
   const terminalsOut = terminals.reduce((sum, t) => sum + t.meter_out, 0);
@@ -232,12 +176,7 @@ export const VltManager: React.FC = () => {
             <Gamepad2 className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">Τερματικά PLAY VLTs</h1>
-              <span className="text-xs font-mono font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
-                ΑΜΦΙΔΡΟΜΟΣ ΣΥΓΧΡΟΝΙΣΜΟΣ
-              </span>
-            </div>
+            <h1 className="text-xl font-bold text-slate-900">Τερματικά PLAY VLTs</h1>
             <p className="text-xs text-slate-500 mt-1">
               Real-time μέτρηση Meter-In / Meter-Out, καθαρού εσόδου & κατάστασης παιγνιομηχανών PLAY.
             </p>
@@ -245,16 +184,6 @@ export const VltManager: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          {activeShift && (
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 shadow-xs cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Επεξεργασία & Συγχρονισμός Βάρδιας</span>
-            </button>
-          )}
-
           <button
             onClick={loadActiveShiftData}
             className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer"
@@ -277,13 +206,13 @@ export const VltManager: React.FC = () => {
                 Ενεργή Βάρδια: {activeShift.store_name} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
               </p>
               <p className="text-micro text-slate-600 mt-0.5">
-                Τα ποσά εισροών (Meter-In) και εκροών/payouts (Meter-Out) είναι συνδεδεμένα αμφίδρομα με το κλείσιμο της βάρδιας.
+                Τα παρακάτω ποσά εισροών (Meter-In) και εκροών/payouts (Meter-Out) προέρχονται από την ενεργή βάρδια. Καταχωρούνται στον οδηγό κλεισίματος βάρδιας (βήμα ΟΠΑΠ & VLTs), όχι εδώ.
               </p>
             </div>
           </div>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 self-start sm:self-auto">
             <span className="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-            Συνδεδεμένη Βάρδια
+            Ενεργή Βάρδια
           </span>
         </div>
       ) : (
@@ -403,100 +332,6 @@ export const VltManager: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Edit Shift VLT Modal */}
-      {showEditModal && activeShift && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Gamepad2 className="w-4 h-4 text-purple-400" />
-                Συγχρονισμός VLTs Βάρδιας ({activeShift.store_name})
-              </h3>
-              <button onClick={() => setShowEditModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveShiftVlts} className="p-5 space-y-4 text-xs">
-              <p className="text-slate-600">
-                Εισάγετε τα συνολικά ποσά εισροών (Meter-In) και εκροών/payouts (Meter-Out) των παιγνιομηχανών VLTs για την ενεργή βάρδια.
-              </p>
-
-              <div>
-                <label htmlFor="vlt-in" className="block text-slate-700 font-bold mb-1">
-                  VLTs Εισροές / Meter In (€)
-                </label>
-                <input
-                  id="vlt-in"
-                  type="number"
-                  step="0.01"
-                  value={vltsIn}
-                  onChange={(e) => setVltsIn(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="vlt-out" className="block text-slate-700 font-bold">
-                    VLTs Εκροές / Meter Out (€)
-                  </label>
-                  <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => setVltsOutType('NEGATIVE')}
-                      aria-pressed={vltsOutType === 'NEGATIVE'}
-                      className={`px-3 py-2 rounded text-micro font-bold cursor-pointer ${
-                        vltsOutType === 'NEGATIVE' ? 'bg-rose-600 text-white shadow-2xs' : 'text-slate-600'
-                      }`}
-                    >
-                      - Εκροή
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVltsOutType('POSITIVE')}
-                      aria-pressed={vltsOutType === 'POSITIVE'}
-                      className={`px-3 py-2 rounded text-micro font-bold cursor-pointer ${
-                        vltsOutType === 'POSITIVE' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600'
-                      }`}
-                    >
-                      + Είσπραξη
-                    </button>
-                  </div>
-                </div>
-                <input
-                  id="vlt-out"
-                  type="number"
-                  step="0.01"
-                  value={vltsOut}
-                  onChange={(e) => setVltsOut(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingShift}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {savingShift ? 'Αποθήκευση...' : 'Αποθήκευση & Συγχρονισμός'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 
