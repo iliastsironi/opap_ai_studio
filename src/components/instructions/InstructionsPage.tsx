@@ -126,7 +126,7 @@ export const InstructionsPage: React.FC = () => {
               <Info className="w-3.5 h-3.5 text-indigo-600" />
               <span>Πίνακας Περιεχομένων</span>
             </h2>
-            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">
+            <span className="text-micro bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">
               {filteredSections.length} ενότητες
             </span>
           </div>
@@ -136,7 +136,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('all')}
               aria-pressed={selectedCategory === 'all'}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
                 selectedCategory === 'all'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -147,7 +147,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('operational')}
               aria-pressed={selectedCategory === 'operational'}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
                 selectedCategory === 'operational'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -158,7 +158,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('management')}
               aria-pressed={selectedCategory === 'management'}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
                 selectedCategory === 'management'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -250,7 +250,7 @@ export const InstructionsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                    <span className="text-micro font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
                       {sec.category === 'operational'
                         ? 'Λειτουργικό'
                         : sec.category === 'management'
@@ -277,7 +277,7 @@ export const InstructionsPage: React.FC = () => {
                           key={idx}
                           className="flex items-start space-x-3 p-3 rounded-xl bg-white border border-slate-150 hover:bg-slate-50/80 transition-colors"
                         >
-                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-micro font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                             {idx + 1}
                           </span>
                           <span className="text-xs text-slate-700 font-medium leading-relaxed pt-0.5">
@@ -311,7 +311,7 @@ export const InstructionsPage: React.FC = () => {
                           key={kIdx}
                           className="p-3 bg-slate-50 border border-slate-100 rounded-xl"
                         >
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <p className="text-micro font-bold uppercase tracking-wider text-slate-400">
                             {kp.label}
                           </p>
                           <p className="text-xs font-bold text-slate-800 mt-0.5">

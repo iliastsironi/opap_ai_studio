@@ -63,8 +63,8 @@ const DOT_TONE_CLASSES: Record<BadgeTone, string> = {
 };
 
 const SIZE_CLASSES: Record<BadgeSize, string> = {
-  sm: 'text-[10px] px-2 py-0.5',
-  md: 'text-[11px] px-2.5 py-1',
+  sm: 'text-micro px-2 py-0.5',
+  md: 'text-micro px-2.5 py-1',
 };
 
 export const Badge: React.FC<BadgeProps> = ({

@@ -216,7 +216,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   : 'text-slate-900 placeholder:text-slate-400'
               }`}
             />
-            <span className={`text-[11px] font-bold ml-1 select-none shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            <span className={`text-micro font-bold ml-1 select-none shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
               τμχ
             </span>
           </div>
@@ -353,7 +353,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                 : 'bg-indigo-50/90 border-indigo-200 text-indigo-950'
             }`}
           >
-            <span className="text-[10px] font-extrabold uppercase tracking-wider block opacity-80">
+            <span className="text-micro font-extrabold uppercase tracking-wider block opacity-80">
               Σύνολο Μετρητών
             </span>
             <span className="text-xl font-black font-mono leading-tight">
@@ -395,7 +395,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                     <span>Χαρτονομίσματα</span>
                     <span className="text-xs font-normal opacity-70 font-mono">(500€ - 5€)</span>
                   </h5>
-                  <p className={`text-[11px] font-medium ${isDark ? 'text-emerald-400/80' : 'text-emerald-700/80'}`}>
+                  <p className={`text-micro font-medium ${isDark ? 'text-emerald-400/80' : 'text-emerald-700/80'}`}>
                     Καταμέτρηση χαρτονομισμάτων ταμείου
                   </p>
                 </div>
@@ -479,7 +479,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                     <span>Κέρματα</span>
                     <span className="text-xs font-normal opacity-70 font-mono">(2€ - 0,10€)</span>
                   </h5>
-                  <p className={`text-[11px] font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
+                  <p className={`text-micro font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
                     Καταμέτρηση κερμάτων και υποδιαιρέσεων
                   </p>
                 </div>

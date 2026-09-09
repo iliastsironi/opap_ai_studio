@@ -279,7 +279,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-black tracking-wide">Διαχείριση Πιστώσεων & Credit Score Πελατών</h3>
-                <span className="text-[10px] bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full font-bold border border-indigo-400/30">
+                <span className="text-micro bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full font-bold border border-indigo-400/30">
                   Τεφτέρι Καταστήματος
                 </span>
               </div>
@@ -351,7 +351,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider block">
+                    <span className="text-micro font-extrabold text-rose-700 uppercase tracking-wider block">
                       Συνολικό Ανοιχτό Τεφτέρι
                     </span>
                     <span className="text-xl font-black text-rose-950 font-mono">
@@ -365,7 +365,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                 <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider block">
+                    <span className="text-micro font-extrabold text-indigo-700 uppercase tracking-wider block">
                       Πελάτες με Οφειλή
                     </span>
                     <span className="text-xl font-black text-indigo-950 font-mono">
@@ -379,7 +379,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                 <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider block">
+                    <span className="text-micro font-extrabold text-emerald-700 uppercase tracking-wider block">
                       VIP & Υψηλή Εμπιστοσύνη (A+/A)
                     </span>
                     <span className="text-xl font-black text-emerald-950 font-mono">
@@ -409,7 +409,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                 {/* Tier Filter Chips */}
                 <div className="flex items-center space-x-1.5 overflow-x-auto w-full sm:w-auto pb-1">
-                  <span className="text-[11px] font-bold text-slate-500 mr-1">Score:</span>
+                  <span className="text-micro font-bold text-slate-500 mr-1">Score:</span>
                   {['ALL', 'A+', 'A', 'B', 'C'].map((tier) => (
                     <button
                       key={tier}
@@ -431,7 +431,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
               <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-[10px]">
+                    <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
                       <th className="p-3">Ονοματεπώνυμο / Τηλέφωνο</th>
                       <th className="p-3 text-center">Credit Score</th>
                       <th className="p-3 text-right">Όριο Πίστωσης</th>
@@ -459,13 +459,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                             <td className="p-3">
                               <div className="font-bold text-slate-900 text-xs">{cust.name}</div>
                               {cust.phone && (
-                                <div className="text-[11px] text-slate-500 flex items-center space-x-1 font-mono mt-0.5">
+                                <div className="text-micro text-slate-500 flex items-center space-x-1 font-mono mt-0.5">
                                   <Phone className="w-3 h-3 text-slate-400" />
                                   <span>{cust.phone}</span>
                                 </div>
                               )}
                               {cust.notes && (
-                                <div className="text-[10px] text-slate-400 italic truncate max-w-[200px] mt-0.5">
+                                <div className="text-micro text-slate-400 italic truncate max-w-[200px] mt-0.5">
                                   {cust.notes}
                                 </div>
                               )}
@@ -473,7 +473,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                             <td className="p-3 text-center">
                               <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black border ${tierConfig.badgeBg} ${tierConfig.badgeBorder}`}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-micro font-black border ${tierConfig.badgeBg} ${tierConfig.badgeBorder}`}
                               >
                                 {cust.tier}
                               </span>
@@ -499,7 +499,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                               >
                                 {isOverLimit && <AlertTriangle className="w-3 h-3 shrink-0" />}
                                 {formatCurrency(debt)}
-                                {isOverLimit && <span className="font-sans font-bold text-[9px] uppercase">Υπέρβαση</span>}
+                                {isOverLimit && <span className="font-sans font-bold text-micro uppercase">Υπέρβαση</span>}
                               </span>
                             </td>
 
@@ -517,7 +517,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                   }`}
                                 >
                                   {formatCurrency(available)}
-                                  {available <= 0 && <span className="font-sans font-bold text-[9px] uppercase">Μηδέν</span>}
+                                  {available <= 0 && <span className="font-sans font-bold text-micro uppercase">Μηδέν</span>}
                                 </span>
                               )}
                             </td>
@@ -531,7 +531,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                       onCustomerSelected(cust);
                                       onClose();
                                     }}
-                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-lg text-micro font-bold transition-all cursor-pointer"
                                   >
                                     Επιλογή
                                   </button>
@@ -620,7 +620,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <span className="px-2.5 py-0.5 rounded-full bg-purple-200 text-purple-900 font-black text-xs border border-purple-300">
                       Κατηγορία A+ (VIP)
                     </span>
-                    <span className="text-[10px] text-purple-700 font-bold uppercase tracking-wider">VIP Πελάτες</span>
+                    <span className="text-micro text-purple-700 font-bold uppercase tracking-wider">VIP Πελάτες</span>
                   </div>
                   <p className="text-xs text-slate-600">
                     Απευθύνεται σε VIP πελάτες υψηλής εμπιστοσύνης και τακτικούς παίκτες VLTs/Στοιχημάτων.
@@ -643,7 +643,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                     {!editTierLimits['A+'].isUnlimited && (
                       <div>
-                        <label htmlFor="tier-limit-aplus" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                        <label htmlFor="tier-limit-aplus" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                           Ποσό Ορίου (€):
                         </label>
                         <input
@@ -669,13 +669,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-black text-xs border border-emerald-300">
                       Κατηγορία A (Υψηλή Εμπιστοσύνη)
                     </span>
-                    <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Τακτικοί</span>
+                    <span className="text-micro text-emerald-700 font-bold uppercase tracking-wider">Τακτικοί</span>
                   </div>
                   <p className="text-xs text-slate-600">
                     Πελάτες που εξοφλούν σταθερά (π.χ. κάθε εβδομάδα ή τέλος του μήνα).
                   </p>
                   <div className="pt-2">
-                    <label htmlFor="tier-limit-a" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-a" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
@@ -702,13 +702,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black text-xs border border-amber-300">
                       Κατηγορία B (Βασικό Όριο)
                     </span>
-                    <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">Μεσαίο Ρίσκο</span>
+                    <span className="text-micro text-amber-700 font-bold uppercase tracking-wider">Μεσαίο Ρίσκο</span>
                   </div>
                   <p className="text-xs text-slate-600">
                     Περιστασιακοί πελάτες ή νέα μέλη με περιορισμένο ιστορικό συναλλαγών.
                   </p>
                   <div className="pt-2">
-                    <label htmlFor="tier-limit-b" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-b" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
@@ -735,13 +735,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <span className="px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-900 font-black text-xs border border-rose-300">
                       Κατηγορία C (Αυστηρό / Περιορισμένο)
                     </span>
-                    <span className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">Υψηλό Ρίσκο</span>
+                    <span className="text-micro text-rose-700 font-bold uppercase tracking-wider">Υψηλό Ρίσκο</span>
                   </div>
                   <p className="text-xs text-slate-600">
                     Επισφαλείς πελάτες με καθυστερήσεις. Απαιτείται άμεση εξόφληση πριν από κάθε νέα κίνηση.
                   </p>
                   <div className="pt-2">
-                    <label htmlFor="tier-limit-c" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="tier-limit-c" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
@@ -806,7 +806,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
               <form onSubmit={handleSaveCustomer} className="space-y-3.5">
                 <div>
-                  <label htmlFor="cust-name" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-name" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                     Ονοματεπώνυμο Πελάτη *
                   </label>
                   <input
@@ -821,7 +821,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
 
                 <div>
-                  <label htmlFor="cust-phone" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-phone" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                     Τηλέφωνο Επικοινωνίας
                   </label>
                   <input
@@ -835,7 +835,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label className="text-micro font-bold text-slate-700 uppercase block mb-1">
                     Κατηγορία Credit Score (Όριο) *
                   </label>
                   <div className="grid grid-cols-4 gap-2">
@@ -860,7 +860,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       </button>
                     ))}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
+                  <p className="text-micro text-slate-500 mt-1">
                     {formData.tier === 'A+' && 'A+: Απεριόριστο όριο (VIP πελάτης).'}
                     {formData.tier === 'A' && `A: Όριο έως ${tierConfigs['A']?.defaultLimit ?? 300} €.`}
                     {formData.tier === 'B' && `B: Όριο έως ${tierConfigs['B']?.defaultLimit ?? 100} €.`}
@@ -870,7 +870,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="cust-debt" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="cust-debt" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Τρέχουσα Οφειλή (€)
                     </label>
                     <input
@@ -884,7 +884,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   </div>
 
                   <div>
-                    <label htmlFor="cust-custom-limit" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    <label htmlFor="cust-custom-limit" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Ειδικό Όριο (Προαιρετικό)
                     </label>
                     <input
@@ -900,7 +900,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
 
                 <div>
-                  <label htmlFor="cust-notes" className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  <label htmlFor="cust-notes" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                     Σημειώσεις / Ιστορικό
                   </label>
                   <textarea

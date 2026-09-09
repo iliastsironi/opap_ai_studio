@@ -66,7 +66,7 @@ export const AuditLogViewer: React.FC = () => {
                       <p className="text-xs font-bold text-slate-900">
                         {log.user_email || 'Σύστημα'}
                       </p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-micro text-slate-500">
                         Τύπος Entity: <strong className="text-slate-700">{log.entity_type}</strong> ({log.entity_id || '-'})
                       </p>
                     </div>
@@ -79,7 +79,7 @@ export const AuditLogViewer: React.FC = () => {
                 </div>
 
                 {log.after_state && (
-                  <div className="bg-slate-900 text-slate-200 text-[11px] font-mono p-3 rounded-lg overflow-x-auto max-h-28">
+                  <div className="bg-slate-900 text-slate-200 text-micro font-mono p-3 rounded-lg overflow-x-auto max-h-28">
                     <pre>{JSON.stringify(log.after_state, null, 2)}</pre>
                   </div>
                 )}

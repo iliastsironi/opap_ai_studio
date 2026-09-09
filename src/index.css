@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* text-micro replaces six near-identical arbitrary sizes (text-[8.5px]
+   through text-[10.5px], all below Tailwind's own smallest standard step,
+   text-xs/12px) that had accumulated across the app for the same "tiny
+   label" role - one named size instead of six magic bracket values. */
+@theme {
+  --text-micro: 0.6875rem; /* 11px */
+  --text-micro--line-height: 1rem;
+}
+
 /* Hide print-only elements by default on screen */
 .print-only {
   display: none !important;

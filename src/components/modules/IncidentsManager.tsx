@@ -162,21 +162,21 @@ export const IncidentsManager: React.FC = () => {
                   <tr key={inc.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{inc.id}</p>
-                      <p className="text-[10px] text-slate-400">{new Date(inc.created_at).toLocaleString('el-GR')}</p>
+                      <p className="text-micro text-slate-400">{new Date(inc.created_at).toLocaleString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-bold text-slate-800">{inc.title}</p>
-                      <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                      <span className="text-micro bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
                         {inc.category}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       {inc.severity === 'CRITICAL' || inc.severity === 'HIGH' ? (
-                        <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                        <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-micro font-bold">
                           {inc.severity}
                         </span>
                       ) : (
-                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-micro font-bold">
                           {inc.severity}
                         </span>
                       )}
@@ -185,12 +185,12 @@ export const IncidentsManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-700">{inc.reported_by}</td>
                     <td className="px-4 py-3">
                       {inc.status === 'RESOLVED' ? (
-                        <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-1">
+                        <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-micro font-bold inline-flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" />
                           ΕΠΙΛΥΘΗΚΕ
                         </span>
                       ) : (
-                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                        <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-micro font-bold">
                           ΕΚΚΡΕΜΕΣ
                         </span>
                       )}
@@ -200,7 +200,7 @@ export const IncidentsManager: React.FC = () => {
                         <button
                           onClick={() => handleResolve(inc.id)}
                           disabled={resolvingId === inc.id}
-                          className="px-2 py-1 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="px-2 py-1 bg-emerald-600 text-white rounded text-micro font-bold hover:bg-emerald-700 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {resolvingId === inc.id ? 'Επίλυση...' : 'Επίλυση'}
                         </button>

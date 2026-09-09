@@ -285,7 +285,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                   {/* Customer Selection */}
                   <div className="sm:col-span-4">
-                    <label htmlFor={`credit-customer-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-customer-${idx}`} className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Πελάτης (Λίστα & Score)
                     </label>
 
@@ -293,7 +293,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       <div className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                         <span>{cred.customer_name || '-'}</span>
                         {cred.customer_tier && (
-                          <span className="text-[10px] bg-slate-200 px-1.5 py-0.5 rounded font-black font-mono">
+                          <span className="text-micro bg-slate-200 px-1.5 py-0.5 rounded font-black font-mono">
                             {cred.customer_tier}
                           </span>
                         )}
@@ -331,7 +331,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
                   {/* Transaction Type */}
                   <div className="sm:col-span-4">
-                    <label htmlFor={`credit-type-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-type-${idx}`} className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Τύπος Κίνησης
                     </label>
                     {readOnly ? (
@@ -359,7 +359,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
                   {/* Amount */}
                   <div className="sm:col-span-3">
-                    <label htmlFor={`credit-amount-${idx}`} className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
+                    <label htmlFor={`credit-amount-${idx}`} className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block mb-1">
                       Ποσό (€)
                     </label>
                     <div className="relative">
@@ -456,19 +456,19 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs">
                     <div className="flex items-center space-x-2 flex-wrap">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                        className={`px-2 py-0.5 rounded-full text-micro font-black border ${
                           tierConfigs[customerObj.tier]?.badgeBg || 'bg-slate-100 text-slate-800'
                         } ${tierConfigs[customerObj.tier]?.badgeBorder || 'border-slate-300'}`}
                       >
                         Score: {customerObj.tier} ({tierConfigs[customerObj.tier]?.isUnlimited ? 'Απεριόριστο' : `Όριο: ${tierConfigs[customerObj.tier]?.defaultLimit}€`})
                       </span>
 
-                      <span className="text-[11px] text-slate-600 font-semibold">
+                      <span className="text-micro text-slate-600 font-semibold">
                         Τρέχουσα Οφειλή: <strong className="font-mono text-slate-900">{formatCurrency(customerObj.current_debt || 0)}</strong>
                       </span>
 
                       {!tierConfigs[customerObj.tier]?.isUnlimited && (
-                        <span className="text-[11px] text-slate-600 font-semibold">
+                        <span className="text-micro text-slate-600 font-semibold">
                           • Διαθέσιμο Περιθώριο:{' '}
                           <strong
                             className={`font-mono ${
@@ -485,7 +485,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
                     {/* Transaction Outcome Badge */}
                     {amount > 0 && (
-                      <div className="text-[11px] font-mono font-bold">
+                      <div className="text-micro font-mono font-bold">
                         {isGranted ? (
                           <span className={isOverLimit ? 'text-rose-700 font-black' : 'text-amber-900'}>
                             Νέο Σύνολο Οφειλής: {formatCurrency((customerObj.current_debt || 0) + amount)}

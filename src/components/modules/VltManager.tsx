@@ -276,7 +276,7 @@ export const VltManager: React.FC = () => {
               <p className="text-xs font-bold text-slate-900">
                 Ενεργή Βάρδια: {activeShift.store_name} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
               </p>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-micro text-slate-600 mt-0.5">
                 Τα ποσά εισροών (Meter-In) και εκροών/payouts (Meter-Out) είναι συνδεδεμένα αμφίδρομα με το κλείσιμο της βάρδιας.
               </p>
             </div>
@@ -298,19 +298,19 @@ export const VltManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Εισπράξεων (Meter In)</p>
           <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalIn)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
+          <p className="text-micro text-slate-400 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Πληρωμών (Meter Out)</p>
           <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalOut)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Εκδόσεις TITO & payouts παικτών</p>
+          <p className="text-micro text-slate-400 mt-2">Εκδόσεις TITO & payouts παικτών</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρό Έσοδο VLTs (Net Revenue)</p>
           <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
-          <p className="text-[11px] text-slate-400 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
+          <p className="text-micro text-slate-400 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
         </div>
       </div>
 
@@ -320,7 +320,7 @@ export const VltManager: React.FC = () => {
         {canManageTerminals && (
           <button
             onClick={openAddTerminalModal}
-            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold transition-colors flex items-center space-x-1.5 shadow-xs cursor-pointer"
+            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-micro font-bold transition-colors flex items-center space-x-1.5 shadow-xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Προσθήκη Τερματικού</span>
@@ -351,12 +351,12 @@ export const VltManager: React.FC = () => {
             <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">{t.code}</span>
+                  <span className="text-micro font-mono text-slate-400 uppercase font-bold">{t.code}</span>
                   <h4 className="font-bold text-slate-900 text-sm">{t.game_title || '—'}</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
+                    className={`text-micro font-bold px-2 py-0.5 rounded font-mono ${
                       t.status === 'ONLINE'
                         ? 'bg-emerald-100 text-emerald-800'
                         : t.status === 'OFFLINE'
@@ -389,15 +389,15 @@ export const VltManager: React.FC = () => {
 
               <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-slate-50 p-2 rounded">
-                  <p className="text-[10px] text-slate-400 font-medium">In</p>
+                  <p className="text-micro text-slate-400 font-medium">In</p>
                   <p className="text-xs font-extrabold text-slate-800 font-mono">{formatCurrency(t.meter_in)}</p>
                 </div>
                 <div className="bg-slate-50 p-2 rounded">
-                  <p className="text-[10px] text-slate-400 font-medium">Out</p>
+                  <p className="text-micro text-slate-400 font-medium">Out</p>
                   <p className="text-xs font-extrabold text-rose-600 font-mono">{formatCurrency(t.meter_out)}</p>
                 </div>
                 <div className="bg-indigo-50 p-2 rounded">
-                  <p className="text-[10px] text-indigo-500 font-medium">Net</p>
+                  <p className="text-micro text-indigo-500 font-medium">Net</p>
                   <p className="text-xs font-extrabold text-indigo-700 font-mono">{formatCurrency(t.net_revenue)}</p>
                 </div>
               </div>
@@ -450,7 +450,7 @@ export const VltManager: React.FC = () => {
                       type="button"
                       onClick={() => setVltsOutType('NEGATIVE')}
                       aria-pressed={vltsOutType === 'NEGATIVE'}
-                      className={`px-3 py-2 rounded text-[10px] font-bold cursor-pointer ${
+                      className={`px-3 py-2 rounded text-micro font-bold cursor-pointer ${
                         vltsOutType === 'NEGATIVE' ? 'bg-rose-600 text-white shadow-2xs' : 'text-slate-600'
                       }`}
                     >
@@ -460,7 +460,7 @@ export const VltManager: React.FC = () => {
                       type="button"
                       onClick={() => setVltsOutType('POSITIVE')}
                       aria-pressed={vltsOutType === 'POSITIVE'}
-                      className={`px-3 py-2 rounded text-[10px] font-bold cursor-pointer ${
+                      className={`px-3 py-2 rounded text-micro font-bold cursor-pointer ${
                         vltsOutType === 'POSITIVE' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600'
                       }`}
                     >
@@ -520,7 +520,7 @@ export const VltManager: React.FC = () => {
 
             <form onSubmit={handleSaveTerminal} className="p-5 space-y-4 text-xs">
               {terminalFormError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-2.5 text-[11px] font-medium">
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-2.5 text-micro font-medium">
                   {terminalFormError}
                 </div>
               )}

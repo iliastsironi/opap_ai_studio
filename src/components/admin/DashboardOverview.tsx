@@ -180,7 +180,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 1: Gross Revenue */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+            <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">
               {toGreekUpper('Συνολικα Εσοδα (€)')}
             </p>
             <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
@@ -191,11 +191,11 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             <h3 className="text-2xl font-black text-slate-900">
               {formatCurrency(totalRevenueCalculated)}
             </h3>
-            <span className="inline-flex items-center text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center text-micro font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
               <TrendingUp className="w-3 h-3 mr-0.5" /> +8.4%
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">
+          <p className="text-micro text-slate-500 font-medium mt-1">
             ΟΠΑΠ: 55% | VLTs: 35% | FnB: 10%
           </p>
         </div>
@@ -203,7 +203,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 2: Total Expenses */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+            <p className="text-micro font-extrabold text-slate-400 tracking-wider">
               {toGreekUpper('Εξοδα & Πληρωμες (€)')}
             </p>
             <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
@@ -214,11 +214,11 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             <h3 className="text-2xl font-black text-slate-900">
               {formatCurrency(totalExpensesCalculated)}
             </h3>
-            <span className="inline-flex items-center text-[10px] font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center text-micro font-extrabold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
               Εγκεκριμένα
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">
+          <p className="text-micro text-slate-500 font-medium mt-1">
             Τιμολόγια, προμηθευτές & μικροέξοδα
           </p>
         </div>
@@ -226,7 +226,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 3: Cash Discrepancies */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+            <p className="text-micro font-extrabold text-slate-400 tracking-wider">
               {toGreekUpper('Αποκλισεις Ταμειου (€)')}
             </p>
             <div
@@ -248,7 +248,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               {formatCurrency(totalDiscrepanciesCalculated, { showSign: true })}
             </h3>
             <span
-              className={`inline-flex items-center text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+              className={`inline-flex items-center text-micro font-extrabold px-2 py-0.5 rounded-full ${
                 Math.abs(totalDiscrepanciesCalculated) <= 10
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'bg-amber-50 text-amber-700'
@@ -257,7 +257,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               {Math.abs(totalDiscrepanciesCalculated) <= 10 ? '✓ Εντός Ορίων' : '⚠️ Προσοχή'}
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">
+          <p className="text-micro text-slate-500 font-medium mt-1">
             Συνολική διαφορά καταμετρημένων vs Z
           </p>
         </div>
@@ -265,7 +265,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         {/* KPI 4: Safe Drop & Cash In Vault */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-extrabold text-slate-400 tracking-wider">
+            <p className="text-micro font-extrabold text-slate-400 tracking-wider">
               {toGreekUpper('Καταθεσεις Safe Drop (€)')}
             </p>
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
@@ -276,11 +276,11 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             <h3 className="text-2xl font-black text-slate-900">
               {formatCurrency(totalSafeDropCalculated)}
             </h3>
-            <span className="inline-flex items-center text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center text-micro font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
               Ασφαλισμένα
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">
+          <p className="text-micro text-slate-500 font-medium mt-1">
             Μεταφορές μετρητών στο χρηματοκιβώτιο
           </p>
         </div>
@@ -298,7 +298,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <h3 className="font-extrabold text-sm text-slate-900">
                   Εκκρεμότητες Εγκρίσεων: {pendingShifts.length} {pendingShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'}
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 animate-pulse">
+                <span className="px-2 py-0.5 rounded-full text-micro font-black bg-amber-400 text-slate-950 animate-pulse">
                   AWAITING APPROVAL
                 </span>
               </div>
@@ -335,11 +335,11 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             </div>
             <div className="flex items-center space-x-2">
               {!hasRealShifts && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase font-mono">
+                <span className="text-micro font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-500 uppercase font-mono">
                   Ενδεικτικά Δεδομένα
                 </span>
               )}
-              <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700">
+              <span className="text-micro font-extrabold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700">
                 Εβδομαδιαία Εικόνα
               </span>
             </div>
@@ -382,7 +382,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <PieIcon className="w-4 h-4 text-purple-600" />
                 <span>Κατανομή Εσόδων</span>
               </h3>
-              <span className="text-[10px] font-mono font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
+              <span className="text-micro font-mono font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded">
                 % SHARE
               </span>
             </div>
@@ -527,15 +527,15 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
+                    <span className="text-micro font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
                       {st.code}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    <span className="text-micro font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
                       {st.store_type}
                     </span>
                   </div>
                   <h4 className="font-bold text-slate-900 text-xs">{st.name}</h4>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">{st.address || 'Έδρα καταστήματος'}</p>
+                  <p className="text-micro text-slate-500 truncate mt-0.5">{st.address || 'Έδρα καταστήματος'}</p>
                 </div>
               ))}
             </div>
@@ -550,7 +550,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               <h3 className="text-xs font-bold text-indigo-200 tracking-widest">
                 ΟΔΗΓΟΣ ΒΑΡΔΙΑΣ
               </h3>
-              <span className="px-2 py-0.5 bg-indigo-800 rounded text-[10px] text-indigo-200 font-bold">
+              <span className="px-2 py-0.5 bg-indigo-800 rounded text-micro text-indigo-200 font-bold">
                 SHIFT STATUS
               </span>
             </div>
@@ -597,7 +597,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div className="mt-1 w-2 h-2 bg-emerald-500 rounded-full shrink-0"></div>
                 <div>
                   <p className="font-bold text-slate-900">Tenant Isolation</p>
-                  <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
+                  <p className="text-slate-500 text-micro leading-relaxed mt-0.5">
                     Αυστηρός διαχωρισμός δεδομένων ανά οργανισμό και κατάστημα.
                   </p>
                 </div>
@@ -607,7 +607,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div className="mt-1 w-2 h-2 bg-indigo-500 rounded-full shrink-0"></div>
                 <div>
                   <p className="font-bold text-slate-900">Audit Logging</p>
-                  <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">
+                  <p className="text-slate-500 text-micro leading-relaxed mt-0.5">
                     Αμετάβλητες καταγραφές όλων των ενεργειών ταμείου & εγκρίσεων.
                   </p>
                 </div>

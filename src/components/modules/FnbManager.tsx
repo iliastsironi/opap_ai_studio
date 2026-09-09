@@ -293,7 +293,7 @@ export const FnbManager: React.FC = () => {
               <p className="text-xs font-bold text-slate-900">
                 Ενεργή Βάρδια: {activeShift.store_name} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
               </p>
-              <p className="text-[11px] text-slate-600 mt-0.5">
+              <p className="text-micro text-slate-600 mt-0.5">
                 FnB Μετρητά Ταμείου: <strong className="text-emerald-700 font-mono">{formatCurrency(Number(activeShift.fnb_cash) || 0)}</strong> | 
                 Κάρτες POS: <strong className="text-indigo-700 font-mono">{formatCurrency(Number(activeShift.fnb_card) || 0)}</strong> | 
                 Συνολικό FnB: <strong className="text-slate-900 font-mono">{formatCurrency(Number(activeShift.fnb_sales) || 0)}</strong>
@@ -322,7 +322,7 @@ export const FnbManager: React.FC = () => {
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Απευθείας καταχώρηση στο Ζ του POS/Bar</p>
+          <p className="text-micro text-slate-400 mt-2">Απευθείας καταχώρηση στο Ζ του POS/Bar</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -335,7 +335,7 @@ export const FnbManager: React.FC = () => {
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Προστίθεται στο αναμενόμενο υπόλοιπο συρταριού</p>
+          <p className="text-micro text-slate-400 mt-2">Προστίθεται στο αναμενόμενο υπόλοιπο συρταριού</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -348,7 +348,7 @@ export const FnbManager: React.FC = () => {
               <CreditCard className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Επιβεβαιώνεται από το τερματικό POS</p>
+          <p className="text-micro text-slate-400 mt-2">Επιβεβαιώνεται από το τερματικό POS</p>
         </div>
       </div>
 
@@ -384,7 +384,7 @@ export const FnbManager: React.FC = () => {
                   <tr key={s.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{s.id}</p>
-                      <p className="text-[10px] text-slate-400">{new Date(s.created_at).toLocaleTimeString('el-GR')}</p>
+                      <p className="text-micro text-slate-400">{new Date(s.created_at).toLocaleTimeString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">{s.item_name}</td>
                     <td className="px-4 py-3 text-center font-bold text-slate-700">{s.quantity}</td>
@@ -392,7 +392,7 @@ export const FnbManager: React.FC = () => {
                     <td className="px-4 py-3 text-right font-bold text-emerald-600 font-mono">
                       +{formatCurrency(s.total_price)}
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{s.payment_method}</td>
+                    <td className="px-4 py-3 font-mono text-micro text-slate-600">{s.payment_method}</td>
                     <td className="px-4 py-3 text-slate-600">{s.server_name}</td>
                     <td className="px-4 py-3 text-right">
                       <button

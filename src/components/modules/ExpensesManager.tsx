@@ -321,7 +321,7 @@ export const ExpensesManager: React.FC = () => {
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
+          <p className="text-micro text-slate-400 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -334,7 +334,7 @@ export const ExpensesManager: React.FC = () => {
               <Tag className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
+          <p className="text-micro text-slate-400 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -349,7 +349,7 @@ export const ExpensesManager: React.FC = () => {
               <ArrowUpRight className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-3">Εντός ορίων ασφαλείας εγκρίσεων</p>
+          <p className="text-micro text-slate-400 mt-3">Εντός ορίων ασφαλείας εγκρίσεων</p>
         </div>
       </div>
 
@@ -412,7 +412,7 @@ export const ExpensesManager: React.FC = () => {
                   <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{exp.id}</p>
-                      <p className="text-[10px] text-slate-400">{new Date(exp.created_at).toLocaleString('el-GR')}</p>
+                      <p className="text-micro text-slate-400">{new Date(exp.created_at).toLocaleString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{exp.recipient || '—'}</td>
                     <td className="px-4 py-3">{getCategoryBadge(exp.category)}</td>
@@ -420,7 +420,7 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3 text-right font-extrabold text-rose-600">
                       -{formatCurrency(exp.amount)}
                     </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{exp.payment_method}</td>
+                    <td className="px-4 py-3 font-mono text-micro text-slate-600">{exp.payment_method}</td>
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -473,7 +473,7 @@ export const ExpensesManager: React.FC = () => {
               {/* Active Shift Indicator */}
               <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2">
                 <Clock className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-tight">
+                <div className="text-micro leading-tight">
                   {activeShift ? (
                     <>
                       <p className="font-bold text-indigo-950">
@@ -555,7 +555,7 @@ export const ExpensesManager: React.FC = () => {
                     <Building2 className="w-4 h-4 text-indigo-600" />
                     <span>Επιλογή Προμηθευτή / Παραλήπτη</span>
                   </span>
-                  <span className="text-[11px] font-normal text-slate-400">Επιλογή από λίστα</span>
+                  <span className="text-micro font-normal text-slate-400">Επιλογή από λίστα</span>
                 </label>
                 <select
                   id="expense-supplier"

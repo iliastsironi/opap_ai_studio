@@ -245,12 +245,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Group 1: Store & Register Setup (Responsive Grid on Tablet) */}
           <div className="space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+            <span className="text-micro font-black text-slate-400 uppercase tracking-wider block">
               {toGreekUpper('1. Στοιχεια Καταστηματος & Ταμειου')}
             </span>
 
             <div>
-              <label htmlFor="opening-store" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="opening-store" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
                 {toGreekUpper('Καταστημα')} <span className="text-rose-500">*</span>
               </label>
               <select
@@ -272,7 +272,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Cash Register */}
               <div>
-                <label htmlFor="opening-register" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="opening-register" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
                   {toGreekUpper('Ταμειο / Register')}
                 </label>
                 <select
@@ -289,7 +289,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
               {/* Shift Type */}
               <div>
-                <label htmlFor="opening-shift-type" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="opening-shift-type" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
                   {toGreekUpper('Τυπος Βαρδιας')}
                 </label>
                 <select
@@ -315,7 +315,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <span className="font-bold block">
                   ☀️ {toGreekUpper('Πρωινη Βαρδια — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
-                <span className="text-[11px] text-amber-800 font-medium">
+                <span className="text-micro text-amber-800 font-medium">
                   Στην πρωινή βάρδια το αρχικό κεφάλαιο/ταμείο ορίζεται χειροκίνητα από τον διαχειριστή ή υπεύθυνο.
                 </span>
               </div>
@@ -327,12 +327,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <span className="font-bold flex items-center gap-1.5">
                   🔄 {toGreekUpper('Αυτοματη Μεταφορα απο Προηγουμενη Βαρδια')}
                   {isAutoFetched && (
-                    <span className="px-1.5 py-0.2 text-[9px] font-black bg-indigo-200 text-indigo-950 rounded-md uppercase">
+                    <span className="px-1.5 py-0.2 text-micro font-black bg-indigo-200 text-indigo-950 rounded-md uppercase">
                       AUTO
                     </span>
                   )}
                 </span>
-                <span className="text-[11px] text-indigo-800 font-medium block mt-0.5">
+                <span className="text-micro text-indigo-800 font-medium block mt-0.5">
                   {previousShift
                     ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.opened_by_user_name || 'Προηγούμενη'}).`
                     : 'Δεν βρέθηκε προηγούμενη βάρδια. Εμφανίζονται τα προεπιλεγμένα ποσά.'}
@@ -344,10 +344,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           {/* Group 2: Opening Cash Float Breakdown */}
           <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-micro font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <span>{toGreekUpper('2. Αρχικο Ταμειο (Float €)')}</span>
                 {shiftType !== 'MORNING' && (
-                  <span className="text-[10px] text-indigo-700 font-bold border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                  <span className="text-micro text-indigo-700 font-bold border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
                     {toGreekUpper('Απο Προηγουμενη')}
                   </span>
                 )}
@@ -359,10 +359,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="opening-banknotes" className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                <label htmlFor="opening-banknotes" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
+                    <span className="text-micro text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -388,10 +388,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </div>
 
               <div>
-                <label htmlFor="opening-coins" className="block text-[11px] font-bold text-slate-600 mb-1 flex items-center justify-between">
+                <label htmlFor="opening-coins" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>🪙 {toGreekUpper('Κερματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-[9px] text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
+                    <span className="text-micro text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -417,7 +417,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-500">
+            <p className="text-micro text-slate-500">
               {shiftType === 'MORNING'
                 ? 'Ορίστε τα χαρτονομίσματα και τα κέρματα που παραδίδονται στο ταμείο.'
                 : 'Τα ποσά χαρτονομισμάτων και κερμάτων προέρχονται αυτόματα από τα υπόλοιπα της προηγούμενης βάρδιας.'}
@@ -426,7 +426,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Group 3: Operational Notes */}
           <div>
-            <label htmlFor="opening-notes" className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+            <label htmlFor="opening-notes" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
               {toGreekUpper('Σημειωσεις Εναρξης (Προαιρετικο)')}
             </label>
             <textarea

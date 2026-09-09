@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
-              <p className="text-[10px] tracking-wider text-slate-400 font-semibold">
+              <p className="text-micro tracking-wider text-slate-400 font-semibold">
                 {toGreekUpper('Διαχειριση Ταμειου & Βαρδιων')}
               </p>
             </div>
@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-slate-900 truncate">{organization?.trade_name || 'Οργανισμός'}</p>
-          <p className="text-[10px] text-slate-500 font-mono mt-0.5">ΑΦΜ: {organization?.vat_number || '-'}</p>
+          <p className="text-micro text-slate-500 font-mono mt-0.5">ΑΦΜ: {organization?.vat_number || '-'}</p>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
       <nav aria-label="Κύρια πλοήγηση" className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
         {visibleNavItems.length > 0 && (
           <div>
-            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
+            <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
               {toGreekUpper('Διαχειριση & Ασφαλεια')}
             </p>
             <div className="space-y-1">
@@ -156,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         )}
 
         <div>
-          <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
+          <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
             {toGreekUpper('Λειτουργικες Ενοτητες')}
           </p>
           <div className="space-y-1">
@@ -186,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         </div>
 
         <div>
-          <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 tracking-widest">
+          <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
             {toGreekUpper('Βοηθεια & AI')}
           </p>
           <div className="space-y-1">
@@ -225,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
           </div>
           <div className="overflow-hidden min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-900 truncate">{primaryRole}</p>
-            <p className="text-[10px] text-slate-500 truncate">Δικαιώματα: {hasPermission('org.settings') ? 'Admin' : 'Staff'}</p>
+            <p className="text-micro text-slate-500 truncate">Δικαιώματα: {hasPermission('org.settings') ? 'Admin' : 'Staff'}</p>
           </div>
         </div>
       </div>

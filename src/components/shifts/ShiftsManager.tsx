@@ -383,35 +383,35 @@ export const ShiftsManager: React.FC = () => {
         {managerTab === 'SHIFTS' && (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100">
             <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
                 {toGreekUpper('Συνολο Βαρδιων')}
               </span>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-lg sm:text-xl font-black text-slate-900 font-mono">
                   {metrics.totalCount}
                 </span>
-                <span className="text-[11px] font-bold text-slate-500">
+                <span className="text-micro font-bold text-slate-500">
                   {metrics.openCount} {toGreekUpper('Ανοιχτες')}
                 </span>
               </div>
             </div>
 
             <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 flex flex-col justify-between">
-              <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+              <span className="text-micro font-bold text-amber-800 uppercase tracking-wider">
                 {toGreekUpper('Προς Εγκριση')}
               </span>
               <div className="flex items-baseline justify-between mt-1">
                 <span className="text-lg sm:text-xl font-black text-amber-900 font-mono">
                   {metrics.pendingCount}
                 </span>
-                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-900">
+                <span className="text-micro font-black px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-900">
                   {metrics.pendingCount > 0 ? toGreekUpper('Εκκρεμει') : toGreekUpper('Καθαρο')}
                 </span>
               </div>
             </div>
 
             <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col justify-between">
-              <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">
+              <span className="text-micro font-bold text-indigo-700 uppercase tracking-wider">
                 {toGreekUpper('Καταμετρημενο Ταμειο')}
               </span>
               <div className="flex items-baseline justify-between mt-1">
@@ -422,7 +422,7 @@ export const ShiftsManager: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
                 {toGreekUpper('Συνολικη Αποκλιση')}
               </span>
               <div className="flex items-baseline justify-between mt-1">
@@ -437,7 +437,7 @@ export const ShiftsManager: React.FC = () => {
                 >
                   {formatCurrency(metrics.totalDiscrepancy, { showSign: true })}
                 </span>
-                <span className="text-[10px] font-bold text-slate-400">
+                <span className="text-micro font-bold text-slate-400">
                   {metrics.totalDiscrepancy === 0 ? toGreekUpper('Ισοζυγιο') : toGreekUpper('Διαφορα')}
                 </span>
               </div>
@@ -474,7 +474,7 @@ export const ShiftsManager: React.FC = () => {
                       <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
                         Εκκρεμούν {pendingApprovalCount} {pendingApprovalCount === 1 ? 'Βάρδια' : 'Βάρδιες'} για Έγκριση
                       </h3>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-400 text-slate-950 animate-pulse">
+                      <span className="px-2 py-0.5 rounded-md text-micro font-black bg-amber-400 text-slate-950 animate-pulse">
                         {toGreekUpper('Αναμονη Εγκρισης')}
                       </span>
                     </div>
@@ -507,7 +507,7 @@ export const ShiftsManager: React.FC = () => {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1">
+                        <span className="text-micro font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1">
                           {pShift.store_name} ({pShift.register_id === 'REG-01' ? 'Ταμείο 1' : pShift.register_id})
                         </span>
                         <h4 className="font-extrabold text-slate-900 text-xs block">
@@ -518,7 +518,7 @@ export const ShiftsManager: React.FC = () => {
                             ? 'Απογευματινή'
                             : 'Βραδινή'}
                         </h4>
-                        <span className="text-[11px] text-slate-500 font-mono block mt-0.5">
+                        <span className="text-micro text-slate-500 font-mono block mt-0.5">
                           {new Date(pShift.closed_at || pShift.opened_at).toLocaleDateString('el-GR')}{' '}
                           {new Date(pShift.closed_at || pShift.opened_at).toLocaleTimeString('el-GR', {
                             hour: '2-digit',
@@ -528,7 +528,7 @@ export const ShiftsManager: React.FC = () => {
                       </div>
 
                       <div className="text-right shrink-0 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-bold">
+                        <span className="text-micro text-slate-400 block font-bold">
                           {toGreekUpper('Αποκλιση')}
                         </span>
                         <span
@@ -572,7 +572,7 @@ export const ShiftsManager: React.FC = () => {
                       <span className="font-black text-xs sm:text-sm text-white tracking-wide">
                         {toGreekUpper('Ενεργη Βαρδια σε Εξελιξη')}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950">
+                      <span className="px-2 py-0.5 rounded-full text-micro font-black bg-emerald-500 text-slate-950">
                         {toGreekUpper(activeShift.status)}
                       </span>
                     </div>
@@ -589,13 +589,13 @@ export const ShiftsManager: React.FC = () => {
 
                 {/* Group 2: Key Financials (md:col-span-3) */}
                 <div className="md:col-span-3 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">
+                  <span className="text-micro font-bold uppercase text-slate-400">
                     {toGreekUpper('Αρχικο Ταμειο (Float)')}
                   </span>
                   <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">
                     {formatCurrency(Number(activeShift.opening_cash))}
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-0.5">
+                  <span className="text-micro text-slate-400 mt-0.5">
                     {activeShift.shift_type === 'MORNING'
                       ? 'Πρωινή Βάρδια'
                       : activeShift.shift_type === 'AFTERNOON'
@@ -698,7 +698,7 @@ export const ShiftsManager: React.FC = () => {
                   title="Προβολή Πίνακα (Γραμμές με Στήλες)"
                 >
                   <TableIcon className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{toGreekUpper('Πινακας')}</span>
+                  <span className="text-micro">{toGreekUpper('Πινακας')}</span>
                 </button>
 
                 <button
@@ -712,7 +712,7 @@ export const ShiftsManager: React.FC = () => {
                   title="Προβολή Καρτών"
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{toGreekUpper('Καρτες')}</span>
+                  <span className="text-micro">{toGreekUpper('Καρτες')}</span>
                 </button>
               </div>
             </div>
@@ -752,10 +752,10 @@ export const ShiftsManager: React.FC = () => {
                   <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center space-x-1.5 mb-1">
-                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wide">
+                        <span className="text-micro font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wide">
                           {s.store_name}
                         </span>
-                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span className="text-micro font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                           {s.register_id === 'REG-01' ? 'Ταμείο 1' : s.register_id}
                         </span>
                       </div>
@@ -766,7 +766,7 @@ export const ShiftsManager: React.FC = () => {
                           ? 'Απογευματινή Βάρδια'
                           : 'Βραδινή Βάρδια'}
                       </h3>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                      <p className="text-micro text-slate-500 font-mono mt-0.5">
                         {new Date(s.opened_at).toLocaleDateString('el-GR')}{' '}
                         {new Date(s.opened_at).toLocaleTimeString('el-GR', {
                           hour: '2-digit',
@@ -784,11 +784,11 @@ export const ShiftsManager: React.FC = () => {
                   <div className="p-4 space-y-3.5 flex-1">
                     {/* Cashier Info */}
                     <div className="flex items-center space-x-2 text-xs text-slate-600 bg-slate-50 p-2 rounded-xl">
-                      <div className="w-6 h-6 rounded-lg bg-slate-200 flex items-center justify-center text-slate-600 text-[11px] font-bold shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-slate-200 flex items-center justify-center text-slate-600 text-micro font-bold shrink-0">
                         <User className="w-3.5 h-3.5" />
                       </div>
                       <div className="truncate">
-                        <span className="text-[10px] text-slate-400 block font-bold uppercase">
+                        <span className="text-micro text-slate-400 block font-bold uppercase">
                           {toGreekUpper('Χειριστης')}
                         </span>
                         <span className="font-bold text-slate-900 truncate block">
@@ -800,7 +800,7 @@ export const ShiftsManager: React.FC = () => {
                     {/* Financial Matrix (2x2 Grid) */}
                     <div className="grid grid-cols-2 gap-2.5 text-xs">
                       <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                        <span className="text-micro font-bold text-slate-400 block uppercase">
                           {toGreekUpper('Αναμενομενο')}
                         </span>
                         <span className="font-black text-slate-900 font-mono text-sm block mt-0.5">
@@ -809,7 +809,7 @@ export const ShiftsManager: React.FC = () => {
                       </div>
 
                       <div className="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/80">
-                        <span className="text-[10px] font-bold text-indigo-700 block uppercase">
+                        <span className="text-micro font-bold text-indigo-700 block uppercase">
                           {toGreekUpper('Καταμετρημενο')}
                         </span>
                         <span className="font-black text-indigo-950 font-mono text-sm block mt-0.5">
@@ -819,10 +819,10 @@ export const ShiftsManager: React.FC = () => {
 
                       <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 col-span-2 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                          <span className="text-micro font-bold text-slate-400 block uppercase">
                             {toGreekUpper('Αποκλιση Ταμειου')}
                           </span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-micro text-slate-400">
                             (Καταμέτρηση - Αναμενόμενο)
                           </span>
                         </div>
@@ -896,7 +896,7 @@ export const ShiftsManager: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-100/90 text-slate-700 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200 select-none">
+                  <thead className="bg-slate-100/90 text-slate-700 font-extrabold uppercase tracking-wider text-micro border-b border-slate-200 select-none">
                     <tr>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Ημερομηνια & Ωρα')}</th>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Καταστημα & Ταμειο')}</th>
@@ -938,7 +938,7 @@ export const ShiftsManager: React.FC = () => {
                           <div className="font-bold text-slate-900 font-mono text-xs">
                             {new Date(s.opened_at).toLocaleDateString('el-GR')}
                           </div>
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          <div className="text-micro text-slate-500 font-mono mt-0.5">
                             {new Date(s.opened_at).toLocaleTimeString('el-GR', {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -960,14 +960,14 @@ export const ShiftsManager: React.FC = () => {
                         {/* 2. Κατάστημα & Ταμείο */}
                         <td className="px-3.5 py-3 whitespace-nowrap">
                           <div className="font-bold text-slate-900 text-xs">{s.store_name}</div>
-                          <div className="text-[10px] text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded font-semibold inline-block mt-0.5">
+                          <div className="text-micro text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded font-semibold inline-block mt-0.5">
                             {s.register_id === 'REG-01' ? 'Ταμείο 1' : s.register_id}
                           </div>
                         </td>
 
                         {/* 3. Βάρδια */}
                         <td className="px-3.5 py-3 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-micro font-bold bg-slate-100 text-slate-700 border border-slate-200">
                             {s.shift_type === 'MORNING'
                               ? 'Πρωινή (Α)'
                               : s.shift_type === 'AFTERNOON'
@@ -981,7 +981,7 @@ export const ShiftsManager: React.FC = () => {
                         {/* 4. Χειριστής */}
                         <td className="px-3.5 py-3 whitespace-nowrap">
                           <div className="flex items-center space-x-1.5">
-                            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-[10px] font-bold shrink-0">
+                            <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-micro font-bold shrink-0">
                               <User className="w-3 h-3" />
                             </div>
                             <span className="font-bold text-slate-900 text-xs truncate max-w-[130px]">
@@ -1093,7 +1093,7 @@ export const ShiftsManager: React.FC = () => {
                   {/* Table Footer with Summary Row */}
                   <tfoot className="bg-slate-50/90 border-t-2 border-slate-200 font-bold text-slate-800 text-xs">
                     <tr>
-                      <td colSpan={4} className="px-3.5 py-3 text-slate-500 uppercase tracking-wider text-[11px]">
+                      <td colSpan={4} className="px-3.5 py-3 text-slate-500 uppercase tracking-wider text-micro">
                         {toGreekUpper('Συνολα Προβολης')} ({filteredShifts.length}{' '}
                         {filteredShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'})
                       </td>
@@ -1178,7 +1178,7 @@ export const ShiftsManager: React.FC = () => {
                 <h4 className="text-base font-extrabold text-slate-900">
                   Διαγραφή Προχείρου Βάρδιας
                 </h4>
-                <span className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                <span className="text-micro font-bold text-rose-600 uppercase tracking-wider">
                   {toGreekUpper('Ενεργεια Ιδιοκτητη / Διαχειριστη')}
                 </span>
               </div>
@@ -1188,7 +1188,7 @@ export const ShiftsManager: React.FC = () => {
               <p className="font-bold">
                 Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας;
               </p>
-              <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-[11px] border border-rose-200">
+              <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-micro border border-rose-200">
                 <div>
                   <strong>Κατάστημα:</strong> {shiftToDelete.store_name} ({shiftToDelete.register_id})
                 </div>
@@ -1202,7 +1202,7 @@ export const ShiftsManager: React.FC = () => {
                   <strong>Κατάσταση:</strong> {shiftToDelete.status}
                 </div>
               </div>
-              <p className="text-[11px] text-rose-700">
+              <p className="text-micro text-rose-700">
                 ⚠️ Τα δεδομένα του προχείρου (καταμετρήσεις, πρόχειρες καταχωρήσεις) θα διαγραφούν οριστικά από τη βάση δεδομένων.
               </p>
             </div>
