@@ -46,6 +46,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
 
 export interface ToraPosItem {
   id: string;
@@ -1705,6 +1706,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={openingNotesAmount}
                     onChange={(e) => setOpeningNotesAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1719,6 +1721,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={openingCoinsAmount}
                     onChange={(e) => setOpeningCoinsAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1733,6 +1736,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
                     value={openingTopUp1}
                     onChange={(e) => setOpeningTopUp1(e.target.value)}
@@ -1748,6 +1752,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
                     value={openingTopUp2}
                     onChange={(e) => setOpeningTopUp2(e.target.value)}
@@ -1791,6 +1796,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 type="number"
                 step="1"
                 min="0"
+                max={MAX_CURRENCY_AMOUNT}
                 value={discrepancyThreshold}
                 onChange={(e) => setDiscrepancyThreshold(e.target.value)}
                 className="w-36 px-4 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
@@ -1864,6 +1870,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       type="number"
                       step="0.01"
                       min="0"
+                      max={MAX_CURRENCY_AMOUNT}
                       readOnly={!scratchSalesManualOverride}
                       value={scratchSales}
                       onChange={(e) => setScratchSales(e.target.value)}
@@ -1910,6 +1917,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       type="number"
                       step="0.01"
                       min="0"
+                      max={MAX_CURRENCY_AMOUNT}
                       value={scratchPayouts}
                       onChange={(e) => setScratchPayouts(e.target.value)}
                       placeholder="0.00"
@@ -1994,6 +2002,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         type="number"
                         step="0.01"
                         min="0"
+                        max={MAX_CURRENCY_AMOUNT}
                         value={item.amount}
                         onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
                         placeholder="0.00"
@@ -2019,6 +2028,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={cleverPointTotal}
                     onChange={(e) => setCleverPointTotal(e.target.value)}
                     placeholder="0.00"
@@ -2038,6 +2048,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={ippodromosBalance}
                     onChange={(e) => setIppodromosBalance(e.target.value)}
                     placeholder="0.00"
@@ -2057,6 +2068,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={pameStoiximaBalance}
                     onChange={(e) => setPameStoiximaBalance(e.target.value)}
                     placeholder="0.00"
@@ -2124,6 +2136,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={vltsIn}
                     onChange={(e) => setVltsIn(e.target.value)}
                     placeholder="0.00"
@@ -2174,6 +2187,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       type="number"
                       step="0.01"
                       min="0"
+                      max={MAX_CURRENCY_AMOUNT}
                       value={vltsOut}
                       onChange={(e) => setVltsOut(e.target.value)}
                       placeholder="0.00"
@@ -2213,6 +2227,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={arithmoGross}
                     onChange={(e) => setArithmoGross(e.target.value)}
                     placeholder="0.00"
@@ -2228,6 +2243,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={arithmoCancels}
                     onChange={(e) => setArithmoCancels(e.target.value)}
                     placeholder="0.00"
@@ -2243,6 +2259,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={arithmoPayouts}
                     onChange={(e) => setArithmoPayouts(e.target.value)}
                     placeholder="0.00"
@@ -2258,6 +2275,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     value={arithmoVouchers}
                     onChange={(e) => setArithmoVouchers(e.target.value)}
                     placeholder="0.00"
@@ -2291,6 +2309,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="number"
                   step="0.01"
                   min="0"
+                  max={MAX_CURRENCY_AMOUNT}
                   value={fnbSales}
                   onChange={(e) => setFnbSales(e.target.value)}
                   placeholder="0.00"
@@ -2306,6 +2325,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="number"
                   step="0.01"
                   min="0"
+                  max={MAX_CURRENCY_AMOUNT}
                   value={fnbCash}
                   onChange={(e) => setFnbCash(e.target.value)}
                   placeholder="0.00"
@@ -2321,6 +2341,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="number"
                   step="0.01"
                   min="0"
+                  max={MAX_CURRENCY_AMOUNT}
                   value={fnbCard}
                   onChange={(e) => setFnbCard(e.target.value)}
                   placeholder="0.00"
@@ -2441,11 +2462,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         type="number"
                         step="0.01"
                         min="0"
+                        max={MAX_CURRENCY_AMOUNT}
                         placeholder="Ποσό €"
                         value={exp.amount || ''}
                         onChange={(e) => {
                           const updated = [...expenses];
-                          updated[idx].amount = parseFloat(e.target.value) || 0;
+                          updated[idx].amount = parseNonNegativeAmount(e.target.value, MAX_CURRENCY_AMOUNT).value;
                           setExpenses(updated);
                         }}
                         onBlur={() => handleExpenseFieldBlur(idx)}
@@ -2629,6 +2651,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       type="number"
                       step="0.01"
                       min="0"
+                      max={MAX_CURRENCY_AMOUNT}
                       value={item.amount}
                       onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
                       placeholder="0.00"
