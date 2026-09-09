@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, RefreshCw, X, Clock, Plus, Trash2, Pencil } from 'lucide-react';
+import { Gamepad2, RefreshCw, Clock, Plus, Trash2, Pencil } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
@@ -14,6 +14,8 @@ import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 const ELEVATED_ROLE_CODES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'];
 
@@ -336,24 +338,34 @@ export const VltManager: React.FC = () => {
       )}
 
       {/* Add/Edit Terminal Modal */}
-      {showTerminalModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Gamepad2 className="w-4 h-4 text-purple-400" />
-                {editingTerminalId ? 'Επεξεργασία Τερματικού' : 'Νέο Τερματικό VLT'}
-              </h3>
-              <button
-                onClick={() => setShowTerminalModal(false)}
-                aria-label="Κλείσιμο"
-                className="text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveTerminal} className="p-5 space-y-4 text-xs">
+      <Modal
+        isOpen={showTerminalModal}
+        onClose={() => setShowTerminalModal(false)}
+        icon={Gamepad2}
+        title={editingTerminalId ? 'Επεξεργασία Τερματικού' : 'Νέο Τερματικό VLT'}
+        size="md"
+        bodyAsForm
+        onSubmit={handleSaveTerminal}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowTerminalModal(false)}
+              className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingTerminal}
+              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSavingTerminal ? 'Αποθήκευση...' : 'Αποθήκευση'}
+            </button>
+          </>
+        }
+      >
+            <div className="space-y-4 text-xs">
               {terminalFormError && (
                 <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-2.5 text-micro font-medium">
                   {terminalFormError}
@@ -432,59 +444,27 @@ export const VltManager: React.FC = () => {
                   />
                 </div>
               </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTerminalModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingTerminal}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingTerminal ? 'Αποθήκευση...' : 'Αποθήκευση'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Delete Terminal Confirmation */}
-      {terminalToDelete && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
-            <div className="p-5 space-y-3">
-              <h3 className="font-bold text-sm text-slate-900">Διαγραφή Τερματικού;</h3>
-              <p className="text-xs text-slate-600">
-                Θα διαγραφεί οριστικά το τερματικό <span className="font-mono font-bold">{terminalToDelete.code}</span>
-                {terminalToDelete.game_title ? ` (${terminalToDelete.game_title})` : ''}. Η ενέργεια δεν αναιρείται.
-              </p>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setTerminalToDelete(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-xs font-bold"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteTerminal}
-                  disabled={isDeletingTerminal}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-xs"
-                >
-                  {isDeletingTerminal ? 'Διαγραφή...' : 'Διαγραφή'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!terminalToDelete}
+        onCancel={() => setTerminalToDelete(null)}
+        onConfirm={handleConfirmDeleteTerminal}
+        tone="destructive"
+        closeOnBackdropClick={false}
+        title="Διαγραφή Τερματικού;"
+        message={
+          <>
+            Θα διαγραφεί οριστικά το τερματικό <span className="font-mono font-bold">{terminalToDelete?.code}</span>
+            {terminalToDelete?.game_title ? ` (${terminalToDelete.game_title})` : ''}. Η ενέργεια δεν αναιρείται.
+          </>
+        }
+        confirmLabel="Διαγραφή"
+        isLoading={isDeletingTerminal}
+        loadingLabel="Διαγραφή..."
+      />
     </div>
   );
 };

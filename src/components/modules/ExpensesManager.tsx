@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle, Building2 } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
@@ -9,6 +9,8 @@ import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { Modal } from '../ui/Modal.tsx';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -367,19 +369,34 @@ export const ExpensesManager: React.FC = () => {
       </div>
 
       {/* New Expense Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-indigo-400" />
-                Καταχώρηση Νέου Εξόδου Ταμείου
-              </h3>
-              <button onClick={() => setShowModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateExpense} className="p-4 space-y-3 text-xs">
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        icon={Receipt}
+        title="Καταχώρηση Νέου Εξόδου Ταμείου"
+        size="md"
+        bodyAsForm
+        onSubmit={handleCreateExpense}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowModal(false)}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
+            >
+              Ακύρωση
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
+            </button>
+          </>
+        }
+      >
+            <div className="space-y-3 text-xs">
               <div>
                 <label htmlFor="expense-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
@@ -553,77 +570,21 @@ export const ExpensesManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg p-2"
                 />
               </div>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Aκύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+      </Modal>
 
       {/* Delete Expense Confirmation Modal */}
-      {expenseToDelete && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setExpenseToDelete(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Εξόδου</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «{expenseToDelete.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
-            </p>
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={isDeletingExpense}
-                onClick={() => setExpenseToDelete(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingExpense}
-                onClick={handleDeleteExpense}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isDeletingExpense ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Διαγραφή...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Ναι, Διαγραφή</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!expenseToDelete}
+        onCancel={() => setExpenseToDelete(null)}
+        onConfirm={handleDeleteExpense}
+        tone="destructive"
+        title="Διαγραφή Εξόδου"
+        message={`Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «${expenseToDelete?.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.`}
+        confirmLabel="Ναι, Διαγραφή"
+        isLoading={isDeletingExpense}
+        loadingLabel="Διαγραφή..."
+      />
     </div>
   );
 };
