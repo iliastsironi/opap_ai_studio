@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateBanknotesAndCoins,
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
@@ -53,6 +54,28 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
     it('returns 0 for missing or empty denomination inputs', () => {
       expect(calculateCountedCash(undefined)).toBe(0);
       expect(calculateCountedCash({})).toBe(0);
+    });
+
+    it('clamps a denomination count above 999 before totaling', () => {
+      const denominations = {
+        '50': 99999, // fat-fingered - should clamp to 999 -> 49950
+        '20': 3,     // 60
+      };
+      // Total = 999 * 50 + 3 * 20 = 49950 + 60 = 50010
+      expect(calculateCountedCash(denominations)).toBe(50010);
+    });
+  });
+
+  describe('calculateBanknotesAndCoins', () => {
+    it('clamps a denomination count above 999 before splitting into banknotes/coins', () => {
+      const denominations = {
+        '50': 99999, // fat-fingered - should clamp to 999 -> 49950 (banknote)
+        '0.50': 5000, // fat-fingered - should clamp to 999 -> 499.50 (coin)
+      };
+      const result = calculateBanknotesAndCoins(denominations);
+      expect(result.banknotes).toBe(49950);
+      expect(result.coins).toBe(499.5);
+      expect(result.total).toBe(50449.5);
     });
   });
 

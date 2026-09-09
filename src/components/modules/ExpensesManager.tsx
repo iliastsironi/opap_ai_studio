@@ -9,6 +9,7 @@ import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -121,7 +122,8 @@ export const ExpensesManager: React.FC = () => {
 
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || isNaN(Number(amount))) return;
+    const amountCheck = parseNonNegativeAmount(amount, MAX_CURRENCY_AMOUNT);
+    if (!amountCheck.isValid || amountCheck.value <= 0) return;
     const finalRecipient = selectedSupplierId === 'CUSTOM' ? (customRecipient.trim() || 'Προμηθευτής') : (recipient.trim() || 'Προμηθευτής');
     setSubmitting(true);
     try {
@@ -130,7 +132,7 @@ export const ExpensesManager: React.FC = () => {
           organization_id: orgId,
           store_id: targetStoreId,
           category,
-          amount: parseFloat(amount),
+          amount: amountCheck.value,
           payment_method: paymentMethod,
           recipient: finalRecipient,
           created_by_user_id: user?.id,
@@ -458,6 +460,8 @@ export const ExpensesManager: React.FC = () => {
                     id="expense-amount"
                     type="number"
                     step="0.01"
+                    min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
                     required
                     value={amount}

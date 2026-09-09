@@ -1,3 +1,5 @@
+import { MAX_DENOMINATION_QUANTITY } from '../lib/limits.ts';
+
 export interface ExpectedCashInput {
   opening_cash?: number | string | null;
   opap_gross_sales?: number | string | null;
@@ -84,7 +86,7 @@ export function calculateCountedCash(
   let total = 0;
   for (const denom of EUR_DENOMINATIONS) {
     const rawCount = denominations[denom.key];
-    const count = Math.max(0, Math.floor(safeNum(rawCount)));
+    const count = Math.min(MAX_DENOMINATION_QUANTITY, Math.max(0, Math.floor(safeNum(rawCount))));
     total += count * denom.value;
   }
 
@@ -222,7 +224,7 @@ export function calculateBanknotesAndCoins(
   let banknotes = 0;
   let coins = 0;
   for (const denom of EUR_DENOMINATIONS) {
-    const count = Math.max(0, Math.floor(safeNum(denominations[denom.key])));
+    const count = Math.min(MAX_DENOMINATION_QUANTITY, Math.max(0, Math.floor(safeNum(denominations[denom.key]))));
     if (denom.value >= 5) {
       banknotes += count * denom.value;
     } else {

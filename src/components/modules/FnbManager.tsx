@@ -7,6 +7,7 @@ import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../ser
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -63,8 +64,9 @@ export const FnbManager: React.FC = () => {
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
     const qty = parseInt(quantity, 10) || 1;
-    const price = parseFloat(unitPrice) || 0;
-    if (!itemName || price <= 0) return;
+    const priceCheck = parseNonNegativeAmount(unitPrice, MAX_CURRENCY_AMOUNT);
+    const price = priceCheck.value;
+    if (!itemName || price <= 0 || !priceCheck.isValid) return;
 
     setSubmitting(true);
     try {
@@ -419,6 +421,8 @@ export const FnbManager: React.FC = () => {
                     id="fnb-sale-price"
                     type="number"
                     step="0.10"
+                    min="0"
+                    max={MAX_CURRENCY_AMOUNT}
                     placeholder="2.00"
                     required
                     value={unitPrice}
