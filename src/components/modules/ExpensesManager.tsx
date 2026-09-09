@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, X, Clock, CheckCircle, Building2 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, createExpenseInFirestore, deleteExpenseInFirestore, ExpenseRecord } from '../../services/moduleServices.ts';
-import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../services/shiftService.ts';
+import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
+import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
-import { Shift, ShiftExpense, Supplier } from '../../types/index.ts';
+import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -32,7 +32,7 @@ export const ExpensesManager: React.FC = () => {
   const [receiptNumber, setReceiptNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; shiftId?: string; label: string } | null>(null);
+  const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string } | null>(null);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
 
   const orgId = organization?.id || 'org_opap_demo';
@@ -123,70 +123,21 @@ export const ExpensesManager: React.FC = () => {
     const finalRecipient = selectedSupplierId === 'CUSTOM' ? (customRecipient.trim() || 'Προμηθευτής') : (recipient.trim() || 'Προμηθευτής');
     setSubmitting(true);
     try {
-      const numAmount = parseFloat(amount);
-      const expensePayload: any = {
-        organization_id: orgId,
-        store_id: targetStoreId,
-        category,
-        amount: numAmount,
-        payment_method: paymentMethod,
-        recipient: finalRecipient,
-        created_by_user_id: user?.id,
-        created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
-        date: new Date().toISOString().split('T')[0],
-      };
-      if (activeShift?.id) expensePayload.shift_id = activeShift.id;
-      if (receiptNumber) expensePayload.receipt_number = receiptNumber;
-      if (notes) expensePayload.notes = notes;
-
-      const createdRecord = await createExpenseInFirestore(expensePayload);
-
-      // Automatically sync this expense directly to the active shift!
-      if (activeShift) {
-        const newShiftExpense: ShiftExpense = {
-          id: createdRecord.id,
-          shift_id: activeShift.id,
+      await createAndSyncShiftExpense(
+        {
           organization_id: orgId,
           store_id: targetStoreId,
-          category: category,
-          amount: numAmount,
-          payment_method: paymentMethod === 'CARD' ? 'CARD' : 'CASH',
-          description: finalRecipient ? `${finalRecipient}${notes ? ` - ${notes}` : ''}` : (notes || category),
-          receipt_url: '',
-          created_by_user_id: user?.id || 'usr_employee',
-          created_at: createdRecord.created_at,
-        };
-
-        const existingShiftExpenses: ShiftExpense[] = Array.isArray(activeShift.expenses) ? [...activeShift.expenses] : [];
-        if (!existingShiftExpenses.some((ex) => ex.id === createdRecord.id)) {
-          existingShiftExpenses.push(newShiftExpense);
-        }
-
-        const totalCashExpenses = existingShiftExpenses.reduce(
-          (sum, item) => sum + (item.payment_method !== 'CARD' ? (Number(item.amount) || 0) : 0),
-          0
-        );
-
-        await updateShiftInFirestore(activeShift.id, {
-          expenses: existingShiftExpenses,
-          expenses_paid_cash: totalCashExpenses,
-        });
-
-        if (typeof window !== 'undefined') {
-          try {
-            const draftKey = `shift_draft_${activeShift.id}`;
-            const rawDraft = localStorage.getItem(draftKey);
-            if (rawDraft) {
-              const parsed = JSON.parse(rawDraft);
-              parsed.expenses = existingShiftExpenses;
-              parsed.expenses_paid_cash = totalCashExpenses;
-              localStorage.setItem(draftKey, JSON.stringify(parsed));
-            }
-          } catch (err) {
-            // ignore
-          }
-        }
-      }
+          category,
+          amount: parseFloat(amount),
+          payment_method: paymentMethod,
+          recipient: finalRecipient,
+          created_by_user_id: user?.id,
+          created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
+          receipt_number: receiptNumber || undefined,
+          notes: notes || undefined,
+        },
+        activeShift
+      );
 
       await loadExpenses();
       setShowModal(false);
@@ -208,37 +159,12 @@ export const ExpensesManager: React.FC = () => {
     const { id } = expenseToDelete;
     setIsDeletingExpense(true);
     try {
-      await deleteExpenseInFirestore(id);
-
-      // If active shift has this expense, remove it and update shift totals
-      if (activeShift) {
-        const currentExpenses = Array.isArray(activeShift.expenses) ? [...activeShift.expenses] : [];
-        const updatedExpenses = currentExpenses.filter((e) => e.id !== id);
-        const totalCashExpenses = updatedExpenses.reduce(
-          (sum, item) => sum + (item.payment_method !== 'CARD' ? (Number(item.amount) || 0) : 0),
-          0
-        );
-
-        await updateShiftInFirestore(activeShift.id, {
-          expenses: updatedExpenses,
-          expenses_paid_cash: totalCashExpenses,
-        });
-
-        if (typeof window !== 'undefined') {
-          try {
-            const draftKey = `shift_draft_${activeShift.id}`;
-            const rawDraft = localStorage.getItem(draftKey);
-            if (rawDraft) {
-              const parsed = JSON.parse(rawDraft);
-              parsed.expenses = updatedExpenses;
-              parsed.expenses_paid_cash = totalCashExpenses;
-              localStorage.setItem(draftKey, JSON.stringify(parsed));
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-      }
+      await deleteAndSyncShiftExpense({
+        id,
+        organization_id: orgId,
+        store_id: expenseToDelete.storeId,
+        shift_id: expenseToDelete.shiftId,
+      });
 
       await loadExpenses();
       setExpenseToDelete(null);
@@ -424,7 +350,7 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => setExpenseToDelete({ id: exp.id, shiftId: exp.shift_id, label: exp.recipient || exp.id })}
+                        onClick={() => setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id })}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Διαγραφή εξόδου και αμφίδρομη ενημέρωση βάρδιας"
                         aria-label="Διαγραφή εξόδου"

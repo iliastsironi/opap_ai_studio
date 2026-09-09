@@ -25,7 +25,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, deleteExpenseInFirestore, ExpenseRecord, fetchVltTerminalsFromFirestore } from '../../services/moduleServices.ts';
+import { fetchExpensesFromFirestore, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense, fetchVltTerminalsFromFirestore } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -760,7 +760,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 description: item.recipient
                   ? `${item.recipient}${item.notes ? ` - ${item.notes}` : ''}`
                   : (item.notes || item.category),
-                receipt_url: '',
+                receipt_url: item.receipt_url || '',
                 created_by_user_id: user?.id || 'usr_employee',
                 created_at: item.created_at,
               });
@@ -1193,26 +1193,69 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   };
 
   // Add Expense item
-  const handleAddExpense = () => {
-    setExpenses([
-      ...expenses,
-      {
-        id: 'temp_' + Date.now(),
-        category: 'SUPPLIES',
-        amount: 0,
-        payment_method: 'CASH',
-        description: '',
-        receipt_url: '',
-      },
-    ]);
+  // Creates a real shift_expenses row immediately (durable from the
+  // moment it's added, not just in local/draft state - see
+  // createAndSyncShiftExpense), then adds it to the local list the same
+  // way it always rendered. On failure, nothing is added locally either -
+  // every row in `expenses` is guaranteed to have a real id, which is
+  // what lets handleRemoveExpense below skip the old temp_-id check.
+  const handleAddExpense = async () => {
+    try {
+      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+      const created = await createAndSyncShiftExpense(
+        {
+          organization_id: orgId,
+          store_id: shift.store_id,
+          category: 'SUPPLIES',
+          amount: 0,
+          payment_method: 'CASH',
+          recipient: '',
+          created_by_user_id: user?.id,
+          created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
+        },
+        shift
+      );
+      setExpenses([
+        ...expenses,
+        {
+          id: created.id,
+          category: created.category,
+          amount: created.amount,
+          payment_method: created.payment_method === 'CARD' ? 'CARD' : 'CASH',
+          description: created.recipient,
+          receipt_url: '',
+        },
+      ]);
+    } catch (err) {
+      console.warn('Could not create expense row:', err);
+      setSyncNotification('Αποτυχία προσθήκης εξόδου. Δοκιμάστε ξανά.');
+    }
   };
 
-  // Remove Expense item and delete from Firestore if saved
+  // Pushes an inline field edit (category/amount/description) to the real
+  // row on blur, not on every keystroke - setExpenses above already keeps
+  // typing responsive; this just keeps the persisted row from drifting
+  // out of sync with what's shown once the user moves on from the field.
+  const handleExpenseFieldBlur = (index: number) => {
+    const exp = expenses[index];
+    if (!exp?.id) return;
+    updateExpenseInFirestore(exp.id, {
+      category: exp.category,
+      amount: Number(exp.amount) || 0,
+      recipient: exp.description || '',
+    }).catch((err) => console.warn('Could not sync expense edit:', err));
+  };
+
   const handleRemoveExpense = async (index: number) => {
     const exp = expenses[index];
-    if (exp?.id && !exp.id.startsWith('temp_')) {
+    if (exp?.id) {
       try {
-        await deleteExpenseInFirestore(exp.id);
+        await deleteAndSyncShiftExpense({
+          id: exp.id,
+          organization_id: shift.organization_id || organization?.id || 'org_opap_demo',
+          store_id: shift.store_id,
+          shift_id: shift.id,
+        });
       } catch (err) {
         console.warn('Could not delete expense from Firestore:', err);
       }
@@ -1220,15 +1263,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     setExpenses(expenses.filter((_, i) => i !== index));
   };
 
-  // File receipt uploader to base64
+  // File receipt uploader to base64, synced to the real row (shift_expenses.receipt_url)
   const handleFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
+        const receiptUrl = reader.result as string;
         const updated = [...expenses];
-        updated[index].receipt_url = reader.result as string;
+        updated[index].receipt_url = receiptUrl;
         setExpenses(updated);
+
+        const expId = updated[index].id;
+        if (expId) {
+          updateExpenseInFirestore(expId, { receipt_url: receiptUrl }).catch((err) =>
+            console.warn('Could not sync receipt photo:', err)
+          );
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -2356,6 +2407,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           updated[idx].category = e.target.value;
                           setExpenses(updated);
                         }}
+                        onBlur={() => handleExpenseFieldBlur(idx)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white"
                       >
                         <option value="EXPENSES_GP">Έξοδα ΓΠ (Γενικά Πληρωμών)</option>
@@ -2379,6 +2431,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           updated[idx].description = e.target.value;
                           setExpenses(updated);
                         }}
+                        onBlur={() => handleExpenseFieldBlur(idx)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-900 bg-white"
                       />
                     </div>
@@ -2395,6 +2448,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           updated[idx].amount = parseFloat(e.target.value) || 0;
                           setExpenses(updated);
                         }}
+                        onBlur={() => handleExpenseFieldBlur(idx)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-extrabold text-slate-900 bg-white"
                       />
                     </div>
