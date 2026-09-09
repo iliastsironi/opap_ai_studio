@@ -7,7 +7,7 @@ import { fetchActiveShiftFromFirestore, updateShiftInFirestore } from '../../ser
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -431,6 +431,7 @@ export const FnbManager: React.FC = () => {
                 <input
                   id="fnb-sale-item"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   placeholder="π.χ. Καφές Espresso / Αναψυκτικό"
                   required
                   value={itemName}

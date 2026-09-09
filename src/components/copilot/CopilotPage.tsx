@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase } from '../../services/supabase.ts';
+import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 
 interface ChatMessage {
   id: string;
@@ -357,6 +358,7 @@ export const CopilotPage: React.FC = () => {
         <input
           id="copilot-input"
           type="text"
+          maxLength={MAX_NOTES_LENGTH}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => {

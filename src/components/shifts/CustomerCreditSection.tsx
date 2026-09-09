@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Customer, CustomerCredit, CreditScoreTier, CreditTierConfig } from '../../types/index.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import {
   getCustomers,
   getStoreCreditTierConfigs,
@@ -416,6 +417,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <input
                         type="text"
+                        maxLength={MAX_LABEL_LENGTH}
                         placeholder="Ονοματεπώνυμο..."
                         value={quickName}
                         onChange={(e) => setQuickName(e.target.value)}
@@ -423,6 +425,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       />
                       <input
                         type="text"
+                        maxLength={MAX_LABEL_LENGTH}
                         placeholder="Τηλέφωνο..."
                         value={quickPhone}
                         onChange={(e) => setQuickPhone(e.target.value)}
@@ -518,6 +521,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                   <input
                     type="text"
                     disabled={readOnly}
+                    maxLength={MAX_NOTES_LENGTH}
                     placeholder="Προαιρετική σημείωση (π.χ. ΚΙΝΟ 3 δελτία, εξόφληση μετρητά)..."
                     value={cred.notes || ''}
                     onChange={(e) => handleUpdateCredit(idx, 'notes', e.target.value)}

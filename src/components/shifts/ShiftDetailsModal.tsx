@@ -27,6 +27,7 @@ import { ShiftStatusBadge } from '../ui/StatusBadge.tsx';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -1069,6 +1070,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               onChange={(e) => setManagerNotes(e.target.value)}
               placeholder="Π.χ. Παρακαλώ επανακαταμετρήστε τα πληρωθέντα δελτία ΟΠΑΠ..."
               rows={3}
+              maxLength={MAX_NOTES_LENGTH}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-900"
               required
             />

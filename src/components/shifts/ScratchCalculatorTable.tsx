@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -1069,6 +1070,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <div className="flex items-center space-x-1">
                               <input
                                 type="text"
+                                maxLength={MAX_LABEL_LENGTH}
                                 value={row.name}
                                 onChange={(e) => handleUpdateRow(row.id, 'name', e.target.value)}
                                 className="w-full px-2 py-1 border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-1 focus:ring-indigo-500"
@@ -1158,6 +1160,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <input
                               type="text"
                               inputMode="numeric"
+                              maxLength={MAX_LABEL_LENGTH}
                               disabled={!canEditStart}
                               value={row.startNo}
                               onFocus={(e) => {
@@ -1219,6 +1222,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               <input
                                 type="text"
                                 inputMode="numeric"
+                                maxLength={MAX_LABEL_LENGTH}
                                 disabled={readOnly}
                                 value={row.manualQty || ''}
                                 onFocus={(e) => e.currentTarget.select()}
@@ -1244,6 +1248,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <input
                                   type="text"
                                   inputMode="numeric"
+                                  maxLength={MAX_LABEL_LENGTH}
                                   disabled={readOnly}
                                   value={row.saleBundles || ''}
                                   onFocus={(e) => e.currentTarget.select()}
@@ -1259,6 +1264,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <input
                                   type="text"
                                   inputMode="numeric"
+                                  maxLength={MAX_LABEL_LENGTH}
                                   disabled={readOnly}
                                   value={row.salePieces || ''}
                                   onFocus={(e) => e.currentTarget.select()}
@@ -1302,6 +1308,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <input
                               type="text"
                               inputMode="numeric"
+                              maxLength={MAX_LABEL_LENGTH}
                               disabled={readOnly}
                               value={row.endNo}
                               onFocus={(e) => {
@@ -1359,6 +1366,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               <input
                                 type="text"
                                 inputMode="numeric"
+                                maxLength={MAX_LABEL_LENGTH}
                                 disabled={!canEditBackStart}
                                 value={row.backStartNo || ''}
                                 onFocus={(e) => e.currentTarget.select()}
@@ -1401,6 +1409,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               <input
                                 type="text"
                                 inputMode="numeric"
+                                maxLength={MAX_LABEL_LENGTH}
                                 disabled={!canEditBackEnd}
                                 value={row.backEndNo || ''}
                                 onFocus={(e) => e.currentTarget.select()}

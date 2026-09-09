@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Department, Store, StoreType } from '../../types/index.js';
 import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestore, fetchDepartmentsForStore, createDepartmentInFirestore } from '../../services/storeService.ts';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -456,6 +457,7 @@ export const StoresManager: React.FC = () => {
                   <input
                     id="store-code"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={storeCode}
                     onChange={(e) => setStoreCode(e.target.value)}
                     placeholder="π.χ. STR-01"
@@ -484,6 +486,7 @@ export const StoresManager: React.FC = () => {
                 <input
                   id="store-name"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   placeholder="π.χ. Πρακτορείο ΟΠΑΠ - Χαλάνδρι"
@@ -513,6 +516,7 @@ export const StoresManager: React.FC = () => {
                 <input
                   id="store-address"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
                   placeholder="π.χ. Λεωφ. Πεντέλης 10"
@@ -526,6 +530,7 @@ export const StoresManager: React.FC = () => {
                   <input
                     id="store-phone"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={storePhone}
                     onChange={(e) => setStorePhone(e.target.value)}
                     placeholder="210 6812345"
@@ -538,6 +543,7 @@ export const StoresManager: React.FC = () => {
                   <input
                     id="store-hours"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={storeHours}
                     onChange={(e) => setStoreHours(e.target.value)}
                     placeholder="08:00 - 23:30"
@@ -589,6 +595,7 @@ export const StoresManager: React.FC = () => {
                 <input
                   id="dept-code"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={newDeptCode}
                   onChange={(e) => setNewDeptCode(e.target.value)}
                   placeholder="π.χ. PLAY_VLT, FNB, LOTTERY"
@@ -602,6 +609,7 @@ export const StoresManager: React.FC = () => {
                 <input
                   id="dept-name"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={newDeptName}
                   onChange={(e) => setNewDeptName(e.target.value)}
                   placeholder="π.χ. Τμήμα Τερματικών VLT PLAY"

@@ -46,7 +46,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 
 export interface ToraPosItem {
   id: string;
@@ -1974,6 +1974,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         {canManage || managerUnlockedPos ? (
                           <input
                             type="text"
+                            maxLength={MAX_LABEL_LENGTH}
                             value={item.name}
                             onChange={(e) => handleUpdatePosItem(item.id, 'name', e.target.value)}
                             className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
@@ -2445,6 +2446,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <input
                         type="text"
                         list="shift-suppliers-list"
+                        maxLength={MAX_NOTES_LENGTH}
                         placeholder="Προμηθευτής / Περιγραφή εξόδου..."
                         value={exp.description || ''}
                         onChange={(e) => {
@@ -2623,6 +2625,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       {canManage || managerUnlockedPos ? (
                         <input
                           type="text"
+                          maxLength={MAX_LABEL_LENGTH}
                           value={item.name}
                           onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
                           className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
@@ -3183,6 +3186,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </label>
             <textarea
               value={employeeNotes}
+              maxLength={MAX_NOTES_LENGTH}
               onChange={(e) => setEmployeeNotes(e.target.value)}
               placeholder="Γράψτε τυχόν παρατηρήσεις ή αιτιολογήστε τυχόν αποκλίσεις..."
               rows={3}

@@ -8,6 +8,7 @@ import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../servi
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import {
   carryOverScratchInventory,
@@ -387,6 +388,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     id="opening-banknotes"
                     type="text"
                     inputMode="decimal"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
@@ -416,6 +418,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     id="opening-coins"
                     type="text"
                     inputMode="decimal"
+                    maxLength={MAX_LABEL_LENGTH}
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
@@ -449,6 +452,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             <textarea
               id="opening-notes"
               value={openingNotes}
+              maxLength={MAX_NOTES_LENGTH}
               onChange={(e) => setOpeningNotes(e.target.value)}
               placeholder={
                 shiftType === 'MORNING'

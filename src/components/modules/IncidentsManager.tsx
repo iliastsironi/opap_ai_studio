@@ -10,6 +10,7 @@ import {
   IncidentRecord,
 } from '../../services/moduleServices.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 
 export const IncidentsManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -304,6 +305,7 @@ export const IncidentsManager: React.FC = () => {
                 <input
                   id="incident-title"
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   placeholder="π.χ. Χρηματική Απόκλιση στο Κλείσιμο"
                   required
                   value={title}
@@ -347,6 +349,7 @@ export const IncidentsManager: React.FC = () => {
                 <textarea
                   id="incident-description"
                   rows={3}
+                  maxLength={MAX_NOTES_LENGTH}
                   required
                   placeholder="Αναλυτικές πληροφορίες για το συμβάν..."
                   value={description}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase } from '../../services/supabase.ts';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 
 interface LoginFormProps {
   initialMode?: 'signin' | 'signup';
@@ -157,6 +158,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 </label>
                 <input
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required={isSignUp}
@@ -170,6 +172,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 </label>
                 <input
                   type="text"
+                  maxLength={MAX_LABEL_LENGTH}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required={isSignUp}

@@ -4,6 +4,7 @@ import { supabase, cleanData } from '../../services/supabase.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { StoreType } from '../../types/index.js';
+import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 
 export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const { user, organization, refreshUser } = useAuth();
@@ -136,6 +137,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <input
               id="onboarding-legal-name"
               type="text"
+              maxLength={MAX_LABEL_LENGTH}
               value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
               placeholder="π.χ. Gaming Retail Α.Ε."
@@ -149,6 +151,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <input
               id="onboarding-trade-name"
               type="text"
+              maxLength={MAX_LABEL_LENGTH}
               value={tradeName}
               onChange={(e) => setTradeName(e.target.value)}
               placeholder="π.χ. OPAP Store Network Athens"
@@ -163,6 +166,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               <input
                 id="onboarding-vat"
                 type="text"
+                maxLength={MAX_LABEL_LENGTH}
                 value={vatNumber}
                 onChange={(e) => setVatNumber(e.target.value)}
                 placeholder="094883920"
@@ -176,6 +180,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               <input
                 id="onboarding-tax-office"
                 type="text"
+                maxLength={MAX_LABEL_LENGTH}
                 value={taxOffice}
                 onChange={(e) => setTaxOffice(e.target.value)}
                 placeholder="ΦΑΕ ΑΘΗΝΩΝ"
@@ -220,6 +225,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <input
               id="onboarding-store-code"
               type="text"
+              maxLength={MAX_LABEL_LENGTH}
               value={storeCode}
               onChange={(e) => setStoreCode(e.target.value)}
               placeholder="STR-001"
@@ -233,6 +239,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
             <input
               id="onboarding-store-name"
               type="text"
+              maxLength={MAX_LABEL_LENGTH}
               value={storeName}
               onChange={(e) => setStoreName(e.target.value)}
               placeholder="π.χ. Πρακτορείο ΟΠΑΠ - Κέντρο"

@@ -9,7 +9,7 @@ import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
+import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -529,6 +529,7 @@ export const ExpensesManager: React.FC = () => {
                   <input
                     id="expense-receipt-number"
                     type="text"
+                    maxLength={MAX_LABEL_LENGTH}
                     placeholder="π.χ. ΤΠΥ-1029"
                     value={receiptNumber}
                     onChange={(e) => setReceiptNumber(e.target.value)}
@@ -590,6 +591,7 @@ export const ExpensesManager: React.FC = () => {
                   <div className="mt-2 animate-in fade-in duration-150">
                     <input
                       type="text"
+                      maxLength={MAX_LABEL_LENGTH}
                       placeholder="Πληκτρολογήστε όνομα προμηθευτή / καταστήματος..."
                       aria-label="Όνομα νέου προμηθευτή"
                       required
@@ -608,6 +610,7 @@ export const ExpensesManager: React.FC = () => {
                 <textarea
                   id="expense-notes"
                   rows={2}
+                  maxLength={MAX_NOTES_LENGTH}
                   placeholder="Αιτιολογία δαπάνης..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
