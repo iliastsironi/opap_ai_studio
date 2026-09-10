@@ -6,7 +6,7 @@ import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const UsersManager: React.FC = () => {
@@ -480,22 +480,12 @@ export const UsersManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleInviteUser}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowInviteModal(false)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={isInviting}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isInviting ? 'Αποστολή...' : 'Προσθήκη Χρήστη'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowInviteModal(false)}
+            saveLabel="Προσθήκη Χρήστη"
+            isSaving={isInviting}
+            savingLabel="Αποστολή..."
+          />
         }
       >
             {inviteError && (
@@ -615,22 +605,12 @@ export const UsersManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleUpdateUser}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowEditModal(false)}
-              className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingUser}
-              className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSavingUser ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowEditModal(false)}
+            saveLabel="Αποθήκευση Αλλαγών"
+            isSaving={isSavingUser}
+            savingLabel="Αποθήκευση..."
+          />
         }
       >
             {editError && (
@@ -639,7 +619,7 @@ export const UsersManager: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="edit-first-name" className="block text-xs font-bold text-slate-700 uppercase mb-1">Όνομα</label>

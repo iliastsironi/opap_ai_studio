@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Plus, CheckCircle, Search, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import {
   fetchIncidentsFromFirestore,
   createIncidentInFirestore,
@@ -297,25 +297,16 @@ export const IncidentsManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleCreateIncident}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Αποθήκευση...' : 'Καταχώρηση'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowModal(false)}
+            saveLabel="Καταχώρηση"
+            saveTone="destructive"
+            isSaving={submitting}
+            savingLabel="Αποθήκευση..."
+          />
         }
       >
-            <div className="space-y-3 text-xs">
+            <div className="space-y-4 text-xs">
               {createError && (
                 <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
                   <AlertCircle className="w-4 h-4 shrink-0" />
