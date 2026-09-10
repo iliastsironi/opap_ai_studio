@@ -5,9 +5,11 @@ import {
   BarChart3,
   ArrowRight,
   AlertTriangle,
+  AlertCircle,
   Euro,
   Vault,
   FileSpreadsheet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
@@ -41,10 +43,12 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
   const [loadingShifts, setLoadingShifts] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const orgId = organization?.id || 'org_opap_demo';
     setLoadingShifts(true);
+    setFetchError(null);
     Promise.all([
       fetchShiftsFromFirestore(orgId, activeStoreId, 'SUBMITTED'),
       fetchShiftsFromFirestore(orgId, activeStoreId),
@@ -53,7 +57,10 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         setPendingShifts(pending);
         setAllShifts(all);
       })
-      .catch((err) => console.error('Error loading dashboard shifts:', err))
+      .catch((err: any) => {
+        console.error('Error loading dashboard shifts:', err);
+        setFetchError(err.message || 'Αποτυχία φόρτωσης δεδομένων ταμπλό');
+      })
       .finally(() => setLoadingShifts(false));
   }, [organization?.id, activeStoreId]);
 
@@ -118,6 +125,25 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </button>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">
+              {fetchError} — Οι παρακάτω τιμές ενδέχεται να μην είναι ενημερωμένες.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFetchError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* COMPREHENSIVE FINANCIAL & OPERATIONAL KPIS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

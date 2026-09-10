@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, RefreshCw, Clock, Plus, Trash2, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Gamepad2, RefreshCw, Clock, Plus, Trash2, Pencil, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
@@ -33,6 +33,8 @@ export const VltManager: React.FC = () => {
   // Terminals - real, persisted rows (manual entry; see moduleServices.ts)
   const [terminals, setTerminals] = useState<VltTerminalRecord[]>([]);
   const [loadingTerminals, setLoadingTerminals] = useState(true);
+  const [terminalsLoadError, setTerminalsLoadError] = useState<string | null>(null);
+  const [deleteTerminalError, setDeleteTerminalError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const TERMINALS_PAGE_SIZE = 20;
 
@@ -55,6 +57,7 @@ export const VltManager: React.FC = () => {
 
   const loadTerminals = async () => {
     setLoadingTerminals(true);
+    setTerminalsLoadError(null);
     if (!targetStoreId) {
       setTerminals([]);
       setLoadingTerminals(false);
@@ -63,6 +66,8 @@ export const VltManager: React.FC = () => {
     try {
       const data = await fetchVltTerminalsFromFirestore(orgId, targetStoreId);
       setTerminals(data);
+    } catch (err: any) {
+      setTerminalsLoadError(err.message || 'Αποτυχία φόρτωσης τερματικών');
     } finally {
       setLoadingTerminals(false);
     }
@@ -128,10 +133,13 @@ export const VltManager: React.FC = () => {
   const handleConfirmDeleteTerminal = async () => {
     if (!terminalToDelete) return;
     setIsDeletingTerminal(true);
+    setDeleteTerminalError(null);
     try {
       await deleteVltTerminalInFirestore(terminalToDelete.id);
       await loadTerminals();
       setTerminalToDelete(null);
+    } catch (err: any) {
+      setDeleteTerminalError(err.message || 'Αποτυχία διαγραφής τερματικού');
     } finally {
       setIsDeletingTerminal(false);
     }
@@ -231,6 +239,23 @@ export const VltManager: React.FC = () => {
         </div>
       )}
 
+      {terminalsLoadError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">{terminalsLoadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTerminalsLoadError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -314,7 +339,10 @@ export const VltManager: React.FC = () => {
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => setTerminalToDelete(t)}
+                        onClick={() => {
+                          setDeleteTerminalError(null);
+                          setTerminalToDelete(t);
+                        }}
                         aria-label={`Διαγραφή ${t.code}`}
                         className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
@@ -498,6 +526,9 @@ export const VltManager: React.FC = () => {
           <>
             Θα διαγραφεί οριστικά το τερματικό <span className="font-mono font-bold">{terminalToDelete?.code}</span>
             {terminalToDelete?.game_title ? ` (${terminalToDelete.game_title})` : ''}. Η ενέργεια δεν αναιρείται.
+            {deleteTerminalError && (
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteTerminalError}</p>
+            )}
           </>
         }
         confirmLabel="Διαγραφή"

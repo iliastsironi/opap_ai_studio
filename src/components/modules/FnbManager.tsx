@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, Trash2, Clock, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Coffee, DollarSign, CreditCard, ShoppingBag, Plus, Trash2, Clock, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchFnbFromFirestore, createFnbInFirestore, deleteFnbInFirestore, FnbRecord } from '../../services/moduleServices.ts';
@@ -32,16 +32,21 @@ export const FnbManager: React.FC = () => {
   // Delete Sale Confirmation
   const [saleToDelete, setSaleToDelete] = useState<FnbRecord | null>(null);
   const [isDeletingSale, setIsDeletingSale] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const orgId = organization?.id || 'org_opap_demo';
 
   const loadFnbSales = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await fetchFnbFromFirestore(orgId, selectedStoreId);
       setFnbSales(data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setLoadError(e.message || 'Αποτυχία φόρτωσης πωλήσεων FnB');
     } finally {
       setLoading(false);
     }
@@ -53,8 +58,9 @@ export const FnbManager: React.FC = () => {
     try {
       const shift = await fetchActiveShiftFromFirestore(orgId, sId);
       setActiveShift(shift);
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Could not load active shift for FnB', e);
+      setLoadError(e.message || 'Αποτυχία φόρτωσης ενεργής βάρδιας');
     }
   };
 
@@ -71,6 +77,7 @@ export const FnbManager: React.FC = () => {
     if (!itemName || price <= 0 || !priceCheck.isValid) return;
 
     setSubmitting(true);
+    setCreateError(null);
     try {
       const totalPrice = qty * price;
       await createFnbInFirestore({
@@ -124,8 +131,9 @@ export const FnbManager: React.FC = () => {
       setItemName('');
       setQuantity('1');
       setUnitPrice('');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setCreateError(err.message || 'Αποτυχία καταχώρησης πώλησης');
     } finally {
       setSubmitting(false);
     }
@@ -135,6 +143,7 @@ export const FnbManager: React.FC = () => {
     if (!saleToDelete) return;
     const sale = saleToDelete;
     setIsDeletingSale(true);
+    setDeleteError(null);
     try {
       await deleteFnbInFirestore(sale.id);
 
@@ -174,8 +183,9 @@ export const FnbManager: React.FC = () => {
       await loadFnbSales();
       await loadActiveShift();
       setSaleToDelete(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting FnB sale:', err);
+      setDeleteError(err.message || 'Αποτυχία διαγραφής πώλησης');
     } finally {
       setIsDeletingSale(false);
     }
@@ -213,7 +223,10 @@ export const FnbManager: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setCreateError(null);
+              setShowModal(true);
+            }}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -221,6 +234,23 @@ export const FnbManager: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">{loadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLoadError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Active Shift Sync Status Indicator */}
       {activeShift && (
@@ -336,7 +366,10 @@ export const FnbManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-600">{s.server_name}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => setSaleToDelete(s)}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setSaleToDelete(s);
+                        }}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Διαγραφή και αμφίδρομη ενημέρωση βάρδιας"
                         aria-label="Διαγραφή πώλησης"
@@ -411,6 +444,13 @@ export const FnbManager: React.FC = () => {
         }
       >
             <div className="space-y-3 text-xs">
+              {createError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-semibold">{createError}</span>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="fnb-sale-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
@@ -490,7 +530,14 @@ export const FnbManager: React.FC = () => {
         onConfirm={handleDeleteSale}
         tone="destructive"
         title="Διαγραφή Πώλησης"
-        message={`Διαγραφή πώλησης «${saleToDelete?.item_name}» (${saleToDelete ? formatCurrency(saleToDelete.total_price) : ''}); Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.`}
+        message={
+          <>
+            Διαγραφή πώλησης «{saleToDelete?.item_name}» ({saleToDelete ? formatCurrency(saleToDelete.total_price) : ''}); Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
+            {deleteError && (
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteError}</p>
+            )}
+          </>
+        }
         confirmLabel="Ναι, Διαγραφή"
         isLoading={isDeletingSale}
         loadingLabel="Διαγραφή..."

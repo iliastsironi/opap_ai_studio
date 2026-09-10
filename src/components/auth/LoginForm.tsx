@@ -16,6 +16,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [email, setEmail] = useState('owner@shiftledger.gr');
   const [password, setPassword] = useState('password123');
   const [firstName, setFirstName] = useState('');
@@ -211,6 +213,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                   onClick={() => {
                     setResetEmail(email);
                     setResetSent(false);
+                    setResetError(null);
                     setShowForgotModal(true);
                   }}
                   className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer"
@@ -371,11 +374,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!resetEmail) return;
-                    await supabase.auth.resetPasswordForEmail(resetEmail);
-                    setResetSent(true);
+                    setResetError(null);
+                    setResettingPassword(true);
+                    try {
+                      await supabase.auth.resetPasswordForEmail(resetEmail);
+                      setResetSent(true);
+                    } catch (err: any) {
+                      setResetError(err.message || 'Αποτυχία αποστολής email επαναφοράς');
+                    } finally {
+                      setResettingPassword(false);
+                    }
                   }}
                   className="space-y-4"
                 >
+                  {resetError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+                      <span className="font-bold">!</span>
+                      <span>{resetError}</span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                       Email Χρήστη
@@ -400,9 +418,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                      disabled={resettingPassword}
+                      className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
                     >
-                      Αποστολή Email
+                      {resettingPassword ? 'Αποστολή...' : 'Αποστολή Email'}
                     </button>
                   </div>
                 </form>

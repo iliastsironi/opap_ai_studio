@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { History, ShieldAlert, User, Clock, Terminal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, ShieldAlert, User, Clock, Terminal, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { AuditLog } from '../../types/index.js';
 import { fetchAuditLogsFromFirestore, AUDIT_LOGS_PAGE_SIZE } from '../../services/auditLogService.ts';
@@ -10,6 +10,7 @@ export const AuditLogViewer: React.FC = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / AUDIT_LOGS_PAGE_SIZE));
   const pageSafe = Math.min(currentPage, totalPages);
@@ -17,12 +18,14 @@ export const AuditLogViewer: React.FC = () => {
   const fetchAuditLogs = async (page: number) => {
     if (!organization?.id) return;
     setLoading(true);
+    setError(null);
     try {
       const { logs: data, totalCount: count } = await fetchAuditLogsFromFirestore(organization.id, page);
       setLogs(data);
       setTotalCount(count);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch audit logs:', err);
+      setError(err.message || 'Αποτυχία φόρτωσης καταγραφών ελέγχου');
     } finally {
       setLoading(false);
     }
@@ -60,6 +63,23 @@ export const AuditLogViewer: React.FC = () => {
           Ανανέωση
         </button>
       </div>
+
+      {error && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Audit Trail List */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
