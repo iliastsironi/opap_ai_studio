@@ -502,8 +502,10 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           {/* Fields List */}
           <div className="space-y-3">
             {filteredFields.length === 0 ? (
-              <div className="p-8 text-center bg-white border border-dashed border-slate-200 rounded-2xl text-slate-500 text-xs">
-                Δεν βρέθηκαν πεδία για το επιλεγμένο φίλτρο.
+              <div className="p-8 text-center bg-white border border-dashed border-slate-200 rounded-2xl text-slate-500 space-y-2">
+                <Sliders className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν πεδία</p>
+                <p className="text-xs text-slate-400">Δοκιμάστε διαφορετικό φίλτρο.</p>
               </div>
             ) : (
               filteredFields.map((field, idx) => {

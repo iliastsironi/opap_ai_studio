@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
@@ -313,7 +313,11 @@ export const UsersManager: React.FC = () => {
         {loading ? (
           <div className="p-8 text-center text-slate-400 text-sm">Φόρτωση χρηστών...</div>
         ) : users.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Δεν βρέθηκαν χρήστες.</div>
+          <div className="p-12 text-center text-slate-400 space-y-2">
+            <Users className="w-10 h-10 mx-auto text-slate-300" />
+            <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν χρήστες</p>
+            <p className="text-xs text-slate-400">Προσκαλέστε το πρώτο μέλος της ομάδας σας.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">

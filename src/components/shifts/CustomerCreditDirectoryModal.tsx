@@ -457,8 +457,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {filteredCustomers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-6 text-center text-slate-400">
-                          Δεν βρέθηκαν πελάτες με τα επιλεγμένα κριτήρια.
+                        <td colSpan={6} className="p-8 text-center text-slate-400">
+                          <UserCheck className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                          <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν πελάτες</p>
+                          <p className="text-xs text-slate-400 mt-1">Δοκιμάστε διαφορετικά κριτήρια αναζήτησης.</p>
                         </td>
                       </tr>
                     ) : (

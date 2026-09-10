@@ -345,8 +345,10 @@ export const FnbManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {fnbSales.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400 italic">
-                    Δεν έχουν καταχωρηθεί πωλήσεις FnB για τη σημερινή βάρδια.
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                    <Coffee className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Δεν έχουν καταχωρηθεί πωλήσεις FnB</p>
+                    <p className="text-xs text-slate-400 mt-1">Οι πωλήσεις της σημερινής βάρδιας θα εμφανίζονται εδώ.</p>
                   </td>
                 </tr>
               ) : (

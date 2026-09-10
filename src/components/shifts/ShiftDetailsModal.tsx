@@ -932,8 +932,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                  Δεν υπάρχουν καταχωρημένα έξοδα για αυτή τη βάρδια.
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 space-y-1.5">
+                  <Receipt className="w-6 h-6 mx-auto text-slate-300" />
+                  <p>Δεν υπάρχουν καταχωρημένα έξοδα για αυτή τη βάρδια.</p>
                 </div>
               )}
             </>
