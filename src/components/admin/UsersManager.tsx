@@ -5,6 +5,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
+import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -250,7 +251,7 @@ export const UsersManager: React.FC = () => {
                   `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΟρίστε τον κωδικό πρόσβασής σας εδώ: ${lastInviteInfo.inviteLink}`
                 );
                 setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 2500);
+                setTimeout(() => setLinkCopied(false), TOAST_AUTO_DISMISS_MS);
               }}
               className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
             >

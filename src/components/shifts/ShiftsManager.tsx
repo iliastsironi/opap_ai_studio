@@ -1230,7 +1230,7 @@ export const ShiftsManager: React.FC = () => {
 
       {/* Delete Draft Shift Confirmation Modal */}
       {shiftToDelete && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
             <div className="flex items-center space-x-3 text-rose-600">
               <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
