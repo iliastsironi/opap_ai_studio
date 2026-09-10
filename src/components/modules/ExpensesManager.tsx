@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
@@ -43,16 +43,21 @@ export const ExpensesManager: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string } | null>(null);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const orgId = organization?.id || 'org_opap_demo';
 
   const loadExpenses = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const records = await fetchExpensesFromFirestore(orgId, selectedStoreId);
       setExpenses(records);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setLoadError(e.message || 'Αποτυχία φόρτωσης εξόδων');
     } finally {
       setLoading(false);
     }
@@ -132,6 +137,7 @@ export const ExpensesManager: React.FC = () => {
     if (!amountCheck.isValid || amountCheck.value <= 0) return;
     const finalRecipient = selectedSupplierId === 'CUSTOM' ? (customRecipient.trim() || 'Προμηθευτής') : (recipient.trim() || 'Προμηθευτής');
     setSubmitting(true);
+    setCreateError(null);
     try {
       await createAndSyncShiftExpense(
         {
@@ -157,8 +163,9 @@ export const ExpensesManager: React.FC = () => {
       setCustomRecipient('');
       setReceiptNumber('');
       setNotes('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Expense error:', err);
+      setCreateError(err.message || 'Αποτυχία καταχώρησης εξόδου');
     } finally {
       setSubmitting(false);
     }
@@ -168,6 +175,7 @@ export const ExpensesManager: React.FC = () => {
     if (!expenseToDelete) return;
     const { id } = expenseToDelete;
     setIsDeletingExpense(true);
+    setDeleteError(null);
     try {
       await deleteAndSyncShiftExpense({
         id,
@@ -178,8 +186,9 @@ export const ExpensesManager: React.FC = () => {
 
       await loadExpenses();
       setExpenseToDelete(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Delete expense error:', err);
+      setDeleteError(err.message || 'Αποτυχία διαγραφής εξόδου');
     } finally {
       setIsDeletingExpense(false);
     }
@@ -238,7 +247,10 @@ export const ExpensesManager: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setCreateError(null);
+              setShowModal(true);
+            }}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -246,6 +258,23 @@ export const ExpensesManager: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">{loadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLoadError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -364,7 +393,10 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id })}
+                        onClick={() => {
+                          setDeleteError(null);
+                          setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id });
+                        }}
                         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         title="Διαγραφή εξόδου και αμφίδρομη ενημέρωση βάρδιας"
                         aria-label="Διαγραφή εξόδου"
@@ -439,6 +471,13 @@ export const ExpensesManager: React.FC = () => {
         }
       >
             <div className="space-y-3 text-xs">
+              {createError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-semibold">{createError}</span>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="expense-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
@@ -627,7 +666,14 @@ export const ExpensesManager: React.FC = () => {
         onConfirm={handleDeleteExpense}
         tone="destructive"
         title="Διαγραφή Εξόδου"
-        message={`Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «${expenseToDelete?.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.`}
+        message={
+          <>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «{expenseToDelete?.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
+            {deleteError && (
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteError}</p>
+            )}
+          </>
+        }
         confirmLabel="Ναι, Διαγραφή"
         isLoading={isDeletingExpense}
         loadingLabel="Διαγραφή..."
