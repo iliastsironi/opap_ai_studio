@@ -301,7 +301,7 @@ export const ShiftsManager: React.FC = () => {
     true;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Top Header Card */}
       <div className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

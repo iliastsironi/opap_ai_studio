@@ -273,7 +273,7 @@ export const CopilotPage: React.FC = () => {
             >
               {/* Avatar */}
               <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs shadow-xs ${
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs shadow-xs ${
                   isUser
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white border border-slate-200 text-indigo-600'
@@ -306,7 +306,7 @@ export const CopilotPage: React.FC = () => {
         {/* Loading Indicator */}
         {isLoading && (
           <div className="flex items-start space-x-3 mr-auto max-w-xl">
-            <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 text-indigo-600 flex items-center justify-center font-bold shrink-0 shadow-xs">
               <Bot className="w-4 h-4 animate-spin text-indigo-600" />
             </div>
             <div className="p-4 rounded-2xl rounded-tl-xs bg-white border border-slate-200 shadow-2xs text-xs text-slate-500 flex items-center space-x-2">

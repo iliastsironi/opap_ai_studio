@@ -582,8 +582,8 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
 
               {/* Expandable Breakdown of Scratch Serial Numbers */}
               {showScratchDetails && savedScratchItems.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-micro space-y-1.5 font-mono">
-                  <div className="grid grid-cols-7 text-slate-500 font-bold uppercase text-micro pb-1 border-b border-slate-200">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-micro space-y-1.5 font-mono overflow-x-auto">
+                  <div className="grid grid-cols-7 text-slate-500 font-bold uppercase text-micro pb-1 border-b border-slate-200 min-w-[480px]">
                     <span className="col-span-2">Τύπος Σκρατς</span>
                     <span className="text-center text-indigo-600">Μπρ. Αρχ.</span>
                     <span className="text-center text-indigo-600">Μπρ. Τελ.</span>
@@ -601,7 +601,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                     const endSplit = bundleTracked && item.endNo ? splitPiecesIntoBundles(parseNonNegativeInt(item.endNo).value, bundleSize) : null;
 
                     return (
-                      <div key={item.id || idx} className="grid grid-cols-7 text-slate-700 py-0.5 border-b border-slate-100 last:border-none">
+                      <div key={item.id || idx} className="grid grid-cols-7 text-slate-700 py-0.5 border-b border-slate-100 last:border-none min-w-[480px]">
                         <span className="col-span-2 font-bold font-sans text-slate-900">{item.name} ({item.price}€)</span>
                         <span className="text-center text-slate-600">{isManual ? '—' : (item.startNo !== '' ? item.startNo : '-')}</span>
                         <span className="text-center text-slate-600">{isManual ? (item.manualQty || '-') : (item.endNo !== '' ? item.endNo : '-')}</span>
