@@ -116,7 +116,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
       {/* Step 1: Org Details */}
       {step === 1 && (
         <form
-          className="space-y-4"
+          className="space-y-4 transition-opacity duration-150 starting:opacity-0"
           onSubmit={(e) => {
             e.preventDefault();
             if (!legalName || !tradeName || !vatNumber) {
@@ -204,7 +204,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
       {/* Step 2: Store Details */}
       {step === 2 && (
         <form
-          className="space-y-4"
+          className="space-y-4 transition-opacity duration-150 starting:opacity-0"
           onSubmit={(e) => {
             e.preventDefault();
             if (!storeName || !storeCode) {
@@ -288,7 +288,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
       {/* Step 3: Review & Submit */}
       {step === 3 && (
         <form
-          className="space-y-4"
+          className="space-y-4 transition-opacity duration-150 starting:opacity-0"
           onSubmit={(e) => {
             e.preventDefault();
             handleSubmitOnboarding();

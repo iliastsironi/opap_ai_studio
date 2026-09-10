@@ -1705,7 +1705,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 1: OPENING & OPERATIONAL SUMMARY */}
       {currentStep === 1 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-opacity duration-150 starting:opacity-0">
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -1842,7 +1842,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 2: OPAP TRANSACTION CATEGORIES & GRANULAR REPORTS */}
       {currentStep === 2 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-opacity duration-150 starting:opacity-0">
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -2322,7 +2322,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 3: FnB, EXPENSES & CUSTOMER CREDITS */}
       {currentStep === 3 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8 transition-opacity duration-150 starting:opacity-0">
           {/* FnB Sales */}
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-3">
@@ -2587,7 +2587,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 4: EUR DENOMINATION CASH COUNTER */}
       {currentStep === 4 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-opacity duration-150 starting:opacity-0">
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -2721,7 +2721,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* STEP 5: REVIEW, RECONCILIATION & SUBMISSION */}
       {currentStep === 5 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6 transition-opacity duration-150 starting:opacity-0">
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -3283,7 +3283,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               type="button"
               onClick={() => setShowSubmitConfirm(true)}
               disabled={isSubmitting}
-              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition-all active:scale-95 flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Οριστική Υποβολή Βάρδιας</span>

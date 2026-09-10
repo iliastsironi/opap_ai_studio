@@ -353,7 +353,7 @@ export const FnbManager: React.FC = () => {
                 </tr>
               ) : (
                 paginatedFnbSales.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
+                  <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{s.id}</p>
                       <p className="text-micro text-slate-400">{new Date(s.created_at).toLocaleTimeString('el-GR')}</p>
