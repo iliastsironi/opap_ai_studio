@@ -5,7 +5,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { Department, Store, StoreType } from '../../types/index.js';
 import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestore, fetchDepartmentsForStore, createDepartmentInFirestore } from '../../services/storeService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const StoresManager: React.FC = () => {
@@ -439,22 +439,12 @@ export const StoresManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleSaveStore}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowStoreModal(false)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingStore}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSavingStore ? 'Αποθήκευση...' : editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowStoreModal(false)}
+            saveLabel={editingStoreId ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Καταστήματος'}
+            isSaving={isSavingStore}
+            savingLabel="Αποθήκευση..."
+          />
         }
       >
             {storeFormError && (
@@ -578,22 +568,12 @@ export const StoresManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleCreateDepartment}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowAddDeptModal(false)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingDept}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSavingDept ? 'Προσθήκη...' : 'Προσθήκη Τμήματος'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowAddDeptModal(false)}
+            saveLabel="Προσθήκη Τμήματος"
+            isSaving={isSavingDept}
+            savingLabel="Προσθήκη..."
+          />
         }
       >
             {addDeptError && (

@@ -8,7 +8,7 @@ import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH } from '../../lib/limits.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const FnbManager: React.FC = () => {
@@ -428,25 +428,16 @@ export const FnbManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleCreateSale}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Καταχώρηση...' : 'Καταχώρηση Πώλησης'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowModal(false)}
+            saveLabel="Καταχώρηση Πώλησης"
+            saveTone="amber"
+            isSaving={submitting}
+            savingLabel="Καταχώρηση..."
+          />
         }
       >
-            <div className="space-y-3 text-xs">
+            <div className="space-y-4 text-xs">
               {createError && (
                 <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
                   <AlertCircle className="w-4 h-4 shrink-0" />

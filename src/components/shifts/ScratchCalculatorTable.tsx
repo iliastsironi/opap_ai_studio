@@ -1594,7 +1594,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => setNewPackModalRowId(null)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-sm font-bold"
               >
                 Ακύρωση
               </button>

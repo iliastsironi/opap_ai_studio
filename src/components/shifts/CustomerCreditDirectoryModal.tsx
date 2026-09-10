@@ -35,7 +35,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 interface CustomerCreditDirectoryModalProps {
@@ -826,25 +826,15 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
           bodyAsForm
           onSubmit={handleSaveCustomer}
           footer={
-            <>
-              <button
-                type="button"
-                onClick={() => setIsAddingNew(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="submit"
-                disabled={isSavingCustomer}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {isSavingCustomer ? 'Αποθήκευση...' : editingCustomer ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Πελάτη'}
-              </button>
-            </>
+            <ModalActions
+              onCancel={() => setIsAddingNew(false)}
+              saveLabel={editingCustomer ? 'Αποθήκευση Αλλαγών' : 'Δημιουργία Πελάτη'}
+              isSaving={isSavingCustomer}
+              savingLabel="Αποθήκευση..."
+            />
           }
         >
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 {customerFormError && (
                   <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
                     <AlertCircle className="w-4 h-4 shrink-0" />
