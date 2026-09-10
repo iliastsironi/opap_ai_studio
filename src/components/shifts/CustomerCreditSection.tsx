@@ -344,8 +344,8 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                             const { limit, isUnlimited } = getCustomerCreditLimit(c, tierConfigs);
                             return (
                               <option key={c.id} value={c.id}>
-                                {c.name} [{c.tier}] - Οφειλή: {(c.current_debt || 0).toFixed(0)}€ (Όριο:{' '}
-                                {isUnlimited ? 'Άπειρο' : `${limit.toFixed(0)}€`})
+                                {c.name} [{c.tier}] - Οφειλή: {formatCurrency(c.current_debt || 0)} (Όριο:{' '}
+                                {isUnlimited ? 'Άπειρο' : formatCurrency(limit)})
                               </option>
                             );
                           })}
@@ -495,7 +495,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                           tierConfigs[customerObj.tier]?.badgeBg || 'bg-slate-100 text-slate-800'
                         } ${tierConfigs[customerObj.tier]?.badgeBorder || 'border-slate-300'}`}
                       >
-                        Score: {customerObj.tier} ({tierConfigs[customerObj.tier]?.isUnlimited ? 'Απεριόριστο' : `Όριο: ${tierConfigs[customerObj.tier]?.defaultLimit}€`})
+                        Score: {customerObj.tier} ({tierConfigs[customerObj.tier]?.isUnlimited ? 'Απεριόριστο' : `Όριο: ${formatCurrency(tierConfigs[customerObj.tier]?.defaultLimit)}`})
                       </span>
 
                       <span className="text-micro text-slate-600 font-semibold">

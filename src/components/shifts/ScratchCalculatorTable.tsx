@@ -597,7 +597,7 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
     }
     const totalValue = totalQty * (row.price || 0);
     if (totalValue > PACKAGE_FACE_VALUE) {
-      errors.push(`Η συνολική αξία πωλήσεων (${totalValue.toFixed(2)}€) δεν μπορεί να ξεπεράσει τα ${PACKAGE_FACE_VALUE}€ ανά πακέτο.`);
+      errors.push(`Η συνολική αξία πωλήσεων (${formatCurrency(totalValue)}) δεν μπορεί να ξεπεράσει τα ${PACKAGE_FACE_VALUE}€ ανά πακέτο.`);
     }
   }
 
