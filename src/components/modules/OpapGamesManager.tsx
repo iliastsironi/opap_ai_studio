@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Ticket, Search, Trophy, BarChart3, TrendingUp, RefreshCw, Layers, CheckCircle, Clock, Zap } from 'lucide-react';
+import { Ticket, Search, Trophy, BarChart3, TrendingUp, RefreshCw, Layers, CheckCircle, Clock, Zap, AlertCircle } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
@@ -24,9 +24,11 @@ export const OpapGamesManager: React.FC = () => {
 
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadActiveShiftData = async () => {
     setLoading(true);
+    setLoadError(null);
     const sId = selectedStoreId && selectedStoreId !== 'ALL' ? selectedStoreId : stores[0]?.id;
     if (!sId) {
       setLoading(false);
@@ -35,8 +37,9 @@ export const OpapGamesManager: React.FC = () => {
     try {
       const shift = await fetchActiveShiftFromFirestore(orgId, sId);
       setActiveShift(shift);
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Could not load active shift in OpapGamesManager', e);
+      setLoadError(e.message || 'Αποτυχία φόρτωσης ενεργής βάρδιας');
     } finally {
       setLoading(false);
     }
@@ -123,7 +126,14 @@ export const OpapGamesManager: React.FC = () => {
       </div>
 
       {/* Active Shift Sync Banner */}
-      {activeShift ? (
+      {loadError ? (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-4 flex items-center space-x-2 text-rose-800">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="text-xs font-semibold">
+            {loadError} — Οι παρακάτω τιμές ενδέχεται να μην είναι ενημερωμένες.
+          </span>
+        </div>
+      ) : activeShift ? (
         <div className="bg-gradient-to-r from-amber-50 to-indigo-50 p-4 rounded-2xl border border-amber-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 font-extrabold text-sm">

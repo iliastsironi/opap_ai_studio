@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, CheckCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Plus, CheckCircle, Search, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -34,16 +34,20 @@ export const IncidentsManager: React.FC = () => {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const orgId = organization?.id || 'org_opap_demo';
 
   const loadIncidents = async () => {
     setLoading(true);
+    setPageError(null);
     try {
       const records = await fetchIncidentsFromFirestore(orgId, selectedStoreId);
       setIncidents(records);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setPageError(e.message || 'Αποτυχία φόρτωσης συμβάντων');
     } finally {
       setLoading(false);
     }
@@ -57,6 +61,7 @@ export const IncidentsManager: React.FC = () => {
     e.preventDefault();
     if (!title || !description) return;
     setSubmitting(true);
+    setCreateError(null);
     try {
       await createIncidentInFirestore({
         organization_id: orgId,
@@ -72,8 +77,9 @@ export const IncidentsManager: React.FC = () => {
       setShowModal(false);
       setTitle('');
       setDescription('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Incident creation error:', err);
+      setCreateError(err.message || 'Αποτυχία καταχώρησης συμβάντος');
     } finally {
       setSubmitting(false);
     }
@@ -81,11 +87,13 @@ export const IncidentsManager: React.FC = () => {
 
   const handleResolve = async (id: string) => {
     setResolvingId(id);
+    setPageError(null);
     try {
       await updateIncidentStatusInFirestore(id, 'RESOLVED', 'Διευθετήθηκε από υπεύθυνο');
       await loadIncidents();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setPageError(e.message || 'Αποτυχία επίλυσης συμβάντος');
     } finally {
       setResolvingId(null);
     }
@@ -124,13 +132,33 @@ export const IncidentsManager: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setCreateError(null);
+            setShowModal(true);
+          }}
           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Καταχώρηση Συμβάντος</span>
         </button>
       </div>
+
+      {pageError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-xs font-semibold">{pageError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPageError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filter and Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
@@ -285,6 +313,13 @@ export const IncidentsManager: React.FC = () => {
         }
       >
             <div className="space-y-3 text-xs">
+              {createError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-semibold">{createError}</span>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="incident-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
                 <select
