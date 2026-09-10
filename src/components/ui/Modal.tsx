@@ -21,11 +21,17 @@ const LAYER_CLASSES: Record<ModalLayer, string> = {
   stacked: 'z-60',
 };
 
+// Tracks currently-open Modal instances in mount order so a topmost-only
+// check can scope Escape to the frontmost stacked layer instead of closing
+// every open Modal at once.
+const openModalStack: symbol[] = [];
+
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
   icon?: LucideIcon;
+  iconClassName?: string;
   badge?: React.ReactNode;
   subtitle?: React.ReactNode;
   headerStyle?: ModalHeaderStyle;
@@ -43,6 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   title,
   icon: Icon,
+  iconClassName,
   badge,
   subtitle,
   headerStyle = 'dark',
@@ -56,14 +63,23 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const titleId = useId();
   const cardRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<symbol>(Symbol('modal-instance'));
 
   useEffect(() => {
     if (!isOpen) return;
+    const id = instanceRef.current;
+    openModalStack.push(id);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && openModalStack[openModalStack.length - 1] === id) {
+        onClose();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      const idx = openModalStack.indexOf(id);
+      if (idx !== -1) openModalStack.splice(idx, 1);
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -81,13 +97,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 ${LAYER_CLASSES[layer]} bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4`}
+      className={`fixed inset-0 ${LAYER_CLASSES[layer]} bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-150 starting:opacity-0`}
       onClick={closeOnBackdropClick ? onClose : undefined}
       role="presentation"
     >
       <div
         ref={cardRef}
-        className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col`}
+        className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col transition-all duration-150 starting:opacity-0 starting:scale-95`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -96,7 +112,7 @@ export const Modal: React.FC<ModalProps> = ({
         {headerStyle === 'dark' && (
           <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              {Icon && <Icon className="w-4 h-4 text-indigo-400 shrink-0" />}
+              {Icon && <Icon className={`w-4 h-4 shrink-0 ${iconClassName ?? 'text-indigo-400'}`} />}
               <div className="min-w-0">
                 <h3 id={titleId} className="font-bold text-sm truncate">
                   {title}
@@ -108,7 +124,7 @@ export const Modal: React.FC<ModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Κλείσιμο"
-              className="text-slate-400 hover:text-white cursor-pointer shrink-0 ml-2"
+              className="text-slate-400 hover:text-white cursor-pointer shrink-0 ml-2 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded"
             >
               <X className="w-5 h-5" />
             </button>
@@ -118,7 +134,7 @@ export const Modal: React.FC<ModalProps> = ({
         {headerStyle === 'bordered' && (
           <div className="flex items-center justify-between border-b border-slate-100 px-6 pt-6 pb-3 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              {Icon && <Icon className="w-5 h-5 text-indigo-600 shrink-0" />}
+              {Icon && <Icon className={`w-5 h-5 shrink-0 ${iconClassName ?? 'text-indigo-600'}`} />}
               <div className="min-w-0">
                 <h3 id={titleId} className="font-bold text-base text-slate-900 truncate">
                   {title}
@@ -130,7 +146,7 @@ export const Modal: React.FC<ModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Κλείσιμο"
-              className="text-slate-400 hover:text-slate-700 cursor-pointer shrink-0 ml-2"
+              className="text-slate-400 hover:text-slate-700 cursor-pointer shrink-0 ml-2 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 rounded"
             >
               <X className="w-5 h-5" />
             </button>

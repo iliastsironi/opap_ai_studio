@@ -1018,6 +1018,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         onClose={() => setShowReopenModal(false)}
         layer="stacked"
         icon={ShieldAlert}
+        iconClassName="text-rose-400"
         title="Αίτηση Διόρθωσης Βάρδιας"
         size="sm"
         bodyAsForm

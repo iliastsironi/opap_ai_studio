@@ -291,6 +291,7 @@ export const IncidentsManager: React.FC = () => {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         icon={AlertTriangle}
+        iconClassName="text-rose-400"
         title="Καταγραφή Νέου Συμβάντος / Αποκλίσεως"
         size="md"
         bodyAsForm
