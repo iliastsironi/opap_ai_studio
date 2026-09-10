@@ -86,7 +86,11 @@ export const AuditLogViewer: React.FC = () => {
         {loading ? (
           <div className="p-8 text-center text-slate-400">Φόρτωση καταγραφών ελέγχου...</div>
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">Δεν υπάρχουν καταγραφές ελέγχου.</div>
+          <div className="p-12 text-center text-slate-400 space-y-2">
+            <History className="w-10 h-10 mx-auto text-slate-300" />
+            <p className="text-sm font-bold text-slate-700">Δεν υπάρχουν καταγραφές ελέγχου</p>
+            <p className="text-xs text-slate-400">Οι ενέργειες χρηστών και συστήματος θα εμφανίζονται εδώ.</p>
+          </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {logs.map((log) => (

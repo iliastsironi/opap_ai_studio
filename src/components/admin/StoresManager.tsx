@@ -389,7 +389,20 @@ export const StoresManager: React.FC = () => {
                 ) : deptsLoadError ? (
                   <p className="text-xs text-rose-600 font-semibold">{deptsLoadError}</p>
                 ) : departments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">Δεν έχουν οριστεί τμήματα για αυτό το κατάστημα.</p>
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center space-y-2">
+                    <Layers className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-xs text-slate-500 font-medium">Δεν έχουν οριστεί τμήματα για αυτό το κατάστημα.</p>
+                    {hasPermission('department.manage') && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddDeptModal(true)}
+                        className="inline-flex items-center space-x-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Προσθήκη Πρώτου Τμήματος</span>
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {departments.map((dept) => (

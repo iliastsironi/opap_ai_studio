@@ -193,8 +193,10 @@ export const IncidentsManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredIncidents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic">
-                    Δεν βρέθηκαν καταγεγραμμένα συμβάντα.
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                    <AlertTriangle className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν καταγεγραμμένα συμβάντα</p>
+                    <p className="text-xs text-slate-400 mt-1">Η καταχώρηση νέου συμβάντος θα εμφανίζεται εδώ.</p>
                   </td>
                 </tr>
               ) : (

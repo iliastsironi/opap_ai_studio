@@ -724,6 +724,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // Auto-sync expenses state
   const [isSyncingExpenses, setIsSyncingExpenses] = useState<boolean>(false);
+  const [isAddingExpense, setIsAddingExpense] = useState<boolean>(false);
   const [syncNotification, setSyncNotification] = useState<string | null>(null);
   const [isSyncingVlts, setIsSyncingVlts] = useState<boolean>(false);
   const [vltsSyncNotification, setVltsSyncNotification] = useState<string | null>(null);
@@ -1207,6 +1208,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // every row in `expenses` is guaranteed to have a real id, which is
   // what lets handleRemoveExpense below skip the old temp_-id check.
   const handleAddExpense = async () => {
+    setIsAddingExpense(true);
     try {
       const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
       const created = await createAndSyncShiftExpense(
@@ -1236,6 +1238,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     } catch (err) {
       console.warn('Could not create expense row:', err);
       setSyncNotification('Αποτυχία προσθήκης εξόδου. Δοκιμάστε ξανά.');
+    } finally {
+      setIsAddingExpense(false);
     }
   };
 
@@ -2411,10 +2415,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <button
                   type="button"
                   onClick={handleAddExpense}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                  disabled={isAddingExpense}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Προσθήκη Εξόδου</span>
+                  <span>{isAddingExpense ? 'Προσθήκη...' : '+ Προσθήκη Εξόδου'}</span>
                 </button>
               </div>
             </div>
@@ -2454,8 +2459,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             )}
 
             {expenses.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500 font-medium">
-                Δεν έχουν καταχωρηθεί έξοδα για αυτή τη βάρδια.
+              <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500 font-medium space-y-1.5">
+                <Receipt className="w-6 h-6 mx-auto text-slate-300" />
+                <p>Δεν έχουν καταχωρηθεί έξοδα για αυτή τη βάρδια.</p>
               </div>
             ) : (
               <div className="space-y-3">

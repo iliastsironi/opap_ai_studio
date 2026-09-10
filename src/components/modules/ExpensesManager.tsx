@@ -372,8 +372,10 @@ export const ExpensesManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400 italic">
-                    Δεν βρέθηκαν καταχωρημένα έξοδα.
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                    <Receipt className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν καταχωρημένα έξοδα</p>
+                    <p className="text-xs text-slate-400 mt-1">Τα νέα έξοδα που καταχωρείτε θα εμφανίζονται εδώ.</p>
                   </td>
                 </tr>
               ) : (
