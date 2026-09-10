@@ -344,7 +344,7 @@ export const ExpensesManager: React.FC = () => {
               id="expenses-category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:outline-hidden"
+              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
             >
               <option value="ALL">Όλες οι Κατηγορίες</option>
               <option value="CLEANING">Καθαριότητα</option>

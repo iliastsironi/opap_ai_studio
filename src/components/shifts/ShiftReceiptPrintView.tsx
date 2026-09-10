@@ -553,7 +553,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
         {/* Modal Top Bar - Hidden during print */}
         <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between no-print shrink-0 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
               <Printer className="w-4 h-4" />
             </div>
             <div>
@@ -568,7 +568,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             onClick={onClose}
             aria-label="Κλείσιμο Προεπισκόπησης"
             title="Κλείσιμο (X)"
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-slate-700"
+            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-slate-700"
           >
             <X className="w-5 h-5 text-white" />
           </button>

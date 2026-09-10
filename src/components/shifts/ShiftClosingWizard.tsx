@@ -1708,7 +1708,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">1</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">1</span>
                 <span>Έναρξη Βάρδιας & Αρχικό Ταμείο</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -1845,7 +1845,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">2</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">2</span>
                 <span>Αναφορές ΟΠΑΠ, VLTs & Υπηρεσιών</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -2326,7 +2326,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">3</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">3</span>
                 <span>Πωλήσεις Καφέ / Αναψυκτηρίου (FnB)</span>
               </h3>
             </div>
@@ -2590,7 +2590,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">4</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">4</span>
                 <span>Καταμέτρηση Μετρητών Ταμείου</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -2724,7 +2724,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">5</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">5</span>
                 <span>Τελικός Έλεγχος & Επιβεβαίωση</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">

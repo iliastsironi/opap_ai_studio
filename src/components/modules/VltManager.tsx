@@ -449,7 +449,7 @@ export const VltManager: React.FC = () => {
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   placeholder="π.χ. PLAY-ATH-001"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
 
@@ -464,7 +464,7 @@ export const VltManager: React.FC = () => {
                   value={formGameTitle}
                   onChange={(e) => setFormGameTitle(e.target.value)}
                   placeholder="π.χ. Sizzling Hot Deluxe"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
 
@@ -476,7 +476,7 @@ export const VltManager: React.FC = () => {
                   id="terminal-status"
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value as 'ONLINE' | 'OFFLINE' | 'MAINTENANCE')}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm bg-white"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900 text-sm bg-white focus:outline-hidden focus:border-indigo-500"
                 >
                   <option value="ONLINE">ONLINE</option>
                   <option value="OFFLINE">OFFLINE</option>
@@ -495,7 +495,7 @@ export const VltManager: React.FC = () => {
                     step="0.01"
                     value={formMeterIn}
                     onChange={(e) => setFormMeterIn(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -508,7 +508,7 @@ export const VltManager: React.FC = () => {
                     step="0.01"
                     value={formMeterOut}
                     onChange={(e) => setFormMeterOut(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm"
+                    className="w-full border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 text-sm focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
               </div>

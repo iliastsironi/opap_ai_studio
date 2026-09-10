@@ -443,6 +443,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
               {/* Customers Table */}
               <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
@@ -585,6 +586,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {filteredCustomers.length > CUSTOMERS_PAGE_SIZE && (
