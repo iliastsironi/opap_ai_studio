@@ -905,9 +905,9 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   </div>
                   <p className="text-micro text-slate-500 mt-1">
                     {formData.tier === 'A+' && 'A+: Απεριόριστο όριο (VIP πελάτης).'}
-                    {formData.tier === 'A' && `A: Όριο έως ${tierConfigs['A']?.defaultLimit ?? 300} €.`}
-                    {formData.tier === 'B' && `B: Όριο έως ${tierConfigs['B']?.defaultLimit ?? 100} €.`}
-                    {formData.tier === 'C' && `C: Αυστηρό όριο έως ${tierConfigs['C']?.defaultLimit ?? 30} €.`}
+                    {formData.tier === 'A' && `A: Όριο έως ${formatCurrency(tierConfigs['A']?.defaultLimit ?? 300)}.`}
+                    {formData.tier === 'B' && `B: Όριο έως ${formatCurrency(tierConfigs['B']?.defaultLimit ?? 100)}.`}
+                    {formData.tier === 'C' && `C: Αυστηρό όριο έως ${formatCurrency(tierConfigs['C']?.defaultLimit ?? 30)}.`}
                   </p>
                 </div>
 

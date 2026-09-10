@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { EUR_DENOMINATIONS } from '../../services/financialCalculator.ts';
 import { RotateCcw, Banknote, Coins as CoinsIcon, Calculator, Minus, Plus, X } from 'lucide-react';
 import { MAX_DENOMINATION_QUANTITY } from '../../lib/limits.ts';
+import { formatCurrency } from '../../lib/formatters.ts';
 
 export interface CashDenominationCounterProps {
   denominations: Record<string, number>;
@@ -159,7 +160,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                 : 'bg-slate-50 text-slate-500 border-slate-200'
             }`}
           >
-            {subtotal.toFixed(2)} €
+            {formatCurrency(subtotal)}
           </span>
         </div>
 
@@ -350,7 +351,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               Σύνολο Μετρητών
             </span>
             <span className="text-xl font-black font-mono leading-tight">
-              {grandTotal.toFixed(2)} €
+              {formatCurrency(grandTotal)}
             </span>
           </div>
         </div>
@@ -430,7 +431,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                       : 'bg-white text-emerald-950 border-emerald-200'
                   }`}
                 >
-                  Σύνολο: {totalNotes.toFixed(2)} €
+                  Σύνολο: {formatCurrency(totalNotes)}
                 </span>
               </div>
             </div>
@@ -514,7 +515,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                       : 'bg-white text-amber-950 border-amber-200'
                   }`}
                 >
-                  Σύνολο: {totalCoins.toFixed(2)} €
+                  Σύνολο: {formatCurrency(totalCoins)}
                 </span>
               </div>
             </div>
