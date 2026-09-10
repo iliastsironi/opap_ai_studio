@@ -5,6 +5,7 @@ import {
   Save,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Receipt,
   Coins,
   Ticket,
@@ -698,6 +699,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     }
     return [];
   });
+  const [expenseActionError, setExpenseActionError] = useState<string | null>(null);
 
   const [customerCredits, setCustomerCredits] = useState<Array<Partial<CustomerCredit>>>(() => {
     const fromCustomFields = shift.custom_field_values?.customer_credits;
@@ -714,6 +716,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // UI state & Print Receipt state
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
+  const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -780,6 +783,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       }
     } catch (err) {
       console.warn('Error syncing expenses in wizard:', err);
+      setSyncNotification('Αποτυχία συγχρονισμού εξόδων.');
     } finally {
       setIsSyncingExpenses(false);
     }
@@ -1158,6 +1162,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // Manual Autosave Draft function
   const saveDraft = async () => {
     setIsSavingDraft(true);
+    setDraftSaveError(null);
     try {
       const draftPayload = buildCurrentPayload('DRAFT_CLOSING');
 
@@ -1179,8 +1184,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       setDraftSavedAt(timeStr);
       setIsAutoSaved(true);
       setTimeout(() => setIsAutoSaved(false), 2500);
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Draft autosave warning:', e);
+      setDraftSaveError(e.message || 'Αποτυχία αποθήκευσης προχείρου');
     } finally {
       setIsSavingDraft(false);
     }
@@ -1249,6 +1255,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const handleRemoveExpense = async (index: number) => {
     const exp = expenses[index];
+    setExpenseActionError(null);
     if (exp?.id) {
       try {
         await deleteAndSyncShiftExpense({
@@ -1257,8 +1264,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           store_id: shift.store_id,
           shift_id: shift.id,
         });
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Could not delete expense from Firestore:', err);
+        setExpenseActionError(err.message || 'Αποτυχία διαγραφής εξόδου - η γραμμή δεν αφαιρέθηκε.');
+        return;
       }
     }
     setExpenses(expenses.filter((_, i) => i !== index));
@@ -1448,6 +1457,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           </button>
         </div>
       </div>
+
+      {draftSaveError && (
+        <div className="flex items-center justify-between gap-3 bg-rose-100 border border-rose-300 rounded-xl p-3">
+          <div className="flex items-center space-x-2 text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-semibold">{draftSaveError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDraftSaveError(null)}
+            aria-label="Κλείσιμο"
+            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteDraftConfirm && (
@@ -2404,6 +2430,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   onClick={() => setSyncNotification(null)}
                   aria-label="Κλείσιμο ειδοποίησης"
                   className="text-indigo-400 hover:text-indigo-700 ml-2 cursor-pointer p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {expenseActionError && (
+              <div className="p-3 rounded-xl bg-rose-100 border border-rose-300 flex items-center justify-between text-xs text-rose-800 font-semibold">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{expenseActionError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExpenseActionError(null)}
+                  aria-label="Κλείσιμο ειδοποίησης"
+                  className="text-rose-400 hover:text-rose-700 ml-2 cursor-pointer p-0.5"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

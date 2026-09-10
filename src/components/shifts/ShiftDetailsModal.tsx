@@ -116,7 +116,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       onRefresh();
       setTimeout(() => onClose(), 900);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Σφάλμα κατά την έγκριση βάρδιας');
       setShowApproveConfirm(false);
     } finally {
       setLoading(false);
@@ -147,7 +147,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       onRefresh();
       setTimeout(() => onClose(), 900);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Σφάλμα κατά την υποβολή αιτήματος διόρθωσης');
     } finally {
       setLoading(false);
     }

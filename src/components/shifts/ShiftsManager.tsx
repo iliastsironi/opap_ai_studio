@@ -33,6 +33,7 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
@@ -640,6 +641,23 @@ export const ShiftsManager: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-start justify-between gap-3">
+              <div className="flex items-start space-x-2 text-rose-800">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="text-xs font-semibold">{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                aria-label="Κλείσιμο"
+                className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 

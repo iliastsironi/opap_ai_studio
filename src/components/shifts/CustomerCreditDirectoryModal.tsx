@@ -7,6 +7,7 @@ import {
   Sliders,
   DollarSign,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Trash2,
   Edit2,
@@ -103,9 +104,18 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   const [isSavingTiers, setIsSavingTiers] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [customerFormError, setCustomerFormError] = useState<string | null>(null);
+  const [deleteCustomerError, setDeleteCustomerError] = useState<string | null>(null);
+  const [tierLimitsError, setTierLimitsError] = useState<string | null>(null);
 
   const reloadCustomers = useCallback(async () => {
-    setCustomers(await getCustomers(orgId, storeId));
+    try {
+      setCustomers(await getCustomers(orgId, storeId));
+      setDirectoryError(null);
+    } catch (err: any) {
+      setDirectoryError(err.message || 'Αποτυχία φόρτωσης πελατών');
+    }
   }, [orgId, storeId]);
 
   useEffect(() => {
@@ -141,10 +151,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       notes: '',
     });
     setEditingCustomer(null);
+    setCustomerFormError(null);
     setIsAddingNew(true);
   };
 
   const handleOpenEditModal = (cust: Customer) => {
+    setCustomerFormError(null);
     setFormData({
       name: cust.name,
       phone: cust.phone || '',
@@ -161,6 +173,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     e.preventDefault();
     if (!formData.name.trim() || isSavingCustomer) return;
     setIsSavingCustomer(true);
+    setCustomerFormError(null);
 
     try {
       const desiredDebt = parseFloat(formData.current_debt) || 0;
@@ -199,6 +212,8 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       if (onCustomerSelected) {
         onCustomerSelected(saved);
       }
+    } catch (err: any) {
+      setCustomerFormError(err.message || 'Αποτυχία αποθήκευσης πελάτη');
     } finally {
       setIsSavingCustomer(false);
     }
@@ -207,10 +222,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   const handleDeleteCustomer = async () => {
     if (!customerToDelete) return;
     setIsDeletingCustomer(true);
+    setDeleteCustomerError(null);
     try {
       await deleteCustomer(customerToDelete.id);
       await reloadCustomers();
       setCustomerToDelete(null);
+    } catch (err: any) {
+      setDeleteCustomerError(err.message || 'Αποτυχία διαγραφής πελάτη');
     } finally {
       setIsDeletingCustomer(false);
     }
@@ -219,6 +237,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   const handleSaveTierLimits = async () => {
     if (isSavingTiers) return;
     setIsSavingTiers(true);
+    setTierLimitsError(null);
     const updated: Record<CreditScoreTier, CreditTierConfig> = {
       ...tierConfigs,
       'A+': {
@@ -245,6 +264,8 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       setTierConfigs(updated);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 2500);
+    } catch (err: any) {
+      setTierLimitsError(err.message || 'Αποτυχία αποθήκευσης ορίων');
     } finally {
       setIsSavingTiers(false);
     }
@@ -333,6 +354,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
         <div className="p-6 space-y-5">
           {activeTab === 'directory' && (
             <>
+              {directoryError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-semibold">{directoryError}</span>
+                </div>
+              )}
+
               {/* Overview Metric Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
@@ -536,7 +564,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                 {isOwnerOrManager && (
                                   <button
                                     type="button"
-                                    onClick={() => setCustomerToDelete({ id: cust.id, name: cust.name })}
+                                    onClick={() => {
+                                      setDeleteCustomerError(null);
+                                      setCustomerToDelete({ id: cust.id, name: cust.name });
+                                    }}
                                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                     title="Διαγραφή"
                                     aria-label="Διαγραφή"
@@ -749,6 +780,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 </div>
               </div>
 
+              {tierLimitsError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-semibold">{tierLimitsError}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
                 {savedSuccess && (
                   <span className="text-xs font-bold text-emerald-600 flex items-center space-x-1">
@@ -802,6 +840,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
           }
         >
               <div className="space-y-3.5">
+                {customerFormError && (
+                  <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-semibold">{customerFormError}</span>
+                  </div>
+                )}
                 <div>
                   <label htmlFor="cust-name" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                     Ονοματεπώνυμο Πελάτη *
@@ -924,7 +968,14 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
         layer="stacked"
         icon={Trash2}
         title="Διαγραφή Πελάτη"
-        message={`Είστε σίγουροι ότι θέλετε να διαγράψετε τον πελάτη «${customerToDelete?.name}»; Το ιστορικό συναλλαγών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.`}
+        message={
+          <>
+            Είστε σίγουροι ότι θέλετε να διαγράψετε τον πελάτη «{customerToDelete?.name}»; Το ιστορικό συναλλαγών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.
+            {deleteCustomerError && (
+              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteCustomerError}</p>
+            )}
+          </>
+        }
         confirmLabel="Ναι, Διαγραφή"
         isLoading={isDeletingCustomer}
         loadingLabel="Διαγραφή..."
