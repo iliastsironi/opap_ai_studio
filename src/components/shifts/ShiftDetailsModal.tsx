@@ -28,6 +28,7 @@ import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
+import { SUCCESS_MODAL_CLOSE_MS } from '../../lib/timing.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -114,7 +115,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       setShowApproveConfirm(false);
       setApproveSucceeded(true);
       onRefresh();
-      setTimeout(() => onClose(), 900);
+      setTimeout(() => onClose(), SUCCESS_MODAL_CLOSE_MS);
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την έγκριση βάρδιας');
       setShowApproveConfirm(false);
@@ -145,7 +146,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         actionType === 'CORRECTION' ? 'Το αίτημα διόρθωσης στάλθηκε' : 'Η βάρδια ανοίχθηκε ξανά'
       );
       onRefresh();
-      setTimeout(() => onClose(), 900);
+      setTimeout(() => onClose(), SUCCESS_MODAL_CLOSE_MS);
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την υποβολή αιτήματος διόρθωσης');
     } finally {

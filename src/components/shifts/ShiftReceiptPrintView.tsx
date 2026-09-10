@@ -544,7 +544,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
   return (
     <div
       id="receipt-preview-modal-backdrop"
-      className="print-container-root fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto no-print:flex print:block print:p-0 print:bg-white print:static animate-in fade-in duration-150"
+      className="print-container-root fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs overflow-y-auto no-print:flex print:block print:p-0 print:bg-white print:static transition-opacity duration-150 starting:opacity-0"
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) onClose();
       }}

@@ -23,7 +23,7 @@ export const DailyShiftReportModal: React.FC<DailyShiftReportModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="print-container-root fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150 print:block print:p-0 print:bg-white print:static">
+    <div className="print-container-root fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs overflow-y-auto transition-opacity duration-150 starting:opacity-0 print:block print:p-0 print:bg-white print:static">
       <div className="bg-slate-50 rounded-3xl shadow-2xl border border-slate-200 w-full max-w-6xl my-auto overflow-hidden flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-0 print:rounded-none">
         {/* Header */}
         <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">

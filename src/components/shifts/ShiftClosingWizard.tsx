@@ -48,6 +48,7 @@ import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
+import { TOAST_AUTO_DISMISS_MS, SUBMIT_SUCCESS_REDIRECT_MS } from '../../lib/timing.ts';
 
 export interface ToraPosItem {
   id: string;
@@ -1122,7 +1123,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         });
         setDraftSavedAt(timeStr);
         setIsAutoSaved(true);
-        setTimeout(() => setIsAutoSaved(false), 2500);
+        setTimeout(() => setIsAutoSaved(false), TOAST_AUTO_DISMISS_MS);
       } catch (err) {
         console.warn('Silent autosave error:', err);
       }
@@ -1184,7 +1185,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       });
       setDraftSavedAt(timeStr);
       setIsAutoSaved(true);
-      setTimeout(() => setIsAutoSaved(false), 2500);
+      setTimeout(() => setIsAutoSaved(false), TOAST_AUTO_DISMISS_MS);
     } catch (e: any) {
       console.warn('Draft autosave warning:', e);
       setDraftSaveError(e.message || 'Αποτυχία αποθήκευσης προχείρου');
@@ -1373,7 +1374,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       setShowSubmitConfirm(false);
       setSubmitSucceeded(true);
-      setTimeout(() => onSubmitted(), 1100);
+      setTimeout(() => onSubmitted(), SUBMIT_SUCCESS_REDIRECT_MS);
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την υποβολή βάρδιας');
       setShowSubmitConfirm(false);
@@ -1481,7 +1482,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* Delete Confirmation Modal */}
       {showDeleteDraftConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
             <div className="flex items-center space-x-3 text-rose-600">
               <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
@@ -1547,7 +1548,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* Submit Confirmation Modal */}
       {showSubmitConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
             <div className="flex items-center space-x-3 text-emerald-600">
               <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
@@ -1618,7 +1619,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       {/* Brief success confirmation before returning to the shift list */}
       {submitSucceeded && (
-        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-80 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
           <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-3 text-center">
             <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
@@ -2142,7 +2143,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </p>
 
               {vltsSyncNotification && (
-                <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold animate-fadeIn">
+                <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold transition-opacity duration-150 starting:opacity-0">
                   <div className="flex items-center space-x-2">
                     <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
                     <span>{vltsSyncNotification}</span>
@@ -2425,7 +2426,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
 
             {syncNotification && (
-              <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold animate-fadeIn">
+              <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold transition-opacity duration-150 starting:opacity-0">
                 <div className="flex items-center space-x-2">
                   <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
                   <span>{syncNotification}</span>
