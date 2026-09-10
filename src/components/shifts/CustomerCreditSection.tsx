@@ -4,6 +4,7 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Info,
   Sliders,
@@ -62,14 +63,22 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
   const [quickName, setQuickName] = useState('');
   const [quickPhone, setQuickPhone] = useState('');
   const [quickTier, setQuickTier] = useState<CreditScoreTier>('B');
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [quickCreateError, setQuickCreateError] = useState<string | null>(null);
 
   const refreshCustomers = useCallback(async () => {
-    const [custs, tiers] = await Promise.all([
-      getCustomers(orgId, storeId),
-      getStoreCreditTierConfigs(orgId, storeId),
-    ]);
-    setCustomers(custs);
-    setTierConfigs(tiers);
+    try {
+      const [custs, tiers] = await Promise.all([
+        getCustomers(orgId, storeId),
+        getStoreCreditTierConfigs(orgId, storeId),
+      ]);
+      setCustomers(custs);
+      setTierConfigs(tiers);
+      setRefreshError(null);
+    } catch (err: any) {
+      setRefreshError(err.message || 'Αποτυχία φόρτωσης πελατών');
+    }
   }, [orgId, storeId]);
 
   useEffect(() => {
@@ -120,24 +129,32 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
   };
 
   const handleQuickCreateCustomer = async (index: number) => {
-    if (!quickName.trim()) return;
-    const newCust = await saveCustomer({
-      organization_id: orgId,
-      name: quickName.trim(),
-      phone: quickPhone.trim(),
-      tier: quickTier,
-      store_id: storeId || 'store_opap_01',
-    });
-    await refreshCustomers();
+    if (!quickName.trim() || isCreatingCustomer) return;
+    setIsCreatingCustomer(true);
+    setQuickCreateError(null);
+    try {
+      const newCust = await saveCustomer({
+        organization_id: orgId,
+        name: quickName.trim(),
+        phone: quickPhone.trim(),
+        tier: quickTier,
+        store_id: storeId || 'store_opap_01',
+      });
+      await refreshCustomers();
 
-    handleUpdateCredit(index, 'customer_id', newCust.id);
-    handleUpdateCredit(index, 'customer_name', newCust.name);
-    handleUpdateCredit(index, 'customer_tier', newCust.tier);
+      handleUpdateCredit(index, 'customer_id', newCust.id);
+      handleUpdateCredit(index, 'customer_name', newCust.name);
+      handleUpdateCredit(index, 'customer_tier', newCust.tier);
 
-    setQuickCreateOpenIdx(null);
-    setQuickName('');
-    setQuickPhone('');
-    setQuickTier('B');
+      setQuickCreateOpenIdx(null);
+      setQuickName('');
+      setQuickPhone('');
+      setQuickTier('B');
+    } catch (err: any) {
+      setQuickCreateError(err.message || 'Αποτυχία δημιουργίας πελάτη');
+    } finally {
+      setIsCreatingCustomer(false);
+    }
   };
 
   // Financial summary
@@ -151,6 +168,13 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
   return (
     <div className="space-y-4 pt-2">
+      {refreshError && (
+        <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 flex items-center space-x-2 text-rose-800">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="text-xs font-semibold">{refreshError}</span>
+        </div>
+      )}
+
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
         <div>
@@ -307,6 +331,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                           onChange={(e) => {
                             const val = e.target.value;
                             if (val === '__ADD_NEW__') {
+                              setQuickCreateError(null);
                               setQuickCreateOpenIdx(idx);
                               return;
                             }
@@ -442,13 +467,20 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         <option value="C">C (Αυστηρό Όριο - 30€)</option>
                       </select>
                     </div>
+                    {quickCreateError && (
+                      <div className="bg-rose-100 border border-rose-300 rounded-lg p-2 flex items-center space-x-1.5 text-rose-800">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-micro font-semibold">{quickCreateError}</span>
+                      </div>
+                    )}
                     <div className="flex justify-end">
                       <button
                         type="button"
                         onClick={() => handleQuickCreateCustomer(idx)}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                        disabled={isCreatingCustomer}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                       >
-                        Αποθήκευση & Επιλογή
+                        {isCreatingCustomer ? 'Αποθήκευση...' : 'Αποθήκευση & Επιλογή'}
                       </button>
                     </div>
                   </div>
