@@ -629,7 +629,7 @@ export const ExpensesManager: React.FC = () => {
 
                 {/* Custom input if "CUSTOM" is chosen */}
                 {selectedSupplierId === 'CUSTOM' && (
-                  <div className="mt-2 animate-in fade-in duration-150">
+                  <div className="mt-2 transition-opacity duration-150 starting:opacity-0">
                     <input
                       type="text"
                       maxLength={MAX_LABEL_LENGTH}
