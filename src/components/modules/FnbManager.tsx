@@ -451,7 +451,7 @@ export const FnbManager: React.FC = () => {
                   id="fnb-sale-store"
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                  className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-indigo-500"
                 >
                   {stores.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -470,7 +470,7 @@ export const FnbManager: React.FC = () => {
                   required
                   value={itemName}
                   onChange={(e) => setItemName(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 font-bold"
+                  className="w-full border border-slate-300 rounded-lg p-2 font-bold focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -483,7 +483,7 @@ export const FnbManager: React.FC = () => {
                     required
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold"
+                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -498,7 +498,7 @@ export const FnbManager: React.FC = () => {
                     required
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold"
+                    className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -508,7 +508,7 @@ export const FnbManager: React.FC = () => {
                   id="fnb-sale-payment"
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                  className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-indigo-500"
                 >
                   <option value="CASH">Μετρητά</option>
                   <option value="CARD">Κάρτα (POS)</option>

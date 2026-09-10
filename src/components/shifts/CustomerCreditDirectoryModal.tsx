@@ -34,6 +34,7 @@ import {
 } from '../../services/customerCreditService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
+import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
@@ -263,7 +264,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       await saveStoreCreditTierConfigs(orgId, storeId || 'store_opap_01', updated);
       setTierConfigs(updated);
       setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 2500);
+      setTimeout(() => setSavedSuccess(false), TOAST_AUTO_DISMISS_MS);
     } catch (err: any) {
       setTierLimitsError(err.message || 'Αποτυχία αποθήκευσης ορίων');
     } finally {
@@ -443,6 +444,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
               {/* Customers Table */}
               <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
@@ -585,6 +587,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {filteredCustomers.length > CUSTOMERS_PAGE_SIZE && (
@@ -791,7 +794,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
               <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
                 {savedSuccess && (
-                  <span className="text-xs font-bold text-emerald-600 flex items-center space-x-1">
+                  <span className="text-xs font-bold text-emerald-600 flex items-center space-x-1 transition-opacity duration-150 starting:opacity-0">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Τα όρια αποθηκεύτηκαν επιτυχώς!</span>
                   </span>

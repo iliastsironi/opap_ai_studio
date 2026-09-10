@@ -301,7 +301,7 @@ export const ShiftsManager: React.FC = () => {
     true;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Top Header Card */}
       <div className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -1230,7 +1230,7 @@ export const ShiftsManager: React.FC = () => {
 
       {/* Delete Draft Shift Confirmation Modal */}
       {shiftToDelete && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
             <div className="flex items-center space-x-3 text-rose-600">
               <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">

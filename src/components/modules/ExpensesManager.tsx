@@ -344,7 +344,7 @@ export const ExpensesManager: React.FC = () => {
               id="expenses-category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:outline-hidden"
+              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
             >
               <option value="ALL">Όλες οι Κατηγορίες</option>
               <option value="CLEANING">Καθαριότητα</option>
@@ -619,7 +619,7 @@ export const ExpensesManager: React.FC = () => {
 
                 {/* Custom input if "CUSTOM" is chosen */}
                 {selectedSupplierId === 'CUSTOM' && (
-                  <div className="mt-2 animate-in fade-in duration-150">
+                  <div className="mt-2 transition-opacity duration-150 starting:opacity-0">
                     <input
                       type="text"
                       maxLength={MAX_LABEL_LENGTH}
