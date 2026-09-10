@@ -60,8 +60,6 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   closeOnBackdropClick = true,
   layer,
 }) => {
-  if (!isOpen) return null;
-
   const Icon = icon ?? TONE_ICON[tone];
 
   return (

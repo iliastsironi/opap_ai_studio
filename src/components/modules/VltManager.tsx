@@ -407,6 +407,7 @@ export const VltManager: React.FC = () => {
         isOpen={showTerminalModal}
         onClose={() => setShowTerminalModal(false)}
         icon={Gamepad2}
+        iconClassName="text-purple-400"
         title={editingTerminalId ? 'Επεξεργασία Τερματικού' : 'Νέο Τερματικό VLT'}
         size="md"
         bodyAsForm

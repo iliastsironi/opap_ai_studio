@@ -422,6 +422,7 @@ export const FnbManager: React.FC = () => {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         icon={Coffee}
+        iconClassName="text-amber-400"
         title="Νέα Πώληση Αναψυκτηρίου (FnB)"
         size="md"
         bodyAsForm
