@@ -1518,7 +1518,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   setShowDeleteDraftConfirm(false);
                   setDeleteDraftError(null);
                 }}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-sm font-bold transition-colors disabled:opacity-50"
               >
                 Ακύρωση
               </button>
@@ -1589,7 +1589,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => setShowSubmitConfirm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-sm font-bold transition-colors disabled:opacity-50"
               >
                 Ακύρωση
               </button>

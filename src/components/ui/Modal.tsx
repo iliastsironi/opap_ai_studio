@@ -173,20 +173,24 @@ export const Modal: React.FC<ModalProps> = ({
   );
 };
 
+export type ModalActionsSaveTone = 'primary' | 'destructive' | 'amber' | 'purple';
+
 export interface ModalActionsProps {
   onCancel: () => void;
   cancelLabel?: string;
   onSave?: () => void;
   saveLabel?: string;
-  saveTone?: 'primary' | 'destructive';
+  saveTone?: ModalActionsSaveTone;
   isSaving?: boolean;
   savingLabel?: string;
   disabled?: boolean;
 }
 
-const SAVE_TONE_CLASSES: Record<'primary' | 'destructive', string> = {
+const SAVE_TONE_CLASSES: Record<ModalActionsSaveTone, string> = {
   primary: 'bg-indigo-600 hover:bg-indigo-700',
   destructive: 'bg-rose-600 hover:bg-rose-700',
+  amber: 'bg-amber-600 hover:bg-amber-700',
+  purple: 'bg-purple-600 hover:bg-purple-700',
 };
 
 export const ModalActions: React.FC<ModalActionsProps> = ({

@@ -35,7 +35,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
@@ -1007,22 +1007,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         title={editingFieldId ? 'Επεξεργασία Πεδίου Βάρδιας' : 'Προσθήκη Νέου Πεδίου Βάρδιας'}
         size="lg"
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowFieldModal(false)}
-              className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveFieldFromModal}
-              className="px-5 py-2 text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs cursor-pointer"
-            >
-              {editingFieldId ? 'Ενημέρωση' : 'Προσθήκη'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowFieldModal(false)}
+            onSave={handleSaveFieldFromModal}
+            saveLabel={editingFieldId ? 'Ενημέρωση' : 'Προσθήκη'}
+          />
         }
       >
             <div className="space-y-4 text-xs">

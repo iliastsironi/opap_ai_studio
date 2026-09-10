@@ -15,7 +15,7 @@ import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 const ELEVATED_ROLE_CODES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'];
@@ -413,22 +413,12 @@ export const VltManager: React.FC = () => {
         bodyAsForm
         onSubmit={handleSaveTerminal}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowTerminalModal(false)}
-              className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={isSavingTerminal}
-              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isSavingTerminal ? 'Αποθήκευση...' : 'Αποθήκευση'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowTerminalModal(false)}
+            saveTone="purple"
+            isSaving={isSavingTerminal}
+            savingLabel="Αποθήκευση..."
+          />
         }
       >
             <div className="space-y-4 text-xs">

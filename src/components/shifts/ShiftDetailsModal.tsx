@@ -24,7 +24,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Shift } from '../../types/index.ts';
 import { ShiftStatusBadge } from '../ui/StatusBadge.tsx';
-import { Modal } from '../ui/Modal.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
@@ -1024,22 +1024,13 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         bodyAsForm
         onSubmit={handleReopenSubmit}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowReopenModal(false)}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600"
-            >
-              Ακύρωση
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-            >
-              {loading ? 'Αποστολή...' : 'Επιβεβαίωση Αίτησης'}
-            </button>
-          </>
+          <ModalActions
+            onCancel={() => setShowReopenModal(false)}
+            saveLabel="Επιβεβαίωση Αίτησης"
+            saveTone="destructive"
+            isSaving={loading}
+            savingLabel="Αποστολή..."
+          />
         }
       >
         <div className="space-y-4">
