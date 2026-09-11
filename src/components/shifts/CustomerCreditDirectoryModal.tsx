@@ -45,6 +45,12 @@ interface CustomerCreditDirectoryModalProps {
   storeId?: string;
   isOwnerOrManager: boolean;
   onCustomerSelected?: (customer: Customer) => void;
+  // Seeds the directory's own search box on open (e.g. "Άνοιγμα καρτέλας
+  // στο Τεφτέρι" from a National Lottery customer's debt warning) - purely
+  // a convenience default; the employee can still edit/clear it like any
+  // normal search. Every existing caller omits this and keeps today's
+  // always-starts-blank behavior.
+  initialSearchQuery?: string;
 }
 
 const CUSTOMERS_PAGE_SIZE = 20;
@@ -56,6 +62,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   storeId,
   isOwnerOrManager,
   onCustomerSelected,
+  initialSearchQuery,
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'directory' | 'tier_settings'>('directory');
@@ -121,7 +128,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   useEffect(() => {
     if (!isOpen) return;
-    setSearchQuery('');
+    setSearchQuery(initialSearchQuery || '');
     setSelectedTierFilter('ALL');
     setCurrentPage(1);
     reloadCustomers();
