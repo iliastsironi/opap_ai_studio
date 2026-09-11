@@ -37,6 +37,8 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { ScratchModeChangeModal } from './ScratchModeChangeModal.tsx';
+import { ScratchSellingMode } from './ScratchCalculatorTable.tsx';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
@@ -82,6 +84,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const storeId = currentStore?.id || 'store_opap_01';
 
   const canEdit = hasPermission('organization.update') || hasPermission('store.update');
+  // Deliberately its own permission check, not folded into canEdit above -
+  // Scratch Selling Mode is Owner-only per spec, stricter than whatever
+  // canEdit ends up covering.
+  const canManageScratchMode = hasPermission('store.scratch_mode.manage');
+  const [showScratchModeModal, setShowScratchModeModal] = useState(false);
 
   useEffect(() => {
     async function loadConfig() {
@@ -997,6 +1004,61 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             })}
           </div>
         </div>
+      )}
+
+      {/* TAB 3 (cont.): SCRATCH SELLING MODE - hard per-store ceiling, distinct
+          from the soft scratch_backside_default toggle above. Owner-only. */}
+      {activeTab === 'MODULES' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
+              <Lock className="w-4 h-4 text-indigo-600" />
+              <span>Λειτουργία Πώλησης Σκρατς</span>
+            </h2>
+            <span className="text-xs text-slate-500 font-medium">Μόνο ο Ιδιοκτήτης μπορεί να την αλλάξει</span>
+          </div>
+          <p className="text-micro text-slate-500">
+            Σε αντίθεση με την προεπιλογή παραπάνω, αυτή είναι αυστηρή ρύθμιση: σε λειτουργία «Μόνο
+            Μπροστά» η Πίσω πλευρά απενεργοποιείται για κάθε γραμμή, χωρίς εξαίρεση ανά γραμμή.
+          </p>
+
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-micro text-slate-500 font-semibold uppercase tracking-wide">Τρέχουσα λειτουργία</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">
+                {template.scratch_selling_mode === 'FRONT_ONLY' ? 'Μόνο Μπροστά' : 'Μπροστά + Πίσω'}
+              </p>
+            </div>
+            {canManageScratchMode ? (
+              <button
+                type="button"
+                onClick={() => setShowScratchModeModal(true)}
+                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer flex items-center gap-1.5"
+              >
+                <RefreshCcw className="w-3.5 h-3.5" />
+                Αλλαγή
+              </button>
+            ) : (
+              <span className="text-micro text-slate-400 flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Μόνο ο Ιδιοκτήτης
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showScratchModeModal && (
+        <ScratchModeChangeModal
+          isOpen={showScratchModeModal}
+          onClose={() => setShowScratchModeModal(false)}
+          template={template}
+          storeId={storeId}
+          onSaved={(newMode: ScratchSellingMode) => {
+            setTemplate((prev) => ({ ...prev, scratch_selling_mode: newMode }));
+            setSuccessMsg('Η Λειτουργία Πώλησης Σκρατς ενημερώθηκε!');
+          }}
+        />
       )}
 
       {/* Modal: Add or Edit Custom Field */}

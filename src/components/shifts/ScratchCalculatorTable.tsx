@@ -330,6 +330,58 @@ export function hasBackSide(row: ScratchTicketRow, storeMode?: ScratchSellingMod
   return row.backSideEnabled ?? !isLotteryRow(row);
 }
 
+// Whether a row's CURRENT active-inventory state can be safely folded into
+// Front-only counting with zero data loss, for the "Μετατροπή τρέχοντος
+// αποθέματος" (convert current active inventory) mode-switch option. A
+// blank backStartNo means no back-side sale was ever recorded against the
+// currently-active pack - there is nothing to lose by dropping it. A
+// non-blank backStartNo means the pack already has two independently-
+// advancing consumption edges (front + back) that a single front-only
+// pointer cannot represent without silently discarding a real, already-
+// recorded position - that pack must be flagged for the Owner to close or
+// fix instead of being force-converted. Operates on the row's own data
+// only (no storeMode argument) - this check is what DECIDES whether a
+// switch to FRONT_ONLY is safe, so it must see the row's true current
+// state, not a state already forced by the ceiling.
+export function isRowSafelyFrontOnlyConvertible(row: ScratchTicketRow): boolean {
+  if (!hasBackSide(row)) return true;
+  const backStart = row.backStartNo !== undefined ? String(row.backStartNo).trim() : '';
+  return backStart === '';
+}
+
+export interface FrontOnlyConversionPreview {
+  convertibleRows: ScratchTicketRow[];
+  flaggedRows: ScratchTicketRow[];
+}
+
+// Splits a store's active-inventory catalog into what a "Μετατροπή
+// τρέχοντος αποθέματος" action would safely convert vs. what it must
+// leave alone. Pure/no I/O - the mode-switch modal uses this both to
+// render the preview counts and, on confirm, to know which rows to
+// transform.
+export function previewFrontOnlyConversion(rows: ScratchTicketRow[]): FrontOnlyConversionPreview {
+  const convertibleRows: ScratchTicketRow[] = [];
+  const flaggedRows: ScratchTicketRow[] = [];
+  for (const row of rows) {
+    (isRowSafelyFrontOnlyConvertible(row) ? convertibleRows : flaggedRows).push(row);
+  }
+  return { convertibleRows, flaggedRows };
+}
+
+// Applies the conversion: convertible rows have their back-side data
+// cleared (identical to handleToggleBackSide's own "disabling" branch, so
+// the two code paths that can turn a row's back side off stay in sync).
+// Flagged rows pass through completely untouched - never a partial or
+// best-effort conversion, per spec ("do not force an arbitrary
+// conversion").
+export function applyFrontOnlyConversion(rows: ScratchTicketRow[]): ScratchTicketRow[] {
+  return rows.map((row) =>
+    isRowSafelyFrontOnlyConvertible(row)
+      ? { ...row, backSideEnabled: false, backStartNo: '', backEndNo: '' }
+      : row
+  );
+}
+
 export interface ScratchCountingDefaults {
   scratch_backside_default: boolean;
   lottery_bundle_default: boolean;
