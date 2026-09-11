@@ -22,7 +22,7 @@ import {
   Eye,
   FileSpreadsheet,
 } from 'lucide-react';
-import { Shift } from '../../types/index.ts';
+import { Shift, NationalLotteryDrawCollection } from '../../types/index.ts';
 import {
   DailyAggregatedReport,
   aggregateShiftsForDay,
@@ -31,6 +31,8 @@ import {
   formatGreekDate,
   getShiftDateKey,
 } from '../../services/dailyAggregationService.ts';
+import { getNationalLotteryTransactionsForStore } from '../../services/nationalLotteryService.ts';
+import { useAuth } from '../../context/AuthContext.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 
@@ -47,12 +49,22 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
   currentStoreId,
   onOpenShiftDetails,
 }) => {
+  const { organization } = useAuth();
+  const orgId = organization?.id || 'org_opap_demo';
   const [selectedStore, setSelectedStore] = useState<string>(currentStoreId || 'ALL');
-  
+
+  // Εθνικό Λαχείο contribution per shift - fetched once per org/store,
+  // independent of which day is currently selected (the day-filtering
+  // itself happens inside aggregateShiftsForDay via each row's shift_id).
+  const [nationalLotteryTransactions, setNationalLotteryTransactions] = useState<NationalLotteryDrawCollection[]>([]);
+  React.useEffect(() => {
+    getNationalLotteryTransactionsForStore(orgId, selectedStore).then(setNationalLotteryTransactions);
+  }, [orgId, selectedStore]);
+
   // Available dates from shifts
   const groupedReports = useMemo(() => {
-    return groupShiftsByDayAndStore(shifts, selectedStore);
-  }, [shifts, selectedStore]);
+    return groupShiftsByDayAndStore(shifts, selectedStore, nationalLotteryTransactions);
+  }, [shifts, selectedStore, nationalLotteryTransactions]);
 
   const availableDates = useMemo(() => {
     return Object.keys(groupedReports);
@@ -74,8 +86,8 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
 
   // Current report for the selected day
   const dailyReport: DailyAggregatedReport = useMemo(() => {
-    return aggregateShiftsForDay(shifts, selectedDate, selectedStore);
-  }, [shifts, selectedDate, selectedStore]);
+    return aggregateShiftsForDay(shifts, selectedDate, selectedStore, nationalLotteryTransactions);
+  }, [shifts, selectedDate, selectedStore, nationalLotteryTransactions]);
 
   // Quick navigation date helpers
   const handleJumpDate = (offset: number) => {
@@ -574,6 +586,24 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                       {formatCurrency(dailyReport.totalScratchSales)}
                     </td>
                   </tr>
+
+                  {/* Εθνικό Λαχείο - informational sub-portion of the Scratch
+                      row above, already included in it. Only shown when
+                      non-zero, so stores that don't use the feature don't
+                      get a persistent empty row. */}
+                  {dailyReport.totalNationalLotteryPortion > 0 && (
+                    <tr className="hover:bg-slate-50/60 text-slate-400">
+                      <td className="py-1.5 px-4 pl-8 text-micro italic">εκ των οποίων Εθνικό Λαχείο</td>
+                      {dailyReport.shiftContributions.map((s) => (
+                        <td key={s.shiftId} className="py-1.5 px-3.5 text-right font-mono text-micro">
+                          {(s.nationalLotteryPortion || 0) > 0 ? formatCurrency(s.nationalLotteryPortion || 0) : '—'}
+                        </td>
+                      ))}
+                      <td className="py-1.5 px-4 text-right font-mono font-bold text-micro bg-indigo-50/40 border-l border-indigo-100">
+                        {formatCurrency(dailyReport.totalNationalLotteryPortion)}
+                      </td>
+                    </tr>
+                  )}
 
                   {/* Tora POS */}
                   <tr className="hover:bg-slate-50/60">

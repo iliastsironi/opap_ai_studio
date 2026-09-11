@@ -524,6 +524,31 @@ export async function getNationalLotteryShiftContribution(shiftId: string): Prom
   return (data ?? []).reduce((sum, row) => sum + (row.movement_type === 'REVERSAL' ? -Number(row.amount) : Number(row.amount)), 0);
 }
 
+// Batch variant for daily reporting (DailyAggregationView.tsx) - one fetch
+// covering every shift-linked row for the store, rather than one query per
+// shift. dailyAggregationService.ts's own shift-id-keyed lookup is what
+// actually scopes each row to the correct day/shift; fetching by store
+// only (matching this codebase's existing getCustomers()/getNational
+// LotteryCustomers() "everything for this store" convention) keeps this
+// simple - a date-bounded query is a reasonable later optimization if
+// collection volume ever makes that necessary, not needed at this app's
+// scale today.
+export async function getNationalLotteryTransactionsForStore(
+  orgId: string,
+  storeId?: string // omitted/'ALL' = every store in the org, matching groupShiftsByDayAndStore's own 'ALL' handling
+): Promise<NationalLotteryDrawCollection[]> {
+  try {
+    let q = supabase.from(COLLECTIONS_TABLE).select('*').eq('organization_id', orgId).not('shift_id', 'is', null);
+    if (storeId && storeId !== 'ALL') q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []) as NationalLotteryDrawCollection[];
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.LIST, COLLECTIONS_TABLE).catch(() => {});
+    return [];
+  }
+}
+
 // ----------------------------------------------------------------
 // Debt warning (surfaced on the customer card in a later PR) - purely
 // informational, never blocking a new collection.

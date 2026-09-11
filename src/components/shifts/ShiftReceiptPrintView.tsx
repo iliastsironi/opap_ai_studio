@@ -32,6 +32,9 @@ export interface ShiftReceiptData {
   scratchSales?: number;
   scratchPayouts?: number;
   scratchNet?: number;
+  // Informational sub-portion of scratchSales already included in it -
+  // never added on top when computing any total.
+  nationalLotteryPortion?: number;
 
   vltsIn?: number;
   vltsOut?: number;
@@ -264,6 +267,12 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             <div className="flex justify-between items-center text-slate-600 print:text-black pl-2">
               <span>- Εξαργυρώσεις Σκρατς:</span>
               <span>-{formatCurrency(safeNum(data.scratchPayouts ?? shift.scratch_payouts))}</span>
+            </div>
+          )}
+          {safeNum(data.nationalLotteryPortion) > 0 && (
+            <div className="flex justify-between items-center text-slate-500 print:text-black pl-2 text-[10px] italic">
+              <span>εκ των οποίων Εθνικό Λαχείο:</span>
+              <span>{formatCurrency(safeNum(data.nationalLotteryPortion))}</span>
             </div>
           )}
 

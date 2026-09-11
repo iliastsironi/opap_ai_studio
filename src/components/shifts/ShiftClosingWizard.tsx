@@ -45,6 +45,7 @@ import {
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
+import { getNationalLotteryShiftContribution } from '../../services/nationalLotteryService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -845,8 +846,36 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     syncExpensesFromStore(false);
   }, [shift.id, shift.store_id]);
 
+  // Εθνικό Λαχείο cash collected against THIS shift (via the National
+  // Lottery module, a separate flow from the manual Scratch entry table
+  // above) - queried fresh on mount rather than trusted from a stale
+  // snapshot. This number is added into totalScratchNet below, NOT into
+  // scratchSales/autoCalculatedScratchSales - keeping it out of the
+  // cashier's manually-editable Scratch field means a manual override
+  // there can never accidentally erase real Εθνικό Λαχείο money.
+  //
+  // Deliberately NOT re-fetched a second time immediately before submit:
+  // buildCurrentPayload also derives expected_cash/discrepancy from
+  // totalScratchNet, so patching only scratch_lotto_sales post-hoc with a
+  // fresher number without recomputing those too would leave the
+  // persisted payload internally inconsistent - a worse bug than the
+  // narrow staleness window this would close. That window is already
+  // small in practice (collecting a draw happens in the separate National
+  // Lottery module, so returning to this wizard generally means it
+  // remounted and re-ran this fetch) and is fully covered regardless:
+  // DailyAggregationView.tsx sources totalNationalLotteryPortion directly
+  // from the same ledger table, not from any shift's snapshot, so the day's
+  // real total is always correct even if one shift's own snapshot is a few
+  // seconds stale.
+  const [nationalLotteryShiftContribution, setNationalLotteryShiftContribution] = useState(0);
+  useEffect(() => {
+    getNationalLotteryShiftContribution(shift.id)
+      .then(setNationalLotteryShiftContribution)
+      .catch((err) => console.warn('[ShiftClosingWizard] Could not load Εθνικό Λαχείο contribution:', err));
+  }, [shift.id]);
+
   // Computed Section Totals
-  const totalScratchNet = safeNum(scratchSales) - safeNum(scratchPayouts);
+  const totalScratchNet = safeNum(scratchSales) - safeNum(scratchPayouts) + nationalLotteryShiftContribution;
   const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalToraPos = toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalArithmoNet =
@@ -981,6 +1010,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     scratchSales: safeNum(scratchSales),
     scratchPayouts: safeNum(scratchPayouts),
     scratchNet: totalScratchNet,
+    nationalLotteryPortion: nationalLotteryShiftContribution,
 
     vltsIn: safeNum(vltsIn),
     vltsOut: signedVltsOut,
@@ -1881,6 +1911,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span className="text-xs font-bold text-rose-600">
                     - Εξαργ.: <span className="font-mono">{formatCurrency(scratchPayouts)}</span>
                   </span>
+                  {nationalLotteryShiftContribution > 0 && (
+                    <span className="text-xs font-bold text-indigo-600" title="Παραλαβές Εθνικού Λαχείου σε αυτή τη βάρδια">
+                      + Εθν. Λαχείο: <span className="font-mono">{formatCurrency(nationalLotteryShiftContribution)}</span>
+                    </span>
+                  )}
                   <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 font-mono">
                     Καθαρό: {formatCurrency(totalScratchNet)}
                   </span>
