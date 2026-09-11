@@ -58,6 +58,14 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_national_lottery.manage', code: 'national_lottery.manage', module: 'National Lottery', description: 'Διαχείριση μητρώου συνδρομητών' },
   { id: 'perm_national_lottery.reverse', code: 'national_lottery.reverse', module: 'National Lottery', description: 'Ακύρωση καταχωρήσεων παραλαβής' },
   { id: 'perm_national_lottery.edition.manage', code: 'national_lottery.edition.manage', module: 'National Lottery', description: 'Δημιουργία νέας έκδοσης' },
+  // Weekly roster. '.view' is deliberately given to every role (including
+  // EMPLOYEE/SHIFT_SUPERVISOR below) - the schedule must be visible to any
+  // org member, not just managers. '.manage' is narrower than the usual
+  // "elevated" bundle: only AREA_MANAGER/STORE_MANAGER plus the ORG_OWNER/
+  // PLATFORM_ADMIN wildcard get it, matching "the owner or manager can edit"
+  // - ACCOUNTANT/AUDITOR explicitly excluded even though they can see reports.
+  { id: 'perm_roster.view', code: 'roster.view', module: 'Roster', description: 'Προβολή εβδομαδιαίου προγράμματος βαρδιών' },
+  { id: 'perm_roster.manage', code: 'roster.manage', module: 'Roster', description: 'Επεξεργασία εβδομαδιαίου προγράμματος βαρδιών' },
 ];
 
 // A few concepts are checked under more than one spelling elsewhere in the
@@ -88,6 +96,7 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
     'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
+    'roster.view', 'roster.manage',
   ],
   STORE_MANAGER: [
     'org.view', 'store.view', 'users.view', 'shift.create', 'shift.submit',
@@ -96,28 +105,33 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
     'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
+    'roster.view', 'roster.manage',
   ],
   SHIFT_SUPERVISOR: [
     'org.view', 'store.view', 'shift.create', 'shift.submit', 'expense.create', 'cash.view',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
     'national_lottery.view', 'national_lottery.collect',
+    'roster.view',
   ],
   EMPLOYEE: [
     'store.view', 'shift.create', 'shift.submit', 'expense.create',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
     'national_lottery.view', 'national_lottery.collect',
+    'roster.view',
   ],
   ACCOUNTANT: [
     'org.view', 'store.view', 'expense.create', 'cash.view',
     'reports.organization.view', 'reports.store.view',
     'dashboard.view', 'reports.view',
     'national_lottery.view',
+    'roster.view',
   ],
   AUDITOR: [
     'org.view', 'store.view', 'cash.view',
     'reports.organization.view', 'reports.store.view', 'audit.view',
     'dashboard.view', 'reports.view',
     'national_lottery.view',
+    'roster.view',
   ],
 };
 

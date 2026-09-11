@@ -12,6 +12,7 @@ const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then
 const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
 const NationalLotteryManager = lazy(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
 const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
+const RosterManager = lazy(() => import('./components/modules/RosterManager.tsx').then((m) => ({ default: m.RosterManager })));
 const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
 const StoresManager = lazy(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
 const UsersManager = lazy(() => import('./components/admin/UsersManager.tsx').then((m) => ({ default: m.UsersManager })));
@@ -46,6 +47,7 @@ const TAB_PERMISSIONS: Record<string, string> = {
   incidents: 'incidents.view',
   national_lottery: 'national_lottery.view',
   reports: 'reports.view',
+  roster: 'roster.view',
   instructions: 'shifts.view',
   copilot: 'shifts.view',
 };
@@ -99,6 +101,8 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <NationalLotteryManager />;
     case 'reports':
       return <ReportsManager />;
+    case 'roster':
+      return <RosterManager />;
     case 'instructions':
       return <InstructionsPage />;
     case 'copilot':

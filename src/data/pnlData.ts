@@ -70,6 +70,10 @@ export interface WeeklyRosterStore {
   storeName: string;
   schedule: Array<{
     shift: string;
+    // Optional required role for this shift row (a SYSTEM_ROLES code, e.g.
+    // 'EMPLOYEE'). Absent/empty means no role requirement - keeps every
+    // roster saved before this field existed valid as-is.
+    role?: string;
     mon: string;
     tue: string;
     wed: string;

@@ -20,7 +20,6 @@ import {
   TrendingDown,
   DollarSign,
   AlertTriangle,
-  Calendar,
   Filter,
   Download,
   Store,
@@ -65,8 +64,6 @@ import {
   savePayrollRecord,
   fetchVltReconciliations,
   saveVltReconciliation,
-  fetchRosterSchedules,
-  saveRosterSchedule,
   seedFinancialLedgerToFirestore,
 } from '../../services/financialRecordsService.ts';
 import { computeDynamicFinancials } from '../../services/kpiEngine.ts';
@@ -77,14 +74,13 @@ import {
   CorporateExpenseItem,
   PayrollEmployeeRecord,
   VltReconciliationRecord,
-  WeeklyRosterStore,
 } from '../../data/pnlData.ts';
 import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 
-type ReportsTab = 'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED' | 'ROSTER';
+type ReportsTab = 'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS' | 'PAYROLL_FIXED';
 
 const REPORTS_TABS: Array<{ id: ReportsTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'OVERVIEW', label: 'Επισκόπηση & KPIs', icon: BarChart3 },
@@ -93,7 +89,6 @@ const REPORTS_TABS: Array<{ id: ReportsTab; label: string; icon: React.Component
   { id: 'EMPLOYEE_KPIS', label: 'KPIs Εργαζομένων', icon: Users },
   { id: 'SHIFT_KPIS', label: 'KPIs Βαρδιών & VLTs Opapnet', icon: Clock },
   { id: 'PAYROLL_FIXED', label: 'Μισθοδοσία & Πάγια Έξοδα', icon: DollarSign },
-  { id: 'ROSTER', label: 'Πρόγραμμα Προσωπικού', icon: Calendar },
 ];
 
 export const ReportsManager: React.FC = () => {
@@ -112,7 +107,6 @@ export const ReportsManager: React.FC = () => {
   const [rawCorporateExpenses, setRawCorporateExpenses] = useState<CorporateExpenseItem[]>([]);
   const [rawPayroll, setRawPayroll] = useState<PayrollEmployeeRecord[]>([]);
   const [rawVltRecs, setRawVltRecs] = useState<VltReconciliationRecord[]>([]);
-  const [rawRoster, setRawRoster] = useState<WeeklyRosterStore[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
 
   // Filtering
@@ -167,32 +161,19 @@ export const ReportsManager: React.FC = () => {
     cashInHand: 100,
   });
 
-  // Interactive Weekly Roster Schedule Creator / Editor State
-  const [showRosterModal, setShowRosterModal] = useState(false);
-  const [editingRosterStoreId, setEditingRosterStoreId] = useState<string>('100343');
-  const [editingRosterStoreName, setEditingRosterStoreName] = useState<string>('100343 - Κεντρικό ΟΠΑΠ');
-  const [editingScheduleRows, setEditingScheduleRows] = useState<
-    Array<{ shift: string; mon: string; tue: string; wed: string; thu: string; fri: string; sat: string; sun: string }>
-  >([
-    { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-    { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-    { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-  ]);
-
   const orgId = organization?.id || 'org_opap_demo';
 
   // Load all Firestore Collections
   const loadAllFinancialData = async () => {
     setLoading(true);
     try {
-      const [shifts, exp, fixed, corp, pay, vlt, ros, users] = await Promise.all([
+      const [shifts, exp, fixed, corp, pay, vlt, users] = await Promise.all([
         fetchShiftsFromFirestore(orgId, selectedStoreId === 'ALL' ? undefined : selectedStoreId),
         fetchExpensesFromFirestore(orgId, selectedStoreId === 'ALL' ? undefined : selectedStoreId),
         fetchFixedExpenses(orgId),
         fetchCorporateExpenses(orgId),
         fetchPayrollRecords(orgId),
         fetchVltReconciliations(orgId),
-        fetchRosterSchedules(orgId),
         fetchUsersFromFirestore(orgId),
       ]);
 
@@ -202,7 +183,6 @@ export const ReportsManager: React.FC = () => {
       setRawCorporateExpenses(corp || []);
       setRawPayroll(pay || []);
       setRawVltRecs(vlt || []);
-      setRawRoster(ros || []);
       if (users && users.length > 0) {
         setTenantUsers(users);
       }
@@ -241,10 +221,10 @@ export const ReportsManager: React.FC = () => {
       corporateExpenses: rawCorporateExpenses,
       payrollRecords: rawPayroll,
       vltReconciliations: rawVltRecs,
-      rosterSchedules: rawRoster,
+      rosterSchedules: [],
       stores: stores.map((s) => ({ id: s.id, name: s.name, code: s.code, store_type: s.store_type })),
     });
-  }, [rawShifts, rawExpenses, rawFixedExpenses, rawCorporateExpenses, rawPayroll, rawVltRecs, rawRoster, stores]);
+  }, [rawShifts, rawExpenses, rawFixedExpenses, rawCorporateExpenses, rawPayroll, rawVltRecs, stores]);
 
   const {
     pnlSummary,
@@ -255,7 +235,6 @@ export const ReportsManager: React.FC = () => {
     corporateExpenses,
     payrollRecords,
     vltReconciliations,
-    rosterSchedules,
     totals,
   } = dynamicCalculations;
 
@@ -415,66 +394,6 @@ export const ReportsManager: React.FC = () => {
     try {
       await savePayrollRecord(orgId, item);
       setShowPayrollModal(false);
-      await loadAllFinancialData();
-    } finally {
-      setIsSavingRecord(false);
-    }
-  };
-
-  const handleOpenRosterEditor = (existing?: WeeklyRosterStore) => {
-    if (existing) {
-      setEditingRosterStoreId(existing.storeId);
-      setEditingRosterStoreName(existing.storeName);
-      setEditingScheduleRows(
-        existing.schedule && existing.schedule.length > 0
-          ? JSON.parse(JSON.stringify(existing.schedule))
-          : [
-              { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-              { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-              { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-            ]
-      );
-    } else {
-      setEditingRosterStoreId('100343');
-      setEditingRosterStoreName('100343 - Κεντρικό ΟΠΑΠ');
-      setEditingScheduleRows([
-        { shift: '08:00 - 16:00 (Πρωί)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-        { shift: '16:00 - 00:00 (Απόγευμα)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-        { shift: 'Ρεπό', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-      ]);
-    }
-    setShowRosterModal(true);
-  };
-
-  const handleAddScheduleRow = () => {
-    setEditingScheduleRows([
-      ...editingScheduleRows,
-      { shift: 'Νέα Βάρδια (π.χ. 12:00 - 20:00)', mon: '', tue: '', wed: '', thu: '', fri: '', sat: '', sun: '' },
-    ]);
-  };
-
-  const handleRemoveScheduleRow = (rowIndex: number) => {
-    if (editingScheduleRows.length <= 1) return;
-    setEditingScheduleRows(editingScheduleRows.filter((_, idx) => idx !== rowIndex));
-  };
-
-  const handleScheduleCellChange = (rowIndex: number, field: string, value: string) => {
-    const updated = [...editingScheduleRows];
-    updated[rowIndex] = { ...updated[rowIndex], [field]: value };
-    setEditingScheduleRows(updated);
-  };
-
-  const handleSaveRosterSchedule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const rosterPayload: WeeklyRosterStore = {
-      storeId: editingRosterStoreId,
-      storeName: editingRosterStoreName,
-      schedule: editingScheduleRows,
-    };
-    setIsSavingRecord(true);
-    try {
-      await saveRosterSchedule(orgId, rosterPayload);
-      setShowRosterModal(false);
       await loadAllFinancialData();
     } finally {
       setIsSavingRecord(false);
@@ -1341,81 +1260,6 @@ export const ReportsManager: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 6: ROSTER / WEEKLY SCHEDULE */}
-      {activeTab === 'ROSTER' && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  <span>Εβδομαδιαίο Πρόγραμμα Προσωπικού & Βάρδιες (Store Roster)</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Δημιουργία & παραμετροποίηση προγράμματος βαρδιών, πρωινών/απογευματινών και ρεπό ανά κατάστημα.
-                </p>
-              </div>
-              <button
-                onClick={() => handleOpenRosterEditor()}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Δημιουργία / Επεξεργασία Προγράμματος</span>
-              </button>
-            </div>
-
-            {rosterSchedules.map((r, idx) => (
-              <div key={r.storeId || idx} className="space-y-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-200/80">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
-                    <h4 className="font-extrabold text-slate-900 text-xs">Κατάστημα: {r.storeName}</h4>
-                  </div>
-                  <button
-                    onClick={() => handleOpenRosterEditor(r)}
-                    className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    <span>Επεξεργασία</span>
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100/80 text-slate-700 font-bold border-b border-slate-200">
-                        <th className="py-2.5 px-3">Βάρδια / Ωράριο</th>
-                        <th className="py-2.5 px-3 text-center">Δευτέρα</th>
-                        <th className="py-2.5 px-3 text-center">Τρίτη</th>
-                        <th className="py-2.5 px-3 text-center">Τετάρτη</th>
-                        <th className="py-2.5 px-3 text-center">Πέμπτη</th>
-                        <th className="py-2.5 px-3 text-center">Παρασκευή</th>
-                        <th className="py-2.5 px-3 text-center">Σάββατο</th>
-                        <th className="py-2.5 px-3 text-center">Κυριακή</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {r.schedule.map((s, sIdx) => (
-                        <tr key={sIdx} className="hover:bg-slate-50/80 transition-colors font-medium">
-                          <td className="py-2.5 px-3 font-bold text-slate-800 bg-slate-50/50">{s.shift}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.mon || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.tue || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.wed || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.thu || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.fri || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sat || '-'}</td>
-                          <td className="py-2.5 px-3 text-center text-slate-700">{s.sun || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ========================================================================= */}
       {/* MODAL 1: ADD FIXED STORE EXPENSE */}
       {/* ========================================================================= */}
@@ -1852,259 +1696,6 @@ export const ReportsManager: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL 5: CREATE / EDIT WEEKLY ROSTER SCHEDULE */}
-      {/* ========================================================================= */}
-      {showRosterModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">
-                    Διαμόρφωση Εβδομαδιαίου Προγράμματος Βαρδιών
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Επιλέξτε εργαζόμενους από το μητρώο χρηστών για κάθε βάρδια & ημέρα της εβδομάδας.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRosterModal(false)}
-                aria-label="Κλείσιμο"
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveRosterSchedule} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div>
-                  <label htmlFor="roster-store-select" className="block font-bold text-slate-700 mb-1">Επιλογή Καταστήματος</label>
-                  <select
-                    id="roster-store-select"
-                    value={editingRosterStoreId}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEditingRosterStoreId(val);
-                      const matching = stores.find((s) => s.id === val || s.code === val);
-                      setEditingRosterStoreName(matching ? matching.name : val);
-                    }}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
-                  >
-                    <option value="100343">100343 - Κεντρικό ΟΠΑΠ</option>
-                    <option value="100343_FnB">100343_FnB - Αναψυκτήριο / Καφέ</option>
-                    <option value="400298">400298 - Play Opap Gaming Hall</option>
-                    <option value="100411">100411 - Υποκατάστημα ΟΠΑΠ Β</option>
-                    <option value="143344">143344 - Play Opap Gaming Hall Β</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="roster-store-name" className="block font-bold text-slate-700 mb-1">Τίτλος / Ετικέτα Καταστήματος</label>
-                  <input
-                    id="roster-store-name"
-                    type="text"
-                    value={editingRosterStoreName}
-                    onChange={(e) => setEditingRosterStoreName(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
-                    placeholder="π.χ. 100343 - Κεντρικό ΟΠΑΠ"
-                  />
-                </div>
-              </div>
-
-              {/* Quick employee chips / helper palette */}
-              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-900">
-                  <Users className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Διαθέσιμο Προσωπικό & Χρήστες Οργανισμού:</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {tenantUsers.map((u) => {
-                    const fullName = `${u.first_name} ${u.last_name}`;
-                    return (
-                      <span
-                        key={u.id}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-indigo-200 text-indigo-800 rounded-lg text-[11px] font-semibold shadow-2xs"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        {fullName} ({u.role_name || u.role_code || 'Staff'})
-                      </span>
-                    );
-                  })}
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-[11px] font-semibold">
-                    Ρεπό
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-[11px] font-semibold">
-                    Άδεια / Ασθένεια
-                  </span>
-                </div>
-              </div>
-
-              {/* Dynamic Shift Rows Table */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-800 text-xs">Γραμμές Βαρδιών & Ωραρίων:</h4>
-                  <button
-                    type="button"
-                    onClick={handleAddScheduleRow}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Προσθήκη Γραμμής Βάρδιας</span>
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                        <th className="py-2.5 px-3 w-44">Βάρδια / Ωράριο</th>
-                        <th className="py-2.5 px-2 text-center">Δευτέρα</th>
-                        <th className="py-2.5 px-2 text-center">Τρίτη</th>
-                        <th className="py-2.5 px-2 text-center">Τετάρτη</th>
-                        <th className="py-2.5 px-2 text-center">Πέμπτη</th>
-                        <th className="py-2.5 px-2 text-center">Παρασκευή</th>
-                        <th className="py-2.5 px-2 text-center">Σάββατο</th>
-                        <th className="py-2.5 px-2 text-center">Κυριακή</th>
-                        <th className="py-2.5 px-2 text-center w-10">#</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {editingScheduleRows.map((row, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-slate-50/50">
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              value={row.shift}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'shift', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-800"
-                              placeholder="π.χ. 08:00 - 16:00 (Πρωί)"
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.mon}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'mon', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.tue}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'tue', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.wed}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'wed', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.thu}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'thu', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.fri}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'fri', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.sat}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'sat', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5">
-                            <input
-                              type="text"
-                              list="roster-users-datalist"
-                              value={row.sun}
-                              onChange={(e) => handleScheduleCellChange(rIdx, 'sun', e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-xs font-medium text-slate-800"
-                              placeholder="Επιλογή..."
-                            />
-                          </td>
-                          <td className="p-1.5 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveScheduleRow(rIdx)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                              title="Διαγραφή γραμμής"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Datalist for fast employee autocomplete in roster cells */}
-              <datalist id="roster-users-datalist">
-                {tenantUsers.map((u) => {
-                  const fullName = `${u.first_name} ${u.last_name}`;
-                  return <option key={u.id} value={fullName} />;
-                })}
-                <option value="Ρεπό" />
-                <option value="Άδεια" />
-                <option value="Ασθένεια" />
-                <option value="-" />
-              </datalist>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowRosterModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingRecord}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>{isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση Προγράμματος στο Firestore'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Delete Expense Confirmation Modal */}
       {pendingDelete && (
