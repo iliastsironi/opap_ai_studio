@@ -340,6 +340,12 @@ export interface ShiftTemplateConfig {
   // applyCountingDefaults in ScratchCalculatorTable.tsx.
   scratch_backside_default: boolean;
   lottery_bundle_default: boolean;
+  // Hard per-store ceiling on Σκρατς back-side selling - distinct from
+  // scratch_backside_default above (a soft default a manager can still
+  // override per row). 'FRONT_ONLY' forces every row's back side off,
+  // full stop, regardless of any per-row backSideEnabled value. See
+  // ScratchSellingMode/hasBackSide in ScratchCalculatorTable.tsx.
+  scratch_selling_mode: 'FRONT_AND_BACK' | 'FRONT_ONLY';
   custom_fields: TemplateFieldConfig[];
   updated_at?: string;
 }

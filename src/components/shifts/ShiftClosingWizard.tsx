@@ -42,6 +42,7 @@ import {
   getLatestStoreScratchInventory,
   saveLatestStoreScratchInventory,
   applyCountingDefaults,
+  ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
@@ -300,6 +301,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     return catalog;
   });
 
+  // The store's hard Scratch Selling Mode ceiling (shift_templates.
+  // scratch_selling_mode) - fetched alongside the counting defaults below.
+  // Defaults to 'FRONT_AND_BACK' (today's behavior for every store) until
+  // the fetch resolves, so there's no flash of an incorrectly-ceilinged
+  // total before load.
+  const [scratchSellingMode, setScratchSellingMode] = useState<ScratchSellingMode>('FRONT_AND_BACK');
+
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
   // default. Async, so it necessarily runs a tick after scratchRows' own
@@ -318,6 +326,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             lottery_bundle_default: config.lottery_bundle_default,
           })
         );
+        setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
       })
       .catch((err) => {
         console.warn('[ShiftClosingWizard] Could not load scratch counting defaults:', err);
@@ -329,8 +338,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // Auto-calculated total from scratch & lottery rows
   const autoCalculatedScratchSales = useMemo(() => {
-    return scratchRows.reduce((sum, r) => sum + calculateRowTotal(r), 0);
-  }, [scratchRows]);
+    return scratchRows.reduce((sum, r) => sum + calculateRowTotal(r, scratchSellingMode), 0);
+  }, [scratchRows, scratchSellingMode]);
 
   const [scratchSalesManualOverride, setScratchSalesManualOverride] = useState(false);
 
@@ -1882,6 +1891,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <ScratchCalculatorTable
                 rows={scratchRows}
                 onChangeRows={handleScratchRowsChange}
+                sellingMode={scratchSellingMode}
               />
 
               {/* Direct inputs summary & payouts */}

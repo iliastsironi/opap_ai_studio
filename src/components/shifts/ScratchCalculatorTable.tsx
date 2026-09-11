@@ -308,10 +308,25 @@ export function getCountingMode(row: ScratchTicketRow): 'range' | 'bundle' | 'ma
   return isBundleTrackedRow(row) ? 'bundle' : 'range';
 }
 
+// Per-store hard ceiling on back-side selling (see shift_templates.
+// scratch_selling_mode, migration 0012) - distinct from the per-row soft
+// default (scratch_backside_default) applied by applyCountingDefaults
+// below. 'FRONT_ONLY' forces every row's back side off, overriding any
+// per-row backSideEnabled value; undefined/'FRONT_AND_BACK' changes
+// nothing.
+export type ScratchSellingMode = 'FRONT_AND_BACK' | 'FRONT_ONLY';
+
 // Whether a row has a Πίσω (back) side to sell from at all. Falls back to
 // the historical rule (Σκρατς: yes, Λαχεία: no) for any row that hasn't
 // explicitly set backSideEnabled, so this stays a pure opt-in change.
-export function hasBackSide(row: ScratchTicketRow): boolean {
+// storeMode is optional and only ever narrows the result (never widens
+// it), so every existing call site with one argument - historical/
+// read-only views over already-persisted rows (ShiftDetailsModal.tsx,
+// ShiftLedgerSheet.tsx) - keeps deriving purely from the row's own
+// persisted backSideEnabled, exactly as before. Only the live-editing
+// path (ShiftClosingWizard.tsx, via this file) passes storeMode.
+export function hasBackSide(row: ScratchTicketRow, storeMode?: ScratchSellingMode): boolean {
+  if (storeMode === 'FRONT_ONLY') return false;
   return row.backSideEnabled ?? !isLotteryRow(row);
 }
 
@@ -501,8 +516,8 @@ export function calculateRowQty(row: ScratchTicketRow): number {
 // as more gets sold from the back). Empty backStartNo = no back-side sale
 // recorded yet, mirroring endNo's empty-means-zero convention exactly.
 // Rows without a back side (hasBackSide === false) contribute zero here.
-export function calculateBackRowQty(row: ScratchTicketRow): number {
-  if (!hasBackSide(row)) return 0;
+export function calculateBackRowQty(row: ScratchTicketRow, storeMode?: ScratchSellingMode): number {
+  if (!hasBackSide(row, storeMode)) return 0;
 
   const backStartStr = row.backStartNo !== undefined ? String(row.backStartNo).trim() : '';
   const backEndStr = row.backEndNo !== undefined ? String(row.backEndNo).trim() : '';
@@ -524,16 +539,16 @@ export function calculateBackRowQty(row: ScratchTicketRow): number {
   return backEnd - backStart;
 }
 
-export function calculateCombinedRowQty(row: ScratchTicketRow): number {
-  return calculateRowQty(row) + calculateBackRowQty(row);
+export function calculateCombinedRowQty(row: ScratchTicketRow, storeMode?: ScratchSellingMode): number {
+  return calculateRowQty(row) + calculateBackRowQty(row, storeMode);
 }
 
-export function calculateRowTotal(row: ScratchTicketRow): number {
-  return calculateCombinedRowQty(row) * (row.price || 0);
+export function calculateRowTotal(row: ScratchTicketRow, storeMode?: ScratchSellingMode): number {
+  return calculateCombinedRowQty(row, storeMode) * (row.price || 0);
 }
 
-export function calculateBackRowTotal(row: ScratchTicketRow): number {
-  return calculateBackRowQty(row) * (row.price || 0);
+export function calculateBackRowTotal(row: ScratchTicketRow, storeMode?: ScratchSellingMode): number {
+  return calculateBackRowQty(row, storeMode) * (row.price || 0);
 }
 
 export interface ScratchRowValidationResult {
@@ -608,12 +623,16 @@ interface ScratchCalculatorTableProps {
   rows: ScratchTicketRow[];
   onChangeRows: (newRows: ScratchTicketRow[]) => void;
   readOnly?: boolean;
+  // The store's current Scratch Selling Mode (shift_templates.
+  // scratch_selling_mode). Undefined behaves exactly like 'FRONT_AND_BACK'.
+  sellingMode?: ScratchSellingMode;
 }
 
 export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   rows,
   onChangeRows,
   readOnly = false,
+  sellingMode,
 }) => {
   const { roles, permissions } = useAuth();
   const canManage =
@@ -820,14 +839,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // calculateCombinedRowQty (front+back) here, not calculateRowQty (front
   // only) - keeps "pieces sold" and "value sold" consistent with each other
   // and with calculateRowTotal, which already includes both sides.
-  const scratchPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
+  const scratchPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r, sellingMode), 0);
   const scratchFrontPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowQty(r), 0);
-  const scratchBackPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateBackRowQty(r), 0);
-  const scratchSales = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
+  const scratchBackPieces = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateBackRowQty(r, sellingMode), 0);
+  const scratchSales = rows.filter((r) => !isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
   // calculateCombinedRowQty (not calculateRowQty) - a Λαχεία row can now
   // opt into Πίσω selling too (hasBackSide), same reasoning as scratchPieces above.
-  const lotteryPieces = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
-  const lotterySales = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r), 0);
+  const lotteryPieces = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateCombinedRowQty(r, sellingMode), 0);
+  const lotterySales = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
   const totalTicketsSold = scratchPieces + lotteryPieces;
   const grandTotalSales = scratchSales + lotterySales;
   const rowValidationErrors = new Map<string, string[]>();
@@ -993,12 +1012,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           <tbody className="divide-y divide-slate-100 font-medium">
             {categories.map((cat) => {
               const catRows = rows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
-              const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r), 0);
+              const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
               // calculateCombinedRowQty (front+back), not calculateRowQty (front-only) -
               // matches catTotal above (calculateRowTotal already combines both sides),
               // and the per-row Σύνολο column. Pre-existing gap from the Front/Back
               // feature: this header badge undercounted any row with back-side sales.
-              const catQty = catRows.reduce((acc, r) => acc + calculateCombinedRowQty(r), 0);
+              const catQty = catRows.reduce((acc, r) => acc + calculateCombinedRowQty(r, sellingMode), 0);
               const isCatLottery = cat.toLowerCase().includes('λαχεί') || cat.toLowerCase().includes('λαχει');
 
               return (
@@ -1023,16 +1042,16 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
                     const isManual = getCountingMode(row) === 'manual';
-                    const rowHasBackSide = hasBackSide(row);
+                    const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
                     const bundleSaleCheck = validateBundleSaleEntry(row);
                     const remainingPieces = Math.max(0, parseNonNegativeInt(row.startNo).value - bundleSaleCheck.soldPieces);
                     const remainingSplit = splitPiecesIntoBundles(remainingPieces, rowBundleSize);
                     const frontQty = calculateRowQty(row);
-                    const backQty = calculateBackRowQty(row);
+                    const backQty = calculateBackRowQty(row, sellingMode);
                     const totalQty = frontQty + backQty;
-                    const total = calculateRowTotal(row);
+                    const total = calculateRowTotal(row, sellingMode);
                     const isEditing = editingRowId === row.id;
                     const canEditStart = !readOnly && canEditLockedFields && managerOverrideEnabled;
                     const canEditBackEnd = !readOnly && canEditLockedFields && managerOverrideEnabled;
@@ -1532,16 +1551,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     />
                                   </label>
                                 )}
-                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                <label className={`flex items-center gap-1.5 text-xs font-semibold text-slate-700 ${sellingMode === 'FRONT_ONLY' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                                   <input
                                     type="checkbox"
                                     checked={rowHasBackSide}
+                                    disabled={sellingMode === 'FRONT_ONLY'}
                                     onChange={(e) => handleToggleBackSide(row.id, e.target.checked)}
-                                    className="w-3.5 h-3.5 accent-purple-600 cursor-pointer"
+                                    className="w-3.5 h-3.5 accent-purple-600 cursor-pointer disabled:cursor-not-allowed"
                                   />
                                   <span>Πώληση και από Πίσω πλευρά</span>
                                 </label>
                               </div>
+                              {sellingMode === 'FRONT_ONLY' && (
+                                <p className="text-micro text-slate-500">
+                                  Απενεργοποιημένο — το κατάστημα λειτουργεί σε «Μόνο Μπροστά». Αλλάξτε τη Λειτουργία Πώλησης Σκρατς από τις ρυθμίσεις καταστήματος.
+                                </p>
+                              )}
                               {isLottery && isBundleTracked && (
                                 <p className="text-micro text-slate-500">
                                   Τιμή ανά κομμάτι: {formatCurrency(row.price)} · Τιμή ανά πεντάδα: {formatCurrency((Number(row.price) || 0) * rowBundleSize)}
@@ -1579,7 +1604,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       {newPackModalRowId && (() => {
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
-        const targetHasBackSide = targetRow ? hasBackSide(targetRow) : false;
+        const targetHasBackSide = targetRow ? hasBackSide(targetRow, sellingMode) : false;
         return (
         <Modal
           isOpen
