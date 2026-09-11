@@ -71,7 +71,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </div>
           <h4 className="font-bold text-base text-slate-900">{title}</h4>
         </div>
-        <p className="text-sm text-slate-600">{message}</p>
+        <div className="text-sm text-slate-600">{message}</div>
         <div className="pt-2 flex justify-end space-x-2">
           <button
             type="button"
