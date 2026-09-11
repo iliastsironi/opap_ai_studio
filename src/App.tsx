@@ -10,6 +10,7 @@ const OpapGamesManager = lazy(() => import('./components/modules/OpapGamesManage
 const VltManager = lazy(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
 const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
 const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
+const NationalLotteryManager = lazy(() => import('./components/modules/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
 const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
 const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
 const StoresManager = lazy(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
@@ -43,6 +44,7 @@ const TAB_PERMISSIONS: Record<string, string> = {
   vlt: 'vlt.view',
   fnb: 'fnb.view',
   incidents: 'incidents.view',
+  national_lottery: 'national_lottery.view',
   reports: 'reports.view',
   instructions: 'shifts.view',
   copilot: 'shifts.view',
@@ -93,6 +95,8 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <FnbManager />;
     case 'incidents':
       return <IncidentsManager />;
+    case 'national_lottery':
+      return <NationalLotteryManager />;
     case 'reports':
       return <ReportsManager />;
     case 'instructions':
