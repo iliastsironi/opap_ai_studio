@@ -407,7 +407,94 @@ export interface CustomerCredit {
   amount: number;
   remaining_debt_after?: number;
   notes?: string;
+  // Where this transaction came from - defaults to 'MANUAL' for every
+  // existing/ordinary credit adjustment; 'NATIONAL_LOTTERY' for a debt
+  // posted by an edition rollover (see nationalLotteryService.ts).
+  source?: 'MANUAL' | 'SHIFT' | 'NATIONAL_LOTTERY';
+  // For source='NATIONAL_LOTTERY': the (old, now-closed)
+  // NationalLotteryCustomerEdition.id this debt was transferred from.
+  source_reference_id?: string;
   created_by_user_id: string;
   created_at: string;
+}
+
+// ============================================================
+// Εθνικό Λαχείο (National Lottery)
+// ============================================================
+
+export type NationalLotteryParticipationType = 'FIVE' | 'TEN';
+export type NationalLotteryDrawCode = 'A' | 'B' | 'C' | 'D' | 'ST';
+export const NATIONAL_LOTTERY_DRAW_CODES: NationalLotteryDrawCode[] = ['A', 'B', 'C', 'D', 'ST'];
+
+export interface NationalLotteryEdition {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  label: string;
+  status: 'ACTIVE' | 'CLOSED';
+  started_at: string;
+  closed_at?: string;
+  created_by_user_id: string;
+  created_at: string;
+}
+
+export interface NationalLotteryCustomer {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  customer_id?: string | null; // lazily-populated Τεφτέρι identity, see rollover
+  full_name: string;
+  phone?: string;
+  lottery_number?: string;
+  participation_type: NationalLotteryParticipationType;
+  status: 'ACTIVE' | 'INACTIVE';
+  current_edition_id?: string | null;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NationalLotteryCustomerEdition {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  national_lottery_customer_id: string;
+  edition_id: string;
+  participation_type_snapshot: NationalLotteryParticipationType;
+  created_at: string;
+}
+
+export type NationalLotteryMovementType = 'COLLECTION' | 'DEBT_TRANSFER' | 'REVERSAL';
+
+export interface NationalLotteryDrawCollection {
+  id: string;
+  organization_id: string;
+  store_id: string;
+  national_lottery_customer_id: string;
+  customer_edition_id: string;
+  edition_id: string;
+  draw_code: NationalLotteryDrawCode;
+  movement_type: NationalLotteryMovementType;
+  amount: number; // server-computed - never trust a client-supplied value
+  batch_id: string;
+  shift_id?: string | null;
+  status: 'ACTIVE' | 'CANCELLED';
+  cancelled_at?: string;
+  cancelled_by_user_id?: string;
+  cancellation_reason?: string;
+  reverses_collection_id?: string;
+  credit_transaction_id?: string;
+  idempotency_key: string;
+  created_by_user_id: string;
+  created_at: string;
+}
+
+// Per-customer, per-draw view derived client-side from a customer's
+// NationalLotteryDrawCollection rows for their current edition - not a
+// DB table, just the shape the customer card/dashboard render against.
+export interface NationalLotteryDrawStatus {
+  drawCode: NationalLotteryDrawCode;
+  received: boolean;
+  collection?: NationalLotteryDrawCollection;
 }
 

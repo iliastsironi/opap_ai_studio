@@ -49,6 +49,15 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_fnb.view', code: 'fnb.view', module: 'FnB', description: 'Προβολή ενότητας Καφέ & Αναψυκτηρίου' },
   { id: 'perm_incidents.view', code: 'incidents.view', module: 'Incidents', description: 'Προβολή ενότητας Συμβάντων' },
   { id: 'perm_reports.view', code: 'reports.view', module: 'Reports', description: 'Προβολή ενότητας Αναφορών' },
+  // Εθνικό Λαχείο (National Lottery). '.edition.manage' is deliberately
+  // absent from every non-wildcard role below - only ORG_OWNER/
+  // PLATFORM_ADMIN's '*' wildcard grants it, same Owner-only pattern as
+  // store.scratch_mode.manage.
+  { id: 'perm_national_lottery.view', code: 'national_lottery.view', module: 'National Lottery', description: 'Προβολή ενότητας Εθνικού Λαχείου' },
+  { id: 'perm_national_lottery.collect', code: 'national_lottery.collect', module: 'National Lottery', description: 'Καταχώρηση παραλαβής κληρώσεων' },
+  { id: 'perm_national_lottery.manage', code: 'national_lottery.manage', module: 'National Lottery', description: 'Διαχείριση μητρώου συνδρομητών' },
+  { id: 'perm_national_lottery.reverse', code: 'national_lottery.reverse', module: 'National Lottery', description: 'Ακύρωση καταχωρήσεων παραλαβής' },
+  { id: 'perm_national_lottery.edition.manage', code: 'national_lottery.edition.manage', module: 'National Lottery', description: 'Δημιουργία νέας έκδοσης' },
 ];
 
 // A few concepts are checked under more than one spelling elsewhere in the
@@ -78,6 +87,7 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'cash.view', 'reports.store.view', 'audit.view',
     'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
+    'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
   ],
   STORE_MANAGER: [
     'org.view', 'store.view', 'users.view', 'shift.create', 'shift.submit',
@@ -85,24 +95,29 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'reports.store.view',
     'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
+    'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
   ],
   SHIFT_SUPERVISOR: [
     'org.view', 'store.view', 'shift.create', 'shift.submit', 'expense.create', 'cash.view',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
+    'national_lottery.view', 'national_lottery.collect',
   ],
   EMPLOYEE: [
     'store.view', 'shift.create', 'shift.submit', 'expense.create',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
+    'national_lottery.view', 'national_lottery.collect',
   ],
   ACCOUNTANT: [
     'org.view', 'store.view', 'expense.create', 'cash.view',
     'reports.organization.view', 'reports.store.view',
     'dashboard.view', 'reports.view',
+    'national_lottery.view',
   ],
   AUDITOR: [
     'org.view', 'store.view', 'cash.view',
     'reports.organization.view', 'reports.store.view', 'audit.view',
     'dashboard.view', 'reports.view',
+    'national_lottery.view',
   ],
 };
 

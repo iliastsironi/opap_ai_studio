@@ -20,6 +20,7 @@ import {
   Truck,
   BookOpen,
   Sparkles,
+  Landmark,
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -55,6 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
     { id: 'vlt', label: 'Τερματικά VLTs', icon: Gamepad2, perm: 'vlt.view' },
     { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
     { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
+    { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
     { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
   ];
 
