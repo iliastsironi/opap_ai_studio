@@ -206,6 +206,71 @@ export async function previewEditionRollover(edition: NationalLotteryEdition): P
   };
 }
 
+export interface EditionDrawProgress {
+  drawCode: NationalLotteryDrawCode;
+  receivedCount: number;
+  totalCount: number;
+  pendingCustomers: { nationalLotteryCustomerId: string; fullName: string }[];
+}
+
+export interface EditionDashboard {
+  activeCustomerCount: number;
+  fiveCount: number;
+  tenCount: number;
+  drawProgress: EditionDrawProgress[];
+}
+
+// Dashboard: current edition; active subscriber count + breakdown by
+// type; per-draw progress (e.g. "Α: 40/42"); who hasn't received a given
+// draw. Read-only, no writes - a sibling to previewEditionRollover (same
+// input data, organized per-draw instead of per-customer, since the
+// dashboard and the rollover preview genuinely answer different
+// questions).
+export async function getEditionDashboard(edition: NationalLotteryEdition): Promise<EditionDashboard> {
+  const [{ data: customers, error: custErr }, { data: customerEditions, error: ceErr }, { data: collections, error: colErr }] =
+    await Promise.all([
+      supabase.from(CUSTOMERS_TABLE).select('*').eq('current_edition_id', edition.id).eq('status', 'ACTIVE'),
+      supabase.from(CUSTOMER_EDITIONS_TABLE).select('*').eq('edition_id', edition.id),
+      supabase.from(COLLECTIONS_TABLE).select('customer_edition_id, draw_code').eq('edition_id', edition.id).eq('status', 'ACTIVE').neq('movement_type', 'REVERSAL'),
+    ]);
+  if (custErr || ceErr || colErr) throw custErr || ceErr || colErr;
+
+  const collectedByCustomerEdition = new Map<string, Set<string>>();
+  for (const row of collections ?? []) {
+    const set = collectedByCustomerEdition.get(row.customer_edition_id) || new Set<string>();
+    set.add(row.draw_code);
+    collectedByCustomerEdition.set(row.customer_edition_id, set);
+  }
+
+  const activeCustomers = customers ?? [];
+  const customerEditionByCustomerId = new Map(
+    (customerEditions ?? []).filter((ce) => ce.edition_id === edition.id).map((ce) => [ce.national_lottery_customer_id, ce])
+  );
+
+  const drawProgress: EditionDrawProgress[] = NATIONAL_LOTTERY_DRAW_CODES.map((drawCode) => {
+    const pendingCustomers: { nationalLotteryCustomerId: string; fullName: string }[] = [];
+    let receivedCount = 0;
+    for (const customer of activeCustomers) {
+      const ce = customerEditionByCustomerId.get(customer.id);
+      if (!ce) continue;
+      const collected = collectedByCustomerEdition.get(ce.id) || new Set<string>();
+      if (collected.has(drawCode)) {
+        receivedCount++;
+      } else {
+        pendingCustomers.push({ nationalLotteryCustomerId: customer.id, fullName: customer.full_name });
+      }
+    }
+    return { drawCode, receivedCount, totalCount: activeCustomers.length, pendingCustomers };
+  });
+
+  return {
+    activeCustomerCount: activeCustomers.length,
+    fiveCount: activeCustomers.filter((c) => c.participation_type === 'FIVE').length,
+    tenCount: activeCustomers.filter((c) => c.participation_type === 'TEN').length,
+    drawProgress,
+  };
+}
+
 // The one write in this module that goes through a Postgres RPC instead
 // of a plain insert/update - see 0014_national_lottery_edition_rollover.sql
 // for why (atomicity: debts must be durably recorded before any draw is

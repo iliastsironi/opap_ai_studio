@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Phone, Hash, AlertTriangle, ExternalLink, Check, X, Loader2 } from 'lucide-react';
+import { Phone, Hash, AlertTriangle, ExternalLink, Check, X, Loader2, Pencil, UserX, UserCheck } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import {
   getCustomerEdition,
   getEditionDrawStatuses,
   getNationalLotteryDebtWarning,
+  setNationalLotteryCustomerStatus,
   NationalLotteryDebtWarning,
   NATIONAL_LOTTERY_DISPLAY_PRICES,
 } from '../../services/nationalLotteryService.ts';
@@ -30,7 +31,10 @@ interface NationalLotteryCustomerCardProps {
   actorUserId: string;
   canCollect: boolean;
   canReverse: boolean;
+  canManage: boolean;
   onOpenTefteri: (searchQuery: string) => void;
+  onEdit: () => void;
+  onCustomerChanged: () => void; // e.g. after activate/deactivate, so the parent's list re-filters
 }
 
 export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardProps> = ({
@@ -41,7 +45,10 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
   actorUserId,
   canCollect,
   canReverse,
+  canManage,
   onOpenTefteri,
+  onEdit,
+  onCustomerChanged,
 }) => {
   const [customerEdition, setCustomerEdition] = useState<NationalLotteryCustomerEdition | null>(null);
   const [drawStatuses, setDrawStatuses] = useState<NationalLotteryDrawStatus[]>([]);
@@ -110,6 +117,17 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
     setCancelTarget({ batchId, label });
   };
 
+  const [togglingStatus, setTogglingStatus] = useState(false);
+  const handleToggleStatus = async () => {
+    setTogglingStatus(true);
+    try {
+      await setNationalLotteryCustomerStatus(customer.id, customer.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
+      onCustomerChanged();
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 flex items-center justify-center">
@@ -143,11 +161,37 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
               )}
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
-            {customer.participation_type === 'FIVE' ? '5άδα' : '10άδα'}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+              {customer.participation_type === 'FIVE' ? '5άδα' : '10άδα'}
+            </span>
+            {canManage && (
+              <>
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  aria-label="Επεξεργασία συνδρομητή"
+                  className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  disabled={togglingStatus}
+                  aria-label={customer.status === 'ACTIVE' ? 'Απενεργοποίηση συνδρομητή' : 'Ενεργοποίηση συνδρομητή'}
+                  className="w-7 h-7 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer disabled:opacity-60"
+                >
+                  {customer.status === 'ACTIVE' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {edition && <p className="text-micro text-slate-400">Έκδοση {edition.label}</p>}
+        {customer.status === 'INACTIVE' && (
+          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 uppercase">Ανενεργός</span>
+        )}
       </div>
 
       {debtWarning && (
