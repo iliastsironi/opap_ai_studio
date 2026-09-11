@@ -60,7 +60,7 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900">
+    <div className="h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900 overflow-hidden">
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -69,9 +69,9 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
       />
 
       {/* Main Content Area */}
-      <div className={`flex-1 transition-all duration-200 ease-in-out ${sidebarOpen ? 'md:ml-64' : 'md:ml-0'} flex flex-col min-h-screen w-full`}>
+      <div className={`flex-1 transition-all duration-200 ease-in-out ${sidebarOpen ? 'md:ml-64' : 'md:ml-0'} flex flex-col h-screen w-full overflow-hidden`}>
         <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 w-full">
           {isLoadingStores ? (
             <GlobalLoadingSkeleton />
           ) : (
