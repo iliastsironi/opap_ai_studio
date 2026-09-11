@@ -1,5 +1,20 @@
-import { Shift } from '../types/index.ts';
+import { Shift, NationalLotteryDrawCollection } from '../types/index.ts';
 import { safeNum, roundCurrency } from './financialCalculator.ts';
+
+// Signed sum per shift_id (COLLECTION +amount, REVERSAL -amount,
+// DEBT_TRANSFER excluded since it's never shift-linked) - same formula as
+// getNationalLotteryShiftContribution in nationalLotteryService.ts, just
+// batched across a whole day's worth of already-fetched rows instead of
+// one shift at a time.
+function buildNationalLotteryPortionByShift(rows: NationalLotteryDrawCollection[] | undefined): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of rows ?? []) {
+    if (!row.shift_id || row.status !== 'ACTIVE' || row.movement_type === 'DEBT_TRANSFER') continue;
+    const signed = row.movement_type === 'REVERSAL' ? -Number(row.amount) : Number(row.amount);
+    map.set(row.shift_id, (map.get(row.shift_id) || 0) + signed);
+  }
+  return map;
+}
 
 export interface ShiftContributionSummary {
   shiftId: string;
@@ -21,6 +36,10 @@ export interface ShiftContributionSummary {
   vltsCashOut: number;
   vltsNet: number;
   scratchSales: number;
+  // Informational sub-portion of scratchSales already included in it above
+  // (Εθνικό Λαχείο) - never add this on top of scratchSales, it is not a
+  // separate additive amount.
+  nationalLotteryPortion?: number;
   toraPos: number;
   cleverPoint: number;
   fnbSales: number;
@@ -69,6 +88,11 @@ export interface DailyAggregatedReport {
   totalVltsCashOut: number;
   totalVltsNet: number;
   totalScratchSales: number;
+  // Informational sub-portion of totalScratchSales already included in it
+  // above (Εθνικό Λαχείο) - deliberately NOT summed into totalScratchSales,
+  // totalGrossTurnover, or totalNetCashActivity a second time; it is
+  // already inside all three via each shift's own scratch_lotto_sales.
+  totalNationalLotteryPortion: number;
   totalToraPos: number;
   totalCleverPoint: number;
   totalFnbSales: number;
@@ -135,9 +159,11 @@ export function formatGreekDate(dateStr: string): string {
 export function aggregateShiftsForDay(
   shifts: Shift[],
   targetDate?: string,
-  storeId?: string
+  storeId?: string,
+  nationalLotteryTransactions?: NationalLotteryDrawCollection[]
 ): DailyAggregatedReport {
   const selectedDate = targetDate || getShiftDateKey();
+  const nlPortionByShift = buildNationalLotteryPortionByShift(nationalLotteryTransactions);
 
   // Filter shifts belonging to this day (using opened_at or closed_at)
   let dayShifts = shifts.filter((s) => {
@@ -195,6 +221,7 @@ export function aggregateShiftsForDay(
       const vltsOut = safeNum(s.vlts_cash_out);
       const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
       const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
+      const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
       const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
       const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);
       const fnbSales = safeNum(s.fnb_sales);
@@ -229,6 +256,7 @@ export function aggregateShiftsForDay(
         vltsCashOut: vltsOut,
         vltsNet,
         scratchSales,
+        nationalLotteryPortion,
         toraPos,
         cleverPoint,
         fnbSales,
@@ -260,6 +288,7 @@ export function aggregateShiftsForDay(
   let totalVltsCashOut = 0;
   let totalVltsNet = 0;
   let totalScratchSales = 0;
+  let totalNationalLotteryPortion = 0;
   let totalToraPos = 0;
   let totalCleverPoint = 0;
   let totalFnbSales = 0;
@@ -292,6 +321,7 @@ export function aggregateShiftsForDay(
     const vltsOut = safeNum(s.vlts_cash_out);
     const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
     const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
+    const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
     const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
     const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);
     const fnbSales = safeNum(s.fnb_sales);
@@ -311,6 +341,7 @@ export function aggregateShiftsForDay(
     totalVltsCashOut += vltsOut;
     totalVltsNet += vltsNet;
     totalScratchSales += scratchSales;
+    totalNationalLotteryPortion += nationalLotteryPortion;
     totalToraPos += toraPos;
     totalCleverPoint += cleverPoint;
     totalFnbSales += fnbSales;
@@ -343,6 +374,7 @@ export function aggregateShiftsForDay(
       vltsCashOut: vltsOut,
       vltsNet,
       scratchSales,
+      nationalLotteryPortion,
       toraPos,
       cleverPoint,
       fnbSales,
@@ -406,6 +438,7 @@ export function aggregateShiftsForDay(
     totalVltsCashOut: roundCurrency(totalVltsCashOut),
     totalVltsNet: roundCurrency(totalVltsNet),
     totalScratchSales: roundCurrency(totalScratchSales),
+    totalNationalLotteryPortion: roundCurrency(totalNationalLotteryPortion),
     totalToraPos: roundCurrency(totalToraPos),
     totalCleverPoint: roundCurrency(totalCleverPoint),
     totalFnbSales: roundCurrency(totalFnbSales),
@@ -434,7 +467,8 @@ export function aggregateShiftsForDay(
  */
 export function groupShiftsByDayAndStore(
   shifts: Shift[],
-  storeIdFilter: string = 'ALL'
+  storeIdFilter: string = 'ALL',
+  nationalLotteryTransactions?: NationalLotteryDrawCollection[]
 ): Record<string, DailyAggregatedReport> {
   const dateSet = new Set<string>();
 
@@ -449,7 +483,7 @@ export function groupShiftsByDayAndStore(
 
   const reportsMap: Record<string, DailyAggregatedReport> = {};
   for (const date of sortedDates) {
-    reportsMap[date] = aggregateShiftsForDay(shifts, date, storeIdFilter);
+    reportsMap[date] = aggregateShiftsForDay(shifts, date, storeIdFilter, nationalLotteryTransactions);
   }
 
   return reportsMap;
