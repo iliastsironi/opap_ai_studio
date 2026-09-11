@@ -10,7 +10,7 @@ const OpapGamesManager = lazy(() => import('./components/modules/OpapGamesManage
 const VltManager = lazy(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
 const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
 const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
-const NationalLotteryManager = lazy(() => import('./components/modules/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
+const NationalLotteryManager = lazy(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
 const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
 const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
 const StoresManager = lazy(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
