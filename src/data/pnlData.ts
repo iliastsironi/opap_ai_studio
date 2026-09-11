@@ -13,10 +13,7 @@ export interface StorePnLSummary {
 export interface FixedExpenseItem {
   id?: string;
   name: string;
-  store100343: number;
-  store400298: number;
-  store100411: number;
-  store143344: number;
+  amounts: Record<string, number>; // storeId -> amount
   total: number;
 }
 
@@ -231,18 +228,18 @@ export const CORPORATE_EXPENSES_LIST = [
 ];
 
 export const FIXED_EXPENSES_LIST: FixedExpenseItem[] = [
-  { name: 'Ενοίκιο', store100343: 2072.00, store400298: 2000.00, store100411: 300.00, store143344: 270.00, total: 4642.00 },
-  { name: 'Ενέργεια (Ρεύμα)', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'Ύδρευση (ΕΥΔΑΠ)', store100343: 144.84, store400298: 30.11, store100411: 46.00, store143344: 0, total: 220.95 },
-  { name: 'OTE Internet & Τηλεφωνία', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'OTE VPN 1', store100343: 0, store400298: 340.20, store100411: 0, store143344: 0, total: 340.20 },
-  { name: 'OTE VPN 2', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'OTE TV 1 / TV 2 / NOVA', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'Τέλη VLTs', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'Εφημερίδες / Έντυπα', store100343: 113.60, store400298: 0, store100411: 113.60, store143344: 0, total: 227.20 },
-  { name: 'ΕΦΚΑ Εργοδοτικές Εισφορές', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'Αμοιβή Λογιστή', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
-  { name: 'ΤΕΚΑ', store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 },
+  { name: 'Ενοίκιο', amounts: { '100343': 2072.00, '400298': 2000.00, '100411': 300.00, '143344': 270.00 }, total: 4642.00 },
+  { name: 'Ενέργεια (Ρεύμα)', amounts: {}, total: 0 },
+  { name: 'Ύδρευση (ΕΥΔΑΠ)', amounts: { '100343': 144.84, '400298': 30.11, '100411': 46.00 }, total: 220.95 },
+  { name: 'OTE Internet & Τηλεφωνία', amounts: {}, total: 0 },
+  { name: 'OTE VPN 1', amounts: { '400298': 340.20 }, total: 340.20 },
+  { name: 'OTE VPN 2', amounts: {}, total: 0 },
+  { name: 'OTE TV 1 / TV 2 / NOVA', amounts: {}, total: 0 },
+  { name: 'Τέλη VLTs', amounts: {}, total: 0 },
+  { name: 'Εφημερίδες / Έντυπα', amounts: { '100343': 113.60, '100411': 113.60 }, total: 227.20 },
+  { name: 'ΕΦΚΑ Εργοδοτικές Εισφορές', amounts: {}, total: 0 },
+  { name: 'Αμοιβή Λογιστή', amounts: {}, total: 0 },
+  { name: 'ΤΕΚΑ', amounts: {}, total: 0 },
 ];
 
 export const PAYROLL_EMPLOYEES_LIST: EmployeePayrollItem[] = [

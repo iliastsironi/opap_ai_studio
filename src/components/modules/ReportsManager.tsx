@@ -121,12 +121,9 @@ export const ReportsManager: React.FC = () => {
 
   // Modals for Direct Entry
   const [showFixedModal, setShowFixedModal] = useState(false);
-  const [newFixedItem, setNewFixedItem] = useState<Partial<FixedExpenseItem>>({
+  const [newFixedItem, setNewFixedItem] = useState<{ name: string; amounts: Record<string, number> }>({
     name: '',
-    store100343: 0,
-    store400298: 0,
-    store100411: 0,
-    store143344: 0,
+    amounts: {},
   });
 
   const [showCorpModal, setShowCorpModal] = useState(false);
@@ -275,21 +272,24 @@ export const ReportsManager: React.FC = () => {
   const handleSaveFixedExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFixedItem.name) return;
-    const total = Number(newFixedItem.store100343 || 0) + Number(newFixedItem.store400298 || 0) + Number(newFixedItem.store100411 || 0) + Number(newFixedItem.store143344 || 0);
+    // Always write an amount for every real store (defaulting to 0) so
+    // clearing a store's field actually zeroes it out server-side, rather
+    // than leaving a stale prior value in place.
+    const amounts: Record<string, number> = {};
+    stores.forEach((s) => {
+      amounts[s.id] = Number(newFixedItem.amounts[s.id] || 0);
+    });
+    const total = Object.values(amounts).reduce((sum, v) => sum + v, 0);
     const item: FixedExpenseItem = {
-      id: `fe_${Date.now()}`,
       name: newFixedItem.name,
-      store100343: Number(newFixedItem.store100343 || 0),
-      store400298: Number(newFixedItem.store400298 || 0),
-      store100411: Number(newFixedItem.store100411 || 0),
-      store143344: Number(newFixedItem.store143344 || 0),
+      amounts,
       total,
     };
     setIsSavingRecord(true);
     try {
       await saveFixedExpense(orgId, item);
       setShowFixedModal(false);
-      setNewFixedItem({ name: '', store100343: 0, store400298: 0, store100411: 0, store143344: 0 });
+      setNewFixedItem({ name: '', amounts: {} });
       await loadAllFinancialData();
     } finally {
       setIsSavingRecord(false);
@@ -403,6 +403,7 @@ export const ReportsManager: React.FC = () => {
       year: '2024',
       pnlData: pnlSummary,
       fixedExpenses,
+      stores: stores.map((s) => ({ id: s.id, name: s.name })),
       payroll: payrollRecords,
       employeeKpis,
       shiftKpis,
@@ -1173,10 +1174,9 @@ export const ReportsManager: React.FC = () => {
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                     <th className="py-3 px-4">Έξοδο / Πάγιο</th>
-                    <th className="py-3 px-3 text-right">100343 (€)</th>
-                    <th className="py-3 px-3 text-right">400298 Play (€)</th>
-                    <th className="py-3 px-3 text-right">100411 (€)</th>
-                    <th className="py-3 px-3 text-right">143344 (€)</th>
+                    {stores.map((s) => (
+                      <th key={s.id} className="py-3 px-3 text-right">{s.name} (€)</th>
+                    ))}
                     <th className="py-3 px-3 text-right">Σύνολο (€)</th>
                     <th className="py-3 px-3 text-center">Ενέργειες</th>
                   </tr>
@@ -1185,10 +1185,11 @@ export const ReportsManager: React.FC = () => {
                   {fixedExpenses.map((f) => (
                     <tr key={f.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 font-sans font-bold text-slate-900">{f.name}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store100343 > 0 ? formatCurrency(f.store100343) : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store400298 > 0 ? formatCurrency(f.store400298) : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store100411 > 0 ? formatCurrency(f.store100411) : '-'}</td>
-                      <td className="py-3 px-3 text-right text-slate-700">{f.store143344 > 0 ? formatCurrency(f.store143344) : '-'}</td>
+                      {stores.map((s) => (
+                        <td key={s.id} className="py-3 px-3 text-right text-slate-700">
+                          {f.amounts[s.id] > 0 ? formatCurrency(f.amounts[s.id]) : '-'}
+                        </td>
+                      ))}
                       <td className="py-3 px-3 text-right font-extrabold text-rose-600">{formatCurrency(f.total)}</td>
                       <td className="py-3 px-3 text-center">
                         <button
@@ -1294,50 +1295,22 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="fixed-exp-100343" className="block font-bold text-slate-700 mb-1">100343 ΟΠΑΠ (€)</label>
-                  <input
-                    id="fixed-exp-100343"
-                    type="number"
-                    step="0.01"
-                    value={newFixedItem.store100343 || ''}
-                    onChange={(e) => setNewFixedItem({ ...newFixedItem, store100343: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="fixed-exp-400298" className="block font-bold text-slate-700 mb-1">400298 Play Opap (€)</label>
-                  <input
-                    id="fixed-exp-400298"
-                    type="number"
-                    step="0.01"
-                    value={newFixedItem.store400298 || ''}
-                    onChange={(e) => setNewFixedItem({ ...newFixedItem, store400298: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="fixed-exp-100411" className="block font-bold text-slate-700 mb-1">100411 ΟΠΑΠ (€)</label>
-                  <input
-                    id="fixed-exp-100411"
-                    type="number"
-                    step="0.01"
-                    value={newFixedItem.store100411 || ''}
-                    onChange={(e) => setNewFixedItem({ ...newFixedItem, store100411: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="fixed-exp-143344" className="block font-bold text-slate-700 mb-1">143344 Play Opap (€)</label>
-                  <input
-                    id="fixed-exp-143344"
-                    type="number"
-                    step="0.01"
-                    value={newFixedItem.store143344 || ''}
-                    onChange={(e) => setNewFixedItem({ ...newFixedItem, store143344: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
-                  />
-                </div>
+                {stores.map((s) => (
+                  <div key={s.id}>
+                    <label htmlFor={`fixed-exp-${s.id}`} className="block font-bold text-slate-700 mb-1">{s.name} (€)</label>
+                    <input
+                      id={`fixed-exp-${s.id}`}
+                      type="number"
+                      step="0.01"
+                      value={newFixedItem.amounts[s.id] || ''}
+                      onChange={(e) => setNewFixedItem({
+                        ...newFixedItem,
+                        amounts: { ...newFixedItem.amounts, [s.id]: parseFloat(e.target.value) || 0 },
+                      })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono"
+                    />
+                  </div>
+                ))}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">

@@ -16,6 +16,7 @@ export interface ExportExcelOptions {
   year?: string;
   pnlData?: typeof DEFAULT_PNL_SUMMARY;
   fixedExpenses?: typeof FIXED_EXPENSES_LIST;
+  stores?: Array<{ id: string; name: string }>;
   payroll?: typeof PAYROLL_EMPLOYEES_LIST;
   employeeKpis?: typeof EMPLOYEE_KPIS_SAMPLE;
   shiftKpis?: typeof SHIFT_KPIS_SAMPLE;
@@ -25,6 +26,9 @@ export interface ExportExcelOptions {
 export function exportFullPnLWorkbook(options: ExportExcelOptions = {}) {
   const pnlData = options.pnlData || DEFAULT_PNL_SUMMARY;
   const fixedExpenses = options.fixedExpenses || FIXED_EXPENSES_LIST;
+  const fixedStores = options.stores && options.stores.length > 0
+    ? options.stores
+    : [{ id: '100343', name: '100343' }, { id: '400298', name: '400298 Play' }, { id: '100411', name: '100411' }, { id: '143344', name: '143344' }];
   const payroll = options.payroll || PAYROLL_EMPLOYEES_LIST;
   const employeeKpis = options.employeeKpis || EMPLOYEE_KPIS_SAMPLE;
   const shiftKpis = options.shiftKpis || SHIFT_KPIS_SAMPLE;
@@ -235,32 +239,19 @@ export function exportFullPnLWorkbook(options: ExportExcelOptions = {}) {
     ['ShiftLedger - Πάγια Έξοδα Καταστημάτων & Εταιρικά Έξοδα'],
     [],
     ['1. ΠΑΓΙΑ ΕΞΟΔΑ ΑΝΑ ΚΑΤΑΣΤΗΜΑ'],
-    ['Έξοδο', '100343 (€)', '400298 Play (€)', '100411 (€)', '143344 (€)', 'Σύνολο (€)'],
+    ['Έξοδο', ...fixedStores.map((s) => `${s.name} (€)`), 'Σύνολο (€)'],
   ];
 
   const fixedRows = fixedExpenses.map((f) => [
     f.name,
-    f.store100343,
-    f.store400298,
-    f.store100411,
-    f.store143344,
+    ...fixedStores.map((s) => f.amounts[s.id] || 0),
     f.total,
   ]);
 
-  const fixedTotal100343 = fixedExpenses.reduce((sum, f) => sum + f.store100343, 0);
-  const fixedTotal400298 = fixedExpenses.reduce((sum, f) => sum + f.store400298, 0);
-  const fixedTotal100411 = fixedExpenses.reduce((sum, f) => sum + f.store100411, 0);
-  const fixedTotal143344 = fixedExpenses.reduce((sum, f) => sum + f.store143344, 0);
+  const fixedStoreTotals = fixedStores.map((s) => fixedExpenses.reduce((sum, f) => sum + (f.amounts[s.id] || 0), 0));
   const fixedTotalAll = fixedExpenses.reduce((sum, f) => sum + f.total, 0);
 
-  const fixedTotalsRow = [
-    'Σύνολο Παγίων',
-    fixedTotal100343,
-    fixedTotal400298,
-    fixedTotal100411,
-    fixedTotal143344,
-    fixedTotalAll,
-  ];
+  const fixedTotalsRow = ['Σύνολο Παγίων', ...fixedStoreTotals, fixedTotalAll];
 
   const corpHeaders = [
     [],

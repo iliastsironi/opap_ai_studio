@@ -141,13 +141,9 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
 
   // Aggregate FIXED EXPENSES per store
   fixedExpenses.forEach((fe) => {
-    if (storeMap['100343']) storeMap['100343'].fixedExpenses += Number(fe.store100343 || 0);
-    if (storeMap['PlayOpap_400298'] || storeMap['400298']) {
-      const s = storeMap['PlayOpap_400298'] || storeMap['400298'];
-      s.fixedExpenses += Number(fe.store400298 || 0);
-    }
-    if (storeMap['100411']) storeMap['100411'].fixedExpenses += Number(fe.store100411 || 0);
-    if (storeMap['143344']) storeMap['143344'].fixedExpenses += Number(fe.store143344 || 0);
+    Object.entries(fe.amounts || {}).forEach(([storeId, amount]) => {
+      if (storeMap[storeId]) storeMap[storeId].fixedExpenses += Number(amount || 0);
+    });
   });
 
   // Aggregate PAYROLL per store

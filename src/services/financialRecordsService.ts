@@ -21,20 +21,11 @@ export const PAYROLL_RECORDS_TABLE = 'payroll_records';
 export const VLT_RECONCILIATIONS_TABLE = 'vlt_reconciliations';
 export const ROSTER_SCHEDULES_TABLE = 'roster_schedules';
 
-// The UI still works with one row per expense *name* with a column per
-// known store (the FixedExpenseItem shape) - the DB now normalizes that
-// to one row per (store, name), fixing the "only 4 stores ever possible"
-// structural limit the old Firestore document shape had. This maps
-// between the two shapes at the service boundary so ReportsManager.tsx
-// doesn't need to change; widening the UI to arbitrary stores (not just
-// these 4) is a real follow-up, not done here.
-const KNOWN_FIXED_EXPENSE_STORES: Array<{ storeId: string; field: keyof FixedExpenseItem }> = [
-  { storeId: '100343', field: 'store100343' },
-  { storeId: '400298', field: 'store400298' },
-  { storeId: '100411', field: 'store100411' },
-  { storeId: '143344', field: 'store143344' },
-];
-
+// One row per (store, name) in the DB; the UI works with one row per
+// expense *name* with an amount per store (the FixedExpenseItem.amounts
+// map). Stores are whatever the org actually has - never a fixed list -
+// so this reads/writes exactly the store_id values it's given, with the
+// real `stores` FK enforcing that they're valid.
 // -------------------------------------------------------------
 // FIXED EXPENSES
 // -------------------------------------------------------------
@@ -47,13 +38,12 @@ export async function fetchFixedExpenses(orgId: string): Promise<FixedExpenseIte
 
     const byName = new Map<string, FixedExpenseItem>();
     for (const row of data) {
-      const existing = byName.get(row.name) || { id: row.name, name: row.name, store100343: 0, store400298: 0, store100411: 0, store143344: 0, total: 0 };
-      const col = KNOWN_FIXED_EXPENSE_STORES.find((s) => s.storeId === row.store_id)?.field;
-      if (col) (existing as any)[col] = Number(row.amount) || 0;
+      const existing = byName.get(row.name) || { id: row.name, name: row.name, amounts: {}, total: 0 };
+      existing.amounts[row.store_id] = Number(row.amount) || 0;
       byName.set(row.name, existing);
     }
     for (const item of byName.values()) {
-      item.total = item.store100343 + item.store400298 + item.store100411 + item.store143344;
+      item.total = Object.values(item.amounts).reduce((sum, v) => sum + v, 0);
     }
     return Array.from(byName.values());
   } catch (err) {
@@ -64,13 +54,14 @@ export async function fetchFixedExpenses(orgId: string): Promise<FixedExpenseIte
 
 export async function saveFixedExpense(orgId: string, item: FixedExpenseItem): Promise<void> {
   try {
-    const rows = KNOWN_FIXED_EXPENSE_STORES.map(({ storeId, field }) => ({
+    const rows = Object.entries(item.amounts).map(([storeId, amount]) => ({
       organization_id: orgId,
       store_id: storeId,
       name: item.name,
-      amount: Number(item[field]) || 0,
+      amount: Number(amount) || 0,
       updated_at: new Date().toISOString(),
     }));
+    if (rows.length === 0) return;
     const { error } = await supabase.from(FIXED_EXPENSES_TABLE).upsert(rows, { onConflict: 'organization_id,store_id,name' });
     if (error) throw error;
   } catch (err) {
