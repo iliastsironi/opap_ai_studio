@@ -13,6 +13,12 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_org.settings', code: 'org.settings', module: 'Organization', description: 'Διαχείριση ρυθμίσεων οργανισμού' },
   { id: 'perm_store.view', code: 'store.view', module: 'Store', description: 'Προβολή καταστημάτων' },
   { id: 'perm_store.manage', code: 'store.manage', module: 'Store', description: 'Δημιουργία και διαχείριση καταστημάτων' },
+  // Deliberately absent from every non-wildcard role's BASE_ROLE_PERMISSIONS
+  // array below (including AREA_MANAGER/STORE_MANAGER, who otherwise cover
+  // most store-config actions) - the spec calls this Owner-only, stricter
+  // than the app's usual "elevated" bundle. Only ORG_OWNER/PLATFORM_ADMIN's
+  // '*' wildcard grants it.
+  { id: 'perm_store.scratch_mode.manage', code: 'store.scratch_mode.manage', module: 'Store', description: 'Αλλαγή Λειτουργίας Πώλησης Σκρατς ανά κατάστημα' },
   { id: 'perm_department.manage', code: 'department.manage', module: 'Store', description: 'Διαχείριση τμημάτων καταστήματος' },
   { id: 'perm_users.view', code: 'users.view', module: 'Users', description: 'Προβολή χρηστών' },
   { id: 'perm_users.manage', code: 'users.manage', module: 'Users', description: 'Διαχείριση χρηστών και προσκλήσεων' },

@@ -5,6 +5,9 @@ import {
   calculateBackRowQty,
   calculateCombinedRowQty,
   calculateRowTotal,
+  isRowSafelyFrontOnlyConvertible,
+  previewFrontOnlyConversion,
+  applyFrontOnlyConversion,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -99,5 +102,56 @@ describe('Store-specific mode: two stores computing from identical row inputs pr
     expect(storeAFrontOnlyTotal).toBe(10 * 5); // front qty only
     expect(storeBFrontAndBackTotal).toBe((10 + 8) * 5); // front + back
     expect(storeAFrontOnlyTotal).not.toBe(storeBFrontAndBackTotal);
+  });
+});
+
+// Mode-switch conversion (Configurator -> "Λειτουργία Πώλησης Σκρατς" ->
+// "Μετατροπή τρέχοντος αποθέματος"). Operates on the store's active
+// inventory catalog, never on historical/already-submitted shifts.
+describe('isRowSafelyFrontOnlyConvertible', () => {
+  it('a row with no back side at all is convertible (nothing to lose)', () => {
+    expect(isRowSafelyFrontOnlyConvertible(scratchRow())).toBe(true);
+    expect(isRowSafelyFrontOnlyConvertible(scratchRow({ backSideEnabled: false }))).toBe(true);
+  });
+
+  it('a row with back side enabled but no back-side reading entered yet is convertible', () => {
+    expect(isRowSafelyFrontOnlyConvertible(scratchRow({ backSideEnabled: true, backStartNo: '' }))).toBe(true);
+    expect(isRowSafelyFrontOnlyConvertible(scratchRow({ backSideEnabled: true, backStartNo: undefined }))).toBe(true);
+  });
+
+  it('a row with a real back-side reading already recorded is NOT convertible - would lose data', () => {
+    expect(isRowSafelyFrontOnlyConvertible(scratchRowWithBack({ backStartNo: '5' }))).toBe(false);
+    expect(isRowSafelyFrontOnlyConvertible(scratchRowWithBack({ backStartNo: '0' }))).toBe(false); // '0' is a real reading, not blank
+  });
+});
+
+describe('previewFrontOnlyConversion / applyFrontOnlyConversion', () => {
+  it('splits rows into convertible vs flagged, matching isRowSafelyFrontOnlyConvertible exactly', () => {
+    const safe = scratchRow({ id: 'safe' });
+    const unsafe = scratchRowWithBack({ id: 'unsafe', backStartNo: '5' });
+    const preview = previewFrontOnlyConversion([safe, unsafe]);
+    expect(preview.convertibleRows.map((r) => r.id)).toEqual(['safe']);
+    expect(preview.flaggedRows.map((r) => r.id)).toEqual(['unsafe']);
+  });
+
+  it('applyFrontOnlyConversion clears back-side data only on convertible rows, leaves flagged rows completely untouched', () => {
+    const safe = scratchRow({ id: 'safe', backSideEnabled: true, backStartNo: '' });
+    const unsafe = scratchRowWithBack({ id: 'unsafe', backStartNo: '5', backEndNo: '20' });
+    const result = applyFrontOnlyConversion([safe, unsafe]);
+
+    const convertedSafe = result.find((r) => r.id === 'safe')!;
+    expect(convertedSafe.backSideEnabled).toBe(false);
+    expect(convertedSafe.backStartNo).toBe('');
+    expect(convertedSafe.backEndNo).toBe('');
+
+    const untouchedUnsafe = result.find((r) => r.id === 'unsafe')!;
+    expect(untouchedUnsafe).toEqual(unsafe);
+  });
+
+  it('a converted row correctly totals as front-only afterward, with no storeMode argument needed', () => {
+    const row = scratchRow({ backSideEnabled: true, backStartNo: '', startNo: '0', endNo: '10' });
+    const [converted] = applyFrontOnlyConversion([row]);
+    expect(calculateRowTotal(converted)).toBe(calculateRowTotal(row)); // nothing to lose - qty unchanged
+    expect(hasBackSide(converted)).toBe(false);
   });
 });
