@@ -28,7 +28,7 @@ export interface CorporateExpenseItem {
 }
 
 export interface EmployeePayrollItem {
-  id: string;
+  id?: string;
   employeeId?: string;
   storeId: string;
   storeName: string;

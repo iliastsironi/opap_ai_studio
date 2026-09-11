@@ -148,8 +148,8 @@ export const ReportsManager: React.FC = () => {
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [newPayrollItem, setNewPayrollItem] = useState<Partial<PayrollEmployeeRecord>>({
     name: '',
-    storeName: '100343 (ΟΠΑΠ)',
-    storeId: '100343',
+    storeName: '',
+    storeId: '',
     email: '',
     baseSalary: 950,
     daysWorked: 26,
@@ -304,7 +304,6 @@ export const ReportsManager: React.FC = () => {
     e.preventDefault();
     if (!newCorpItem.name || !newCorpItem.amount) return;
     const item: CorporateExpenseItem = {
-      id: `corp_${Date.now()}`,
       category: newCorpItem.category || 'Εταιρικά Έξοδα',
       name: newCorpItem.name,
       amount: Number(newCorpItem.amount || 0),
@@ -346,7 +345,6 @@ export const ReportsManager: React.FC = () => {
     const counted = Number(newVltRec.countedAmount || 0);
     const diff = counted - opap;
     const rec: VltReconciliationRecord = {
-      id: `vltrec_${Date.now()}`,
       date: newVltRec.date || new Date().toLocaleDateString('el-GR'),
       opapnetAmount: opap,
       countedAmount: counted,
@@ -374,12 +372,11 @@ export const ReportsManager: React.FC = () => {
     const hand = total - bank - advance;
 
     const item: PayrollEmployeeRecord = {
-      id: `pay_${Date.now()}`,
       employeeId: `emp_${Date.now()}`,
       name: newPayrollItem.name,
       email: newPayrollItem.email || '',
-      storeName: newPayrollItem.storeName || '100343 (ΟΠΑΠ)',
-      storeId: newPayrollItem.storeId || '100343',
+      storeName: newPayrollItem.storeName || stores[0]?.name || '',
+      storeId: newPayrollItem.storeId || stores[0]?.id || '',
       baseSalary: base,
       daysWorked: Number(newPayrollItem.daysWorked ?? 26),
       hoursWorked: Number(newPayrollItem.hoursWorked ?? 208),
@@ -1100,7 +1097,13 @@ export const ReportsManager: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={() => setShowPayrollModal(true)}
+                onClick={() => {
+                  if (!newPayrollItem.storeId) {
+                    const firstStore = stores[0];
+                    setNewPayrollItem((prev) => ({ ...prev, storeId: firstStore?.id || '', storeName: firstStore?.name || '' }));
+                  }
+                  setShowPayrollModal(true);
+                }}
                 className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -1591,15 +1594,18 @@ export const ReportsManager: React.FC = () => {
                   <label htmlFor="payroll-store" className="block font-bold text-slate-700 mb-1">Κατάστημα</label>
                   <select
                     id="payroll-store"
-                    value={newPayrollItem.storeName}
-                    onChange={(e) => setNewPayrollItem({ ...newPayrollItem, storeName: e.target.value })}
+                    value={newPayrollItem.storeId || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const matching = stores.find((s) => s.id === val);
+                      setNewPayrollItem({ ...newPayrollItem, storeId: val, storeName: matching ? matching.name : val });
+                    }}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
                   >
-                    <option value="100343 (ΟΠΑΠ)">100343 (ΟΠΑΠ)</option>
-                    <option value="100343_FnB">100343 FnB</option>
-                    <option value="400298 (Play Opap)">400298 (Play Opap)</option>
-                    <option value="100411 (ΟΠΑΠ)">100411 (ΟΠΑΠ)</option>
-                    <option value="143344 (Play Opap)">143344 (Play Opap)</option>
+                    {!newPayrollItem.storeId && <option value="">— Επιλέξτε κατάστημα —</option>}
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
