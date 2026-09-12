@@ -100,7 +100,7 @@ function getSavedStorePosConfig(storeId?: string, targetCount?: number): ToraPos
   }
   while (list.length < count) {
     const idx = list.length + 1;
-    list.push({ id: `store_pos_${idx}`, name: `Pos #${idx}`, amount: '' });
+    list.push({ id: `store_pos_${Date.now()}_${idx}`, name: `Pos #${idx}`, amount: '' });
   }
   if (list.length > count) {
     list = list.slice(0, count);
@@ -135,7 +135,7 @@ function getSavedToraPosConfig(storeId?: string, targetCount?: number): ToraPosI
   }
   while (list.length < count) {
     const idx = list.length + 1;
-    list.push({ id: `tora_${idx}`, name: `TORA DIRECT #${idx}`, amount: '' });
+    list.push({ id: `tora_${Date.now()}_${idx}`, name: `TORA DIRECT #${idx}`, amount: '' });
   }
   if (list.length > count) {
     list = list.slice(0, count);
@@ -441,7 +441,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
     while (items.length < initialSharedTargetCount) {
       const idx = items.length + 1;
-      items.push({ id: `store_pos_${idx}`, name: `Pos #${idx}`, amount: '' });
+      items.push({ id: `store_pos_${Date.now()}_${idx}`, name: `Pos #${idx}`, amount: '' });
     }
     return items;
   });
@@ -469,7 +469,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
     while (items.length < initialSharedTargetCount) {
       const idx = items.length + 1;
-      items.push({ id: `tora_${idx}`, name: `TORA DIRECT #${idx}`, amount: '' });
+      items.push({ id: `tora_${Date.now()}_${idx}`, name: `TORA DIRECT #${idx}`, amount: '' });
     }
     return items;
   });
