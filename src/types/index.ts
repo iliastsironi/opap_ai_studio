@@ -346,6 +346,19 @@ export interface ShiftTemplateConfig {
   // full stop, regardless of any per-row backSideEnabled value. See
   // ScratchSellingMode/hasBackSide in ScratchCalculatorTable.tsx.
   scratch_selling_mode: 'FRONT_AND_BACK' | 'FRONT_ONLY';
+  // Whether this store's Sidebar nav even shows Εθνικό Λαχείο - many stores
+  // don't run it at all. Not a permission, just decluttering; the module
+  // itself stays reachable by URL/permission regardless.
+  show_national_lottery: boolean;
+  // DEFAULT_SCRATCH_PRESETS' two "Ειδική Έκδοση χ5/χ10" rows are hidden
+  // from the shift table unless the Owner turns this on for a real special
+  // edition currently running.
+  special_edition_enabled: boolean;
+  // Λαϊκό Λαχείο (scr_laiko) selling mode: dual bundle+piece entry at
+  // 2 EUR/piece, or bundle-only entry at 10 EUR/bundle for stores that
+  // never sell loose pieces. Same total either way (2 EUR x 5 = 10 EUR) -
+  // see applyLaikoSellingMode in ScratchCalculatorTable.tsx.
+  laiko_selling_mode: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY';
   custom_fields: TemplateFieldConfig[];
   updated_at?: string;
 }

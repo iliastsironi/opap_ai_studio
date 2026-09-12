@@ -42,6 +42,7 @@ import {
   getLatestStoreScratchInventory,
   saveLatestStoreScratchInventory,
   applyCountingDefaults,
+  applyLaikoDefaults,
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -308,6 +309,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // the fetch resolves, so there's no flash of an incorrectly-ceilinged
   // total before load.
   const [scratchSellingMode, setScratchSellingMode] = useState<ScratchSellingMode>('FRONT_AND_BACK');
+  // Two more store settings fetched alongside the ones above - see
+  // 0017_scratch_layout_settings.sql. Defaults match DEFAULT_OPAP_SHIFT_
+  // TEMPLATE exactly, so there's no flash of the wrong state before load.
+  const [specialEditionEnabled, setSpecialEditionEnabled] = useState(false);
+  const [laikoSellingMode, setLaikoSellingMode] = useState<'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'>('PIECES_AND_BUNDLES');
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -322,12 +328,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       .then((config) => {
         if (cancelled) return;
         setScratchRows((prev) =>
-          applyCountingDefaults(prev, {
-            scratch_backside_default: config.scratch_backside_default,
-            lottery_bundle_default: config.lottery_bundle_default,
-          })
+          applyLaikoDefaults(
+            applyCountingDefaults(prev, {
+              scratch_backside_default: config.scratch_backside_default,
+              lottery_bundle_default: config.lottery_bundle_default,
+            })
+          )
         );
         setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
+        setSpecialEditionEnabled(config.special_edition_enabled === true);
+        setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
       })
       .catch((err) => {
         console.warn('[ShiftClosingWizard] Could not load scratch counting defaults:', err);
@@ -1927,6 +1937,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 rows={scratchRows}
                 onChangeRows={handleScratchRowsChange}
                 sellingMode={scratchSellingMode}
+                specialEditionEnabled={specialEditionEnabled}
+                laikoSellingMode={laikoSellingMode}
               />
 
               {/* Direct inputs summary & payouts */}

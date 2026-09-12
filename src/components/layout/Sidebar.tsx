@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Building2,
   Store as StoreIcon,
@@ -25,6 +25,8 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { useTenant } from '../../context/TenantContext.tsx';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 
 interface SidebarProps {
@@ -36,8 +38,33 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isOpen, setIsOpen }) => {
   const { organization, roles, hasPermission } = useAuth();
+  const { activeStoreId } = useTenant();
 
   const primaryRole = roles[0]?.name || 'Χρήστης';
+
+  // Per-store declutter, not a permission wall (see 0017_scratch_layout_
+  // settings.sql / ShiftTemplateConfigurator's "Εμφάνιση Εθνικού Λαχείου")
+  // - many stores don't run National Lottery at all. Defaults to visible
+  // (both before this loads, and whenever "ALL stores" is selected, since
+  // there's no single store's flag to check then).
+  const [showNationalLottery, setShowNationalLottery] = useState(true);
+  useEffect(() => {
+    if (!activeStoreId || activeStoreId === 'ALL') {
+      setShowNationalLottery(true);
+      return;
+    }
+    let cancelled = false;
+    getShiftTemplateConfig(organization?.id || 'org_opap_demo', activeStoreId)
+      .then((config) => {
+        if (!cancelled) setShowNationalLottery(config.show_national_lottery !== false);
+      })
+      .catch(() => {
+        if (!cancelled) setShowNationalLottery(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organization?.id, activeStoreId]);
 
   const navItems = [
     { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
@@ -68,7 +95,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   ];
 
   const visibleNavItems = navItems.filter((item) => !item.perm || hasPermission(item.perm));
-  const visibleOperationalModules = operationalModules.filter((mod) => !mod.perm || hasPermission(mod.perm));
+  const visibleOperationalModules = operationalModules
+    .filter((mod) => !mod.perm || hasPermission(mod.perm))
+    .filter((mod) => mod.id !== 'national_lottery' || showNationalLottery);
 
   const selectTab = (tabId: string) => {
     setCurrentTab(tabId);

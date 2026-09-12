@@ -21,6 +21,9 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   scratch_backside_default: true,
   lottery_bundle_default: false,
   scratch_selling_mode: 'FRONT_AND_BACK',
+  show_national_lottery: true,
+  special_edition_enabled: false,
+  laiko_selling_mode: 'PIECES_AND_BUNDLES',
   custom_fields: [
     // System-Managed Calculation Fields
     {

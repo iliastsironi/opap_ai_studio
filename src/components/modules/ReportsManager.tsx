@@ -91,7 +91,11 @@ const REPORTS_TABS: Array<{ id: ReportsTab; label: string; icon: React.Component
   { id: 'PAYROLL_FIXED', label: 'Μισθοδοσία & Πάγια Έξοδα', icon: DollarSign },
 ];
 
-export const ReportsManager: React.FC = () => {
+interface ReportsManagerProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) => {
   const { selectedStoreId, stores } = useTenant();
   const { organization } = useAuth();
 
@@ -858,6 +862,7 @@ export const ReportsManager: React.FC = () => {
           shifts={rawShifts}
           stores={stores}
           currentStoreId={selectedStoreId}
+          onNavigate={onNavigate}
         />
       )}
 

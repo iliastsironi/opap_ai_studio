@@ -1048,6 +1048,108 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 3 (cont.): three more Owner-only "how this store sells" settings -
+          same permission (store.scratch_mode.manage) as the mode above, same
+          simple setTemplate + top-level "Αποθήκευση Αλλαγών" save as the
+          generic module toggles, just gated Owner-only instead of canEdit
+          since these are policy, not form-layout, decisions. */}
+      {activeTab === 'MODULES' && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-5">
+          <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
+              <Lock className="w-4 h-4 text-indigo-600" />
+              <span>Λοιπές Ρυθμίσεις Καταστήματος</span>
+            </h2>
+            <span className="text-xs text-slate-500 font-medium">Μόνο ο Ιδιοκτήτης μπορεί να τις αλλάξει</span>
+          </div>
+
+          <div
+            onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }))}
+            role="switch"
+            aria-checked={template.show_national_lottery}
+            aria-label="Εμφάνιση Εθνικού Λαχείου"
+            tabIndex={canManageScratchMode ? 0 : -1}
+            onKeyDown={(e) => {
+              if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }));
+              }
+            }}
+            className={`p-4 rounded-xl border transition-all flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
+            } ${template.show_national_lottery ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
+          >
+            <div>
+              <h4 className="text-xs font-bold text-slate-900">Εμφάνιση Εθνικού Λαχείου</h4>
+              <p className="text-micro text-slate-500 mt-0.5">Πολλά καταστήματα δεν διαχειρίζονται Εθνικό Λαχείο - αποκρύπτει την ενότητα από το μενού τους.</p>
+            </div>
+            {template.show_national_lottery ? (
+              <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+            ) : (
+              <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+            )}
+          </div>
+
+          <div
+            onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }))}
+            role="switch"
+            aria-checked={template.special_edition_enabled}
+            aria-label="Ειδικές Εκδόσεις Λαχείων (χ5/χ10)"
+            tabIndex={canManageScratchMode ? 0 : -1}
+            onKeyDown={(e) => {
+              if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }));
+              }
+            }}
+            className={`p-4 rounded-xl border transition-all flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+              canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
+            } ${template.special_edition_enabled ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
+          >
+            <div>
+              <h4 className="text-xs font-bold text-slate-900">Ειδικές Εκδόσεις Λαχείων (χ5 / χ10)</h4>
+              <p className="text-micro text-slate-500 mt-0.5">Ανενεργό από προεπιλογή. Ενεργοποιήστε μόνο όσο διάστημα υπάρχει πραγματική διαθέσιμη ειδική έκδοση προς πώληση.</p>
+            </div>
+            {template.special_edition_enabled ? (
+              <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+            ) : (
+              <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+            )}
+          </div>
+
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900">Τρόπος Πώλησης Λαϊκού Λαχείου</h4>
+              <p className="text-micro text-slate-500 mt-0.5">Ίδιο συνολικό ποσό και στις δύο επιλογές (2€/κομμάτι = 10€/πεντάδα) - αλλάζει μόνο πώς καταχωρείται η πώληση.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={!canManageScratchMode}
+                onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'PIECES_AND_BUNDLES' }))}
+                className={`p-3 rounded-xl border text-left transition-all ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
+                  template.laiko_selling_mode === 'PIECES_AND_BUNDLES' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-900">Πεντάδες + Κομμάτια (2€/κομμάτι)</p>
+                <p className="text-micro text-slate-500 mt-0.5">Πουλάει και μεμονωμένα κομμάτια - διπλή καταχώρηση.</p>
+              </button>
+              <button
+                type="button"
+                disabled={!canManageScratchMode}
+                onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'BUNDLES_ONLY' }))}
+                className={`p-3 rounded-xl border text-left transition-all ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
+                  template.laiko_selling_mode === 'BUNDLES_ONLY' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-900">Μόνο Πεντάδες (10€/πεντάδα)</p>
+                <p className="text-micro text-slate-500 mt-0.5">Πουλάει μόνο ολόκληρες πεντάδες, όπως πριν.</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showScratchModeModal && (
         <ScratchModeChangeModal
           isOpen={showScratchModeModal}

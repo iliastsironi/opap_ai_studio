@@ -1,18 +1,33 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Landmark, Search, Loader2, User, Plus, RefreshCcw } from 'lucide-react';
+import { Landmark, Search, Loader2, User, Plus, RefreshCcw, ArrowDownAZ, Hash } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
   getActiveEdition,
   getNationalLotteryCustomers,
   searchNationalLotteryCustomers,
+  getNationalLotteryShiftContribution,
 } from '../../services/nationalLotteryService.ts';
+import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import { NationalLotteryEdition, NationalLotteryCustomer } from '../../types/index.ts';
 import { NationalLotteryCustomerCard } from './NationalLotteryCustomerCard.tsx';
 import { NationalLotteryCustomerFormModal } from './NationalLotteryCustomerFormModal.tsx';
 import { NationalLotteryEditionRolloverModal } from './NationalLotteryEditionRolloverModal.tsx';
 import { NationalLotteryDashboard } from './NationalLotteryDashboard.tsx';
 import { CustomerCreditDirectoryModal } from '../shifts/CustomerCreditDirectoryModal.tsx';
+import { formatCurrency } from '../../lib/formatters.ts';
+
+type SortMode = 'NUMBER' | 'NAME';
+const SORT_MODE_STORAGE_KEY = 'shiftledger_national_lottery_sort_mode';
+
+function loadSortMode(): SortMode {
+  try {
+    const saved = localStorage.getItem(SORT_MODE_STORAGE_KEY);
+    return saved === 'NAME' ? 'NAME' : 'NUMBER';
+  } catch {
+    return 'NUMBER';
+  }
+}
 
 // Employee-facing search -> card -> collect flow, plus (permission-gated)
 // Owner/Manager registry CRUD, edition rollover, and a live dashboard.
@@ -37,6 +52,8 @@ export const NationalLotteryManager: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<NationalLotteryCustomer | null>(null);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
+  const [sortMode, setSortMode] = useState<SortMode>(loadSortMode);
+  const [openShiftContribution, setOpenShiftContribution] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!storeId) {
@@ -58,8 +75,58 @@ export const NationalLotteryManager: React.FC = () => {
     load();
   }, [load]);
 
-  const results = searchNationalLotteryCustomers(customers, query);
+  // Live "this is already in today's register" confirmation, visible right
+  // where the collection happens instead of only surfacing at shift-close
+  // time (ShiftClosingWizard already computes this same total there via
+  // getNationalLotteryShiftContribution - this is purely an earlier,
+  // additional read of the identical live number, not a second source).
+  useEffect(() => {
+    let cancelled = false;
+    if (!storeId) {
+      setOpenShiftContribution(null);
+      return;
+    }
+    (async () => {
+      try {
+        const openShift = await fetchActiveShiftFromFirestore(orgId, storeId);
+        if (cancelled) return;
+        if (!openShift) {
+          setOpenShiftContribution(null);
+          return;
+        }
+        const contribution = await getNationalLotteryShiftContribution(openShift.id);
+        if (!cancelled) setOpenShiftContribution(contribution);
+      } catch (err) {
+        console.warn('[NationalLotteryManager] Could not load live shift contribution:', err);
+        if (!cancelled) setOpenShiftContribution(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, storeId, dashboardRefreshKey]);
+
+  const results = [...searchNationalLotteryCustomers(customers, query)].sort((a, b) => {
+    if (sortMode === 'NAME') return a.full_name.localeCompare(b.full_name, 'el');
+    // Numeric sort with blanks/non-numeric last, not first (they'd otherwise
+    // sort as 0 and jump to the top ahead of every real lottery number).
+    const numA = parseInt(a.lottery_number || '', 10);
+    const numB = parseInt(b.lottery_number || '', 10);
+    if (isNaN(numA) && isNaN(numB)) return 0;
+    if (isNaN(numA)) return 1;
+    if (isNaN(numB)) return -1;
+    return numA - numB;
+  });
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) || null;
+
+  const handleSetSortMode = (mode: SortMode) => {
+    setSortMode(mode);
+    try {
+      localStorage.setItem(SORT_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Best-effort only - a non-persisted preference isn't worth surfacing an error for.
+    }
+  };
 
   const handleOpenCreate = () => {
     setEditingCustomer(null);
@@ -82,6 +149,14 @@ export const NationalLotteryManager: React.FC = () => {
             <h1 className="text-lg font-black text-slate-900">Εθνικό Λαχείο</h1>
             <p className="text-xs text-slate-500">{currentStore ? currentStore.name : 'Επιλέξτε κατάστημα'}</p>
           </div>
+          {openShiftContribution !== null && (
+            <span
+              className="ml-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-bold shrink-0"
+              title="Το ποσό που έχει ήδη μπει στο ανοιχτό ταμείο της τρέχουσας βάρδιας από παραλαβές Εθνικού Λαχείου"
+            >
+              Στο σημερινό ταμείο: {formatCurrency(openShiftContribution)}
+            </span>
+          )}
         </div>
         {canManageEditions && storeId && (
           <button
@@ -113,6 +188,32 @@ export const NationalLotteryManager: React.FC = () => {
                 placeholder="Αναζήτηση με όνομα, τηλέφωνο ή αριθμό λαχείου..."
                 className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-hidden focus:border-indigo-500"
               />
+            </div>
+            <div className="flex items-center bg-slate-100 rounded-xl p-1 shrink-0" role="group" aria-label="Ταξινόμηση λίστας συνδρομητών">
+              <button
+                type="button"
+                onClick={() => handleSetSortMode('NUMBER')}
+                aria-pressed={sortMode === 'NUMBER'}
+                title="Ταξινόμηση κατά αύξοντα αριθμό λαχείου"
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                  sortMode === 'NUMBER' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Hash className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Αριθμός</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetSortMode('NAME')}
+                aria-pressed={sortMode === 'NAME'}
+                title="Αλφαβητική ταξινόμηση κατά όνομα"
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                  sortMode === 'NAME' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <ArrowDownAZ className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Όνομα</span>
+              </button>
             </div>
             {canManage && (
               <button

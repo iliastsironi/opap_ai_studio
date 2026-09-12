@@ -415,6 +415,20 @@ export function applyCountingDefaults(
   });
 }
 
+// Forces the Λαϊκό Λαχείο row's price/bundleSize back to the real product
+// shape (2 EUR/piece, 5 pieces/bundle = 10 EUR/bundle) unconditionally -
+// unlike applyCountingDefaults above, this never checks "is it already
+// set", because a browser with a catalog cached from before dual-tracking
+// shipped would have its own stale price (e.g. 10, no bundleSize) that
+// "already set" would leave stuck forever, which is exactly the "still
+// shows 10 EUR" symptom this fixes. laiko_selling_mode (BUNDLES_ONLY vs
+// PIECES_AND_BUNDLES) never changes this math - 2 EUR x 5 pieces is always
+// 10 EUR/bundle either way - it only changes which inputs are shown (see
+// LAIKO_ROW_ID usage in the render below).
+export function applyLaikoDefaults(rows: ScratchTicketRow[]): ScratchTicketRow[] {
+  return rows.map((row) => (row.id === LAIKO_ROW_ID ? { ...row, price: 2, bundleSize: 5 } : row));
+}
+
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
 // fabricated sale, matches every other empty-field convention in this
 // file). Decimals, negatives, and non-numeric strings all report as
@@ -671,6 +685,12 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
   return { errors, isValid: errors.length === 0 };
 }
 
+// The two IDs DEFAULT_SCRATCH_PRESETS hardcodes for "Ειδική Έκδοση" - hidden
+// from the table unless the store's special_edition_enabled is true. See
+// SPECIAL_EDITION_ROW_IDS usage below and 0017_scratch_layout_settings.sql.
+export const SPECIAL_EDITION_ROW_IDS = ['scr_eidiki_x10', 'scr_eidiki_x5'];
+export const LAIKO_ROW_ID = 'scr_laiko';
+
 interface ScratchCalculatorTableProps {
   rows: ScratchTicketRow[];
   onChangeRows: (newRows: ScratchTicketRow[]) => void;
@@ -678,6 +698,15 @@ interface ScratchCalculatorTableProps {
   // The store's current Scratch Selling Mode (shift_templates.
   // scratch_selling_mode). Undefined behaves exactly like 'FRONT_AND_BACK'.
   sellingMode?: ScratchSellingMode;
+  // shift_templates.special_edition_enabled - hides SPECIAL_EDITION_ROW_IDS
+  // from the rendered table (never from the underlying `rows`/totals math,
+  // so any historical sale already recorded before an Owner turns this back
+  // off stays counted). Undefined behaves like false (hidden).
+  specialEditionEnabled?: boolean;
+  // shift_templates.laiko_selling_mode - applied authoritatively to the
+  // scr_laiko row's display/input mode. Undefined behaves like
+  // 'PIECES_AND_BUNDLES' (today's shipped behavior).
+  laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY';
 }
 
 export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
@@ -685,6 +714,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   onChangeRows,
   readOnly = false,
   sellingMode,
+  specialEditionEnabled = false,
+  laikoSellingMode = 'PIECES_AND_BUNDLES',
 }) => {
   const { roles, permissions } = useAuth();
   const canManage =
@@ -837,6 +868,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     saveScratchCatalog(updated);
   };
 
+  // Bulk version of handleToggleBackSide, requested so a manager doesn't
+  // have to click each Σκρατς row's own toggle one at a time. Λαχεία rows
+  // are excluded - they never had a back side by the same historical rule
+  // hasBackSide already applies per-row. Same "clear back-side data on
+  // disable" behavior as the single-row toggle, kept in sync deliberately.
+  const handleToggleAllBackSides = (enabled: boolean) => {
+    if (readOnly) return;
+    const updated = rows.map((r) => {
+      if (isLotteryRow(r)) return r;
+      if (enabled) return { ...r, backSideEnabled: true };
+      return { ...r, backSideEnabled: false, backStartNo: '', backEndNo: '' };
+    });
+    onChangeRows(updated);
+    saveScratchCatalog(updated);
+  };
+
   const handleApplyNewPack = (rowId: string) => {
     const updated = rows.map((r) => {
       if (r.id === rowId) {
@@ -924,9 +971,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     handleUpdateRow(rowId, field, val);
   };
 
+  // Rendering-only filter - never applied to `rows` itself or the totals
+  // above, so a row with a real historical sale stays counted even after
+  // an Owner turns special_edition_enabled back off.
+  const visibleRows = specialEditionEnabled ? rows : rows.filter((r) => !SPECIAL_EDITION_ROW_IDS.includes(r.id));
+
   // Group rows by category
   const categories = Array.from(
-    new Set(rows.map((r) => r.category || 'Άλλα Σκρατς'))
+    new Set(visibleRows.map((r) => r.category || 'Άλλα Σκρατς'))
   );
 
   return (
@@ -985,6 +1037,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Καθαρισμός Τελικών</span>
             </button>
+
+            {sellingMode !== 'FRONT_ONLY' && (
+              <button
+                type="button"
+                onClick={() => handleToggleAllBackSides(!rows.some((r) => !isLotteryRow(r) && hasBackSide(r, sellingMode)))}
+                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                title="Ενεργοποίηση ή απενεργοποίηση της Πίσω πλευράς για όλες τις γραμμές Σκρατς ταυτόχρονα, αντί μία-μία"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                <span>
+                  {rows.some((r) => !isLotteryRow(r) && hasBackSide(r, sellingMode))
+                    ? 'Απενεργοποίηση Πίσω (Όλα)'
+                    : 'Ενεργοποίηση Πίσω (Όλα)'}
+                </span>
+              </button>
+            )}
 
             {canManage && (
               <button
@@ -1063,7 +1131,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
             {categories.map((cat) => {
-              const catRows = rows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
+              const catRows = visibleRows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
               const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
               // calculateCombinedRowQty (front+back), not calculateRowQty (front-only) -
               // matches catTotal above (calculateRowTotal already combines both sides),
@@ -1094,6 +1162,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
                     const isManual = getCountingMode(row) === 'manual';
+                    const isLaikoBundlesOnly = row.id === LAIKO_ROW_ID && laikoSellingMode === 'BUNDLES_ONLY';
                     const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
@@ -1206,7 +1275,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 }
                                 className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
                               />
-                              {isBundleTracked && (
+                              {isBundleTracked && !isLaikoBundlesOnly && (
                                 <p className="text-micro text-slate-500 mt-0.5 whitespace-nowrap">
                                   /κομμάτιο (≈{formatCurrency((Number(row.price) || 0) * rowBundleSize)}/{rowBundleSize}άδα)
                                 </p>
@@ -1214,9 +1283,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             </div>
                           ) : (
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
-                              {formatCurrency(row.price)}
+                              {isLaikoBundlesOnly ? formatCurrency((Number(row.price) || 0) * rowBundleSize) : formatCurrency(row.price)}
                               {isBundleTracked && (
-                                <span className="block text-micro font-semibold text-slate-400">/κομμάτιο</span>
+                                <span className="block text-micro font-semibold text-slate-400">
+                                  {isLaikoBundlesOnly ? `/${rowBundleSize}άδα` : '/κομμάτιο'}
+                                </span>
                               )}
                             </span>
                           )}
@@ -1315,7 +1386,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   A plain 2-column grid guarantees each input a real, equal share of the
                                   width; the ×N relationship is still taught by the label below instead
                                   of fighting for space on the same line. */}
-                              <div className="grid grid-cols-2 gap-1">
+                              <div className={isLaikoBundlesOnly ? 'grid grid-cols-1 gap-1' : 'grid grid-cols-2 gap-1'}>
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -1332,22 +1403,27 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                       : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
                                   }`}
                                 />
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  maxLength={MAX_LABEL_LENGTH}
-                                  disabled={readOnly}
-                                  value={row.salePieces || ''}
-                                  onFocus={(e) => e.currentTarget.select()}
-                                  onChange={(e) => handleUpdateBundleSale(row.id, 'salePieces', e.target.value)}
-                                  placeholder="0"
-                                  title="Μεμονωμένα κομμάτια που πωλήθηκαν"
-                                  className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
-                                    rowErrors.length > 0
-                                      ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
-                                      : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
-                                  }`}
-                                />
+                                {/* Sells only whole πεντάδες - no loose-piece field to fill in. Store
+                                    keeps its per-piece price under the hood (see applyLaikoDefaults);
+                                    this is purely which input the employee sees. */}
+                                {!isLaikoBundlesOnly && (
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={MAX_LABEL_LENGTH}
+                                    disabled={readOnly}
+                                    value={row.salePieces || ''}
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    onChange={(e) => handleUpdateBundleSale(row.id, 'salePieces', e.target.value)}
+                                    placeholder="0"
+                                    title="Μεμονωμένα κομμάτια που πωλήθηκαν"
+                                    className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
+                                      rowErrors.length > 0
+                                        ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                                        : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                    }`}
+                                  />
+                                )}
                               </div>
                               {/* No empty-state hint here - the two title tooltips on the inputs above,
                                   plus the ≈X πεντάδες + Y κομμάτια line in the Αρχικό cell, already say

@@ -41,6 +41,7 @@ interface DailyAggregationViewProps {
   stores: Array<{ id: string; name: string; code?: string }>;
   currentStoreId?: string;
   onOpenShiftDetails?: (shift: Shift) => void;
+  onNavigate?: (tab: string) => void;
 }
 
 export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
@@ -48,6 +49,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
   stores,
   currentStoreId,
   onOpenShiftDetails,
+  onNavigate,
 }) => {
   const { organization } = useAuth();
   const orgId = organization?.id || 'org_opap_demo';
@@ -593,7 +595,20 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                       get a persistent empty row. */}
                   {dailyReport.totalNationalLotteryPortion > 0 && (
                     <tr className="hover:bg-slate-50/60 text-slate-400">
-                      <td className="py-1.5 px-4 pl-8 text-micro italic">εκ των οποίων Εθνικό Λαχείο</td>
+                      <td className="py-1.5 px-4 pl-8 text-micro italic">
+                        {onNavigate ? (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('national_lottery')}
+                            className="italic underline decoration-dotted hover:text-indigo-600 cursor-pointer"
+                            title="Μετάβαση στην ενότητα Εθνικού Λαχείου"
+                          >
+                            εκ των οποίων Εθνικό Λαχείο
+                          </button>
+                        ) : (
+                          'εκ των οποίων Εθνικό Λαχείο'
+                        )}
+                      </td>
                       {dailyReport.shiftContributions.map((s) => (
                         <td key={s.shiftId} className="py-1.5 px-3.5 text-right font-mono text-micro">
                           {(s.nationalLotteryPortion || 0) > 0 ? formatCurrency(s.nationalLotteryPortion || 0) : '—'}

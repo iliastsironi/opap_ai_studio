@@ -100,7 +100,7 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
     case 'national_lottery':
       return <NationalLotteryManager />;
     case 'reports':
-      return <ReportsManager />;
+      return <ReportsManager onNavigate={setCurrentTab} />;
     case 'roster':
       return <RosterManager />;
     case 'instructions':
