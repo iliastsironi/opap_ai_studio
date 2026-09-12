@@ -617,8 +617,23 @@ export function calculateBackRowTotal(row: ScratchTicketRow, storeMode?: Scratch
   return calculateBackRowQty(row, storeMode) * (row.price || 0);
 }
 
+// 'warning' = an unusual number for the standard 300 EUR-per-pack
+// convention (a real combined/oversized pack can legitimately exceed it) -
+// shown as a soft heads-up, never blocking. 'error' = a reversed reading or
+// a Front/Back overlap - almost certainly a typo, or a genuine
+// double-counting risk against the same physical tickets - shown as a hard
+// warning. Neither severity ever blocks saving/submitting; both are
+// inline-only (see rowErrors in the render below) - this is advisory
+// feedback, not a validation gate.
+export type ScratchRowIssueSeverity = 'warning' | 'error';
+
+export interface ScratchRowIssue {
+  message: string;
+  severity: ScratchRowIssueSeverity;
+}
+
 export interface ScratchRowValidationResult {
-  errors: string[];
+  errors: ScratchRowIssue[];
   isValid: boolean;
 }
 
@@ -626,7 +641,9 @@ export interface ScratchRowValidationResult {
 // bounds and the non-crossing rule. Pure, no I/O - safe to call from both
 // the UI (inline feedback) and before persisting (defense in depth).
 export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationResult {
-  const errors: string[] = [];
+  const errors: ScratchRowIssue[] = [];
+  const warn = (message: string) => errors.push({ message, severity: 'warning' });
+  const err = (message: string) => errors.push({ message, severity: 'error' });
   // Checked before the category-based lottery skip below: a manual-mode row
   // priced at e.g. €10 (300/10 = 30, a valid pieceCount) would otherwise
   // reach and pass the pack-size checks further down, which make no sense
@@ -642,30 +659,30 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
 
   if (pieceCount !== null) {
     if (frontEnd !== null && (frontEnd < 0 || frontEnd > pieceCount)) {
-      errors.push(`Το Μπροστά - Τελικό (${row.endNo}) πρέπει να είναι μεταξύ 000 και ${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Μπροστά - Τελικό (${row.endNo}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
     }
     if (frontStart < 0 || frontStart > pieceCount) {
-      errors.push(`Το Μπροστά - Αρχικό (${row.startNo || '000'}) πρέπει να είναι μεταξύ 000 και ${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Μπροστά - Αρχικό (${row.startNo || '000'}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
     }
     if (backStart !== null && (backStart < 0 || backStart > pieceCount)) {
-      errors.push(`Το Πίσω - Αρχικό (${row.backStartNo}) πρέπει να είναι μεταξύ 000 και ${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Πίσω - Αρχικό (${row.backStartNo}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
     }
     if (backEnd !== null && (backEnd < 0 || backEnd > pieceCount)) {
-      errors.push(`Το Πίσω - Τελικό (${formatTicketNumber(backEnd)}) πρέπει να είναι μεταξύ 000 και ${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Πίσω - Τελικό (${formatTicketNumber(backEnd)}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
     }
   }
 
   if (frontEnd !== null && frontEnd < frontStart) {
-    errors.push(`Το Μπροστά - Τελικό (${row.endNo}) δεν μπορεί να είναι μικρότερο από το Μπροστά - Αρχικό (${formatTicketNumber(frontStart)}).`);
+    err(`Το Μπροστά - Τελικό (${row.endNo}) δεν μπορεί να είναι μικρότερο από το Μπροστά - Αρχικό (${formatTicketNumber(frontStart)}).`);
   }
   if (backStart !== null && backEnd !== null && backStart > backEnd) {
-    errors.push(`Το Πίσω - Αρχικό (${row.backStartNo}) δεν μπορεί να είναι μεγαλύτερο από το Πίσω - Τελικό (${formatTicketNumber(backEnd)}).`);
+    err(`Το Πίσω - Αρχικό (${row.backStartNo}) δεν μπορεί να είναι μεγαλύτερο από το Πίσω - Τελικό (${formatTicketNumber(backEnd)}).`);
   }
 
   // Non-crossing: the two directions consume the same shared inventory and
   // must not overlap or double-count the same physical tickets.
   if (frontEnd !== null && backStart !== null && frontEnd > backStart) {
-    errors.push(
+    err(
       `Οι μετρήσεις Μπροστά και Πίσω επικαλύπτονται (Μπροστά - Τελικό ${row.endNo} > Πίσω - Αρχικό ${row.backStartNo}). ` +
       `Οι δύο πλευρές δεν μπορούν να καταγράψουν τα ίδια δελτία.`
     );
@@ -674,15 +691,15 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
   if (pieceCount !== null) {
     const totalQty = calculateCombinedRowQty(row);
     if (totalQty > pieceCount) {
-      errors.push(`Το συνολικό πλήθος πωλημένων τεμαχίων (${totalQty}) δεν μπορεί να ξεπεράσει τα ${pieceCount} τεμάχια του πακέτου.`);
+      warn(`Το συνολικό πλήθος πωλημένων τεμαχίων (${totalQty}) ξεπερνά τα συνηθισμένα ${pieceCount} τεμάχια του πακέτου.`);
     }
     const totalValue = totalQty * (row.price || 0);
     if (totalValue > PACKAGE_FACE_VALUE) {
-      errors.push(`Η συνολική αξία πωλήσεων (${formatCurrency(totalValue)}) δεν μπορεί να ξεπεράσει τα ${PACKAGE_FACE_VALUE}€ ανά πακέτο.`);
+      warn(`Η συνολική αξία πωλήσεων (${formatCurrency(totalValue)}) ξεπερνά τα συνηθισμένα ${PACKAGE_FACE_VALUE}€ ανά πακέτο.`);
     }
   }
 
-  return { errors, isValid: errors.length === 0 };
+  return { errors, isValid: !errors.some((e) => e.severity === 'error') };
 }
 
 // The two IDs DEFAULT_SCRATCH_PRESETS hardcodes for "Ειδική Έκδοση" - hidden
@@ -948,10 +965,18 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const lotterySales = rows.filter((r) => isLotteryRow(r)).reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
   const totalTicketsSold = scratchPieces + lotteryPieces;
   const grandTotalSales = scratchSales + lotterySales;
-  const rowValidationErrors = new Map<string, string[]>();
+  const rowValidationErrors = new Map<string, ScratchRowIssue[]>();
   for (const r of rows) {
     const mode = getCountingMode(r);
-    const errors = mode === 'bundle' ? validateBundleSaleEntry(r).errors : mode === 'manual' ? [] : validateScratchRow(r).errors;
+    // Bundle-sale errors (invalid quantity, oversells remaining stock) are
+    // always genuine mistakes, unlike the pack-size-range checks below - tag
+    // them 'error' so they keep the serious red styling.
+    const errors: ScratchRowIssue[] =
+      mode === 'bundle'
+        ? validateBundleSaleEntry(r).errors.map((message) => ({ message, severity: 'error' as const }))
+        : mode === 'manual'
+          ? []
+          : validateScratchRow(r).errors;
     if (errors.length > 0) rowValidationErrors.set(r.id, errors);
   }
 
@@ -1200,7 +1225,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                       !isNaN(backEndNum) &&
                       backStartNum > backEndNum;
                     const rowErrors = rowValidationErrors.get(row.id) || [];
-                    const hasCrossingError = rowErrors.some((e) => e.includes('επικαλύπτονται'));
+                    const hasCrossingError = rowErrors.some((e) => e.message.includes('επικαλύπτονται'));
 
                     return (
                       <React.Fragment key={row.id}>
@@ -1705,20 +1730,39 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           </td>
                         </tr>
                       )}
-                      {rowErrors.length > 0 && (
-                        <tr>
-                          <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-2 pt-0">
-                            <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-micro text-rose-800 space-y-0.5">
-                              {rowErrors.map((err, i) => (
-                                <p key={i} className="flex items-start space-x-1.5">
-                                  <AlertCircle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
-                                  <span>{err}</span>
-                                </p>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
+                      {rowErrors.length > 0 && (() => {
+                        const criticalErrors = rowErrors.filter((e) => e.severity === 'error');
+                        // Pack-size-range checks are informational only (real combined/oversized
+                        // packs can legitimately exceed the 300EUR convention) - shown as a soft
+                        // amber heads-up, never styled like a blocking error.
+                        const warnings = rowErrors.filter((e) => e.severity === 'warning');
+                        return (
+                          <tr>
+                            <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-2 pt-0 space-y-1.5">
+                              {criticalErrors.length > 0 && (
+                                <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-micro text-rose-800 space-y-0.5">
+                                  {criticalErrors.map((e, i) => (
+                                    <p key={i} className="flex items-start space-x-1.5">
+                                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0 mt-0.5" />
+                                      <span>{e.message}</span>
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                              {warnings.length > 0 && (
+                                <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-micro text-amber-800 space-y-0.5">
+                                  {warnings.map((w, i) => (
+                                    <p key={i} className="flex items-start space-x-1.5">
+                                      <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                                      <span>{w.message}</span>
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })()}
                       </React.Fragment>
                     );
                   })}
