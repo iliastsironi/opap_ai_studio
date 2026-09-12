@@ -983,8 +983,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
   return (
     <div className="space-y-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <div>
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-3">
+        <div className="min-w-0">
           <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
               <Hash className="w-4 h-4 text-indigo-600" />
@@ -1006,7 +1006,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             )}
           </div>
           <p className="text-micro text-slate-500 mt-1">
-            Το <strong className="text-slate-700">Μπροστά-Αρχικό</strong> μεταφέρεται αυτόματα από το προηγούμενο <strong className="text-slate-700">Μπροστά-Τελικό</strong>, και το <strong className="text-slate-700">Πίσω-Τελικό</strong> από το προηγούμενο <strong className="text-slate-700">Πίσω-Αρχικό</strong>. Ο υπάλληλος συμπληρώνει μόνο το Μπροστά-Τελικό και το Πίσω-Αρχικό στο κλείσιμο.
+            Αρχικό/Τελικό μεταφέρονται αυτόματα βάρδια προς βάρδια. Συμπληρώνετε μόνο το{' '}
+            <strong className="text-slate-700">Μπροστά-Τελικό</strong> και το <strong className="text-slate-700">Πίσω-Αρχικό</strong> στο κλείσιμο.
           </p>
         </div>
 
