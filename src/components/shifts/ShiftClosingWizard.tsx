@@ -1462,7 +1462,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Top Bar Navigation */}
       <div className="flex items-center justify-between">
         <button
