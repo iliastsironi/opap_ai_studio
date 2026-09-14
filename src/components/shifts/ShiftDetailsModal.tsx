@@ -32,6 +32,7 @@ import { SUCCESS_MODAL_CLOSE_MS } from '../../lib/timing.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
+import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import {
   safeNum,
   roundCurrency,
@@ -851,12 +852,19 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 })()}
 
                 {/* Employee / Manager Notes Preview */}
-                {(shift.employee_notes || shift.manager_notes) && (
+                {(shift.employee_notes || shift.manager_notes || shift.handover_message) && (
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-sm">
                     {shift.employee_notes && (
                       <div>
                         <span className="font-bold text-slate-700 block">Σημειώσεις Υπαλλήλου:</span>
                         <p className="text-slate-600 italic">{shift.employee_notes}</p>
+                      </div>
+                    )}
+                    {shift.handover_message && (
+                      <div className={shift.employee_notes ? 'pt-2 border-t border-slate-200' : undefined}>
+                        <span className="font-bold text-slate-700 block">Μήνυμα για την επόμενη βάρδια:</span>
+                        <p className="text-slate-800 whitespace-pre-wrap">{shift.handover_message}</p>
+                        {isManagerOrOwner && <HandoverReceipts shiftId={shift.id} />}
                       </div>
                     )}
                     {shift.manager_notes && (

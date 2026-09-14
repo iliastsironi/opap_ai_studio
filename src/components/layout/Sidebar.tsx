@@ -86,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
     { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
     { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
     { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
+    { id: 'employee_charges', label: 'Χρεώσεις Υπαλλήλων', icon: Wallet, perm: 'employee_charges.view' },
     { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
   ];
 

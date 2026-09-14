@@ -49,6 +49,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { getNationalLotteryShiftContribution } from '../../services/nationalLotteryService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
+import { requestNotificationsRefresh } from '../../services/notificationService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { TOAST_AUTO_DISMISS_MS, SUBMIT_SUCCESS_REDIRECT_MS } from '../../lib/timing.ts';
@@ -733,6 +734,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [employeeNotes, setEmployeeNotes] = useState<string>(
     shift.employee_notes || localDraft?.employee_notes || ''
   );
+  const [handoverMessage, setHandoverMessage] = useState<string>(
+    shift.handover_message || localDraft?.handover_message || ''
+  );
 
   // UI state & Print Receipt state
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
@@ -1133,6 +1137,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       is_unbalanced: discResult.isUnbalanced,
 
       employee_notes: employeeNotes,
+      handover_message: handoverMessage,
       custom_field_values: {
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
@@ -1208,6 +1213,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     expenses,
     customerCredits,
     employeeNotes,
+    handoverMessage,
   ]);
 
   // Manual Autosave Draft function
@@ -1423,6 +1429,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       setShowSubmitConfirm(false);
       setSubmitSucceeded(true);
+      requestNotificationsRefresh();
       setTimeout(() => onSubmitted(), SUBMIT_SUCCESS_REDIRECT_MS);
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την υποβολή βάρδιας');
@@ -3286,10 +3293,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
+          {/* Owners are never charged for their own till (see 0018 trigger). */}
+          {discResult.discrepancy < 0 &&
+            !(shift.opened_by_user_id === user?.id &&
+              roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code))) && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Με την υποβολή, το έλλειμμα <strong>{formatCurrency(Math.abs(discResult.discrepancy))}</strong> θα
+                  χρεωθεί στον χειριστή της βάρδιας ({shift.opened_by_user_name || 'Υπάλληλος'}).
+                </span>
+              </div>
+            )}
+
           {/* Employee Closing Notes */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Σημειώσεις Βάρδιας (Προαιρετικό)
+            <label className="block text-xs font-bold text-slate-700 tracking-wider mb-1.5">
+              {toGreekUpper('Σημειώσεις Βάρδιας (Προαιρετικό)')}
             </label>
             <textarea
               value={employeeNotes}
@@ -3299,6 +3319,27 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               rows={3}
               className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="handover-message"
+              className="block text-xs font-bold text-slate-700 tracking-wider mb-1.5"
+            >
+              {toGreekUpper('Μήνυμα για την επόμενη βάρδια (Προαιρετικό)')}
+            </label>
+            <textarea
+              id="handover-message"
+              value={handoverMessage}
+              maxLength={MAX_NOTES_LENGTH}
+              onChange={(e) => setHandoverMessage(e.target.value)}
+              placeholder="π.χ. Ο κ. Παπαδόπουλος θα περάσει να εξοφλήσει. Το VLT 3 κολλάει."
+              rows={3}
+              className="w-full px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50/40 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Εμφανίζεται ως αναδυόμενο μήνυμα στους συναδέλφους μετά την υποβολή.
+            </p>
           </div>
         </div>
       )}

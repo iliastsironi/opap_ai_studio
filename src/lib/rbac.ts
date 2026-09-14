@@ -66,6 +66,10 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   // - ACCOUNTANT/AUDITOR explicitly excluded even though they can see reports.
   { id: 'perm_roster.view', code: 'roster.view', module: 'Roster', description: 'Προβολή εβδομαδιαίου προγράμματος βαρδιών' },
   { id: 'perm_roster.manage', code: 'roster.manage', module: 'Roster', description: 'Επεξεργασία εβδομαδιαίου προγράμματος βαρδιών' },
+  // '.view' goes to every role (RLS limits non-managers to their own rows);
+  // '.manage' is Owner-only via '*', mirrored by resolve_employee_charge().
+  { id: 'perm_employee_charges.view', code: 'employee_charges.view', module: 'Employee Charges', description: 'Προβολή χρεώσεων υπαλλήλων από ελλείμματα ταμείου' },
+  { id: 'perm_employee_charges.manage', code: 'employee_charges.manage', module: 'Employee Charges', description: 'Εξόφληση ή χάρισμα χρεώσεων υπαλλήλων' },
 ];
 
 // A few concepts are checked under more than one spelling elsewhere in the
@@ -97,6 +101,7 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
     'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
     'roster.view', 'roster.manage',
+    'employee_charges.view',
   ],
   STORE_MANAGER: [
     'org.view', 'store.view', 'users.view', 'shift.create', 'shift.submit',
@@ -106,18 +111,21 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'opap.view', 'vlt.view', 'fnb.view', 'incidents.view', 'reports.view',
     'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
     'roster.view', 'roster.manage',
+    'employee_charges.view',
   ],
   SHIFT_SUPERVISOR: [
     'org.view', 'store.view', 'shift.create', 'shift.submit', 'expense.create', 'cash.view',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
     'national_lottery.view', 'national_lottery.collect',
     'roster.view',
+    'employee_charges.view',
   ],
   EMPLOYEE: [
     'store.view', 'shift.create', 'shift.submit', 'expense.create',
     'shifts.view', 'expenses.view', 'suppliers.view', 'opap.view', 'vlt.view', 'fnb.view', 'incidents.view',
     'national_lottery.view', 'national_lottery.collect',
     'roster.view',
+    'employee_charges.view',
   ],
   ACCOUNTANT: [
     'org.view', 'store.view', 'expense.create', 'cash.view',
@@ -125,6 +133,7 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'dashboard.view', 'reports.view',
     'national_lottery.view',
     'roster.view',
+    'employee_charges.view',
   ],
   AUDITOR: [
     'org.view', 'store.view', 'cash.view',
@@ -132,6 +141,7 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'dashboard.view', 'reports.view',
     'national_lottery.view',
     'roster.view',
+    'employee_charges.view',
   ],
 };
 

@@ -7,6 +7,7 @@ import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
 import { ErrorBoundary } from '../common/ErrorBoundary.tsx';
 import { GlobalLoadingSkeleton } from '../common/LoadingSkeleton.tsx';
+import { NotificationPopupHost } from '../notifications/NotificationPopupHost.tsx';
 
 interface ProtectedLayoutProps {
   children: (tab: string, setTab: (t: string) => void) => React.ReactNode;
@@ -81,7 +82,8 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
           )}
         </main>
       </div>
+
+      <NotificationPopupHost onNavigate={setCurrentTab} />
     </div>
   );
 };
-

@@ -270,6 +270,7 @@ export interface Shift {
   // Notes & Workflow
   employee_notes?: string;
   manager_notes?: string;
+  handover_message?: string;
   reopened_by_user_id?: string;
   reopened_at?: string;
 
