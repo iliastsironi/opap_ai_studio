@@ -39,4 +39,12 @@ describe('Canonical RBAC model (src/lib/rbac.ts)', () => {
     expect(employeePerms).not.toContain('roles.manage');
     expect(employeePerms).not.toContain('org.settings');
   });
+
+  it('keeps the monthly P&L Owner-only, matching the Owner-only RLS on its tables', () => {
+    for (const role of ['AREA_MANAGER', 'STORE_MANAGER', 'SHIFT_SUPERVISOR', 'EMPLOYEE', 'ACCOUNTANT', 'AUDITOR']) {
+      const perms = getPermissionsForRole(role);
+      expect(perms, role).not.toContain('*');
+      expect(perms, role).not.toContain('pnl.manage');
+    }
+  });
 });

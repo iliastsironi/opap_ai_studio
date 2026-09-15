@@ -70,6 +70,9 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   // '.manage' is Owner-only via '*', mirrored by resolve_employee_charge().
   { id: 'perm_employee_charges.view', code: 'employee_charges.view', module: 'Employee Charges', description: 'Προβολή χρεώσεων υπαλλήλων από ελλείμματα ταμείου' },
   { id: 'perm_employee_charges.manage', code: 'employee_charges.manage', module: 'Employee Charges', description: 'Εξόφληση ή χάρισμα χρεώσεων υπαλλήλων' },
+  // Owner-only: absent from every non-wildcard role below, mirrored by the
+  // Owner-only RLS on the P&L tables (0019_monthly_pnl.sql).
+  { id: 'perm_pnl.manage', code: 'pnl.manage', module: 'Reports', description: 'Μηνιαίο οικονομικό P&L: προμήθειες, πάγια, μισθοδοσία, έξοδα εταιρίας' },
 ];
 
 // A few concepts are checked under more than one spelling elsewhere in the
