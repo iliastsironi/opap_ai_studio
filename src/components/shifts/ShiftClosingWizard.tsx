@@ -192,7 +192,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   onBack,
   onSubmitted,
 }) => {
-  const { token, roles, permissions, user, organization } = useAuth();
+  const { token, roles, permissions, user, organization, isLoading: isAuthLoading } = useAuth();
   const canManage =
     roles.some(
       (r) =>
@@ -747,9 +747,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // Exactly who auth_is_elevated() lets past trg_enforce_scratch_field_locks
   // (0002_rls.sql) - anyone else must echo stored locked values back.
+  //
+  // AuthContext seeds roles/permissions optimistically with ORG_OWNER + '*'
+  // and only replaces them once syncUserProfile resolves, so until isLoading
+  // clears, an employee looks elevated here. Treat "not resolved yet" as NOT
+  // elevated: for an employee that is the difference between saving and a
+  // 42501 that rejects the whole shift, while for a genuine Owner it costs at
+  // most one skipped write of a locked field - scratchRows still holds their
+  // value and the next autosave sends it.
   const canEditScratchLockedFields =
-    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'].includes(r.code)) ||
-    permissions.includes('*');
+    !isAuthLoading &&
+    (roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'].includes(r.code)) ||
+      permissions.includes('*'));
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);

@@ -76,6 +76,20 @@ describe('lockScratchRowsForSave', () => {
     expect(lockScratchRowsForSave(rows, 'not-an-array', false)).toEqual(rows);
   });
 
+  // AuthContext seeds roles with ORG_OWNER and permissions with '*' before the
+  // real profile loads, so an employee briefly looks elevated. The wizard gates
+  // on !isAuthLoading for that reason; this pins the helper's half of the
+  // contract - "not elevated" must always mean "echo the stored value".
+  it('protects the save whenever the caller cannot prove elevation yet', () => {
+    const stored = [{ id: 'scr_1', startNo: 0, backEndNo: '199' }];
+    const drifted = [row({ id: 'scr_1', startNo: '', backEndNo: '', endNo: '042' })];
+
+    const [pending] = lockScratchRowsForSave(drifted, stored, false);
+    expect(pending.startNo).toBe('0');
+    expect(pending.backEndNo).toBe('199');
+    expect(pending.endNo).toBe('042');
+  });
+
   it('leaves a stored null alone so 0007 null-vs-empty handling still applies', () => {
     const stored = [{ id: 'scr_1', startNo: null, backEndNo: null }];
     const [saved] = lockScratchRowsForSave([row({ id: 'scr_1', startNo: '', backEndNo: '' })], stored, false);
