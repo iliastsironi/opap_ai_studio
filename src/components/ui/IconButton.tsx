@@ -2,6 +2,20 @@ import React from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 export type IconButtonTone = 'neutral' | 'primary' | 'danger' | 'success';
+export type IconButtonSize = 'md' | 'sm';
+
+// 'md' is the default 40px target. 'sm' (32px) exists for grids whose rows are
+// already fixed height - the Scratch table's rows are 49px with 32px inputs, so
+// a 40px button would grow every row instead of just the tap area.
+const SIZE_CLASSES: Record<IconButtonSize, string> = {
+  md: 'w-10 h-10',
+  sm: 'w-8 h-8',
+};
+
+const ICON_SIZE_CLASSES: Record<IconButtonSize, string> = {
+  md: 'w-4 h-4',
+  sm: 'w-3.5 h-3.5',
+};
 
 const TONE_CLASSES: Record<IconButtonTone, string> = {
   neutral: 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-slate-400',
@@ -16,6 +30,7 @@ export interface IconButtonProps {
   label: string;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   tone?: IconButtonTone;
+  size?: IconButtonSize;
   disabled?: boolean;
   className?: string;
 }
@@ -28,6 +43,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   label,
   onClick,
   tone = 'neutral',
+  size = 'md',
   disabled = false,
   className = '',
 }) => (
@@ -37,8 +53,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
     disabled={disabled}
     aria-label={label}
     title={label}
-    className={`inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 ${TONE_CLASSES[tone]} ${className}`}
+    className={`inline-flex items-center justify-center ${SIZE_CLASSES[size]} shrink-0 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 ${TONE_CLASSES[tone]} ${className}`}
   >
-    <Icon className="w-4 h-4" />
+    <Icon className={ICON_SIZE_CLASSES[size]} />
   </button>
 );

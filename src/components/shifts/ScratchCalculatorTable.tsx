@@ -22,6 +22,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 export interface ScratchTicketRow {
   id: string;
@@ -1272,15 +1273,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   </button>
                                 )}
                                 {!readOnly && canManage && (
-                                  <button
-                                    type="button"
+                                  <IconButton
+                                    icon={Edit2}
+                                    label="Επεξεργασία ονόματος/τιμής"
+                                    tone="primary"
+                                    size="sm"
                                     onClick={() => setEditingRowId(row.id)}
-                                    className="text-slate-400 hover:text-indigo-600 transition-colors p-1.5 cursor-pointer"
-                                    title="Επεξεργασία ονόματος/τιμής"
-                                    aria-label="Επεξεργασία ονόματος/τιμής"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </button>
+                                  />
                                 )}
                               </div>
                             </div>
@@ -1635,20 +1634,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <div className="flex items-center justify-center space-x-1.5">
                               {/* Open New Pack button - sets both locked baselines (Μπροστά-Αρχικό, Πίσω-Τελικό), Owner/Admin only. Meaningless for a manual-mode row (no physical pack to number). */}
                               {canEditLockedFields && !isManual && (
-                                <button
-                                  type="button"
+                                <IconButton
+                                  icon={PackagePlus}
+                                  label="Άνοιγμα Νέου Πακέτου"
+                                  tone="success"
+                                  size="sm"
+                                  className="bg-slate-100"
                                   onClick={() => {
                                     setNewPackModalRowId(row.id);
                                     setNewPackStartNo('0');
                                     const maxNo = getPackageMaxNumber(row.price);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
                                   }}
-                                  className="p-1.5 rounded bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 text-slate-600 transition-colors cursor-pointer"
-                                  title="Άνοιγμα Νέου Πακέτου (ορισμός Μπροστά-Αρχικό και Πίσω-Τελικό)"
-                                  aria-label="Άνοιγμα Νέου Πακέτου"
-                                >
-                                  <PackagePlus className="w-3.5 h-3.5" />
-                                </button>
+                                />
                               )}
 
                               {isEditing && (
@@ -1661,15 +1659,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 </button>
                               )}
 
-                              <button
-                                type="button"
+                              <IconButton
+                                icon={Trash2}
+                                label="Διαγραφή παιχνιδιού"
+                                tone="danger"
+                                size="sm"
                                 onClick={() => setRowToRemove(row.id)}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 cursor-pointer"
-                                title="Διαγραφή παιχνιδιού"
-                                aria-label="Διαγραφή παιχνιδιού"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              />
                             </div>
                           </td>
                         )}
