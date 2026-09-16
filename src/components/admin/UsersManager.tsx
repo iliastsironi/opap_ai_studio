@@ -232,7 +232,7 @@ export const UsersManager: React.FC = () => {
             <button
               onClick={() => setLastInviteInfo(null)}
               aria-label="Κλείσιμο"
-              className="text-indigo-600 hover:text-indigo-900 font-bold text-xs cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 font-bold text-xs cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -276,7 +276,7 @@ export const UsersManager: React.FC = () => {
           <button
             onClick={() => setSuccessNotification(null)}
             aria-label="Κλείσιμο"
-            className="text-emerald-700 hover:text-emerald-900 font-bold ml-4 cursor-pointer"
+            className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 font-bold ml-4 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

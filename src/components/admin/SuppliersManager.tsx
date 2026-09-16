@@ -356,7 +356,7 @@ export const SuppliersManager: React.FC = () => {
             <CheckCircle2 aria-hidden="true" className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} aria-label="Κλείσιμο" className="text-emerald-700 font-bold hover:opacity-80 cursor-pointer">
+          <button onClick={() => setSuccessMsg(null)} aria-label="Κλείσιμο" className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-emerald-700 font-bold hover:bg-emerald-100 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -369,7 +369,7 @@ export const SuppliersManager: React.FC = () => {
             <AlertCircle aria-hidden="true" className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} aria-label="Κλείσιμο" className="text-rose-700 font-bold hover:opacity-80 cursor-pointer">
+          <button onClick={() => setErrorMsg(null)} aria-label="Κλείσιμο" className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-rose-700 font-bold hover:bg-rose-100 cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>

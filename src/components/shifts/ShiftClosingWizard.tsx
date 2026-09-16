@@ -1530,7 +1530,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             type="button"
             onClick={() => setDraftSaveError(null)}
             aria-label="Κλείσιμο"
-            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-rose-400 hover:text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -2156,7 +2156,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     type="button"
                     onClick={() => setVltsSyncNotification(null)}
                     aria-label="Κλείσιμο ειδοποίησης"
-                    className="text-indigo-400 hover:text-indigo-700 ml-2 cursor-pointer p-0.5"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 ml-2 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -2439,7 +2439,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="button"
                   onClick={() => setSyncNotification(null)}
                   aria-label="Κλείσιμο ειδοποίησης"
-                  className="text-indigo-400 hover:text-indigo-700 ml-2 cursor-pointer p-0.5"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 ml-2 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -2456,7 +2456,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="button"
                   onClick={() => setExpenseActionError(null)}
                   aria-label="Κλείσιμο ειδοποίησης"
-                  className="text-rose-400 hover:text-rose-700 ml-2 cursor-pointer p-0.5"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-rose-400 hover:text-rose-700 hover:bg-rose-50 ml-2 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

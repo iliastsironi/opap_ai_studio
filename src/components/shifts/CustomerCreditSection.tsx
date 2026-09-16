@@ -435,7 +435,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         type="button"
                         onClick={() => setQuickCreateOpenIdx(null)}
                         aria-label="Κλείσιμο"
-                        className="text-slate-400 hover:text-slate-600 cursor-pointer p-1.5"
+                        className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>

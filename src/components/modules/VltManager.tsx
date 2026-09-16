@@ -250,7 +250,7 @@ export const VltManager: React.FC = () => {
             type="button"
             onClick={() => setTerminalsLoadError(null)}
             aria-label="Κλείσιμο"
-            className="text-rose-400 hover:text-rose-700 cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-rose-400 hover:text-rose-700 hover:bg-rose-50 cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

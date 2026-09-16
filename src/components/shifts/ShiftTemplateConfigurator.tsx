@@ -385,7 +385,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           <button
             onClick={() => setSuccessMsg(null)}
             aria-label="Κλείσιμο"
-            className="text-emerald-700 hover:text-emerald-900 font-bold ml-4 cursor-pointer p-0.5"
+            className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 font-bold ml-4 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -401,7 +401,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           <button
             onClick={() => setErrorMsg(null)}
             aria-label="Κλείσιμο"
-            className="text-rose-700 hover:text-rose-900 font-bold ml-4 cursor-pointer p-0.5"
+            className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-rose-700 hover:text-rose-900 hover:bg-rose-100 font-bold ml-4 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
