@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import {
   Clock,
   Play,
@@ -48,17 +48,18 @@ import { safeNum } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
 import { DailyShiftReportModal } from './DailyShiftReportModal.tsx';
+import { lazyWithRetry } from '../../lib/lazyWithRetry.ts';
 
 // Lazy-loaded: each is only mounted behind a condition (active wizard / active
 // manager tab), so keeping them out of the main chunk avoids shipping the
 // wizard's ~3000 lines and the aggregation view's chart deps to every visitor.
-const ShiftClosingWizard = lazy(() =>
+const ShiftClosingWizard = lazyWithRetry(() =>
   import('./ShiftClosingWizard.tsx').then((m) => ({ default: m.ShiftClosingWizard }))
 );
-const ShiftTemplateConfigurator = lazy(() =>
+const ShiftTemplateConfigurator = lazyWithRetry(() =>
   import('./ShiftTemplateConfigurator.tsx').then((m) => ({ default: m.ShiftTemplateConfigurator }))
 );
-const DailyAggregationView = lazy(() =>
+const DailyAggregationView = lazyWithRetry(() =>
   import('./DailyAggregationView.tsx').then((m) => ({ default: m.DailyAggregationView }))
 );
 

@@ -1,29 +1,30 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { TenantProvider } from './context/TenantContext.tsx';
 import { ProtectedLayout } from './components/layout/ProtectedLayout.tsx';
 import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
 import { ShieldAlert, Clock } from 'lucide-react';
+import { lazyWithRetry, clearChunkReloadFlag } from './lib/lazyWithRetry.ts';
 
-const ExpensesManager = lazy(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
-const OpapGamesManager = lazy(() => import('./components/modules/OpapGamesManager.tsx').then((m) => ({ default: m.OpapGamesManager })));
-const VltManager = lazy(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
-const FnbManager = lazy(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
-const IncidentsManager = lazy(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
-const NationalLotteryManager = lazy(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
-const ReportsManager = lazy(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
-const RosterManager = lazy(() => import('./components/modules/RosterManager.tsx').then((m) => ({ default: m.RosterManager })));
-const EmployeeChargesManager = lazy(() => import('./components/modules/EmployeeChargesManager.tsx').then((m) => ({ default: m.EmployeeChargesManager })));
-const DashboardOverview = lazy(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
-const StoresManager = lazy(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
-const UsersManager = lazy(() => import('./components/admin/UsersManager.tsx').then((m) => ({ default: m.UsersManager })));
-const RolesManager = lazy(() => import('./components/admin/RolesManager.tsx').then((m) => ({ default: m.RolesManager })));
-const AuditLogViewer = lazy(() => import('./components/admin/AuditLogViewer.tsx').then((m) => ({ default: m.AuditLogViewer })));
-const OrganizationSettings = lazy(() => import('./components/admin/OrganizationSettings.tsx').then((m) => ({ default: m.OrganizationSettings })));
-const SuppliersManager = lazy(() => import('./components/admin/SuppliersManager.tsx').then((m) => ({ default: m.SuppliersManager })));
-const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard.tsx').then((m) => ({ default: m.OnboardingWizard })));
-const InstructionsPage = lazy(() => import('./components/instructions/InstructionsPage.tsx').then((m) => ({ default: m.InstructionsPage })));
-const CopilotPage = lazy(() => import('./components/copilot/CopilotPage.tsx').then((m) => ({ default: m.CopilotPage })));
+const ExpensesManager = lazyWithRetry(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
+const OpapGamesManager = lazyWithRetry(() => import('./components/modules/OpapGamesManager.tsx').then((m) => ({ default: m.OpapGamesManager })));
+const VltManager = lazyWithRetry(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
+const FnbManager = lazyWithRetry(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
+const IncidentsManager = lazyWithRetry(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
+const NationalLotteryManager = lazyWithRetry(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
+const ReportsManager = lazyWithRetry(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
+const RosterManager = lazyWithRetry(() => import('./components/modules/RosterManager.tsx').then((m) => ({ default: m.RosterManager })));
+const EmployeeChargesManager = lazyWithRetry(() => import('./components/modules/EmployeeChargesManager.tsx').then((m) => ({ default: m.EmployeeChargesManager })));
+const DashboardOverview = lazyWithRetry(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
+const StoresManager = lazyWithRetry(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
+const UsersManager = lazyWithRetry(() => import('./components/admin/UsersManager.tsx').then((m) => ({ default: m.UsersManager })));
+const RolesManager = lazyWithRetry(() => import('./components/admin/RolesManager.tsx').then((m) => ({ default: m.RolesManager })));
+const AuditLogViewer = lazyWithRetry(() => import('./components/admin/AuditLogViewer.tsx').then((m) => ({ default: m.AuditLogViewer })));
+const OrganizationSettings = lazyWithRetry(() => import('./components/admin/OrganizationSettings.tsx').then((m) => ({ default: m.OrganizationSettings })));
+const SuppliersManager = lazyWithRetry(() => import('./components/admin/SuppliersManager.tsx').then((m) => ({ default: m.SuppliersManager })));
+const OnboardingWizard = lazyWithRetry(() => import('./components/onboarding/OnboardingWizard.tsx').then((m) => ({ default: m.OnboardingWizard })));
+const InstructionsPage = lazyWithRetry(() => import('./components/instructions/InstructionsPage.tsx').then((m) => ({ default: m.InstructionsPage })));
+const CopilotPage = lazyWithRetry(() => import('./components/copilot/CopilotPage.tsx').then((m) => ({ default: m.CopilotPage })));
 
 const ModuleLoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center py-24">
@@ -129,6 +130,13 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
 }
 
 export default function App() {
+  // The app rendered, so whatever stale chunk forced a reload is behind us.
+  // Re-arm the one-shot guard in lazyWithRetry so a LATER deploy can heal the
+  // same tab too - without this, a long-lived tab only ever self-heals once.
+  useEffect(() => {
+    clearChunkReloadFlag();
+  }, []);
+
   return (
     <AuthProvider>
       <TenantProvider>
