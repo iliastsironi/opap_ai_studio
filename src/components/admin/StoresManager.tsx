@@ -7,6 +7,7 @@ import { createStoreInFirestore, updateStoreInFirestore, deleteStoreFromFirestor
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 export const StoresManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -254,22 +255,18 @@ export const StoresManager: React.FC = () => {
 
                     {hasPermission('store.manage') && (
                       <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100">
-                        <button
+                        <IconButton
+                          icon={Edit3}
+                          label="Επεξεργασία Καταστήματος"
+                          tone="primary"
                           onClick={(e) => handleOpenEditModal(st, e)}
-                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
-                          title="Επεξεργασία Καταστήματος"
-                          aria-label="Επεξεργασία Καταστήματος"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          label="Διαγραφή Καταστήματος"
+                          tone="danger"
                           onClick={(e) => handleDeleteStore(st, e)}
-                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                          title="Διαγραφή Καταστήματος"
-                          aria-label="Διαγραφή Καταστήματος"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        />
                       </div>
                     )}
                   </div>

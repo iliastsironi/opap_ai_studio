@@ -10,6 +10,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 export const FnbManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -367,17 +368,15 @@ export const FnbManager: React.FC = () => {
                     <td className="px-4 py-3 font-mono text-micro text-slate-600">{s.payment_method}</td>
                     <td className="px-4 py-3 text-slate-600">{s.server_name}</td>
                     <td className="px-4 py-3 text-right">
-                      <button
+                      <IconButton
+                        icon={Trash2}
+                        label="Διαγραφή πώλησης"
+                        tone="danger"
                         onClick={() => {
                           setDeleteError(null);
                           setSaleToDelete(s);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Διαγραφή και αμφίδρομη ενημέρωση βάρδιας"
-                        aria-label="Διαγραφή πώλησης"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      />
                     </td>
                   </tr>
                 ))
@@ -394,25 +393,21 @@ export const FnbManager: React.FC = () => {
             {Math.min(pageSafe * FNB_PAGE_SIZE, fnbSales.length)} από {fnbSales.length} πωλήσεις
           </span>
           <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            <IconButton
+              icon={ChevronLeft}
+              label="Προηγούμενη σελίδα"
               disabled={pageSafe <= 1}
-              aria-label="Προηγούμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="border border-slate-200 bg-white"
+            />
             <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            <IconButton
+              icon={ChevronRight}
+              label="Επόμενη σελίδα"
               disabled={pageSafe >= totalPages}
-              aria-label="Επόμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="border border-slate-200 bg-white"
+            />
           </div>
         </div>
       )}

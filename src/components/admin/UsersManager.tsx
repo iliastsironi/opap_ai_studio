@@ -8,6 +8,7 @@ import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 export const UsersManager: React.FC = () => {
   const { token, organization, hasPermission } = useAuth();
@@ -414,22 +415,18 @@ export const UsersManager: React.FC = () => {
 
                     <td className="p-4 text-center">
                       <div className="flex items-center justify-center space-x-1.5">
-                        <button
+                        <IconButton
+                          icon={Edit2}
+                          label="Επεξεργασία Εργαζομένου"
+                          tone="primary"
                           onClick={() => openEditModal(u)}
-                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="Επεξεργασία Εργαζομένου"
-                          aria-label="Επεξεργασία Εργαζομένου"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
+                        />
+                        <IconButton
+                          icon={Trash2}
+                          label="Διαγραφή Εργαζομένου"
+                          tone="danger"
                           onClick={() => handleDeleteUser(u)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Διαγραφή Εργαζομένου"
-                          aria-label="Διαγραφή Εργαζομένου"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </tr>
@@ -447,25 +444,21 @@ export const UsersManager: React.FC = () => {
             {Math.min(pageSafe * USERS_PAGE_SIZE, users.length)} από {users.length} χρήστες
           </span>
           <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            <IconButton
+              icon={ChevronLeft}
+              label="Προηγούμενη σελίδα"
               disabled={pageSafe <= 1}
-              aria-label="Προηγούμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="border border-slate-200 bg-white"
+            />
             <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            <IconButton
+              icon={ChevronRight}
+              label="Επόμενη σελίδα"
               disabled={pageSafe >= totalPages}
-              aria-label="Επόμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="border border-slate-200 bg-white"
+            />
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { WeeklyRosterStore } from '../../data/pnlData.ts';
 import { SYSTEM_ROLES } from '../../lib/rbac.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 type ScheduleRow = WeeklyRosterStore['schedule'][number];
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
@@ -362,14 +363,12 @@ export const RosterManager: React.FC = () => {
                           );
                         })}
                         <td className="p-1.5 text-center">
-                          <button
-                            type="button"
+                          <IconButton
+                            icon={Trash2}
+                            label="Διαγραφή γραμμής"
+                            tone="danger"
                             onClick={() => handleRemoveRow(rIdx)}
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                            title="Διαγραφή γραμμής"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          />
                         </td>
                       </tr>
                     ))}

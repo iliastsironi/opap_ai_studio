@@ -17,6 +17,7 @@ import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 const ELEVATED_ROLE_CODES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'];
 
@@ -379,25 +380,21 @@ export const VltManager: React.FC = () => {
             {Math.min(pageSafe * TERMINALS_PAGE_SIZE, terminals.length)} από {terminals.length} τερματικά
           </span>
           <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            <IconButton
+              icon={ChevronLeft}
+              label="Προηγούμενη σελίδα"
               disabled={pageSafe <= 1}
-              aria-label="Προηγούμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="border border-slate-200 bg-white"
+            />
             <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            <IconButton
+              icon={ChevronRight}
+              label="Επόμενη σελίδα"
               disabled={pageSafe >= totalPages}
-              aria-label="Επόμενη σελίδα"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="border border-slate-200 bg-white"
+            />
           </div>
         </div>
       )}

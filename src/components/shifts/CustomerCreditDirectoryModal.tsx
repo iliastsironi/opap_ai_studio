@@ -37,6 +37,7 @@ import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 
 interface CustomerCreditDirectoryModalProps {
   isOpen: boolean;
@@ -562,29 +563,23 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                   </button>
                                 )}
 
-                                <button
-                                  type="button"
+                                <IconButton
+                                  icon={Edit2}
+                                  label="Επεξεργασία"
+                                  tone="primary"
                                   onClick={() => handleOpenEditModal(cust)}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Επεξεργασία"
-                                  aria-label="Επεξεργασία"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
+                                />
 
                                 {isOwnerOrManager && (
-                                  <button
-                                    type="button"
+                                  <IconButton
+                                    icon={Trash2}
+                                    label="Διαγραφή"
+                                    tone="danger"
                                     onClick={() => {
                                       setDeleteCustomerError(null);
                                       setCustomerToDelete({ id: cust.id, name: cust.name });
                                     }}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                    title="Διαγραφή"
-                                    aria-label="Διαγραφή"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  />
                                 )}
                               </div>
                             </td>
@@ -604,25 +599,21 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     {Math.min(pageSafe * CUSTOMERS_PAGE_SIZE, filteredCustomers.length)} από {filteredCustomers.length} πελάτες
                   </span>
                   <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    <IconButton
+                      icon={ChevronLeft}
+                      label="Προηγούμενη σελίδα"
                       disabled={pageSafe <= 1}
-                      aria-label="Προηγούμενη σελίδα"
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="border border-slate-200 bg-white"
+                    />
                     <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    <IconButton
+                      icon={ChevronRight}
+                      label="Επόμενη σελίδα"
                       disabled={pageSafe >= totalPages}
-                      aria-label="Επόμενη σελίδα"
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="border border-slate-200 bg-white"
+                    />
                   </div>
                 </div>
               )}

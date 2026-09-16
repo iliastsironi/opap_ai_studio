@@ -762,14 +762,12 @@ export const SuppliersManager: React.FC = () => {
 
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center space-x-1.5">
-                            <button
+                            <IconButton
+                              icon={Eye}
+                              label="Προεπισκόπηση Παραγγελίας"
+                              tone="primary"
                               onClick={() => setPreviewOrder(ord)}
-                              className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Προεπισκόπηση Παραγγελίας"
-                              aria-label="Προεπισκόπηση Παραγγελίας"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
+                            />
 
                             {ord.status === 'PENDING' && (
                               <button
