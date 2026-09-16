@@ -33,6 +33,7 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import {
   ScratchCalculatorTable,
+  lockScratchRowsForSave,
   DEFAULT_SCRATCH_PRESETS,
   ScratchTicketRow,
   calculateRowTotal,
@@ -743,6 +744,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
   const [draftSaveError, setDraftSaveError] = useState<string | null>(null);
+
+  // Exactly who auth_is_elevated() lets past trg_enforce_scratch_field_locks
+  // (0002_rls.sql) - anyone else must echo stored locked values back.
+  const canEditScratchLockedFields =
+    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'].includes(r.code)) ||
+    permissions.includes('*');
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -1145,7 +1152,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         opening_topup_1: safeNum(openingTopUp1),
         opening_topup_2: safeNum(openingTopUp2),
         customer_credits: customerCredits,
-        scratch_ticket_items: scratchRows,
+        // Never send a locked field this user isn't allowed to change - see
+        // lockScratchRowsForSave. Otherwise drift introduced by the mount-time
+        // merge makes the database refuse the entire update (42501).
+        scratch_ticket_items: lockScratchRowsForSave(
+          scratchRows,
+          shift.custom_field_values?.scratch_ticket_items,
+          canEditScratchLockedFields
+        ),
         store_pos_items: storePosItems,
         tora_pos_items: toraPosItems,
         vlts_cash_out_type: vltsOutType,
@@ -1178,9 +1192,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         });
         setDraftSavedAt(timeStr);
         setIsAutoSaved(true);
+        setDraftSaveError(null);
         setTimeout(() => setIsAutoSaved(false), TOAST_AUTO_DISMISS_MS);
-      } catch (err) {
-        console.warn('Silent autosave error:', err);
+      } catch (err: any) {
+        // A swallowed autosave failure is worse than the failure itself: the
+        // employee keeps working a shift that stopped persisting. Surface it
+        // in the same banner the manual save uses.
+        console.warn('Autosave error:', err);
+        setDraftSaveError(err?.message || 'Αποτυχία αυτόματης αποθήκευσης προχείρου');
       }
     }, 800);
 

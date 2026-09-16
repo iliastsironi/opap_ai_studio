@@ -526,6 +526,48 @@ export function getPackageMaxNumber(price: number): number | null {
   return pieces === null ? null : pieces - 1;
 }
 
+// Μπροστά-Αρχικό (startNo) and Πίσω-Τελικό (backEndNo) are locked server-side:
+// trg_enforce_scratch_field_locks (0006/0007/0008) rejects the WHOLE shift
+// update with 42501 when a non-elevated user sends a value different from the
+// stored one for a row that already exists - matched by id.
+//
+// The user never has to touch a locked input for that to happen. The wizard
+// rebuilds its rows on mount by merging the saved shift against a per-browser
+// catalog (`startNo: match.startNo || ''`), so a stored 0 becomes '', and a
+// row coming from the catalog contributes the catalog's value. The employee
+// then edits something unrelated, the debounced autosave sends every row, and
+// the entire save - cash counts, POS, expenses - is refused.
+//
+// So: for anyone the database won't let edit these fields, echo back exactly
+// what is stored. Rows with no stored counterpart are genuinely new (the
+// trigger skips them), and elevated users keep full control.
+export function lockScratchRowsForSave(
+  rows: ScratchTicketRow[],
+  storedRows: unknown,
+  canEditLockedFields: boolean
+): ScratchTicketRow[] {
+  if (canEditLockedFields || !Array.isArray(storedRows)) return rows;
+
+  const storedById = new Map<string, any>();
+  for (const stored of storedRows) {
+    if (stored && typeof stored === 'object' && (stored as any).id !== undefined) {
+      storedById.set(String((stored as any).id), stored);
+    }
+  }
+  if (storedById.size === 0) return rows;
+
+  return rows.map((row) => {
+    const stored = storedById.get(String(row.id));
+    if (!stored) return row;
+    return {
+      ...row,
+      startNo: stored.startNo === undefined || stored.startNo === null ? row.startNo : String(stored.startNo),
+      backEndNo:
+        stored.backEndNo === undefined || stored.backEndNo === null ? row.backEndNo : String(stored.backEndNo),
+    };
+  });
+}
+
 export function formatTicketNumber(raw: string | number | undefined): string {
   const str = raw === undefined || raw === '' ? '0' : String(raw);
   const n = parseInt(str, 10);
