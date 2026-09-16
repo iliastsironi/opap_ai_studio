@@ -1,12 +1,13 @@
 import { Shift } from '../types/index.ts';
-import {
-  EmployeeKPI,
-  ShiftKPI,
-  VltReconciliationRecord,
-  EMPLOYEE_KPIS_SAMPLE,
-  SHIFT_KPIS_SAMPLE,
-  VLT_RECONCILIATIONS_SAMPLE,
-} from '../data/pnlData.ts';
+import { EmployeeKPI, ShiftKPI, VltReconciliationRecord } from '../data/pnlData.ts';
+
+// The display name for each shift type. These are UI labels, not data - the
+// figures beside them are always computed from real shifts.
+const SHIFT_TYPE_NAMES: Record<ShiftKPI['shiftType'], string> = {
+  MORNING: 'Πρωινή Βάρδια (8:00 - 16:00)',
+  AFTERNOON: 'Απογευματινή Βάρδια (16:00 - 00:00 / 02:00)',
+  NIGHT: 'Βραδινή / Play Hall (00:00 - 04:00)',
+};
 
 export interface DynamicKpiEngineInput {
   shifts: Shift[];
@@ -105,8 +106,9 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     };
   });
 
-  // If no shifts yet, use sample KPIs merged with any active users
-  const finalEmployeeKpis = calculatedEmployeeKpis.length > 0 ? calculatedEmployeeKpis : EMPLOYEE_KPIS_SAMPLE;
+  // No shifts means no KPIs. An empty table says that truthfully; invented
+  // rows would be indistinguishable from real ones once real shifts exist.
+  const finalEmployeeKpis = calculatedEmployeeKpis;
 
   // -----------------------------------------------------------------
   // 2. DYNAMIC SHIFT KPIS (MORNING vs AFTERNOON vs NIGHT)
@@ -150,25 +152,27 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     target.expenses += exp;
   });
 
-  const finalShiftKpis: ShiftKPI[] = SHIFT_KPIS_SAMPLE.map((sk) => {
-    const data = shiftTypeTotals[sk.shiftType];
-    if (data && data.count > 0) {
-      const avgRev = data.revenue / data.count;
-      const totalPay = data.cash + data.pos || 1;
+  // One card per shift type that actually ran. A type with no shifts is left
+  // out entirely rather than shown with placeholder figures.
+  const finalShiftKpis: ShiftKPI[] = (Object.keys(shiftTypeTotals) as Array<ShiftKPI['shiftType']>)
+    .filter((shiftType) => shiftTypeTotals[shiftType].count > 0)
+    .map((shiftType) => {
+      const data = shiftTypeTotals[shiftType];
+      const totalPay = data.cash + data.pos;
       return {
-        ...sk,
-        avgRevenue: Math.round(avgRev * 100) / 100,
+        shiftType,
+        shiftTypeName: SHIFT_TYPE_NAMES[shiftType],
+        avgRevenue: Math.round((data.revenue / data.count) * 100) / 100,
         avgOpapSales: Math.round((data.opap / data.count) * 100) / 100,
         avgVltNet: Math.round((data.vlt / data.count) * 100) / 100,
         avgFnbSales: Math.round((data.fnb / data.count) * 100) / 100,
-        cashRatio: Math.round((data.cash / totalPay) * 100),
-        posRatio: Math.round((data.pos / totalPay) * 100),
+        // No cash and no card means there is no split to report, not a 0/0 one.
+        cashRatio: totalPay > 0 ? Math.round((data.cash / totalPay) * 100) : 0,
+        posRatio: totalPay > 0 ? Math.round((data.pos / totalPay) * 100) : 0,
         avgDiscrepancy: Math.round((data.discrepancy / data.count) * 100) / 100,
-        avgExpensesToRevenue: Math.round((data.expenses / (data.revenue || 1)) * 1000) / 10,
+        avgExpensesToRevenue: data.revenue > 0 ? Math.round((data.expenses / data.revenue) * 1000) / 10 : 0,
       };
-    }
-    return sk;
-  });
+    });
 
   // -----------------------------------------------------------------
   // 3. CASH DISCREPANCY vs SHIFT TURNOVER (Shrinkage)
@@ -189,7 +193,7 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
   return {
     employeeKpis: finalEmployeeKpis,
     shiftKpis: finalShiftKpis,
-    vltReconciliations: vltReconciliations.length > 0 ? vltReconciliations : VLT_RECONCILIATIONS_SAMPLE,
+    vltReconciliations,
     totals: {
       shiftTurnover: Math.round(shiftTurnover * 100) / 100,
       totalDiscrepancy: Math.round(totalDiscrepancySum * 100) / 100,

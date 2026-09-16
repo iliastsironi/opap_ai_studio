@@ -149,7 +149,10 @@ export interface PnlVltCount {
   storeId: string | null;
   date: string;
   counted: number;
-  allwynnet: number;
+  // null when the count was taken but the official Allwynnet figure has not
+  // been entered yet. Treating that as 0 would report the whole count as a
+  // discrepancy - a number nobody ever measured.
+  allwynnet: number | null;
 }
 
 export interface MonthlyPnlInput {
@@ -540,8 +543,16 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
         employees: [...new Set(dayShifts.map((s) => s.operatorName).filter(Boolean))],
         topUps: sum(dayShifts.map((s) => s.topUps)),
         vltCounted: dayVlt.length > 0 ? sum(dayVlt.map((v) => v.counted)) : null,
-        vltAllwynnet: dayVlt.length > 0 ? sum(dayVlt.map((v) => v.allwynnet)) : null,
-        vltDifference: dayVlt.length > 0 ? sum(dayVlt.map((v) => v.counted - v.allwynnet)) : null,
+        // A day only has an Allwynnet total, and therefore a difference, once
+        // every count that day carries one. Otherwise both stay blank.
+        vltAllwynnet:
+          dayVlt.length > 0 && dayVlt.every((v) => v.allwynnet !== null)
+            ? sum(dayVlt.map((v) => v.allwynnet as number))
+            : null,
+        vltDifference:
+          dayVlt.length > 0 && dayVlt.every((v) => v.allwynnet !== null)
+            ? sum(dayVlt.map((v) => v.counted - (v.allwynnet as number)))
+            : null,
       };
     });
 

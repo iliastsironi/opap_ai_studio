@@ -161,23 +161,14 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const hasCosts = costMixData.some((item) => item.value > 0);
   const discrepantShifts = rawShifts.filter((s) => Math.abs(Number(s.discrepancy || 0)) >= 1).length;
 
-  // Shift performance chart data
-  const shiftChartData = rawShifts.length > 0
-    ? rawShifts.slice(0, 15).reverse().map((s) => ({
-        date: new Date(s.opened_at || s.closed_at || Date.now()).toLocaleDateString('el-GR', { month: 'numeric', day: 'numeric' }),
-        revenue: Number(s.opap_gross_sales || 0) + Number(s.vlts_cash_in || 0) + Number(s.fnb_sales || 0),
-        vlt: pickNum(s.vlts_net, safeNum(s.vlts_cash_in) - safeNum(s.vlts_cash_out)),
-        expenses: Number(s.expenses_paid_cash || 0),
-      }))
-    : [
-        { date: '1/9', revenue: 2850, vlt: 1000, expenses: 320 },
-        { date: '2/9', revenue: 3100, vlt: 1050, expenses: 380 },
-        { date: '3/9', revenue: 2640, vlt: 980, expenses: 290 },
-        { date: '4/9', revenue: 3420, vlt: 1200, expenses: 410 },
-        { date: '5/9', revenue: 3890, vlt: 1380, expenses: 450 },
-        { date: '6/9', revenue: 4120, vlt: 1400, expenses: 490 },
-        { date: '7/9', revenue: 2980, vlt: 1040, expenses: 340 },
-      ];
+  // Shift performance chart data. No shifts means an empty chart - a plotted
+  // line the user could mistake for their own trading would be worse than none.
+  const shiftChartData = rawShifts.slice(0, 15).reverse().map((s) => ({
+    date: new Date(s.opened_at || s.closed_at || Date.now()).toLocaleDateString('el-GR', { month: 'numeric', day: 'numeric' }),
+    revenue: Number(s.opap_gross_sales || 0) + Number(s.vlts_cash_in || 0) + Number(s.fnb_sales || 0),
+    vlt: pickNum(s.vlts_net, safeNum(s.vlts_cash_in) - safeNum(s.vlts_cash_out)),
+    expenses: Number(s.expenses_paid_cash || 0),
+  }));
 
   // Filtered employees
   const filteredEmployees = employeeKpis.filter((e) => {
@@ -379,6 +370,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
               </div>
 
               <div className="h-72 w-full pt-2">
+                {shiftChartData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-center">
+                    <p className="text-xs text-slate-500 max-w-xs">
+                      Δεν υπάρχουν κλεισμένες βάρδιες για αυτό το διάστημα, οπότε δεν υπάρχει γράφημα εξέλιξης.
+                    </p>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={shiftChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
@@ -425,6 +423,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
 
@@ -566,6 +565,15 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
+                  {filteredEmployees.length === 0 && (
+                    <tr>
+                      <td colSpan={11} className="py-8 text-center text-xs text-slate-500">
+                        {employeeKpis.length === 0
+                          ? 'Δεν υπάρχουν κλεισμένες βάρδιες ακόμα, οπότε δεν έχουν υπολογιστεί δείκτες εργαζομένων.'
+                          : 'Δεν βρέθηκαν εργαζόμενοι με αυτά τα κριτήρια.'}
+                      </td>
+                    </tr>
+                  )}
                   {filteredEmployees.map((e) => (
                     <tr key={e.employeeId} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
@@ -625,6 +633,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
       {activeTab === 'SHIFT_KPIS' && (
         <div className="space-y-6">
           {/* Shift Benchmarks */}
+          {shiftKpis.length === 0 && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs text-center">
+              <p className="text-xs text-slate-500">
+                Δεν υπάρχουν κλεισμένες βάρδιες ακόμα. Οι δείκτες ανά βάρδια υπολογίζονται από τις πραγματικές βάρδιες.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {shiftKpis.map((s, idx) => (
               <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
@@ -661,10 +676,12 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     <span className="text-slate-500">Έξοδα προς Τζίρο:</span>
                     <span className="font-mono text-slate-700">{s.avgExpensesToRevenue}%</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400 font-medium">Ώρες Αιχμής:</span>
-                    <span className="font-bold text-slate-700">{s.peakHour}</span>
-                  </div>
+                  {s.peakHour && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-medium">Ώρες Αιχμής:</span>
+                      <span className="font-bold text-slate-700">{s.peakHour}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -704,20 +721,41 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono">
+                  {vltReconciliations.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-xs text-slate-500 font-sans">
+                        Δεν υπάρχουν καταχωρημένες εκκαθαρίσεις Opapnet. Χρησιμοποιήστε το «Καταχώρηση Εκκαθάρισης Opapnet».
+                      </td>
+                    </tr>
+                  )}
                   {vltReconciliations.map((v, idx) => (
                     <tr key={v.id || idx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-sans font-bold text-slate-900">{v.date}</td>
                       <td className="py-3.5 px-3 font-sans text-slate-600">{storeName(v.storeId)}</td>
-                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">{formatCurrency(v.opapnetAmount)}</td>
+                      <td className="py-3.5 px-3 text-right font-bold text-slate-800">
+                        {v.status === 'PENDING' ? '—' : formatCurrency(v.opapnetAmount)}
+                      </td>
                       <td className="py-3.5 px-3 text-right font-bold text-slate-800">{formatCurrency(v.countedAmount)}</td>
-                      <td className={`py-3.5 px-3 text-right font-bold ${v.difference === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {formatCurrency(v.difference, { showSign: true })}
+                      <td className={`py-3.5 px-3 text-right font-bold ${
+                        v.status === 'PENDING' ? 'text-slate-400' : v.difference === 0 ? 'text-emerald-600' : 'text-rose-600'
+                      }`}>
+                        {v.status === 'PENDING' ? '—' : formatCurrency(v.difference, { showSign: true })}
                       </td>
                       <td className="py-3.5 px-4 text-center font-sans">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          v.status === 'BALANCED' || v.difference === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          v.status === 'PENDING'
+                            ? 'bg-amber-100 text-amber-800'
+                            : v.status === 'BALANCED' || v.difference === 0
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-800'
                         }`}>
-                          {v.status === 'BALANCED' || v.difference === 0 ? 'ΙΣΟΖΥΓΙΣΜΕΝΟ' : 'ΑΠΟΚΛΙΣΗ'}
+                          {/* A count with no Allwynnet figure yet is not balanced - saying so
+                              would claim a reconciliation that never happened. */}
+                          {v.status === 'PENDING'
+                            ? 'ΕΚΚΡΕΜΕΙ'
+                            : v.status === 'BALANCED' || v.difference === 0
+                            ? 'ΙΣΟΖΥΓΙΣΜΕΝΟ'
+                            : 'ΑΠΟΚΛΙΣΗ'}
                         </span>
                       </td>
                     </tr>

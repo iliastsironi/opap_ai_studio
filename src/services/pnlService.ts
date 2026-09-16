@@ -132,7 +132,9 @@ const toVltCount = (r: any): PnlVltCount => ({
   storeId: r.store_id,
   date: r.date,
   counted: num(r.counted_amount),
-  allwynnet: num(r.opap_net_amount),
+  // Preserve "not entered yet" - num() would flatten it to 0 and invent a
+  // discrepancy the size of the whole count.
+  allwynnet: r.opap_net_amount === null || r.opap_net_amount === undefined ? null : num(r.opap_net_amount),
 });
 
 export async function fetchMonthlyPnlInput(orgId: string, month: string, stores: PnlStore[]): Promise<MonthlyPnlInput> {
