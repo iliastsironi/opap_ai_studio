@@ -29,9 +29,9 @@ import {
   TrendingUp,
   Users,
   Wallet,
-  X,
   Zap,
 } from 'lucide-react';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
@@ -729,98 +729,82 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* MODAL: ADD VLT OPAPNET RECONCILIATION */}
-      {/* ========================================================================= */}
-      {showVltModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-purple-600" />
-                <span>Καταχώρηση Εκκαθάρισης VLT Opapnet</span>
-              </h3>
-              <button onClick={() => setShowVltModal(false)} aria-label="Κλείσιμο" className="text-slate-400 hover:text-slate-700 cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
+      {/* Add VLT Opapnet reconciliation */}
+      <Modal
+        isOpen={showVltModal}
+        onClose={() => setShowVltModal(false)}
+        title="Καταχώρηση Εκκαθάρισης VLT Opapnet"
+        icon={Zap}
+        iconClassName="text-purple-600"
+        headerStyle="bordered"
+        size="md"
+        bodyAsForm
+        onSubmit={handleSaveVltRec}
+        footer={
+          <ModalActions
+            onCancel={() => setShowVltModal(false)}
+            isSaving={isSavingRecord}
+            saveLabel="Αποθήκευση Εκκαθάρισης"
+          />
+        }
+      >
+        <div className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="vlt-rec-store" className="block font-bold text-slate-700 mb-1">Κατάστημα</label>
+              <select
+                id="vlt-rec-store"
+                required
+                value={newVltRec.storeId}
+                onChange={(e) => setNewVltRec({ ...newVltRec, storeId: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
+              >
+                {!newVltRec.storeId && <option value="">— Επιλέξτε κατάστημα —</option>}
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
+            <div>
+              <label htmlFor="vlt-rec-date" className="block font-bold text-slate-700 mb-1">Ημερομηνία Εκκαθάρισης</label>
+              <input
+                id="vlt-rec-date"
+                type="date"
+                required
+                value={newVltRec.date}
+                onChange={(e) => setNewVltRec({ ...newVltRec, date: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
+              />
+            </div>
+          </div>
 
-            <form onSubmit={handleSaveVltRec} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="vlt-rec-store" className="block font-bold text-slate-700 mb-1">Κατάστημα</label>
-                  <select
-                    id="vlt-rec-store"
-                    required
-                    value={newVltRec.storeId}
-                    onChange={(e) => setNewVltRec({ ...newVltRec, storeId: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold"
-                  >
-                    {!newVltRec.storeId && <option value="">— Επιλέξτε κατάστημα —</option>}
-                    {stores.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="vlt-rec-date" className="block font-bold text-slate-700 mb-1">Ημερομηνία Εκκαθάρισης</label>
-                  <input
-                    id="vlt-rec-date"
-                    type="date"
-                    required
-                    value={newVltRec.date}
-                    onChange={(e) => setNewVltRec({ ...newVltRec, date: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800"
-                  />
-                </div>
-              </div>
+          <div>
+            <label htmlFor="vlt-rec-opapnet" className="block font-bold text-slate-700 mb-1">Ποσό Εκκαθάρισης Opapnet (€)</label>
+            <input
+              id="vlt-rec-opapnet"
+              type="number"
+              step="0.01"
+              required
+              value={newVltRec.opapnetAmount || ''}
+              onChange={(e) => setNewVltRec({ ...newVltRec, opapnetAmount: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
+            />
+          </div>
 
-              <div>
-                <label htmlFor="vlt-rec-opapnet" className="block font-bold text-slate-700 mb-1">Ποσό Εκκαθάρισης Opapnet (€)</label>
-                <input
-                  id="vlt-rec-opapnet"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={newVltRec.opapnetAmount || ''}
-                  onChange={(e) => setNewVltRec({ ...newVltRec, opapnetAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="vlt-rec-counted" className="block font-bold text-slate-700 mb-1">Καταμέτρηση Ταμείου Βάρδιας (€)</label>
-                <input
-                  id="vlt-rec-counted"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={newVltRec.countedAmount || ''}
-                  onChange={(e) => setNewVltRec({ ...newVltRec, countedAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowVltModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingRecord}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold cursor-pointer shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingRecord ? 'Αποθήκευση...' : 'Αποθήκευση Εκκαθάρισης'}
-                </button>
-              </div>
-            </form>
+          <div>
+            <label htmlFor="vlt-rec-counted" className="block font-bold text-slate-700 mb-1">Καταμέτρηση Ταμείου Βάρδιας (€)</label>
+            <input
+              id="vlt-rec-counted"
+              type="number"
+              step="0.01"
+              required
+              value={newVltRec.countedAmount || ''}
+              onChange={(e) => setNewVltRec({ ...newVltRec, countedAmount: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
+            />
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

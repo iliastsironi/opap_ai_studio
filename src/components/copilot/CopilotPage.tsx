@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase } from '../../services/supabase.ts';
 import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 
 interface ChatMessage {
   id: string;
@@ -382,45 +383,15 @@ export const CopilotPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Clear History Confirmation Modal */}
-      {showClearConfirm && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setShowClearConfirm(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Καθαρισμός Ιστορικού</h4>
-            </div>
-            <p className="text-xs text-slate-600">
-              Είστε βέβαιοι ότι θέλετε να καθαρίσετε το ιστορικό της συνομιλίας; Η ενέργεια είναι οριστική.
-            </p>
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                onClick={handleClearHistory}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Ναι, Καθαρισμός</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Clear History Confirmation */}
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Καθαρισμός Ιστορικού"
+        message="Είστε βέβαιοι ότι θέλετε να καθαρίσετε το ιστορικό της συνομιλίας; Η ενέργεια είναι οριστική."
+        confirmLabel="Ναι, Καθαρισμός"
+        onConfirm={handleClearHistory}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </div>
   );
 };

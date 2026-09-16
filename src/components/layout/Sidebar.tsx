@@ -24,6 +24,7 @@ import {
   Calendar,
   X
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -35,6 +36,69 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  perm?: string;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+// Ordered by how often the work happens, not by who owns it: the daily shift
+// and cash work sits at the top for every role, administration near the
+// bottom (empty and hidden for staff anyway, since each item is permission-gated).
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Καθημερινά',
+    items: [
+      { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
+      { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
+      { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
+      { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
+      { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
+    ],
+  },
+  {
+    title: 'Παιχνίδια & Πωλήσεις',
+    items: [
+      { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket, perm: 'opap.view' },
+      { id: 'vlt', label: 'Τερματικά VLTs', icon: Gamepad2, perm: 'vlt.view' },
+      { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
+      { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
+    ],
+  },
+  {
+    title: 'Οικονομικά',
+    items: [
+      { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
+      { id: 'employee_charges', label: 'Χρεώσεις Υπαλλήλων', icon: Wallet, perm: 'employee_charges.view' },
+      { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view' },
+    ],
+  },
+  {
+    title: 'Διαχείριση & Ασφάλεια',
+    items: [
+      { id: 'stores', label: 'Καταστήματα & Τμήματα', icon: StoreIcon, perm: 'store.view' },
+      { id: 'users', label: 'Χρήστες & Αναθέσεις', icon: Users, perm: 'users.view' },
+      { id: 'roles', label: 'Ρόλοι & Δικαιώματα', icon: ShieldCheck, perm: 'roles.manage' },
+      { id: 'audit', label: 'Καταγραφές Ελέγχου (Audit)', icon: History, perm: 'audit.view' },
+      { id: 'org_settings', label: 'Ρυθμίσεις Οργανισμού', icon: Settings, perm: 'org.settings' },
+      { id: 'onboarding', label: 'Νέο Κατάστημα / Οργανισμός', icon: PlusCircle, perm: 'org.settings' },
+    ],
+  },
+  {
+    title: 'Βοήθεια & AI',
+    items: [
+      { id: 'instructions', label: 'Οδηγίες Χρήσης', icon: BookOpen },
+      { id: 'copilot', label: 'AI Copilot', icon: Sparkles },
+    ],
+  },
+];
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isOpen, setIsOpen }) => {
   const { organization, roles, hasPermission } = useAuth();
@@ -66,39 +130,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
     };
   }, [organization?.id, activeStoreId]);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
-    { id: 'stores', label: 'Καταστήματα & Τμήματα', icon: StoreIcon, perm: 'store.view' },
-    { id: 'users', label: 'Χρήστες & Αναθέσεις', icon: Users, perm: 'users.view' },
-    { id: 'roles', label: 'Ρόλοι & Δικαιώματα', icon: ShieldCheck, perm: 'roles.manage' },
-    { id: 'audit', label: 'Καταγραφές Ελέγχου (Audit)', icon: History, perm: 'audit.view' },
-    { id: 'org_settings', label: 'Ρυθμίσεις Οργανισμού', icon: Settings, perm: 'org.settings' },
-    { id: 'onboarding', label: 'Νέο Κατάστημα / Οργανισμός', icon: PlusCircle, perm: 'org.settings' },
-  ];
-
-  const operationalModules = [
-    { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
-    { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
-    { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view' },
-    { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket, perm: 'opap.view' },
-    { id: 'vlt', label: 'Τερματικά VLTs', icon: Gamepad2, perm: 'vlt.view' },
-    { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
-    { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
-    { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
-    { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
-    { id: 'employee_charges', label: 'Χρεώσεις Υπαλλήλων', icon: Wallet, perm: 'employee_charges.view' },
-    { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
-  ];
-
-  const helpModules = [
-    { id: 'instructions', label: 'Οδηγίες Χρήσης', icon: BookOpen },
-    { id: 'copilot', label: 'AI Copilot', icon: Sparkles },
-  ];
-
-  const visibleNavItems = navItems.filter((item) => !item.perm || hasPermission(item.perm));
-  const visibleOperationalModules = operationalModules
-    .filter((mod) => !mod.perm || hasPermission(mod.perm))
-    .filter((mod) => mod.id !== 'national_lottery' || showNationalLottery);
+  const visibleSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items
+      .filter((item) => !item.perm || hasPermission(item.perm))
+      .filter((item) => item.id !== 'national_lottery' || showNationalLottery),
+  })).filter((section) => section.items.length > 0);
 
   const selectTab = (tabId: string) => {
     setCurrentTab(tabId);
@@ -132,13 +169,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
             <div>
               <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
               <p className="text-micro tracking-wider text-slate-400 font-semibold">
-                {toGreekUpper('Διαχειριση Ταμειου & Βαρδιων')}
+                {toGreekUpper('Διαχείριση Ταμείου & Βαρδιών')}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-2 -mr-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Απόκρυψη πλευρικού πάνελ"
             title="Απόκρυψη πλευρικού πάνελ"
           >
@@ -157,13 +194,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
 
       {/* Navigation Links */}
       <nav aria-label="Κύρια πλοήγηση" className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
-        {visibleNavItems.length > 0 && (
-          <div>
+        {visibleSections.map((section) => (
+          <div key={section.title}>
             <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
-              {toGreekUpper('Διαχειριση & Ασφαλεια')}
+              {toGreekUpper(section.title)}
             </p>
             <div className="space-y-1">
-              {visibleNavItems.map((item) => {
+              {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentTab === item.id;
                 return (
@@ -171,10 +208,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
                     key={item.id}
                     onClick={() => selectTab(item.id)}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    className={`w-full min-h-11 flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
                       isActive
                         ? 'bg-indigo-50 text-indigo-700 font-bold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
@@ -187,68 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
               })}
             </div>
           </div>
-        )}
-
-        <div>
-          <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
-            {toGreekUpper('Λειτουργικες Ενοτητες')}
-          </p>
-          <div className="space-y-1">
-            {visibleOperationalModules.map((mod) => {
-              const Icon = mod.icon;
-              const isActive = currentTab === mod.id;
-              return (
-                <button
-                  key={mod.id}
-                  onClick={() => selectTab(mod.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 font-bold'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
-                    <span className="truncate">{mod.label}</span>
-                  </div>
-                  {isActive && <ChevronRight className="w-4 h-4 text-indigo-600 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div>
-          <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
-            {toGreekUpper('Βοηθεια & AI')}
-          </p>
-          <div className="space-y-1">
-            {helpModules.map((hMod) => {
-              const Icon = hMod.icon;
-              const isActive = currentTab === hMod.id;
-              return (
-                <button
-                  key={hMod.id}
-                  onClick={() => selectTab(hMod.id)}
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                    isActive
-                      ? 'bg-indigo-50 text-indigo-700 font-bold'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 pr-1">
-                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-indigo-500'}`} />
-                    <span className="truncate">{hMod.label}</span>
-                  </div>
-                  {isActive && <ChevronRight className="w-4 h-4 text-indigo-600 shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
+        ))}
       </nav>
 
       {/* Role Footer */}

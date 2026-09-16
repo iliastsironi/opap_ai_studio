@@ -23,6 +23,9 @@ import {
   DollarSign,
   PackageCheck,
 } from 'lucide-react';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { Modal, ModalActions } from '../ui/Modal.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Supplier, SupplierOrder } from '../../types/index.ts';
 import {
@@ -558,39 +561,26 @@ export const SuppliersManager: React.FC = () => {
                         </td>
 
                         <td className="p-4 text-center">
-                          <div className="flex items-center justify-center space-x-1.5">
-                            <button
+                          <div className="flex items-center justify-center gap-0.5">
+                            <IconButton
+                              icon={Eye}
+                              label="Προεπισκόπηση & Καρτέλα"
+                              tone="primary"
                               onClick={() => setPreviewSupplier(sup)}
-                              className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Προεπισκόπηση & Καρτέλα"
-                              aria-label="Προεπισκόπηση & Καρτέλα"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
+                            />
+                            <IconButton
+                              icon={ShoppingBag}
+                              label="Νέα Παραγγελία"
+                              tone="success"
                               onClick={() => openNewOrderModal(sup.id)}
-                              className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                              title="Νέα Παραγγελία"
-                              aria-label="Νέα Παραγγελία"
-                            >
-                              <ShoppingBag className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openEditModal(sup)}
-                              className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="Επεξεργασία"
-                              aria-label="Επεξεργασία"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
+                            />
+                            <IconButton icon={Edit2} label="Επεξεργασία" tone="primary" onClick={() => openEditModal(sup)} />
+                            <IconButton
+                              icon={Trash2}
+                              label="Διαγραφή"
+                              tone="danger"
                               onClick={() => handleDeleteSupplier(sup.id, sup.company_name)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Διαγραφή"
-                              aria-label="Διαγραφή"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            />
                           </div>
                         </td>
                       </tr>
@@ -802,39 +792,39 @@ export const SuppliersManager: React.FC = () => {
         </div>
       )}
 
-      {/* SUPPLIER PREVIEW SLIDE-OVER MODAL */}
-      {previewSupplier && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-5 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setPreviewSupplier(null)}
-              aria-label="Κλείσιμο"
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Header */}
-            <div className="flex items-start space-x-3 pr-8">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg shrink-0 shadow-2xs">
-                <Building2 aria-hidden="true" className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
-                    {previewSupplier.code}
-                  </span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                    {CATEGORY_LABELS[previewSupplier.category] || previewSupplier.category}
-                  </span>
-                </div>
-                <h2 className="text-lg font-extrabold text-slate-900 mt-1">{previewSupplier.company_name}</h2>
-                {previewSupplier.trade_name && (
-                  <p className="text-xs text-slate-500 italic">{previewSupplier.trade_name}</p>
-                )}
-              </div>
+      {/* SUPPLIER PREVIEW MODAL */}
+      <Modal
+        isOpen={previewSupplier !== null}
+        onClose={() => setPreviewSupplier(null)}
+        headerStyle="bordered"
+        size="xl"
+        icon={Building2}
+        title={previewSupplier?.company_name}
+        subtitle={previewSupplier?.trade_name || undefined}
+        badge={
+          previewSupplier && (
+            <div className="flex items-center gap-2 ml-2 shrink-0">
+              <span className="font-mono font-bold text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">
+                {previewSupplier.code}
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                {CATEGORY_LABELS[previewSupplier.category] || previewSupplier.category}
+              </span>
             </div>
-
+          )
+        }
+        footer={
+          <button
+            type="button"
+            onClick={() => setPreviewSupplier(null)}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+          >
+            Κλείσιμο
+          </button>
+        }
+      >
+        {previewSupplier && (
+          <div className="space-y-5">
             {/* Tax & Contact Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
@@ -924,37 +914,43 @@ export const SuppliersManager: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </Modal>
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
+      {/* ORDER DETAIL PREVIEW MODAL */}
+      <Modal
+        isOpen={previewOrder !== null}
+        onClose={() => setPreviewOrder(null)}
+        headerStyle="bordered"
+        size="lg"
+        icon={ShoppingBag}
+        title={previewOrder ? `Δελτίο Παραγγελίας #${previewOrder.order_number}` : ''}
+        footer={
+          previewOrder && (
+            <>
+              {previewOrder.status === 'PENDING' && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateOrderStatus(previewOrder.id, 'DELIVERED')}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs cursor-pointer"
+                >
+                  Σήμανση ως Παραδόθηκε
+                </button>
+              )}
               <button
-                onClick={() => setPreviewSupplier(null)}
+                type="button"
+                onClick={() => setPreviewOrder(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
               >
                 Κλείσιμο
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ORDER DETAIL PREVIEW MODAL */}
-      {previewOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
-            <button
-              onClick={() => setPreviewOrder(null)}
-              aria-label="Κλείσιμο"
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <ShoppingBag aria-hidden="true" className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-extrabold text-slate-900">Δελτίο Παραγγελίας #{previewOrder.order_number}</h2>
-            </div>
-
-            <div className="space-y-3 text-xs">
+            </>
+          )
+        }
+      >
+        {previewOrder && (
+          <div className="space-y-3 text-xs">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Προμηθευτής</p>
@@ -997,42 +993,36 @@ export const SuppliersManager: React.FC = () => {
                   </span>
                 </div>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              {previewOrder.status === 'PENDING' && (
-                <button
-                  onClick={() => handleUpdateOrderStatus(previewOrder.id, 'DELIVERED')}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs cursor-pointer"
-                >
-                  Σήμανση ως Παραδόθηκε
-                </button>
-              )}
-              <button
-                onClick={() => setPreviewOrder(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
-              >
-                Κλείσιμο
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* NEW ORDER MODAL */}
-      {showOrderModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h2 className="text-lg font-extrabold text-slate-900">Καταχώρηση Νέας Παραγγελίας</h2>
-
-            {orderError && (
-              <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{orderError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveOrder} className="space-y-3.5">
+      <Modal
+        isOpen={showOrderModal}
+        onClose={() => setShowOrderModal(false)}
+        headerStyle="bordered"
+        size="lg"
+        icon={ShoppingBag}
+        title="Καταχώρηση Νέας Παραγγελίας"
+        bodyAsForm
+        onSubmit={handleSaveOrder}
+        footer={
+          <ModalActions
+            onCancel={() => setShowOrderModal(false)}
+            isSaving={isSavingOrder}
+            saveLabel="Καταχώρηση"
+            savingLabel="Καταχώρηση..."
+          />
+        }
+      >
+        <div className="space-y-3.5">
+          {orderError && (
+            <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{orderError}</span>
+            </div>
+          )}
               <div>
                 <label htmlFor="order-supplier" className="block text-xs font-bold text-slate-700 uppercase mb-1">Προμηθευτής</label>
                 <select
@@ -1125,43 +1115,34 @@ export const SuppliersManager: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowOrderModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingOrder}
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingOrder ? 'Καταχώρηση...' : 'Καταχώρηση'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
       {/* ADD / EDIT SUPPLIER MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">
-              {editingSupplier ? 'Επεξεργασία Προμηθευτή' : 'Προσθήκη Νέου Προμηθευτή'}
-            </h2>
-
-            {formError && (
-              <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveSupplier} className="space-y-3.5">
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        headerStyle="bordered"
+        size="lg"
+        icon={Truck}
+        title={editingSupplier ? 'Επεξεργασία Προμηθευτή' : 'Προσθήκη Νέου Προμηθευτή'}
+        bodyAsForm
+        onSubmit={handleSaveSupplier}
+        footer={
+          <ModalActions
+            onCancel={() => setShowAddModal(false)}
+            isSaving={isSavingSupplier}
+            saveLabel={editingSupplier ? 'Ενημέρωση' : 'Αποθήκευση'}
+          />
+        }
+      >
+        <div className="space-y-3.5">
+          {formError && (
+            <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="supplier-code" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κωδικός</label>
@@ -1302,78 +1283,28 @@ export const SuppliersManager: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Ακύρωση
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingSupplier}
-                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isSavingSupplier ? 'Αποθήκευση...' : editingSupplier ? 'Ενημέρωση' : 'Αποθήκευση'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Delete Supplier Confirmation Modal */}
-      {supplierToDelete && (
-        <div
-          className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs"
-          onClick={() => setSupplierToDelete(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <h4 className="text-base font-extrabold text-slate-900">Διαγραφή Προμηθευτή</h4>
-            </div>
-            <p className="text-xs text-slate-600">
+      {/* Delete Supplier Confirmation */}
+      <ConfirmDialog
+        isOpen={supplierToDelete !== null}
+        layer="stacked"
+        title="Διαγραφή Προμηθευτή"
+        message={
+          supplierToDelete && (
+            <>
               Είστε βέβαιοι ότι θέλετε να διαγράψετε τον προμηθευτή «{supplierToDelete.name}»; Το ιστορικό
               παραγγελιών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.
-            </p>
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={isDeletingSupplier}
-                onClick={() => setSupplierToDelete(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Ακύρωση
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingSupplier}
-                onClick={handleConfirmDeleteSupplier}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isDeletingSupplier ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Διαγραφή...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Ναι, Διαγραφή</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )
+        }
+        confirmLabel="Ναι, Διαγραφή"
+        isLoading={isDeletingSupplier}
+        loadingLabel="Διαγραφή..."
+        onConfirm={handleConfirmDeleteSupplier}
+        onCancel={() => setSupplierToDelete(null)}
+      />
     </div>
   );
 };

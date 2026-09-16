@@ -35,6 +35,8 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react';
+import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { IconButton } from '../ui/IconButton.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift } from '../../types/index.ts';
@@ -1095,27 +1097,25 @@ export const ShiftsManager: React.FC = () => {
                               <span>{toGreekUpper('Προβολη')}</span>
                             </button>
 
-                            <button
+                            <IconButton
+                              icon={Printer}
+                              label="Εκτύπωση Θερμικής Απόδειξης"
+                              tone="primary"
                               onClick={() => setReceiptShift(s)}
-                              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
-                              title="Εκτύπωση Θερμικής Απόδειξης"
-                              aria-label="Εκτύπωση Θερμικής Απόδειξης"
-                            >
-                              <Printer className="w-3.5 h-3.5 text-indigo-600" />
-                            </button>
+                              className="border border-slate-200 bg-white shadow-2xs"
+                            />
 
                             {(isOwnerOrAdmin || canApprove) &&
                               ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
                                 s.status
                               ) && (
-                                <button
+                                <IconButton
+                                  icon={Trash2}
+                                  label="Διαγραφή Προχείρου Βάρδιας"
+                                  tone="danger"
                                   onClick={() => setShiftToDelete(s)}
-                                  className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
-                                  title="Διαγραφή Προχείρου Βάρδιας"
-                                  aria-label="Διαγραφή Προχείρου Βάρδιας"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                  className="bg-rose-50 text-rose-700"
+                                />
                               )}
                           </div>
                         </td>
@@ -1180,25 +1180,21 @@ export const ShiftsManager: React.FC = () => {
                 {Math.min(pageSafe * SHIFTS_PAGE_SIZE, filteredShifts.length)} από {filteredShifts.length} βάρδιες
               </span>
               <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                <IconButton
+                  icon={ChevronLeft}
+                  label="Προηγούμενη σελίδα"
                   disabled={pageSafe <= 1}
-                  aria-label="Προηγούμενη σελίδα"
-                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="border border-slate-200 bg-white"
+                />
                 <span className="font-bold text-slate-700">Σελίδα {pageSafe} / {totalPages}</span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                <IconButton
+                  icon={ChevronRight}
+                  label="Επόμενη σελίδα"
                   disabled={pageSafe >= totalPages}
-                  aria-label="Επόμενη σελίδα"
-                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="border border-slate-200 bg-white"
+                />
               </div>
             </div>
           )}
@@ -1228,87 +1224,57 @@ export const ShiftsManager: React.FC = () => {
         }}
       />
 
-      {/* Delete Draft Shift Confirmation Modal */}
-      {shiftToDelete && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs transition-opacity duration-150 starting:opacity-0">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-slate-200 space-y-4">
-            <div className="flex items-center space-x-3 text-rose-600">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                <Trash2 className="w-5 h-5 text-rose-600" />
-              </div>
-              <div>
-                <h4 className="text-base font-extrabold text-slate-900">
-                  Διαγραφή Προχείρου Βάρδιας
-                </h4>
-                <span className="text-micro font-bold text-rose-600 uppercase tracking-wider">
-                  {toGreekUpper('Ενεργεια Ιδιοκτητη / Διαχειριστη')}
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
-              <p className="font-bold">
-                Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας;
+      {/* Delete Draft Shift Confirmation */}
+      <ConfirmDialog
+        isOpen={shiftToDelete !== null}
+        layer="stacked"
+        closeOnBackdropClick={false}
+        title="Διαγραφή Προχείρου Βάρδιας"
+        message={
+          shiftToDelete && (
+            <div className="space-y-3">
+              <p className="text-micro font-bold text-rose-600 tracking-wider">
+                {toGreekUpper('Ενεργεια Ιδιοκτητη / Διαχειριστη')}
               </p>
-              <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-micro border border-rose-200">
-                <div>
-                  <strong>Κατάστημα:</strong> {shiftToDelete.store_name} ({shiftToDelete.register_id})
+              <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
+                <p className="font-bold">
+                  Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας;
+                </p>
+                <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-micro border border-rose-200">
+                  <div>
+                    <strong>Κατάστημα:</strong> {shiftToDelete.store_name} ({shiftToDelete.register_id})
+                  </div>
+                  <div>
+                    <strong>Υπάλληλος Έναρξης:</strong> {shiftToDelete.opened_by_user_name || 'Υπάλληλος'}
+                  </div>
+                  <div>
+                    <strong>Ημερομηνία:</strong> {new Date(shiftToDelete.opened_at).toLocaleString('el-GR')}
+                  </div>
+                  <div>
+                    <strong>Κατάσταση:</strong> {shiftToDelete.status}
+                  </div>
                 </div>
-                <div>
-                  <strong>Υπάλληλος Έναρξης:</strong> {shiftToDelete.opened_by_user_name || 'Υπάλληλος'}
-                </div>
-                <div>
-                  <strong>Ημερομηνία:</strong> {new Date(shiftToDelete.opened_at).toLocaleString('el-GR')}
-                </div>
-                <div>
-                  <strong>Κατάσταση:</strong> {shiftToDelete.status}
-                </div>
+                <p className="text-micro text-rose-700">
+                  ⚠️ Τα δεδομένα του προχείρου (καταμετρήσεις, πρόχειρες καταχωρήσεις) θα διαγραφούν οριστικά από τη βάση δεδομένων.
+                </p>
               </div>
-              <p className="text-micro text-rose-700">
-                ⚠️ Τα δεδομένα του προχείρου (καταμετρήσεις, πρόχειρες καταχωρήσεις) θα διαγραφούν οριστικά από τη βάση δεδομένων.
-              </p>
+              {deleteShiftError && (
+                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
+                  {deleteShiftError}
+                </div>
+              )}
             </div>
-
-            {deleteShiftError && (
-              <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
-                {deleteShiftError}
-              </div>
-            )}
-
-            <div className="flex items-center justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                disabled={isDeletingShift}
-                onClick={() => {
-                  setShiftToDelete(null);
-                  setDeleteShiftError(null);
-                }}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {toGreekUpper('Ακυρωση')}
-              </button>
-              <button
-                type="button"
-                disabled={isDeletingShift}
-                onClick={() => handleDeleteShift(shiftToDelete)}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isDeletingShift ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Διαγραφή...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{toGreekUpper('Οριστικη Διαγραφη')}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )
+        }
+        confirmLabel="Οριστική Διαγραφή"
+        isLoading={isDeletingShift}
+        loadingLabel="Διαγραφή..."
+        onConfirm={() => shiftToDelete && handleDeleteShift(shiftToDelete)}
+        onCancel={() => {
+          setShiftToDelete(null);
+          setDeleteShiftError(null);
+        }}
+      />
 
       {/* Customer Credit & Debts Directory Modal */}
       <CustomerCreditDirectoryModal
