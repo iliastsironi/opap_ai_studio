@@ -2,10 +2,17 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import { renderDeploymentAssetUrl } from './src/lib/deploymentAssetUrl.ts';
 
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    experimental: {
+      // Vercel Skew Protection. No-ops in every build that isn't a
+      // Skew-Protection-enabled Vercel deployment, so local and Hobby builds
+      // emit byte-identical output. See src/lib/deploymentAssetUrl.ts.
+      renderBuiltUrl: (filename: string) => renderDeploymentAssetUrl(filename, process.env),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
