@@ -213,6 +213,39 @@ describe('payroll math', () => {
     expect(payrollTotal(row)).toBe(1175);
     expect(payrollCashInHand(row)).toBe(275);
   });
+
+  // The August workbook has a blank Μισθός column, so every person's Σύνολο is
+  // 0 while real money went to their bank - which is the only reason all five
+  // rows report a negative «Χέρι». It is missing data, not a structural fault:
+  // entering a salary that covers the transfer clears every warning. Modelled
+  // here at a flat 800€ rather than by writing figures nobody has confirmed
+  // into the live books.
+  it('clears the negative «Χέρι» warnings once a salary covers the bank transfer', () => {
+    const withSalaries: MonthlyPnlInput = {
+      ...AUGUST_2026,
+      payroll: AUGUST_2026.payroll.map((row) => ({ ...row, baseSalary: 800 })),
+    };
+
+    const before = computeMonthlyPnl(AUGUST_2026);
+    const after = computeMonthlyPnl(withSalaries);
+
+    expect(before.warnings.filter((w) => w.kind === 'NEGATIVE_CASH_IN_HAND')).toHaveLength(5);
+    expect(after.warnings.filter((w) => w.kind === 'NEGATIVE_CASH_IN_HAND')).toHaveLength(0);
+
+    // Overtime is additional to the salary, never replaced by it: the one row
+    // carrying 310€ of Υπερωρίες ends at 1.110€, not 800€.
+    expect(after.payrollTotal).toBe(before.payrollTotal + 800 * AUGUST_2026.payroll.length);
+    const christodoulou = after.payroll
+      .flatMap((group) => group.rows)
+      .find((row) => row.name === 'ΧΡΙΣΤΟΔΟΥΛΟΥ ΓΕΩΡΓΙΟΣ');
+    expect(christodoulou?.total).toBe(1110);
+
+    // Salaries are a cost: the bottom line falls by exactly what was added.
+    expect(after.netResult).toBeCloseTo(before.netResult - 800 * AUGUST_2026.payroll.length, 2);
+
+    // 401070 still earns nothing - that warning is a separate, real gap.
+    expect(after.warnings.filter((w) => w.kind === 'NO_COMMISSIONS').map((w) => w.storeId)).toEqual(['store_401070']);
+  });
 });
 
 describe('F&B income precedence', () => {
