@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, Receipt, AlertTriangle, ArrowRight } from 'lucide-react';
+import { MessageSquare, Receipt, AlertTriangle, ArrowRight, Ticket } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -32,6 +32,11 @@ const VARIANTS: Record<NotificationType, { icon: LucideIcon; iconBox: string; sh
     icon: AlertTriangle,
     iconBox: 'bg-amber-100 text-amber-600',
     shortcut: { label: 'Προβολή Βαρδιών', tab: 'shifts' },
+  },
+  LOTTERY_CANCEL_REMINDER: {
+    icon: Ticket,
+    iconBox: 'bg-violet-100 text-violet-600',
+    shortcut: { label: 'Εθνικό Λαχείο', tab: 'national_lottery' },
   },
 };
 
@@ -196,6 +201,12 @@ export const NotificationPopupHost: React.FC<NotificationPopupHostProps> = ({ on
             </p>
             <p className="text-4xl font-black text-amber-600 font-mono tabular-nums">−{amount}</p>
           </div>
+        )}
+
+        {current.type === 'LOTTERY_CANCEL_REMINDER' && (
+          <p className="text-lg text-slate-900 whitespace-pre-wrap break-words bg-violet-50 border border-violet-100 rounded-xl p-4">
+            {current.body}
+          </p>
         )}
 
         {error && <p className="text-sm font-semibold text-rose-700">{error}</p>}

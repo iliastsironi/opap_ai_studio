@@ -437,6 +437,19 @@ export async function collectDraws(params: CollectDrawsParams): Promise<CollectD
 }
 
 // ----------------------------------------------------------------
+// Προθεσμία ακύρωσης - the deadline the daily reminder counts back from.
+// Owner-only, enforced inside set_edition_cancel_deadline (0020) rather than
+// here: the RPC is SECURITY DEFINER, so it cannot rely on table RLS. Passing
+// null clears the deadline and disables the reminder for this edition.
+export async function setEditionCancelDeadline(editionId: string, cancelBy: string | null): Promise<void> {
+  const { error } = await supabase.rpc('set_edition_cancel_deadline', {
+    p_edition_id: editionId,
+    p_cancel_by: cancelBy,
+  });
+  if (error) await handleSupabaseError(error, OperationType.UPDATE, EDITIONS_TABLE);
+}
+
+// ----------------------------------------------------------------
 // Cancellation / reversal - never a destructive delete
 // ----------------------------------------------------------------
 

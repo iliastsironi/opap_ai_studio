@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Landmark, Search, Loader2, User, Plus, RefreshCcw, ArrowDownAZ, Hash } from 'lucide-react';
+import { Landmark, Search, Loader2, User, Plus, RefreshCcw, ArrowDownAZ, Hash, CalendarClock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
@@ -13,6 +13,7 @@ import { NationalLotteryEdition, NationalLotteryCustomer } from '../../types/ind
 import { NationalLotteryCustomerCard } from './NationalLotteryCustomerCard.tsx';
 import { NationalLotteryCustomerFormModal } from './NationalLotteryCustomerFormModal.tsx';
 import { NationalLotteryEditionRolloverModal } from './NationalLotteryEditionRolloverModal.tsx';
+import { NationalLotteryEditionDeadlineModal } from './NationalLotteryEditionDeadlineModal.tsx';
 import { NationalLotteryDashboard } from './NationalLotteryDashboard.tsx';
 import { CustomerCreditDirectoryModal } from '../shifts/CustomerCreditDirectoryModal.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -51,6 +52,7 @@ export const NationalLotteryManager: React.FC = () => {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<NationalLotteryCustomer | null>(null);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode);
   const [openShiftContribution, setOpenShiftContribution] = useState<number | null>(null);
@@ -158,6 +160,27 @@ export const NationalLotteryManager: React.FC = () => {
             </span>
           )}
         </div>
+        {canManageEditions && storeId && edition && (
+          <button
+            type="button"
+            onClick={() => setShowDeadlineModal(true)}
+            title={
+              edition.cancel_by
+                ? `Προθεσμία ακύρωσης: ${new Date(edition.cancel_by).toLocaleString('el-GR')}`
+                : 'Δεν έχει οριστεί προθεσμία ακύρωσης'
+            }
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 border ${
+              edition.cancel_by
+                ? 'bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100'
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <CalendarClock className="w-3.5 h-3.5" />
+            {edition.cancel_by
+              ? new Date(edition.cancel_by).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })
+              : 'Προθεσμία'}
+          </button>
+        )}
         {canManageEditions && storeId && (
           <button
             type="button"
@@ -295,6 +318,15 @@ export const NationalLotteryManager: React.FC = () => {
           editingCustomer={editingCustomer}
           activeEdition={edition}
           onSaved={load}
+        />
+      )}
+
+      {showDeadlineModal && edition && (
+        <NationalLotteryEditionDeadlineModal
+          isOpen={showDeadlineModal}
+          onClose={() => setShowDeadlineModal(false)}
+          edition={edition}
+          onSuccess={load}
         />
       )}
 

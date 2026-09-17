@@ -2,7 +2,11 @@ import { supabase, handleSupabaseError, OperationType } from './supabase.ts';
 
 const TABLE_NAME = 'notifications';
 
-export type NotificationType = 'HANDOVER_MESSAGE' | 'EMPLOYEE_CHARGE' | 'SHORTAGE_ALERT';
+export type NotificationType =
+  | 'HANDOVER_MESSAGE'
+  | 'EMPLOYEE_CHARGE'
+  | 'SHORTAGE_ALERT'
+  | 'LOTTERY_CANCEL_REMINDER';
 
 export interface AppNotification {
   id: string;

@@ -450,6 +450,10 @@ export interface NationalLotteryEdition {
   closed_at?: string;
   created_by_user_id: string;
   created_at: string;
+  // Owner-typed deadline for cancelling unsold λαχεία (0020). Null/absent
+  // means no reminder is ever sent for this edition.
+  cancel_by?: string | null;
+  cancel_reminder_sent_at?: string | null;
 }
 
 export interface NationalLotteryCustomer {
