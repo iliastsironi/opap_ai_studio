@@ -111,14 +111,14 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => onNavigate('reports')}
-            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-1.5"
+            className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer flex items-center space-x-1.5"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>P&L, KPIs & Excel</span>
           </button>
           <button
             onClick={() => onNavigate('shifts')}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-2"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer flex items-center space-x-2"
           >
             <Clock className="w-4 h-4" />
             <span>Βάρδιες & Ταμείο</span>
@@ -213,7 +213,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <button
             onClick={() => onNavigate('shifts')}
-            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow-2xs transition-all cursor-pointer flex items-center space-x-1.5 shrink-0"
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black shadow-2xs transition-colors cursor-pointer flex items-center space-x-1.5 shrink-0"
           >
             <Clock className="w-4 h-4" />
             <span>Μετάβαση στις Βάρδιες ({pendingShifts.length})</span>
@@ -234,7 +234,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={() => onNavigate('shifts')}
-            className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-300 transition-all text-left group cursor-pointer"
+            className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-300 transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
@@ -248,7 +248,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <button
             onClick={() => onNavigate('expenses')}
-            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
@@ -262,7 +262,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <button
             onClick={() => onNavigate('incidents')}
-            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
@@ -276,7 +276,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <button
             onClick={() => onNavigate('reports')}
-            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all text-left group cursor-pointer"
+            className="p-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">

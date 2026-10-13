@@ -368,14 +368,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
               <button
                 onClick={onStartTrial}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-colors transition-shadow cursor-pointer"
               >
                 <span>Δωρεάν Δοκιμή 30 Ημερών</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={onSignIn}
-                className="w-full sm:w-auto inline-flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold py-3.5 px-7 rounded-xl transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold py-3.5 px-7 rounded-xl transition-colors cursor-pointer"
               >
                 Έχω ήδη λογαριασμό
               </button>
@@ -426,7 +426,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-200 hover:shadow-sm transition-all"
+              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-200 hover:shadow-sm transition-colors transition-shadow"
             >
               <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center mb-4">
                 <feature.icon className="w-5 h-5" />
@@ -540,7 +540,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 </ul>
                 <button
                   onClick={onStartTrial}
-                  className={`mt-7 w-full py-3 rounded-xl font-semibold text-sm transition-all cursor-pointer ${
+                  className={`mt-7 w-full py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
                     plan.highlight
                       ? 'bg-white text-indigo-700 hover:bg-indigo-50'
                       : 'bg-slate-900 hover:bg-slate-800 text-white'
@@ -595,7 +595,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           </h2>
           <button
             onClick={onStartTrial}
-            className="mt-7 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
+            className="mt-7 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-colors transition-shadow cursor-pointer"
           >
             <span>Ξεκινήστε τη Δωρεάν Δοκιμή σας</span>
             <ArrowRight className="w-4 h-4" />

@@ -137,7 +137,7 @@ export const RosterManager: React.FC = () => {
           <button
             type="button"
             onClick={() => handleOpenEditor()}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Δημιουργία / Επεξεργασία Προγράμματος</span>
@@ -165,7 +165,7 @@ export const RosterManager: React.FC = () => {
                 {canManage && (
                   <button
                     onClick={() => handleOpenEditor(r)}
-                    className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                    className="px-2.5 py-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <Edit2 className="w-3 h-3" />
                     <span>Επεξεργασία</span>
@@ -293,7 +293,7 @@ export const RosterManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddRow}
-                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Προσθήκη Γραμμής Βάρδιας</span>

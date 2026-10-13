@@ -163,7 +163,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
             {/* Quick date pills */}
             <button
               onClick={() => setSelectedDate(getShiftDateKey())}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
                 isToday
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
@@ -174,7 +174,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
 
             <button
               onClick={() => setSelectedDate(yesterdayKey)}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
                 isYesterday
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:text-slate-900'
@@ -819,7 +819,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                       <button
                         key={s.shiftId}
                         onClick={() => originalShift && onOpenShiftDetails?.(originalShift)}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center space-x-1.5 transition-all shadow-2xs cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center space-x-1.5 transition-colors shadow-2xs cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5 text-indigo-600" />
                         <span>

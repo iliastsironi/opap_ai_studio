@@ -206,7 +206,7 @@ export const StoresManager: React.FC = () => {
         {hasPermission('store.manage') && (
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Νέο Κατάστημα</span>
@@ -237,7 +237,7 @@ export const StoresManager: React.FC = () => {
                       handleSelectStore(st);
                     }
                   }}
-                  className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer group relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`w-full text-left p-4 rounded-xl border transition-colors cursor-pointer group relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isSelected
                       ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
                       : 'bg-white border-slate-200 hover:border-slate-300'

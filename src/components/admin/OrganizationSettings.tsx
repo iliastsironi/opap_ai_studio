@@ -144,7 +144,7 @@ export const OrganizationSettings: React.FC = () => {
                 setBillingMessage('Το πλάνο σας είναι ήδη Enterprise SaaS Live!');
                 setTimeout(() => setBillingMessage(null), 4000);
               }}
-              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shadow-sm transition-all flex items-center space-x-1 cursor-pointer"
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs shadow-sm transition-colors flex items-center space-x-1 cursor-pointer"
             >
               <span>Διαχείριση Τιμολόγησης</span>
               <ArrowUpRight className="w-3.5 h-3.5" />

@@ -74,7 +74,7 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
         </div>
         <button
           onClick={() => setCurrentTab('shifts')}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center space-x-2"
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer inline-flex items-center space-x-2"
         >
           <Clock className="w-4 h-4" />
           <span>Μετάβαση σε "Βάρδιες & Ταμείο"</span>

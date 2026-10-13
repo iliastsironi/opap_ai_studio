@@ -161,7 +161,7 @@ export const NationalLotteryCustomerFormModal: React.FC<NationalLotteryCustomerF
                 key={type}
                 type="button"
                 onClick={() => setParticipationType(type)}
-                className={`py-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                className={`py-2 rounded-xl text-xs font-black border transition-colors cursor-pointer ${
                   participationType === type
                     ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'

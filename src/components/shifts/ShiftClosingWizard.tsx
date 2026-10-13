@@ -1512,7 +1512,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         <div className="flex items-center space-x-2.5">
           {draftSavedAt && (
             <span
-              className={`text-xs px-2.5 py-1 rounded-xl border font-medium flex items-center space-x-1.5 transition-all duration-300 ${
+              className={`text-xs px-2.5 py-1 rounded-xl border font-medium flex items-center space-x-1.5 transition-colors duration-300 ${
                 isAutoSaved
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold'
                   : 'bg-slate-50 border-slate-200 text-slate-600'
@@ -1700,7 +1700,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <button
                 key={step.num}
                 onClick={() => handleStepChange(step.num)}
-                className={`flex flex-col items-center py-2.5 px-2 rounded-2xl text-center transition-all cursor-pointer ${
+                className={`flex flex-col items-center py-2.5 px-2 rounded-2xl text-center transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-indigo-600 text-white font-extrabold shadow-md scale-102 ring-2 ring-indigo-400'
                     : isDone
@@ -2013,7 +2013,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleAddTerminal}
-                      className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
+                      className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
                       title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στις Πληρωμές Καρτών POS)"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -2217,7 +2217,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         type="button"
                         onClick={() => setVltsOutType('NEGATIVE')}
                         aria-pressed={vltsOutType === 'NEGATIVE'}
-                        className={`px-3 py-2 rounded-md transition-all cursor-pointer ${
+                        className={`px-3 py-2 rounded-md transition-colors cursor-pointer ${
                           vltsOutType === 'NEGATIVE'
                             ? 'bg-rose-600 text-white shadow-2xs font-extrabold'
                             : 'text-slate-600 hover:text-slate-900'
@@ -2229,7 +2229,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         type="button"
                         onClick={() => setVltsOutType('POSITIVE')}
                         aria-pressed={vltsOutType === 'POSITIVE'}
-                        className={`px-3 py-2 rounded-md transition-all cursor-pointer ${
+                        className={`px-3 py-2 rounded-md transition-colors cursor-pointer ${
                           vltsOutType === 'POSITIVE'
                             ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
                             : 'text-slate-600 hover:text-slate-900'
@@ -2683,7 +2683,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <button
                     type="button"
                     onClick={handleAddTerminal}
-                    className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-2xs"
+                    className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
                     title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στο Tora Direct)"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -3328,7 +3328,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <button
             type="button"
             onClick={() => handleStepChange(currentStep + 1)}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all flex items-center space-x-1"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center space-x-1"
           >
             <span>Επόμενο Βήμα</span>
             <ChevronRight className="w-4 h-4" />
@@ -3339,7 +3339,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               type="button"
               id="btn-preview-receipt-footer"
               onClick={() => setShowReceiptModal(true)}
-              className="px-4 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center space-x-2 shadow-2xs transition-all cursor-pointer hover:border-slate-400"
+              className="px-4 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center space-x-2 shadow-2xs transition-colors cursor-pointer hover:border-slate-400"
               title="Προεπισκόπηση τελικής απόδειξης βάρδιας"
             >
               <Eye className="w-4 h-4 text-indigo-600" />

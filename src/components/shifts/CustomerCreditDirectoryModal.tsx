@@ -321,7 +321,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
             <button
               type="button"
               onClick={() => setActiveTab('directory')}
-              className={`px-4 py-2.5 rounded-t-xl text-xs font-black transition-all border-b-2 flex items-center space-x-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-t-xl text-xs font-black transition-colors border-b-2 flex items-center space-x-2 cursor-pointer ${
                 activeTab === 'directory'
                   ? 'border-indigo-600 text-indigo-700 bg-white shadow-xs'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -335,7 +335,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
               <button
                 type="button"
                 onClick={() => setActiveTab('tier_settings')}
-                className={`px-4 py-2.5 rounded-t-xl text-xs font-black transition-all border-b-2 flex items-center space-x-2 cursor-pointer ${
+                className={`px-4 py-2.5 rounded-t-xl text-xs font-black transition-colors border-b-2 flex items-center space-x-2 cursor-pointer ${
                   activeTab === 'tier_settings'
                     ? 'border-indigo-600 text-indigo-700 bg-white shadow-xs'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -351,7 +351,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="mb-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+              className="mb-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Νέος Πελάτης</span>
@@ -438,7 +438,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       key={tier}
                       type="button"
                       onClick={() => setSelectedTierFilter(tier)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
                         selectedTierFilter === tier
                           ? 'bg-slate-900 text-white shadow-xs'
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
@@ -557,7 +557,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                                       onCustomerSelected(cust);
                                       onClose();
                                     }}
-                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-lg text-micro font-bold transition-all cursor-pointer"
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded-lg text-micro font-bold transition-colors cursor-pointer"
                                   >
                                     Επιλογή
                                   </button>
@@ -880,7 +880,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         key={tier}
                         type="button"
                         onClick={() => setFormData({ ...formData, tier })}
-                        className={`py-2 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                        className={`py-2 rounded-xl text-xs font-black border transition-colors cursor-pointer ${
                           formData.tier === tier
                             ? tier === 'A+'
                               ? 'bg-purple-600 text-white border-purple-700 shadow-xs'

@@ -117,7 +117,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
           <button
             type="button"
             onClick={() => setIsSignUp(false)}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-1.5 cursor-pointer ${
               !isSignUp ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -127,7 +127,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
           <button
             type="button"
             onClick={() => setIsSignUp(true)}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-1.5 cursor-pointer ${
               isSignUp ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -262,7 +262,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2.5 text-xs cursor-pointer"
+            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2.5 text-xs cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -364,7 +364,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(false)}
-                    className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs transition-all cursor-pointer"
+                    className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
                   >
                     Επιστροφή στη Σύνδεση
                   </button>

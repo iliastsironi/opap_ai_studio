@@ -347,7 +347,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           <div className="flex items-center space-x-2.5">
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-colors cursor-pointer"
             >
               <RefreshCcw className="w-3.5 h-3.5" />
               <span>Επαναφορά</span>
@@ -424,7 +424,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setActiveTab('FIELDS')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
               activeTab === 'FIELDS'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -439,7 +439,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('MODULES')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
               activeTab === 'MODULES'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -451,7 +451,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('PREVIEW')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
               activeTab === 'PREVIEW'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -465,7 +465,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         {activeTab === 'FIELDS' && (
           <button
             onClick={handleOpenAddField}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer self-start sm:self-auto"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Προσθήκη Πεδίου</span>
@@ -521,7 +521,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 return (
                   <div
                     key={field.id}
-                    className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    className={`p-4 rounded-2xl border transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
                       isSystem
                         ? 'bg-gradient-to-r from-indigo-50/70 via-white to-slate-50/80 border-indigo-200/90 shadow-2xs'
                         : field.enabled
@@ -578,7 +578,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       {/* Enabled Toggle */}
                       <button
                         onClick={() => handleToggleFieldEnabled(field.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5 ${
                           field.enabled
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                             : 'bg-slate-100 text-slate-500 border border-slate-200'
@@ -598,7 +598,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleToggleFieldRequired(field.id)}
-                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                               field.required
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200'
                                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -725,7 +725,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                             [field.key]: !prev[field.key],
                           }))
                         }
-                        className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-between cursor-pointer transition-all ${
+                        className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-between cursor-pointer transition-colors ${
                           previewValues[field.key]
                             ? 'bg-emerald-600 text-white'
                             : 'bg-slate-800 text-slate-400 border border-slate-700'
@@ -812,7 +812,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                             [field.key]: !prev[field.key],
                           }))
                         }
-                        className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-between cursor-pointer transition-all ${
+                        className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-between cursor-pointer transition-colors ${
                           previewValues[field.key]
                             ? 'bg-emerald-600 text-white'
                             : 'bg-slate-800 text-slate-400 border border-slate-700'
@@ -914,7 +914,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       handleToggleModule(mod.key);
                     }
                   }}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isEnabled
                       ? 'bg-indigo-50/50 border-indigo-200'
                       : 'bg-slate-50 border-slate-200 opacity-60'
@@ -983,7 +983,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       handleToggleModule(mod.key);
                     }
                   }}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                     isEnabled
                       ? 'bg-indigo-50/50 border-indigo-200'
                       : 'bg-slate-50 border-slate-200 opacity-60'
@@ -1075,7 +1075,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }));
               }
             }}
-            className={`p-4 rounded-xl border transition-all flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
             } ${template.show_national_lottery ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
           >
@@ -1102,7 +1102,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }));
               }
             }}
-            className={`p-4 rounded-xl border transition-all flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
             } ${template.special_edition_enabled ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
           >
@@ -1127,7 +1127,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 type="button"
                 disabled={!canManageScratchMode}
                 onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'PIECES_AND_BUNDLES' }))}
-                className={`p-3 rounded-xl border text-left transition-all ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
+                className={`p-3 rounded-xl border text-left transition-colors ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
                   template.laiko_selling_mode === 'PIECES_AND_BUNDLES' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
                 }`}
               >
@@ -1138,7 +1138,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 type="button"
                 disabled={!canManageScratchMode}
                 onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'BUNDLES_ONLY' }))}
-                className={`p-3 rounded-xl border text-left transition-all ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
+                className={`p-3 rounded-xl border text-left transition-colors ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
                   template.laiko_selling_mode === 'BUNDLES_ONLY' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
                 }`}
               >

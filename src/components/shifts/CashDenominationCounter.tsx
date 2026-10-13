@@ -110,7 +110,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     return (
       <div
         key={denom.key}
-        className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+        className={`p-3.5 sm:p-4 rounded-2xl border transition-colors transition-shadow flex flex-col justify-between space-y-3 ${
           isDark
             ? isCoin
               ? 'bg-slate-900/90 border-amber-900/30 hover:border-amber-600/50 shadow-2xs'
@@ -166,7 +166,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
 
         {/* Counter Stepper Row */}
         <div
-          className={`flex items-center p-0.5 rounded-xl border shadow-2xs transition-all gap-0.5 ${
+          className={`flex items-center p-0.5 rounded-xl border shadow-2xs transition-colors gap-0.5 ${
             isDark
               ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
               : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
@@ -237,7 +237,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => updateCount(denom.key, -qty)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-colors cursor-pointer select-none shrink-0 ${
                 isDark
                   ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
                   : 'text-slate-500 hover:bg-rose-50 hover:text-rose-600'
@@ -257,7 +257,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     <div className={`space-y-4 ${className}`}>
       {/* Top Header Summary & Controls Bar */}
       <div
-        className={`p-4 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
+        className={`p-4 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors transition-shadow ${
           isDark
             ? 'bg-slate-800/90 border-slate-700 text-slate-100 shadow-md'
             : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
@@ -288,7 +288,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => setActiveFilter('all')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
                 activeFilter === 'all'
                   ? isDark ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-2xs'
                   : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -299,7 +299,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => setActiveFilter('notes')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
                 activeFilter === 'notes'
                   ? isDark ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-2xs'
                   : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -311,7 +311,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={() => setActiveFilter('coins')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
                 activeFilter === 'coins'
                   ? isDark ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-2xs'
                   : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
@@ -327,7 +327,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <button
               type="button"
               onClick={handleReset}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer ${
                 isDark
                   ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-rose-950/60 hover:border-rose-800 hover:text-rose-300'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
@@ -362,7 +362,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         {/* SECTION 1: BANKNOTES (ΧΑΡΤΟΝΟΜΙΣΜΑΤΑ) */}
         {(activeFilter === 'all' || activeFilter === 'notes') && (
           <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
+            className={`p-4 sm:p-5 rounded-2xl border transition-colors transition-shadow space-y-4 ${
               isDark
                 ? 'bg-slate-900/60 border-emerald-900/40 shadow-sm'
                 : 'bg-emerald-50/25 border-emerald-200/80 shadow-2xs'
@@ -400,7 +400,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   <button
                     type="button"
                     onClick={handleResetBanknotes}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer select-none ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer select-none ${
                       isDark
                         ? 'bg-slate-800 text-slate-300 hover:bg-rose-950 hover:text-rose-300 border border-slate-700'
                         : 'bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-emerald-200 shadow-2xs'
@@ -446,7 +446,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0.10€) */}
         {(activeFilter === 'all' || activeFilter === 'coins') && (
           <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-all space-y-4 ${
+            className={`p-4 sm:p-5 rounded-2xl border transition-colors transition-shadow space-y-4 ${
               isDark
                 ? 'bg-slate-900/60 border-amber-900/40 shadow-sm'
                 : 'bg-amber-50/25 border-amber-200/80 shadow-2xs'
@@ -484,7 +484,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   <button
                     type="button"
                     onClick={handleResetCoins}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer select-none ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer select-none ${
                       isDark
                         ? 'bg-slate-800 text-slate-300 hover:bg-rose-950 hover:text-rose-300 border border-slate-700'
                         : 'bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-amber-200 shadow-2xs'

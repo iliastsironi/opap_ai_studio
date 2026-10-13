@@ -218,7 +218,7 @@ export const NationalLotteryManager: React.FC = () => {
                 onClick={() => handleSetSortMode('NUMBER')}
                 aria-pressed={sortMode === 'NUMBER'}
                 title="Ταξινόμηση κατά αύξοντα αριθμό λαχείου"
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
                   sortMode === 'NUMBER' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
@@ -230,7 +230,7 @@ export const NationalLotteryManager: React.FC = () => {
                 onClick={() => handleSetSortMode('NAME')}
                 aria-pressed={sortMode === 'NAME'}
                 title="Αλφαβητική ταξινόμηση κατά όνομα"
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
                   sortMode === 'NAME' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >

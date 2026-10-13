@@ -193,7 +193,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                 refreshCustomers();
                 setDirectoryModalOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer"
               title="Καρτέλες Πελατών"
             >
               <Users className="w-3.5 h-3.5 text-indigo-600" />
@@ -204,7 +204,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
               <button
                 type="button"
                 onClick={() => setManagerBypassEnabled(!managerBypassEnabled)}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
                   managerBypassEnabled
                     ? 'bg-amber-500 text-slate-950 border border-amber-600 shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
@@ -219,7 +219,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
             <button
               type="button"
               onClick={handleAddCredit}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Προσθήκη</span>
@@ -300,7 +300,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
             return (
               <div
                 key={cred.id || idx}
-                className={`p-4 rounded-2xl border transition-all space-y-3 ${
+                className={`p-4 rounded-2xl border transition-colors space-y-3 ${
                   isOverLimit
                     ? 'bg-rose-50/70 border-rose-300 ring-2 ring-rose-200'
                     : isGranted

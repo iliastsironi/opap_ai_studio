@@ -80,7 +80,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 </button>
                 <button
                   onClick={() => window.location.reload()}
-                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition-all"
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Aνανέωση Σελίδας</span>

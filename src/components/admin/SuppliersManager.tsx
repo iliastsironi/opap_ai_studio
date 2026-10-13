@@ -381,7 +381,7 @@ export const SuppliersManager: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setActiveTab('suppliers')}
-              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 activeTab === 'suppliers'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -398,7 +398,7 @@ export const SuppliersManager: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('orders')}
-              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 activeTab === 'orders'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -419,7 +419,7 @@ export const SuppliersManager: React.FC = () => {
           {activeTab === 'suppliers' ? (
             <button
               onClick={openAddModal}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Νέος Προμηθευτής</span>
@@ -427,7 +427,7 @@ export const SuppliersManager: React.FC = () => {
           ) : (
             <button
               onClick={() => openNewOrderModal()}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Νέα Παραγγελία</span>
@@ -450,7 +450,7 @@ export const SuppliersManager: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Αναζήτηση με επωνυμία, ΑΦΜ ή κωδικό..."
-                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-all"
+                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-colors"
               />
             </div>
 
@@ -460,7 +460,7 @@ export const SuppliersManager: React.FC = () => {
                 id="suppliers-category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-all cursor-pointer"
+                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-colors cursor-pointer"
               >
                 <option value="ALL">Όλες οι Κατηγορίες ({suppliers.length})</option>
                 {Object.entries(CATEGORY_LABELS).map(([catKey, label]) => (
@@ -652,7 +652,7 @@ export const SuppliersManager: React.FC = () => {
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
                 placeholder="Αναζήτηση κωδικού παραγγελίας ή προμηθευτή..."
-                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-all"
+                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-colors"
               />
             </div>
 
@@ -660,7 +660,7 @@ export const SuppliersManager: React.FC = () => {
               <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl text-xs">
                 <button
                   onClick={() => setOrderStatusFilter('ALL')}
-                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-all ${
+                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-colors ${
                     orderStatusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -668,7 +668,7 @@ export const SuppliersManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setOrderStatusFilter('PENDING')}
-                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-all ${
+                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-colors ${
                     orderStatusFilter === 'PENDING' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-amber-600'
                   }`}
                 >
@@ -676,7 +676,7 @@ export const SuppliersManager: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setOrderStatusFilter('DELIVERED')}
-                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-all ${
+                  className={`px-3 py-1 rounded-lg font-bold cursor-pointer transition-colors ${
                     orderStatusFilter === 'DELIVERED' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-emerald-600'
                   }`}
                 >
@@ -772,7 +772,7 @@ export const SuppliersManager: React.FC = () => {
                             {ord.status === 'PENDING' && (
                               <button
                                 onClick={() => handleUpdateOrderStatus(ord.id, 'DELIVERED')}
-                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
                                 title="Σήμανση ως Παραδόθηκε"
                               >
                                 Παράδοση

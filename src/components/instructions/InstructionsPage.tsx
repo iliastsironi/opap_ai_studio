@@ -103,7 +103,7 @@ export const InstructionsPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Αναζήτηση στις οδηγίες (π.χ. αναμενόμενο ταμείο, έξοδα, απόκλιση)..."
-              className="w-full pl-11 pr-4 py-3 bg-white/10 hover:bg-white/15 focus:bg-white/20 text-white placeholder-slate-400 text-xs md:text-sm rounded-2xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all backdrop-blur-md"
+              className="w-full pl-11 pr-4 py-3 bg-white/10 hover:bg-white/15 focus:bg-white/20 text-white placeholder-slate-400 text-xs md:text-sm rounded-2xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors backdrop-blur-md"
             />
             {searchQuery && (
               <button
@@ -136,7 +136,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('all')}
               aria-pressed={selectedCategory === 'all'}
-              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-colors transition-shadow ${
                 selectedCategory === 'all'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -147,7 +147,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('operational')}
               aria-pressed={selectedCategory === 'operational'}
-              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-colors transition-shadow ${
                 selectedCategory === 'operational'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -158,7 +158,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => setSelectedCategory('management')}
               aria-pressed={selectedCategory === 'management'}
-              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-all ${
+              className={`px-2.5 py-1 text-micro font-bold rounded-lg transition-colors transition-shadow ${
                 selectedCategory === 'management'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -178,7 +178,7 @@ export const InstructionsPage: React.FC = () => {
                   key={sec.id}
                   onClick={() => scrollToSection(sec.id)}
                   aria-current={isActive ? 'true' : undefined}
-                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-all ${
+                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-colors ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -196,7 +196,7 @@ export const InstructionsPage: React.FC = () => {
             <button
               onClick={() => scrollToSection('faq')}
               aria-current={activeSectionId === 'faq' ? 'true' : undefined}
-              className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-all mt-2 pt-2 border-t border-slate-100 ${
+              className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs font-semibold transition-colors mt-2 pt-2 border-t border-slate-100 ${
                 activeSectionId === 'faq'
                   ? 'bg-amber-50 text-amber-800 font-bold border border-amber-200'
                   : 'text-slate-600 hover:bg-slate-50'
@@ -224,7 +224,7 @@ export const InstructionsPage: React.FC = () => {
                   setSearchQuery('');
                   setSelectedCategory('all');
                 }}
-                className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-indigo-700 transition-all cursor-pointer"
+                className="px-3.5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-xs hover:bg-indigo-700 transition-colors transition-shadow cursor-pointer"
               >
                 Επαναφορά Αναζήτησης
               </button>
@@ -236,7 +236,7 @@ export const InstructionsPage: React.FC = () => {
                 <section
                   key={sec.id}
                   id={`section-${sec.id}`}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-5 transition-all hover:border-slate-300"
+                  className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-6 space-y-5 transition-colors transition-shadow hover:border-slate-300"
                 >
                   {/* Section Title Header */}
                   <div className="flex items-start justify-between border-b border-slate-100 pb-4">

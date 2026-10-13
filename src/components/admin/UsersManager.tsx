@@ -254,7 +254,7 @@ export const UsersManager: React.FC = () => {
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), TOAST_AUTO_DISMISS_MS);
               }}
-              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
             >
               <Send aria-hidden="true" className="w-3.5 h-3.5" />
               <span>{linkCopied ? 'Αντιγράφηκε!' : 'Αντιγραφή Συνδέσμου Πρόσκλησης'}</span>
@@ -302,7 +302,7 @@ export const UsersManager: React.FC = () => {
               }
               setShowInviteModal(true);
             }}
-            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-colors cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>Πρόσκληση Χρήστη</span>

@@ -1085,7 +1085,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => setManagerOverrideEnabled(!managerOverrideEnabled)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer ${
                   managerOverrideEnabled
                     ? 'bg-amber-500 text-slate-950 border border-amber-600 shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
@@ -1100,7 +1100,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             <button
               type="button"
               onClick={() => setShowResetConfirm(true)}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer"
               title="Καθαρισμός Μπροστά-Τελικό και Πίσω-Αρχικό (οι μετρήσεις πωλήσεων της βάρδιας)"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -1111,7 +1111,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => handleToggleAllBackSides(!rows.some((r) => !isLotteryRow(r) && hasBackSide(r, sellingMode)))}
-                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer"
+                className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer"
                 title="Ενεργοποίηση ή απενεργοποίηση της Πίσω πλευράς για όλες τις γραμμές Σκρατς ταυτόχρονα, αντί μία-μία"
               >
                 <Settings2 className="w-3.5 h-3.5" />
@@ -1127,7 +1127,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => handleAddRow()}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition-all flex items-center space-x-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Προσθήκη Παιχνιδιού</span>

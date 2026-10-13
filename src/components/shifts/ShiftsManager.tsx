@@ -330,7 +330,7 @@ export const ShiftsManager: React.FC = () => {
             <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 max-w-full overflow-x-auto">
               <button
                 onClick={() => setManagerTab('SHIFTS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
                   managerTab === 'SHIFTS'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -340,7 +340,7 @@ export const ShiftsManager: React.FC = () => {
               </button>
               <button
                 onClick={() => setManagerTab('DAILY_REPORT')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                   managerTab === 'DAILY_REPORT'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -352,7 +352,7 @@ export const ShiftsManager: React.FC = () => {
               {isOwnerOrAdmin && (
                 <button
                   onClick={() => setManagerTab('TEMPLATE')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
                     managerTab === 'TEMPLATE'
                       ? 'bg-indigo-600 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
@@ -367,7 +367,7 @@ export const ShiftsManager: React.FC = () => {
             {/* Customer Credit Directory Modal Trigger */}
             <button
               onClick={() => setShowCreditDirectoryModal(true)}
-              className="px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center space-x-2 shadow-2xs transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center space-x-2 shadow-2xs transition-colors cursor-pointer"
               title="Διαχείριση Πιστώσεων, Πελατών & Ορίων Credit Score"
             >
               <UserCheck className="w-4 h-4 text-indigo-600" />
@@ -388,7 +388,7 @@ export const ShiftsManager: React.FC = () => {
             {canCreate && (
               <button
                 onClick={() => setShowOpeningModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs transition-all whitespace-nowrap cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs transition-colors whitespace-nowrap cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>{toGreekUpper('Εναρξη Νεας Βαρδιας')}</span>
@@ -504,7 +504,7 @@ export const ShiftsManager: React.FC = () => {
 
                 <button
                   onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'SUBMITTED' ? 'ALL' : 'SUBMITTED')}
-                  className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer shrink-0 ${
                     selectedStatusFilter === 'SUBMITTED'
                       ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs font-black'
                       : 'bg-white text-slate-800 border-amber-300 hover:bg-amber-100/50'
@@ -521,7 +521,7 @@ export const ShiftsManager: React.FC = () => {
                 {pendingApprovalShifts.map((pShift) => (
                   <div
                     key={pShift.id}
-                    className="bg-white rounded-xl border border-amber-200 p-4 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between space-y-3"
+                    className="bg-white rounded-xl border border-amber-200 p-4 shadow-2xs hover:shadow-xs transition-colors transition-shadow flex flex-col justify-between space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -565,7 +565,7 @@ export const ShiftsManager: React.FC = () => {
 
                     <button
                       onClick={() => setDetailsShift(pShift)}
-                      className="w-full py-2.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                      className="w-full py-2.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition-colors cursor-pointer"
                     >
                       <ShieldCheck className="w-4 h-4" />
                       <span>{toGreekUpper('Επιθεωρηση & Εγκριση')}</span>
@@ -626,7 +626,7 @@ export const ShiftsManager: React.FC = () => {
                 <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center justify-end gap-2">
                   <button
                     onClick={() => handleOpenWizard(activeShift)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition-all cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer"
                   >
                     <span>{toGreekUpper('Οδηγος Κλεισιματος')}</span>
                     <ChevronRight className="w-4 h-4" />
@@ -635,7 +635,7 @@ export const ShiftsManager: React.FC = () => {
                   {(isOwnerOrAdmin || canApprove) && (
                     <button
                       onClick={() => setShiftToDelete(activeShift)}
-                      className="py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer shrink-0"
+                      className="py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shrink-0"
                       title="Διαγραφή Προχείρου Βάρδιας (Μόνο Διαχειριστής/Ιδιοκτήτης)"
                     >
                       <Trash2 className="w-4 h-4 text-rose-400" />
@@ -725,7 +725,7 @@ export const ShiftsManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSetViewMode('TABLE')}
-                  className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
+                  className={`p-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
                     viewMode === 'TABLE'
                       ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
@@ -739,7 +739,7 @@ export const ShiftsManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSetViewMode('CARDS')}
-                  className={`p-1.5 rounded-md text-xs font-bold transition-all cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
+                  className={`p-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer flex-1 flex items-center justify-center space-x-1 ${
                     viewMode === 'CARDS'
                       ? 'bg-white text-indigo-700 shadow-2xs font-extrabold'
                       : 'text-slate-600 hover:text-slate-900'
@@ -775,7 +775,7 @@ export const ShiftsManager: React.FC = () => {
               {paginatedShifts.map((s) => (
                 <div
                   key={s.id}
-                  className={`bg-white rounded-2xl border transition-all shadow-2xs hover:shadow-xs flex flex-col justify-between overflow-hidden ${
+                  className={`bg-white rounded-2xl border transition-colors transition-shadow shadow-2xs hover:shadow-xs flex flex-col justify-between overflow-hidden ${
                     s.status === 'SUBMITTED'
                       ? 'border-amber-300 ring-2 ring-amber-400/20'
                       : s.status === 'OPEN' || s.status === 'DRAFT_CLOSING'
@@ -893,7 +893,7 @@ export const ShiftsManager: React.FC = () => {
                     {s.status === 'SUBMITTED' && canApprove && (
                       <button
                         onClick={() => setDetailsShift(s)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center justify-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                        className="flex-1 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center justify-center space-x-1.5 shadow-2xs transition-colors cursor-pointer"
                         title="Επιθεώρηση & Έγκριση"
                       >
                         <ShieldCheck className="w-4 h-4" />
@@ -1081,7 +1081,7 @@ export const ShiftsManager: React.FC = () => {
                             {s.status === 'SUBMITTED' && canApprove && (
                               <button
                                 onClick={() => setDetailsShift(s)}
-                                className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs inline-flex items-center space-x-1 shadow-2xs transition-colors cursor-pointer"
                                 title="Επιθεώρηση & Έγκριση"
                               >
                                 <ShieldCheck className="w-3.5 h-3.5" />

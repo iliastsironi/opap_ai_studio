@@ -181,7 +181,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
             <button
               onClick={() => setActiveTab('RECONCILIATION')}
-              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
                 activeTab === 'RECONCILIATION'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -192,7 +192,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('SHEET')}
-              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
                 activeTab === 'SHEET'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -203,7 +203,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('SUMMARY')}
-              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-colors cursor-pointer whitespace-nowrap flex items-center space-x-1.5 ${
                 activeTab === 'SUMMARY'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'

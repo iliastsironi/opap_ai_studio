@@ -237,7 +237,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
             <button
               onClick={loadReportData}
               disabled={loading}
-              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
               title="Ανανέωση δεδομένων από τις πρόσφατες καταχωρήσεις"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -254,7 +254,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
             key={id}
             onClick={() => setActiveTab(id)}
             aria-pressed={activeTab === id}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-2 ${
               activeTab === id
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -701,7 +701,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
               </div>
               <button
                 onClick={openVltModal}
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Καταχώρηση Εκκαθάρισης Opapnet</span>
