@@ -1,6 +1,6 @@
 # 003 — Add easing and duration tokens to the theme
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 1bbbbf8
 - **Severity**: MEDIUM
 - **Category**: Cohesion & tokens

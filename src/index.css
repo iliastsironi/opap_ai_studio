@@ -7,6 +7,21 @@
 @theme {
   --text-micro: 0.6875rem; /* 11px */
   --text-micro--line-height: 1rem;
+
+  /* Motion. Tailwind's built-in curves are symmetric and too weak for
+     deliberate UI motion: an entrance that starts slow delays exactly the
+     moment the user is watching. These override the built-in ease-out and
+     ease-in-out utilities on purpose.
+       ease-out     entering, exiting, and the default when unsure
+       ease-in-out  something already on screen moving to a new position
+       ease-drawer  iOS-like curve for sheets and drawers
+     There is deliberately no --ease-in: starting slow is wrong for every
+     interaction in this app. Durations stay on Tailwind's duration-* scale -
+     button press 100-160ms, tooltips 125-200ms, dropdowns 150-250ms, modals
+     and drawers 200-500ms. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* ---------------------------------------------------------------
