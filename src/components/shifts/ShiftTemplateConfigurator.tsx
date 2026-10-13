@@ -356,7 +356,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <button
               onClick={handleSave}
               disabled={saving || !canEdit}
-              className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
+              className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}</span>

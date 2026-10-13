@@ -53,7 +53,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
     disabled={disabled}
     aria-label={label}
     title={label}
-    className={`inline-flex items-center justify-center ${SIZE_CLASSES[size]} shrink-0 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 ${TONE_CLASSES[tone]} ${className}`}
+    className={`transition inline-flex items-center justify-center ${SIZE_CLASSES[size]} shrink-0 rounded-lg duration-150 ease-out active:scale-[0.97] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-1 ${TONE_CLASSES[tone]} ${className}`}
   >
     <Icon className={ICON_SIZE_CLASSES[size]} />
   </button>

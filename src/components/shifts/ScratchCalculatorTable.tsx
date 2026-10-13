@@ -1127,7 +1127,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => handleAddRow()}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
+                className="transition px-3 py-1.5 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs flex items-center space-x-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Προσθήκη Παιχνιδιού</span>

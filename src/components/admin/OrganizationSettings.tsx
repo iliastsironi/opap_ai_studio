@@ -275,7 +275,7 @@ export const OrganizationSettings: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center space-x-2 active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}</span>

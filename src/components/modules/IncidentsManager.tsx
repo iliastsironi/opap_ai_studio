@@ -137,7 +137,7 @@ export const IncidentsManager: React.FC = () => {
             setCreateError(null);
             setShowModal(true);
           }}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center space-x-2 shadow-xs cursor-pointer"
+          className="transition px-4 py-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center space-x-2 shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Καταχώρηση Συμβάντος</span>

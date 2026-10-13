@@ -376,7 +376,7 @@ export const CopilotPage: React.FC = () => {
         <button
           onClick={() => handleSendMessage()}
           disabled={!inputText.trim() || isLoading}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center space-x-1.5"
+          className="transition px-4 py-2.5 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer flex items-center space-x-1.5"
         >
           <span>Αποστολή</span>
           <Send className="w-3.5 h-3.5" />

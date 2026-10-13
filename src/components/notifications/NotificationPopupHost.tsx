@@ -149,7 +149,7 @@ export const NotificationPopupHost: React.FC<NotificationPopupHostProps> = ({ on
             autoFocus
             disabled={isMarking}
             onClick={() => acknowledge()}
-            className="px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-base font-black cursor-pointer disabled:opacity-60"
+            className="px-8 py-3 rounded-xl transition duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-base font-black cursor-pointer disabled:opacity-60"
           >
             {isMarking ? 'Αποθήκευση...' : 'Το είδα'}
           </button>

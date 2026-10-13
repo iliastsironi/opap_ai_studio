@@ -351,7 +351,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
             <button
               type="button"
               onClick={handleOpenAddModal}
-              className="mb-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-xs transition-colors cursor-pointer"
+              className="transition mb-1.5 px-3.5 py-1.5 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-xs cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Νέος Πελάτης</span>

@@ -1,6 +1,6 @@
 # 004 — Give the modal entrance a proper duration and curve
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 1bbbbf8
 - **Severity**: MEDIUM
 - **Category**: Easing & duration
@@ -44,7 +44,7 @@ className={`fixed inset-0 ${LAYER_CLASSES[layer]} bg-slate-900/60 backdrop-blur-
 
 ```jsx
 /* target — src/components/ui/Modal.tsx:106 (panel) */
-className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col transition-[opacity,transform] duration-200 ease-out starting:opacity-0 starting:scale-95`}
+className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col transition-[opacity,transform,scale] duration-200 ease-out starting:opacity-0 starting:scale-95`}
 ```
 
 Three changes per line:
@@ -53,9 +53,15 @@ Three changes per line:
    because this app opens dialogs constantly and 300ms+ would start to drag.
 2. add `ease-out` — which, after plan 003, resolves to
    `cubic-bezier(0.23, 1, 0.32, 1)` rather than Tailwind's default.
-3. on the panel only, `transition-all` → `transition-[opacity,transform]` —
-   opacity and transform are the only properties that change, and `all` would
-   also animate the `max-h` and layout properties this panel carries.
+3. on the panel only, `transition-all` → `transition-[opacity,transform,scale]`
+   — those are the only properties that change, and `all` would also animate
+   the `max-h` and layout properties this panel carries.
+
+**`scale` must be listed explicitly.** Tailwind v4 compiles `scale-95` to the
+standalone `scale: 0.95` property, not `transform: scale(0.95)`, so a
+`transition-[opacity,transform]` that omits it leaves the entrance fading while
+the panel snaps from 95% to 100% instantly. Verified by reading
+`getComputedStyle(panel).transitionProperty` on an open dialog.
 
 ## Repo conventions to follow
 

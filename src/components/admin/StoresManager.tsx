@@ -206,7 +206,7 @@ export const StoresManager: React.FC = () => {
         {hasPermission('store.manage') && (
           <button
             onClick={handleOpenAddModal}
-            className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs transition-colors cursor-pointer"
+            className="transition inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Νέο Κατάστημα</span>

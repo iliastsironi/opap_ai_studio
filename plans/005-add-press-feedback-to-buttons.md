@@ -1,6 +1,6 @@
 # 005 — Give buttons press feedback
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: 1bbbbf8
 - **Severity**: MEDIUM
 - **Category**: Physicality & origin

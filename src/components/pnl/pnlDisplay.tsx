@@ -20,12 +20,12 @@ export function defaultEntryDate(month: string): string {
 }
 
 const actionBase =
-  'px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed';
+  'px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition duration-150 ease-out active:scale-[0.97] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100';
 export const primaryAction = `${actionBase} bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs`;
 export const secondaryAction = `${actionBase} border border-slate-300 bg-white hover:bg-slate-50 text-slate-700`;
 // Row actions keep a 40px tap target even though the icon inside is 14px.
 export const iconAction =
-  'inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-lg text-slate-500 transition-colors cursor-pointer';
+  'inline-flex items-center justify-center w-10 h-10 shrink-0 rounded-lg text-slate-500 transition duration-150 ease-out active:scale-[0.97] cursor-pointer';
 
 interface PnlSectionProps {
   title: string;

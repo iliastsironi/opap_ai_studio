@@ -2013,7 +2013,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <button
                       type="button"
                       onClick={handleAddTerminal}
-                      className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                      className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
                       title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στις Πληρωμές Καρτών POS)"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -2449,7 +2449,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   type="button"
                   onClick={handleAddExpense}
                   disabled={isAddingExpense}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{isAddingExpense ? 'Προσθήκη...' : '+ Προσθήκη Εξόδου'}</span>
@@ -2683,7 +2683,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <button
                     type="button"
                     onClick={handleAddTerminal}
-                    className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                    className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
                     title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στο Tora Direct)"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -3328,7 +3328,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <button
             type="button"
             onClick={() => handleStepChange(currentStep + 1)}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center space-x-1"
+            className="transition px-5 py-2.5 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs flex items-center space-x-1"
           >
             <span>Επόμενο Βήμα</span>
             <ChevronRight className="w-4 h-4" />

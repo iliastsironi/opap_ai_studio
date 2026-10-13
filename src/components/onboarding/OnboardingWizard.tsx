@@ -192,7 +192,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
           <div className="flex justify-end pt-4">
             <button
               type="submit"
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-xs transition-colors cursor-pointer"
+              className="transition inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-xs cursor-pointer"
             >
               <span>Επόμενο: Αρχικό Κατάστημα</span>
               <ArrowRight className="w-4 h-4" />
@@ -276,7 +276,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
 
             <button
               type="submit"
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-xs transition-colors cursor-pointer"
+              className="transition inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow-xs cursor-pointer"
             >
               <span>Επόμενο: Επιβεβαίωση</span>
               <ArrowRight className="w-4 h-4" />

@@ -14,9 +14,9 @@ or copy.
 | --- | --- | --- | --- | --- |
 | [001](001-replace-transition-all-with-transition-colors.md) | Replace `transition-all` with `transition-colors` where only colours change | HIGH | Performance | **DONE** |
 | [002](002-respect-prefers-reduced-motion.md) | Respect `prefers-reduced-motion` | HIGH | Accessibility | **DONE** |
-| [003](003-add-motion-tokens.md) | Add easing and duration tokens to the theme | MEDIUM | Cohesion & tokens | TODO |
-| [004](004-lengthen-and-ease-the-modal-entrance.md) | Give the modal entrance a proper duration and curve | MEDIUM | Easing & duration | TODO |
-| [005](005-add-press-feedback-to-buttons.md) | Give buttons press feedback | MEDIUM | Physicality | TODO |
+| [003](003-add-motion-tokens.md) | Add easing and duration tokens to the theme | MEDIUM | Cohesion & tokens | **DONE** |
+| [004](004-lengthen-and-ease-the-modal-entrance.md) | Give the modal entrance a proper duration and curve | MEDIUM | Easing & duration | **DONE** |
+| [005](005-add-press-feedback-to-buttons.md) | Give buttons press feedback | MEDIUM | Physicality | **DONE** |
 
 ## Recommended order
 

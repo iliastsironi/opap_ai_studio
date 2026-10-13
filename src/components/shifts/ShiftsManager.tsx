@@ -388,7 +388,7 @@ export const ShiftsManager: React.FC = () => {
             {canCreate && (
               <button
                 onClick={() => setShowOpeningModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs transition-colors whitespace-nowrap cursor-pointer"
+                className="transition px-4 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs whitespace-nowrap cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>{toGreekUpper('Εναρξη Νεας Βαρδιας')}</span>
@@ -521,7 +521,7 @@ export const ShiftsManager: React.FC = () => {
                 {pendingApprovalShifts.map((pShift) => (
                   <div
                     key={pShift.id}
-                    className="bg-white rounded-xl border border-amber-200 p-4 shadow-2xs hover:shadow-xs transition-colors transition-shadow flex flex-col justify-between space-y-3"
+                    className="transition bg-white rounded-xl border border-amber-200 p-4 shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -775,7 +775,7 @@ export const ShiftsManager: React.FC = () => {
               {paginatedShifts.map((s) => (
                 <div
                   key={s.id}
-                  className={`bg-white rounded-2xl border transition-colors transition-shadow shadow-2xs hover:shadow-xs flex flex-col justify-between overflow-hidden ${
+                  className={`transition bg-white rounded-2xl border shadow-2xs hover:shadow-xs flex flex-col justify-between overflow-hidden ${
                     s.status === 'SUBMITTED'
                       ? 'border-amber-300 ring-2 ring-amber-400/20'
                       : s.status === 'OPEN' || s.status === 'DRAFT_CLOSING'
@@ -883,7 +883,7 @@ export const ShiftsManager: React.FC = () => {
                     ) && (
                       <button
                         onClick={() => handleOpenWizard(s)}
-                        className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-colors cursor-pointer flex items-center justify-center space-x-1 shadow-2xs"
+                        className="transition flex-1 py-2 px-3 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs cursor-pointer flex items-center justify-center space-x-1 shadow-2xs"
                       >
                         <Clock className="w-3.5 h-3.5" />
                         <span>{toGreekUpper('Κλεισιμο')}</span>
@@ -1071,7 +1071,7 @@ export const ShiftsManager: React.FC = () => {
                             ) && (
                               <button
                                 onClick={() => handleOpenWizard(s)}
-                                className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs transition-colors cursor-pointer shadow-2xs"
+                                className="transition px-2.5 py-1.5 rounded-lg duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs cursor-pointer shadow-2xs"
                                 title="Οδηγός Κλεισίματος Βάρδιας"
                               >
                                 {toGreekUpper('Κλεισιμο')}

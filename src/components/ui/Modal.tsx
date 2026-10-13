@@ -97,13 +97,13 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 ${LAYER_CLASSES[layer]} bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-150 starting:opacity-0`}
+      className={`fixed inset-0 ${LAYER_CLASSES[layer]} bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 transition-opacity duration-200 ease-out starting:opacity-0`}
       onClick={closeOnBackdropClick ? onClose : undefined}
       role="presentation"
     >
       <div
         ref={cardRef}
-        className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col transition-all duration-150 starting:opacity-0 starting:scale-95`}
+        className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size]} overflow-hidden border border-slate-200 max-h-[90vh] flex flex-col transition-[opacity,transform,scale] duration-200 ease-out starting:opacity-0 starting:scale-95`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -215,7 +215,7 @@ export const ModalActions: React.FC<ModalActionsProps> = ({
       type={onSave ? 'button' : 'submit'}
       onClick={onSave}
       disabled={isSaving || disabled}
-      className={`px-5 py-2 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-sm ${SAVE_TONE_CLASSES[saveTone]}`}
+      className={`transition px-5 py-2 text-white rounded-xl font-bold duration-150 ease-out active:scale-[0.97] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 text-sm ${SAVE_TONE_CLASSES[saveTone]}`}
     >
       {isSaving ? savingLabel ?? 'Αποθήκευση...' : saveLabel}
     </button>

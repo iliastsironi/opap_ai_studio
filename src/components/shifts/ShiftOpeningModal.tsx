@@ -220,7 +220,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       <button
         type="submit"
         disabled={loading || fetchingPrev}
-        className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+        className="px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
       >
         {loading ? (
           <>

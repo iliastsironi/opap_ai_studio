@@ -137,7 +137,7 @@ export const RosterManager: React.FC = () => {
           <button
             type="button"
             onClick={() => handleOpenEditor()}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="transition px-3.5 py-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Δημιουργία / Επεξεργασία Προγράμματος</span>

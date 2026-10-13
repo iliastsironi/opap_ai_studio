@@ -219,7 +219,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
             <button
               type="button"
               onClick={handleAddCredit}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs transition-colors cursor-pointer"
+              className="transition px-3 py-1.5 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-2xs cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Προσθήκη</span>
@@ -479,7 +479,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         type="button"
                         onClick={() => handleQuickCreateCustomer(idx)}
                         disabled={isCreatingCustomer}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1 transition duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
                       >
                         {isCreatingCustomer ? 'Αποθήκευση...' : 'Αποθήκευση & Επιλογή'}
                       </button>

@@ -280,7 +280,7 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
               <button
                 type="button"
                 onClick={() => setShowCollectionModal(true)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer shrink-0"
+                className="px-4 py-2 transition duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer shrink-0"
               >
                 Παραλαβή
               </button>

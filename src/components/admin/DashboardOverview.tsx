@@ -118,7 +118,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           </button>
           <button
             onClick={() => onNavigate('shifts')}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer flex items-center space-x-2"
+            className="transition px-4 py-2.5 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-2"
           >
             <Clock className="w-4 h-4" />
             <span>Βάρδιες & Ταμείο</span>

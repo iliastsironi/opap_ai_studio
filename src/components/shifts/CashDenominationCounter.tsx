@@ -110,7 +110,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     return (
       <div
         key={denom.key}
-        className={`p-3.5 sm:p-4 rounded-2xl border transition-colors transition-shadow flex flex-col justify-between space-y-3 ${
+        className={`transition p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between space-y-3 ${
           isDark
             ? isCoin
               ? 'bg-slate-900/90 border-amber-900/30 hover:border-amber-600/50 shadow-2xs'
@@ -257,7 +257,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     <div className={`space-y-4 ${className}`}>
       {/* Top Header Summary & Controls Bar */}
       <div
-        className={`p-4 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-colors transition-shadow ${
+        className={`transition p-4 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
           isDark
             ? 'bg-slate-800/90 border-slate-700 text-slate-100 shadow-md'
             : 'bg-white border-slate-200 text-slate-900 shadow-2xs'
@@ -362,7 +362,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         {/* SECTION 1: BANKNOTES (ΧΑΡΤΟΝΟΜΙΣΜΑΤΑ) */}
         {(activeFilter === 'all' || activeFilter === 'notes') && (
           <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-colors transition-shadow space-y-4 ${
+            className={`transition p-4 sm:p-5 rounded-2xl border space-y-4 ${
               isDark
                 ? 'bg-slate-900/60 border-emerald-900/40 shadow-sm'
                 : 'bg-emerald-50/25 border-emerald-200/80 shadow-2xs'
@@ -446,7 +446,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0.10€) */}
         {(activeFilter === 'all' || activeFilter === 'coins') && (
           <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-colors transition-shadow space-y-4 ${
+            className={`transition p-4 sm:p-5 rounded-2xl border space-y-4 ${
               isDark
                 ? 'bg-slate-900/60 border-amber-900/40 shadow-sm'
                 : 'bg-amber-50/25 border-amber-200/80 shadow-2xs'

@@ -419,7 +419,7 @@ export const SuppliersManager: React.FC = () => {
           {activeTab === 'suppliers' ? (
             <button
               onClick={openAddModal}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer"
+              className="transition inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Νέος Προμηθευτής</span>
@@ -427,7 +427,7 @@ export const SuppliersManager: React.FC = () => {
           ) : (
             <button
               onClick={() => openNewOrderModal()}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md transition-colors transition-shadow cursor-pointer"
+              className="transition inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-sm hover:shadow-md cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Νέα Παραγγελία</span>
@@ -858,7 +858,7 @@ export const SuppliersManager: React.FC = () => {
                   setPreviewSupplier(null);
                   openNewOrderModal(previewSupplier.id);
                 }}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-2 transition duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs shadow-xs cursor-pointer flex items-center gap-1.5"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
                 <span>Νέα Παραγγελία</span>

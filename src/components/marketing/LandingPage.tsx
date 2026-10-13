@@ -368,7 +368,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
               <button
                 onClick={onStartTrial}
-                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-colors transition-shadow cursor-pointer"
+                className="transition w-full sm:w-auto inline-flex items-center justify-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 cursor-pointer"
               >
                 <span>Δωρεάν Δοκιμή 30 Ημερών</span>
                 <ArrowRight className="w-4 h-4" />
@@ -426,7 +426,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-200 hover:shadow-sm transition-colors transition-shadow"
+              className="transition bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-200 hover:shadow-sm "
             >
               <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center mb-4">
                 <feature.icon className="w-5 h-5" />
@@ -574,7 +574,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 >
                   <span className="font-bold text-slate-900 text-base">{faq.q}</span>
                   <ChevronDown
-                    className={`w-5 h-5 text-slate-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`w-5 h-5 text-slate-500 shrink-0 transition ${isOpen ? 'rotate-180' : ''}`}
                   />
                 </button>
                 {isOpen && <p className="px-5 pb-5 text-base text-slate-600 leading-relaxed">{faq.a}</p>}
@@ -595,7 +595,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           </h2>
           <button
             onClick={onStartTrial}
-            className="mt-7 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 transition-colors transition-shadow cursor-pointer"
+            className="transition mt-7 inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 cursor-pointer"
           >
             <span>Ξεκινήστε τη Δωρεάν Δοκιμή σας</span>
             <ArrowRight className="w-4 h-4" />

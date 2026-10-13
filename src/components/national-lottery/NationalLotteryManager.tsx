@@ -242,7 +242,7 @@ export const NationalLotteryManager: React.FC = () => {
               <button
                 type="button"
                 onClick={handleOpenCreate}
-                className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 shrink-0"
+                className="px-3.5 py-2.5 transition duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Νέος Συνδρομητής

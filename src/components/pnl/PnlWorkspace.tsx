@@ -21,7 +21,7 @@ const VIEWS: Array<{ id: PnlView; label: string; icon: LucideIcon }> = [
 ];
 
 const monthButton =
-  'p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer transition-colors';
+  'p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer transition duration-150 ease-out active:scale-[0.97]';
 
 // The Owner's monthly P&L, organised like the P&L_MMYY.xlsx workbook.
 export const PnlWorkspace: React.FC = () => {
