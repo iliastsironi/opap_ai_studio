@@ -34,6 +34,47 @@
    (shadow-sm is not part of this app's button vocabulary - if you
    see it on a button, it's drift, not a second valid option.) */
 
+/* Users who ask for reduced motion get the information, not the movement.
+   Colour and opacity transitions stay - they explain what changed - while
+   anything that travels, rotates or loops stops. The app runs 36 perpetual
+   animations (spinners, "live" status dots, the Copilot typing indicator) and
+   staff have it open for a whole shift, so an unstoppable loop is the worst
+   case here, not a minor one.
+
+   The blanket rule below kills all animation, then hands loading indicators
+   back a gentle opacity pulse: a spinner frozen mid-rotation reads as a hung
+   screen, which is worse than the motion it replaced. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-spin,
+  .animate-ping,
+  .animate-bounce {
+    animation: reduced-motion-pulse 1.6s ease-in-out infinite !important;
+  }
+
+  .animate-pulse {
+    animation: reduced-motion-pulse 2.4s ease-in-out infinite !important;
+  }
+}
+
+@keyframes reduced-motion-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* Hide print-only elements by default on screen */
 .print-only {
   display: none !important;
