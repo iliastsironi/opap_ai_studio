@@ -177,7 +177,7 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
           <table className="w-full text-sm tabular-nums">
             <tbody className="divide-y divide-slate-100">
               {sheet.commissions.lines.map((line) => (
-                <tr key={line.line} className={line.total === 0 ? 'text-slate-400' : 'text-slate-800'}>
+                <tr key={line.line} className={line.total === 0 ? 'text-slate-500' : 'text-slate-800'}>
                   <td className="py-1.5 font-semibold">{line.line}</td>
                   <td className="py-1.5 text-right">{formatCurrency(line.total)}</td>
                 </tr>
@@ -322,7 +322,7 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
                     {fnbRows.map((day) => (
                       <tr key={day.date} className={day.turnover === 0 && day.expenses === 0 ? 'text-slate-300' : 'text-slate-800'}>
                         <td className="px-3 py-1.5 whitespace-nowrap">
-                          <span className="font-semibold">{shortDay(day.date)}</span> <span className="text-slate-400">{weekdayLabel(day.date)}</span>
+                          <span className="font-semibold">{shortDay(day.date)}</span> <span className="text-slate-500">{weekdayLabel(day.date)}</span>
                         </td>
                         <td className="px-3 py-1.5 text-right">{formatCurrency(day.cash)}</td>
                         <td className="px-3 py-1.5 text-right">{formatCurrency(day.pos)}</td>
@@ -384,7 +384,7 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
                 {cashRows.map((day) => (
                   <tr key={day.date}>
                     <td className="px-3 py-1.5 whitespace-nowrap">
-                      <span className="font-semibold">{shortDay(day.date)}</span> <span className="text-slate-400">{weekdayLabel(day.date)}</span>
+                      <span className="font-semibold">{shortDay(day.date)}</span> <span className="text-slate-500">{weekdayLabel(day.date)}</span>
                     </td>
                     <td className="px-3 py-1.5">{day.employees.join(', ')}</td>
                     <td className="px-3 py-1.5 text-right">{formatCurrency(day.counted)}</td>

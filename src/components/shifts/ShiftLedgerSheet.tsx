@@ -421,28 +421,28 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
         {/* Info Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
+            <span className="text-slate-500 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
               <Store className="w-3 h-3" /> Κατάστημα
             </span>
             <span className="font-bold text-slate-900">{storeName}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
+            <span className="text-slate-500 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3" /> Ημερομηνία
             </span>
             <span className="font-bold text-slate-900">{dateStr}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
+            <span className="text-slate-500 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
               <User className="w-3 h-3" /> Χρήστης
             </span>
             <span className="font-bold text-slate-900 truncate block">{userName}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-slate-400 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
+            <span className="text-slate-500 font-bold block text-micro uppercase mb-0.5 flex items-center gap-1">
               <FileText className="w-3 h-3" /> Κατάσταση
             </span>
             <span className="font-bold text-slate-900">
@@ -469,7 +469,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
           <p className="text-lg font-black text-slate-900 font-mono">
             {formatCurrency(floatTotal)}
           </p>
-          <p className="text-micro text-slate-400">Κεφάλαιο έναρξης</p>
+          <p className="text-micro text-slate-500">Κεφάλαιο έναρξης</p>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
@@ -479,7 +479,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
           <p className="text-lg font-black text-indigo-600 font-mono">
             {formatCurrency(totalSystemRegister)}
           </p>
-          <p className="text-micro text-slate-400">Σύνολο πωλήσεων/συστημάτων</p>
+          <p className="text-micro text-slate-500">Σύνολο πωλήσεων/συστημάτων</p>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
@@ -489,7 +489,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
           <p className="text-lg font-black text-slate-900 font-mono">
             {formatCurrency(totalCountedRegister)}
           </p>
-          <p className="text-micro text-slate-400">Μετρητά & εκροές/POS</p>
+          <p className="text-micro text-slate-500">Μετρητά & εκροές/POS</p>
         </div>
 
         <div
@@ -546,7 +546,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             <div className="py-2.5 flex items-center justify-between">
               <div>
                 <span className="font-bold text-slate-800 block">Αριθμοπαιχνίδια (Kino, Joker, etc)</span>
-                <span className="text-micro text-slate-400 font-mono">
+                <span className="text-micro text-slate-500 font-mono">
                   Πωλήσεις: {formatCurrency(safeNum(numberSales))} • Πληρωμές: -{formatCurrency(safeNum(numberPayouts))}
                 </span>
               </div>
@@ -571,7 +571,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                       </button>
                     )}
                   </div>
-                  <span className="text-micro text-slate-400 block mt-0.5 font-mono">
+                  <span className="text-micro text-slate-500 block mt-0.5 font-mono">
                     Πωλήσεις: {formatCurrency(safeNum(scratchSales))} • Εξαργυρώσεις: -{formatCurrency(safeNum(scratchPayouts))}
                   </span>
                 </div>
@@ -609,7 +609,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                         <span className="text-center text-slate-600">{!hasBackSide(item) ? '—' : (item.backEndNo || '-')}</span>
                         <span className="text-right font-bold text-emerald-700">{rowTotal > 0 ? formatCurrency(rowTotal) : '-'}</span>
                         {qty > 0 && (
-                          <span className="col-span-7 text-micro text-slate-400 -mt-0.5">{qty} τμχ συνολικά</span>
+                          <span className="col-span-7 text-micro text-slate-500 -mt-0.5">{qty} τμχ συνολικά</span>
                         )}
                         {bundleTracked && (startSplit || endSplit) && (
                           <span className="col-span-7 text-micro text-indigo-400 -mt-0.5">
@@ -630,7 +630,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block">TORA DIRECT</span>
-                  <span className="text-micro text-slate-400">Πληρωμές λογαριασμών & TORA DIRECT (Ορίζονται από Manager)</span>
+                  <span className="text-micro text-slate-500">Πληρωμές λογαριασμών & TORA DIRECT (Ορίζονται από Manager)</span>
                 </div>
                 <span className="font-bold font-mono text-slate-900">
                   {formatCurrency(toraTotal)}
@@ -656,7 +656,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               <div className="py-2.5 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block">VLTs (PLAY Games)</span>
-                  <span className="text-micro text-slate-400">Καθαρή ροή μετρητών</span>
+                  <span className="text-micro text-slate-500">Καθαρή ροή μετρητών</span>
                 </div>
                 <span className="font-bold font-mono text-slate-900">
                   {formatCurrency(safeNum(vltsCashflow))}
@@ -669,7 +669,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               <div className="py-2.5 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block">Clever Point</span>
-                  <span className="text-micro text-slate-400">Υπηρεσίες δεμάτων</span>
+                  <span className="text-micro text-slate-500">Υπηρεσίες δεμάτων</span>
                 </div>
                 <span className="font-bold font-mono text-slate-900">
                   {formatCurrency(safeNum(cleverPoint))}
@@ -681,7 +681,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             <div className="py-2.5 flex items-center justify-between">
               <div>
                 <span className="font-bold text-slate-800 block">FnB & Αναψυκτήριο</span>
-                <span className="text-micro text-slate-400 font-mono">
+                <span className="text-micro text-slate-500 font-mono">
                   Μετρητά: {formatCurrency(safeNum(fnbCash))} • Κάρτα: {formatCurrency(safeNum(fnbCard))}
                 </span>
               </div>
@@ -711,7 +711,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Μετρητά & Κέρματα στο Ταμείο</span>
-                  <span className="text-micro text-slate-400 font-mono">
+                  <span className="text-micro text-slate-500 font-mono">
                     Χαρτονομίσματα ({formatCurrency(banknotesTotal)}) + Κέρματα ({formatCurrency(coinsTotal)})
                   </span>
                 </div>
@@ -727,7 +727,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <Building className="w-4 h-4 text-slate-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Αφαίρεση στο Χρηματοκιβώτιο (Safe Drop)</span>
-                  <span className="text-micro text-slate-400">Μεταφορά ασφαλείας</span>
+                  <span className="text-micro text-slate-500">Μεταφορά ασφαλείας</span>
                 </div>
               </div>
               <span className="font-bold font-mono text-slate-900">
@@ -741,7 +741,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <CreditCard className="w-4 h-4 text-indigo-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Πληρωμές με Κάρτα (POS)</span>
-                  <span className="text-micro text-slate-400 font-mono">
+                  <span className="text-micro text-slate-500 font-mono">
                     {savedStorePosItems && savedStorePosItems.length > 0
                       ? savedStorePosItems
                           .map((p) => `${p.name}: ${formatCurrency(safeNum(p.amount))}`)
@@ -765,7 +765,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <Receipt className="w-4 h-4 text-amber-500 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Έξοδα & Πληρωμές Βάρδιας</span>
-                  <span className="text-micro text-slate-400">Πληρωμές προμηθευτών & δαπάνες</span>
+                  <span className="text-micro text-slate-500">Πληρωμές προμηθευτών & δαπάνες</span>
                 </div>
               </div>
               <span className="font-bold font-mono text-slate-900">
@@ -778,7 +778,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
               <div className="py-2.5 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-slate-800 block">Πιστώσεις & Επιστροφές</span>
-                  <span className="text-micro text-slate-400 font-mono">
+                  <span className="text-micro text-slate-500 font-mono">
                     Πιστώσεις ({formatCurrency(safeNum(creditsGranted))}) • Επιστροφές ({formatCurrency(safeNum(customerReturns))})
                   </span>
                 </div>

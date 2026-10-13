@@ -406,7 +406,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                             : 'bg-white border-slate-300 text-slate-900 focus:ring-indigo-500'
                         }`}
                       />
-                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">€</span>
                     </div>
                   </div>
 
@@ -416,7 +416,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       <button
                         type="button"
                         onClick={() => setCreditIdxToRemove(idx)}
-                        className="p-2 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
+                        className="p-2 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer rounded-lg hover:bg-rose-50"
                         title="Διαγραφή γραμμής"
                         aria-label="Διαγραφή γραμμής"
                       >
@@ -435,7 +435,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         type="button"
                         onClick={() => setQuickCreateOpenIdx(null)}
                         aria-label="Κλείσιμο"
-                        className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        className="inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>

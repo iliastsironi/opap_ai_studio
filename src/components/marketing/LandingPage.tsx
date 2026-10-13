@@ -187,7 +187,7 @@ const DashboardPreview: React.FC = () => (
       { label: 'SAFE DROP (€)', value: '€4.500,00', tag: 'Ασφαλισμένα', tagColor: 'text-indigo-700 bg-indigo-50' },
     ].map((stat) => (
       <div key={stat.label} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-        <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+        <p className="text-micro font-extrabold text-slate-500 uppercase tracking-wider">{stat.label}</p>
         <p className="text-lg font-black text-slate-900 mt-1">{stat.value}</p>
         <span className={`inline-block mt-1.5 text-micro font-extrabold px-1.5 py-0.5 rounded-full ${stat.tagColor}`}>
           {stat.tag}
@@ -201,7 +201,7 @@ const ShiftsTablePreview: React.FC = () => (
   <div className="overflow-x-auto">
     <table className="w-full text-left text-micro">
       <thead>
-        <tr className="text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-200">
+        <tr className="text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-200">
           <th className="py-2 pr-3">Κατάστημα &amp; Ταμείο</th>
           <th className="py-2 pr-3">Βάρδια</th>
           <th className="py-2 pr-3">Αναμενόμενο</th>
@@ -225,7 +225,7 @@ const ShiftsTablePreview: React.FC = () => (
           <td className="py-2.5 pr-3 font-semibold text-slate-800">OPAP Agency - Κηφισίας</td>
           <td className="py-2.5 pr-3 text-slate-600">Βραδινή (Γ)</td>
           <td className="py-2.5 pr-3 text-slate-600">€860,00</td>
-          <td className="py-2.5 pr-3 font-bold text-slate-400">—</td>
+          <td className="py-2.5 pr-3 font-bold text-slate-500">—</td>
           <td className="py-2.5">
             <span className="text-micro font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
               ΠΡΟΧΕΙΡΟ
@@ -248,7 +248,7 @@ const LaikoTablePreview: React.FC = () => (
         <div className="w-9 h-9 rounded-lg border-2 border-indigo-200 bg-white flex items-center justify-center font-mono font-black text-sm text-slate-900">
           5
         </div>
-        <span className="text-slate-400 text-xs font-bold">+</span>
+        <span className="text-slate-500 text-xs font-bold">+</span>
         <div className="w-9 h-9 rounded-lg border-2 border-indigo-200 bg-white flex items-center justify-center font-mono font-black text-sm text-slate-900">
           3
         </div>
@@ -519,12 +519,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                     {plan.badge}
                   </span>
                 )}
-                <h3 className={`font-bold ${plan.highlight ? 'text-indigo-100' : 'text-slate-400'}`}>{plan.name}</h3>
+                <h3 className={`font-bold ${plan.highlight ? 'text-indigo-100' : 'text-slate-500'}`}>{plan.name}</h3>
                 <div className="mt-2 flex items-baseline space-x-1.5">
                   <span className={`text-3xl font-extrabold ${plan.highlight ? 'text-white' : 'text-slate-900'}`}>
                     {plan.price}
                   </span>
-                  <span className={plan.highlight ? 'text-indigo-200 text-sm' : 'text-slate-500 text-sm'}>
+                  <span className={plan.highlight ? 'text-indigo-100 text-sm' : 'text-slate-500 text-sm'}>
                     {plan.period}
                   </span>
                 </div>
@@ -574,7 +574,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 >
                   <span className="font-bold text-slate-900 text-base">{faq.q}</span>
                   <ChevronDown
-                    className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`w-5 h-5 text-slate-500 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                   />
                 </button>
                 {isOpen && <p className="px-5 pb-5 text-base text-slate-600 leading-relaxed">{faq.a}</p>}
@@ -604,7 +604,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       </section>
 
       <footer className="border-t border-slate-100 py-8">
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-slate-500">
           ShiftLedger — Πλατφόρμα Διαχείρισης &amp; Ταμειακού Ελέγχου Πρακτορείων ΟΠΑΠ
         </p>
       </footer>

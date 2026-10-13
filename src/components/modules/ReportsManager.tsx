@@ -678,7 +678,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   </div>
                   {s.peakHour && (
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400 font-medium">Ώρες Αιχμής:</span>
+                      <span className="text-slate-500 font-medium">Ώρες Αιχμής:</span>
                       <span className="font-bold text-slate-700">{s.peakHour}</span>
                     </div>
                   )}
@@ -737,7 +737,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                       </td>
                       <td className="py-3.5 px-3 text-right font-bold text-slate-800">{formatCurrency(v.countedAmount)}</td>
                       <td className={`py-3.5 px-3 text-right font-bold ${
-                        v.status === 'PENDING' ? 'text-slate-400' : v.difference === 0 ? 'text-emerald-600' : 'text-rose-600'
+                        v.status === 'PENDING' ? 'text-slate-500' : v.difference === 0 ? 'text-emerald-600' : 'text-rose-600'
                       }`}>
                         {v.status === 'PENDING' ? '—' : formatCurrency(v.difference, { showSign: true })}
                       </td>

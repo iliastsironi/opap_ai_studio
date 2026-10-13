@@ -263,7 +263,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Group 1: Store & Register Setup (Responsive Grid on Tablet) */}
           <div className="space-y-3 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/80">
-            <span className="text-micro font-black text-slate-400 uppercase tracking-wider block">
+            <span className="text-micro font-black text-slate-500 uppercase tracking-wider block">
               {toGreekUpper('1. Στοιχεια Καταστηματος & Ταμειου')}
             </span>
 
@@ -380,7 +380,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <label htmlFor="opening-banknotes" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-micro text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
+                    <span className="text-micro text-slate-500 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -400,7 +400,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     }`}
                     required
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
                     €
                   </span>
                 </div>
@@ -410,7 +410,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <label htmlFor="opening-coins" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>🪙 {toGreekUpper('Κερματα')} (€)</span>
                   {shiftType !== 'MORNING' && (
-                    <span className="text-micro text-slate-400 font-mono">{toGreekUpper('Αυτοματο')}</span>
+                    <span className="text-micro text-slate-500 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -430,7 +430,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     }`}
                     required
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
                     €
                   </span>
                 </div>

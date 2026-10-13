@@ -1519,7 +1519,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               }`}
             >
               <CheckCircle2
-                className={`w-3.5 h-3.5 ${isAutoSaved ? 'text-emerald-600' : 'text-slate-400'}`}
+                className={`w-3.5 h-3.5 ${isAutoSaved ? 'text-emerald-600' : 'text-slate-500'}`}
               />
               <span className="hidden sm:inline">Αποθηκεύτηκε: {draftSavedAt}</span>
               <span className="sm:hidden">{draftSavedAt}</span>
@@ -1661,7 +1661,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 {shift.store_name} • {shift.register_id}
               </span>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs text-slate-500 font-mono">
                 {shift.shift_type === 'MORNING'
                   ? '☀️ Πρωινή'
                   : shift.shift_type === 'AFTERNOON'
@@ -1678,12 +1678,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           {/* Real-time Summary Card Header */}
           <div className="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 flex items-center space-x-5 shadow-inner">
             <div className="text-right sm:text-left">
-              <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">Αναμενόμενο Ταμείο</p>
+              <p className="text-micro font-extrabold text-slate-500 uppercase tracking-wider">Αναμενόμενο Ταμείο</p>
               <p className="text-xl font-black text-emerald-400">{formatCurrency(expectedCash)}</p>
             </div>
             <div className="h-10 w-px bg-slate-700"></div>
             <div>
-              <p className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">Μετρημένα</p>
+              <p className="text-micro font-extrabold text-slate-500 uppercase tracking-wider">Μετρημένα</p>
               <p className="text-xl font-black text-indigo-300">{formatCurrency(countedCash)}</p>
             </div>
           </div>
@@ -1944,7 +1944,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           : 'border-emerald-300 bg-emerald-50/50 text-emerald-950 cursor-default'
                       }`}
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-black text-slate-400 font-mono">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-xs font-black text-slate-500 font-mono">
                       €
                     </div>
                   </div>
@@ -2072,7 +2072,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         placeholder="0.00"
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                       />
-                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                     </div>
                   </div>
                 ))}
@@ -2577,7 +2577,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         type="button"
                         onClick={() => handleRemoveExpense(idx)}
                         aria-label="Διαγραφή Εξόδου"
-                        className="p-2.5 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        className="p-2.5 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -2742,7 +2742,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       placeholder="0.00"
                       className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                     />
-                    <span className="absolute right-3 top-3 text-xs font-bold text-slate-400">€</span>
+                    <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                   </div>
                 </div>
               ))}
@@ -2861,19 +2861,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 text-xs">
               <div className="space-y-1.5 border-b md:border-b-0 md:border-r border-slate-700/60 pb-3 md:pb-0 md:pr-4">
                 <div className="flex justify-between items-center py-0.5">
-                  <span className="text-slate-400 font-bold">Κατάστημα:</span>
+                  <span className="text-slate-500 font-bold">Κατάστημα:</span>
                   <span className="font-mono font-bold text-white bg-slate-900/60 px-2.5 py-0.5 rounded border border-slate-700/40">
                     {shift.store_code || shift.store_id || '100343'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-0.5">
-                  <span className="text-slate-400 font-bold">Ημερομηνία:</span>
+                  <span className="text-slate-500 font-bold">Ημερομηνία:</span>
                   <span className="font-mono font-bold text-white">
                     {shift.opened_at ? new Date(shift.opened_at).toLocaleDateString('el-GR') : new Date().toLocaleDateString('el-GR')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-0.5">
-                  <span className="text-slate-400 font-bold">Βάρδια:</span>
+                  <span className="text-slate-500 font-bold">Βάρδια:</span>
                   <span className="font-mono font-bold text-indigo-300">
                     {shift.shift_type === 'MORNING' ? 'A (Πρωινή)' : shift.shift_type === 'AFTERNOON' ? 'B (Απογευματινή)' : (shift.shift_type || 'B')}
                   </span>
@@ -2882,7 +2882,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
               <div className="space-y-2 flex flex-col justify-between">
                 <div className="flex justify-between items-center py-0.5">
-                  <span className="text-slate-400 font-bold">Όνομα Χρήστη:</span>
+                  <span className="text-slate-500 font-bold">Όνομα Χρήστη:</span>
                   <span className="font-bold text-white">
                     {shift.opened_by_user_name || shift.opened_by_user_id || 'Περικλής Βέττας'}
                   </span>

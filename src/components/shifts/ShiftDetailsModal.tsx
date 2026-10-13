@@ -687,7 +687,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm border-collapse font-mono">
                           <thead>
-                            <tr className="text-slate-400 border-b border-slate-800 text-micro uppercase">
+                            <tr className="text-slate-500 border-b border-slate-800 text-micro uppercase">
                               <th className="py-1.5 px-2">Παιχνίδι</th>
                               <th className="py-1.5 px-2 text-right">Τιμή</th>
                               <th className="py-1.5 px-2 text-center text-indigo-400">Μπρ. Αρχικό</th>
@@ -788,7 +788,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm border-collapse">
                           <thead>
-                            <tr className="text-slate-400 border-b border-slate-800 text-micro uppercase font-mono">
+                            <tr className="text-slate-500 border-b border-slate-800 text-micro uppercase font-mono">
                               <th className="py-1.5 px-2">Πελάτης</th>
                               <th className="py-1.5 px-2 text-center">Credit Score</th>
                               <th className="py-1.5 px-2 text-center">Τύπος Κίνησης</th>
@@ -830,7 +830,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       {isCollected ? 'Είσπραξη / Εξόφληση' : 'Νέα Πίστωση (Χρέωση)'}
                                     </span>
                                   </td>
-                                  <td className="py-1.5 px-2 text-slate-400 text-micro italic">
+                                  <td className="py-1.5 px-2 text-slate-500 text-micro italic">
                                     {cred.notes || '-'}
                                   </td>
                                   <td
@@ -890,14 +890,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               {/* User Timestamps Card */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                 <div>
-                  <span className="text-slate-400 font-bold uppercase block mb-1">Έναρξη</span>
+                  <span className="text-slate-500 font-bold uppercase block mb-1">Έναρξη</span>
                   <p className="font-bold text-slate-900">{shift.opened_by_user_name || 'Υπάλληλος'}</p>
                   <p className="text-slate-500 font-mono">
                     {new Date(shift.opened_at).toLocaleString('el-GR')}
                   </p>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-bold uppercase block mb-1">Κλείσιμο</span>
+                  <span className="text-slate-500 font-bold uppercase block mb-1">Κλείσιμο</span>
                   <p className="font-bold text-slate-900">
                     {shift.closed_by_user_name || (shift.closed_at ? 'Υπάλληλος' : '-')}
                   </p>

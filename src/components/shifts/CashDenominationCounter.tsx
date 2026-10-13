@@ -207,10 +207,10 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               className={`w-full min-w-0 text-center font-black font-mono text-lg bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
                 isDark
                   ? 'text-white placeholder:text-slate-600'
-                  : 'text-slate-900 placeholder:text-slate-400'
+                  : 'text-slate-900 placeholder:text-slate-500'
               }`}
             />
-            <span className={`text-micro font-bold ml-1 select-none shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            <span className={`text-micro font-bold ml-1 select-none shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
               τμχ
             </span>
           </div>
@@ -240,7 +240,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
                 isDark
                   ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
-                  : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'
+                  : 'text-slate-500 hover:bg-rose-50 hover:text-rose-600'
               }`}
               title="Μηδενισμός αξίας"
               aria-label="Μηδενισμός αξίας"

@@ -235,7 +235,7 @@ export const VltManager: React.FC = () => {
         </div>
       ) : (
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-slate-400" />
+          <Clock className="w-4 h-4 text-slate-500" />
           <span>Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή για το επιλεγμένο κατάστημα.</span>
         </div>
       )}
@@ -262,19 +262,19 @@ export const VltManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Εισπράξεων (Meter In)</p>
           <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{formatCurrency(totalIn)}</h3>
-          <p className="text-micro text-slate-400 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
+          <p className="text-micro text-slate-500 mt-2">Εισαγωγές χαρτονομισμάτων & TITO στα VLTs</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Σύνολο Πληρωμών (Meter Out)</p>
           <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalOut)}</h3>
-          <p className="text-micro text-slate-400 mt-2">Εκδόσεις TITO & payouts παικτών</p>
+          <p className="text-micro text-slate-500 mt-2">Εκδόσεις TITO & payouts παικτών</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρό Έσοδο VLTs (Net Revenue)</p>
           <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
-          <p className="text-micro text-slate-400 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
+          <p className="text-micro text-slate-500 mt-2">Υπόλοιπο για συμφωνία ταμείου βάρδιας</p>
         </div>
       </div>
 
@@ -293,7 +293,7 @@ export const VltManager: React.FC = () => {
       </div>
 
       {loadingTerminals ? (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-400">
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-xs text-slate-500">
           Φόρτωση τερματικών...
         </div>
       ) : terminals.length === 0 ? (
@@ -315,7 +315,7 @@ export const VltManager: React.FC = () => {
             <div key={t.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-micro font-mono text-slate-400 uppercase font-bold">{t.code}</span>
+                  <span className="text-micro font-mono text-slate-500 uppercase font-bold">{t.code}</span>
                   <h4 className="font-bold text-slate-900 text-sm">{t.game_title || '—'}</h4>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -335,7 +335,7 @@ export const VltManager: React.FC = () => {
                       <button
                         onClick={() => openEditTerminalModal(t)}
                         aria-label={`Επεξεργασία ${t.code}`}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -345,7 +345,7 @@ export const VltManager: React.FC = () => {
                           setTerminalToDelete(t);
                         }}
                         aria-label={`Διαγραφή ${t.code}`}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -356,11 +356,11 @@ export const VltManager: React.FC = () => {
 
               <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-slate-50 p-2 rounded">
-                  <p className="text-micro text-slate-400 font-medium">In</p>
+                  <p className="text-micro text-slate-500 font-medium">In</p>
                   <p className="text-xs font-extrabold text-slate-800 font-mono">{formatCurrency(t.meter_in)}</p>
                 </div>
                 <div className="bg-slate-50 p-2 rounded">
-                  <p className="text-micro text-slate-400 font-medium">Out</p>
+                  <p className="text-micro text-slate-500 font-medium">Out</p>
                   <p className="text-xs font-extrabold text-rose-600 font-mono">{formatCurrency(t.meter_out)}</p>
                 </div>
                 <div className="bg-indigo-50 p-2 rounded">

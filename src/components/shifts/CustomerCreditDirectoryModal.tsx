@@ -418,7 +418,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
               {/* Filters & Search */}
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
                 <div className="relative w-full sm:w-72">
-                  <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                   <label htmlFor="customer-directory-search" className="sr-only">Αναζήτηση πελατών</label>
                   <input
                     id="customer-directory-search"
@@ -467,10 +467,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {filteredCustomers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-400">
+                        <td colSpan={6} className="p-8 text-center text-slate-500">
                           <UserCheck className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                           <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν πελάτες</p>
-                          <p className="text-xs text-slate-400 mt-1">Δοκιμάστε διαφορετικά κριτήρια αναζήτησης.</p>
+                          <p className="text-xs text-slate-500 mt-1">Δοκιμάστε διαφορετικά κριτήρια αναζήτησης.</p>
                         </td>
                       </tr>
                     ) : (
@@ -486,12 +486,12 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                               <div className="font-bold text-slate-900 text-xs">{cust.name}</div>
                               {cust.phone && (
                                 <div className="text-micro text-slate-500 flex items-center space-x-1 font-mono mt-0.5">
-                                  <Phone className="w-3 h-3 text-slate-400" />
+                                  <Phone className="w-3 h-3 text-slate-500" />
                                   <span>{cust.phone}</span>
                                 </div>
                               )}
                               {cust.notes && (
-                                <div className="text-micro text-slate-400 italic truncate max-w-[200px] mt-0.5">
+                                <div className="text-micro text-slate-500 italic truncate max-w-[200px] mt-0.5">
                                   {cust.notes}
                                 </div>
                               )}
@@ -711,7 +711,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         }
                         className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-mono font-bold text-xs"
                       />
-                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">€</span>
                     </div>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         }
                         className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-mono font-bold text-xs"
                       />
-                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">€</span>
                     </div>
                   </div>
                 </div>
@@ -777,7 +777,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         }
                         className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl font-mono font-bold text-xs"
                       />
-                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">€</span>
+                      <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">€</span>
                     </div>
                   </div>
                 </div>

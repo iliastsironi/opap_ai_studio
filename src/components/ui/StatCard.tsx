@@ -109,7 +109,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div className={`p-5 rounded-2xl border shadow-2xs transition-colors transition-shadow ${CARD_TONE_CLASSES[tone]}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-micro font-extrabold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className="text-micro font-extrabold text-slate-500 uppercase tracking-wider">{label}</span>
         {Icon && (
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center border shrink-0 ${ICON_BOX_TONE_CLASSES[resolvedIconTone]}`}

@@ -108,17 +108,17 @@ export const OrganizationSettings: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="bg-slate-800/80 border border-slate-700/80 p-3.5 rounded-xl text-center min-w-[140px]">
-              <span className="block text-[10px] text-slate-400 uppercase font-bold">Καταστήματα</span>
+              <span className="block text-[10px] text-slate-500 uppercase font-bold">Καταστήματα</span>
               <span className="text-lg font-black text-indigo-300">Απεριοριστα</span>
             </div>
             <div className="bg-slate-800/80 border border-slate-700/80 p-3.5 rounded-xl text-center min-w-[140px]">
-              <span className="block text-[10px] text-slate-400 uppercase font-bold">Resend Email</span>
+              <span className="block text-[10px] text-slate-500 uppercase font-bold">Resend Email</span>
               <span className="text-lg font-black text-emerald-400">Ενεργό</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-3">
+        <div className="mt-6 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-3">
           <div className="flex items-center space-x-4">
             <span className="flex items-center space-x-1 text-slate-300">
               <Database className="w-3.5 h-3.5 text-indigo-400" />

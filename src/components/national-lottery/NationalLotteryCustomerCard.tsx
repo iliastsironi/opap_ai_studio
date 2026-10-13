@@ -188,7 +188,7 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
             )}
           </div>
         </div>
-        {edition && <p className="text-micro text-slate-400">Έκδοση {edition.label}</p>}
+        {edition && <p className="text-micro text-slate-500">Έκδοση {edition.label}</p>}
         {customer.status === 'INACTIVE' && (
           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 uppercase">Ανενεργός</span>
         )}
@@ -266,7 +266,7 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
                   <span className="w-4 h-4 rounded border border-slate-300 bg-white flex items-center justify-center">
                     {isSelected && <Check className="w-3 h-3 text-indigo-600" />}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Εκκρεμεί</span>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase">Εκκρεμεί</span>
                 </button>
               );
             })}

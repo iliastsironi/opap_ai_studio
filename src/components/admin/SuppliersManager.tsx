@@ -442,7 +442,7 @@ export const SuppliersManager: React.FC = () => {
           {/* Filter & Summary Toolbar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-80">
-              <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
               <label htmlFor="suppliers-search" className="sr-only">Αναζήτηση προμηθευτών</label>
               <input
                 id="suppliers-search"
@@ -480,9 +480,9 @@ export const SuppliersManager: React.FC = () => {
           {/* Suppliers Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             {loading ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-semibold">Φόρτωση προμηθευτών...</div>
+              <div className="p-12 text-center text-slate-500 text-xs font-semibold">Φόρτωση προμηθευτών...</div>
             ) : filteredSuppliers.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-semibold">Δεν βρέθηκαν προμηθευτές.</div>
+              <div className="p-12 text-center text-slate-500 text-xs font-semibold">Δεν βρέθηκαν προμηθευτές.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-600">
@@ -512,7 +512,7 @@ export const SuppliersManager: React.FC = () => {
                                 <span className="font-bold text-slate-900 text-sm">{sup.company_name}</span>
                               </div>
                               {sup.trade_name && (
-                                <p className="text-[11px] text-slate-400 italic mt-0.5">{sup.trade_name}</p>
+                                <p className="text-[11px] text-slate-500 italic mt-0.5">{sup.trade_name}</p>
                               )}
                             </div>
                           </div>
@@ -522,10 +522,10 @@ export const SuppliersManager: React.FC = () => {
                           {sup.vat_number ? (
                             <p className="font-mono font-bold text-slate-800">ΑΦΜ: {sup.vat_number}</p>
                           ) : (
-                            <p className="text-slate-400 font-mono text-[11px]">-</p>
+                            <p className="text-slate-500 font-mono text-[11px]">-</p>
                           )}
                           {sup.tax_office && (
-                            <p className="text-[11px] text-slate-400">{sup.tax_office}</p>
+                            <p className="text-[11px] text-slate-500">{sup.tax_office}</p>
                           )}
                         </td>
 
@@ -538,13 +538,13 @@ export const SuppliersManager: React.FC = () => {
                         <td className="p-4 space-y-0.5">
                           {sup.phone && (
                             <p className="flex items-center space-x-1 text-slate-700 font-medium">
-                              <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <Phone className="w-3 h-3 text-slate-500 shrink-0" />
                               <span>{sup.phone}</span>
                             </p>
                           )}
                           {sup.email && (
                             <p className="flex items-center space-x-1 text-slate-500">
-                              <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                              <Mail className="w-3 h-3 text-slate-500 shrink-0" />
                               <span>{sup.email}</span>
                             </p>
                           )}
@@ -600,7 +600,7 @@ export const SuppliersManager: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Συνολικες Παραγγελιες</p>
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Συνολικες Παραγγελιες</p>
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
                   <ShoppingBag className="w-4 h-4" />
                 </div>
@@ -610,7 +610,7 @@ export const SuppliersManager: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Εκκρεμεις Παραγγελιες</p>
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Εκκρεμεις Παραγγελιες</p>
                 <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
                   <Clock className="w-4 h-4" />
                 </div>
@@ -620,7 +620,7 @@ export const SuppliersManager: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Παραδοθεισες</p>
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Παραδοθεισες</p>
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
                   <PackageCheck className="w-4 h-4" />
                 </div>
@@ -632,7 +632,7 @@ export const SuppliersManager: React.FC = () => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Συνολικη Αξια (€)</p>
+                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Συνολικη Αξια (€)</p>
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
                   <DollarSign className="w-4 h-4" />
                 </div>
@@ -644,7 +644,7 @@ export const SuppliersManager: React.FC = () => {
           {/* Orders Search and Filter Bar */}
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-80">
-              <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3.5 top-2.5" />
               <label htmlFor="orders-search" className="sr-only">Αναζήτηση παραγγελιών</label>
               <input
                 id="orders-search"
@@ -689,9 +689,9 @@ export const SuppliersManager: React.FC = () => {
           {/* Orders Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             {loadingOrders ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-semibold">Φόρτωση παραγγελιών...</div>
+              <div className="p-12 text-center text-slate-500 text-xs font-semibold">Φόρτωση παραγγελιών...</div>
             ) : filteredOrders.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 text-xs font-semibold">Δεν βρέθηκαν παραγγελίες.</div>
+              <div className="p-12 text-center text-slate-500 text-xs font-semibold">Δεν βρέθηκαν παραγγελίες.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-600">
@@ -714,8 +714,8 @@ export const SuppliersManager: React.FC = () => {
                               {ord.order_number}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-slate-400" />
+                          <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-500" />
                             <span>{ord.order_date}</span>
                           </p>
                         </td>
@@ -727,7 +727,7 @@ export const SuppliersManager: React.FC = () => {
                         <td className="p-4 max-w-xs">
                           <p className="text-slate-700 line-clamp-2 text-xs">{ord.items_description || '-'}</p>
                           {ord.expected_delivery && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">
+                            <p className="text-[10px] text-slate-500 mt-0.5">
                               Αναμ. παράδοση: {ord.expected_delivery}
                             </p>
                           )}
@@ -826,13 +826,13 @@ export const SuppliersManager: React.FC = () => {
             {/* Tax & Contact Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Φορολογικα Στοιχεία</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Φορολογικα Στοιχεία</p>
                 <p className="font-mono font-bold text-slate-900">ΑΦΜ: {previewSupplier.vat_number || '-'}</p>
                 <p className="text-slate-600">ΔΟΥ: {previewSupplier.tax_office || '-'}</p>
               </div>
 
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Στοιχεία Επικοινωνίας</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Στοιχεία Επικοινωνίας</p>
                 <p className="text-slate-900 font-medium">{previewSupplier.phone || '-'}</p>
                 <p className="text-slate-600 truncate">{previewSupplier.email || '-'}</p>
               </div>
@@ -840,7 +840,7 @@ export const SuppliersManager: React.FC = () => {
 
             {previewSupplier.address && (
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs flex items-center gap-2 text-slate-700">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
                 <span>{previewSupplier.address}</span>
               </div>
             )}
@@ -867,7 +867,7 @@ export const SuppliersManager: React.FC = () => {
 
             {previewSupplier.notes && (
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Σημειώσεις</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Σημειώσεις</p>
                 <p className="text-slate-700">{previewSupplier.notes}</p>
               </div>
             )}
@@ -879,7 +879,7 @@ export const SuppliersManager: React.FC = () => {
                 <span>Ιστορικό Παραγγελιών Εταιρείας</span>
               </h3>
               {orders.filter((o) => o.supplier_id === previewSupplier.id).length === 0 ? (
-                <p className="text-xs text-slate-400 italic">Δεν υπάρχουν πρόσφατες καταχωρημένες παραγγελίες.</p>
+                <p className="text-xs text-slate-500 italic">Δεν υπάρχουν πρόσφατες καταχωρημένες παραγγελίες.</p>
               ) : (
                 <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                   {orders
@@ -891,7 +891,7 @@ export const SuppliersManager: React.FC = () => {
                       >
                         <div>
                           <span className="font-mono font-bold text-slate-900">{ord.order_number}</span>
-                          <span className="text-[11px] text-slate-400 ml-2">({ord.order_date})</span>
+                          <span className="text-[11px] text-slate-500 ml-2">({ord.order_date})</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono font-bold text-slate-900">{formatCurrency(ord.total_amount)}</span>
@@ -951,17 +951,17 @@ export const SuppliersManager: React.FC = () => {
           <div className="space-y-3 text-xs">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Προμηθευτής</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase">Προμηθευτής</p>
                   <p className="font-bold text-slate-900 text-sm mt-0.5">{previewOrder.supplier_name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Ημερομηνία</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase">Ημερομηνία</p>
                   <p className="font-medium text-slate-800 mt-0.5">{previewOrder.order_date}</p>
                 </div>
               </div>
 
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Περιγραφή Παραγγελίας / Ειδών</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase">Περιγραφή Παραγγελίας / Ειδών</p>
                 <p className="text-slate-800 leading-relaxed">{previewOrder.items_description}</p>
               </div>
 
@@ -974,7 +974,7 @@ export const SuppliersManager: React.FC = () => {
 
               <div className="p-4 bg-slate-900 text-white rounded-xl flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Συνολική Αξία</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase">Συνολική Αξία</p>
                   <p className="text-xl font-black font-mono">{formatCurrency(previewOrder.total_amount)}</p>
                 </div>
                 <div>

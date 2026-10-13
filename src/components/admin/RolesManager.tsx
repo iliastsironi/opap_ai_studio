@@ -29,7 +29,7 @@ export const RolesManager: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1 min-h-[36px]">{r.description}</p>
                 <div className="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
                   <span className="font-mono text-indigo-700 font-bold">{r.code}</span>
-                  {r.is_system && <span className="text-slate-400 font-medium">Συστημικός</span>}
+                  {r.is_system && <span className="text-slate-500 font-medium">Συστημικός</span>}
                 </div>
               </div>
             ))}

@@ -130,7 +130,7 @@ export const NationalLotteryCollectionModal: React.FC<NationalLotteryCollectionM
           <p className="text-micro text-emerald-600 mt-1">Κληρώσεις: {drawLabelsText}</p>
         </div>
 
-        <p className="text-micro text-slate-400">
+        <p className="text-micro text-slate-500">
           {customer.participation_type === 'FIVE' ? '5άδα' : '10άδα'} · Έκδοση {edition.label}
         </p>
       </div>

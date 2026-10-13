@@ -328,7 +328,7 @@ export const StoresManager: React.FC = () => {
               {/* Info Grid */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs text-slate-600">
                 <div className="flex items-start space-x-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <MapPin className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <MapPin className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
                   <div>
                     <span className="font-semibold text-slate-500 block">Διεύθυνση</span>
                     <span className="font-medium text-slate-900">{selectedStore.address || '-'}</span>
@@ -336,7 +336,7 @@ export const StoresManager: React.FC = () => {
                 </div>
 
                 <div className="flex items-start space-x-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <Phone className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
                   <div>
                     <span className="font-semibold text-slate-500 block">Τηλέφωνο</span>
                     <span className="font-medium text-slate-900">{selectedStore.phone || '-'}</span>
@@ -344,7 +344,7 @@ export const StoresManager: React.FC = () => {
                 </div>
 
                 <div className="flex items-start space-x-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                  <Clock className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
                   <div>
                     <span className="font-semibold text-slate-500 block">Ωράριο Λειτουργίας</span>
                     <span className="font-medium text-slate-900">{selectedStore.operating_hours || '-'}</span>
@@ -382,7 +382,7 @@ export const StoresManager: React.FC = () => {
                 </div>
 
                 {loadingDepts ? (
-                  <p className="text-xs text-slate-400">Φόρτωση τμημάτων...</p>
+                  <p className="text-xs text-slate-500">Φόρτωση τμημάτων...</p>
                 ) : deptsLoadError ? (
                   <p className="text-xs text-rose-600 font-semibold">{deptsLoadError}</p>
                 ) : departments.length === 0 ? (
@@ -419,7 +419,7 @@ export const StoresManager: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500">
               Επιλέξτε κατάστημα από τη λίστα για προβολή στοιχείων.
             </div>
           )}

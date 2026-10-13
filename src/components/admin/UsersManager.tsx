@@ -313,12 +313,12 @@ export const UsersManager: React.FC = () => {
       {/* Users Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Φόρτωση χρηστών...</div>
+          <div className="p-8 text-center text-slate-500 text-sm">Φόρτωση χρηστών...</div>
         ) : users.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 space-y-2">
+          <div className="p-12 text-center text-slate-500 space-y-2">
             <Users className="w-10 h-10 mx-auto text-slate-300" />
             <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν χρήστες</p>
-            <p className="text-xs text-slate-400">Προσκαλέστε το πρώτο μέλος της ομάδας σας.</p>
+            <p className="text-xs text-slate-500">Προσκαλέστε το πρώτο μέλος της ομάδας σας.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -346,7 +346,7 @@ export const UsersManager: React.FC = () => {
                           <p className="font-bold text-slate-900 text-sm">
                             {u.first_name} {u.last_name}
                           </p>
-                          <p className="text-micro text-slate-400 font-mono">{u.employee_code || 'EMP-N/A'}</p>
+                          <p className="text-micro text-slate-500 font-mono">{u.employee_code || 'EMP-N/A'}</p>
                         </div>
                       </div>
                     </td>
@@ -354,12 +354,12 @@ export const UsersManager: React.FC = () => {
                     <td className="p-4">
                       <div className="space-y-0.5">
                         <p className="flex items-center space-x-1 font-medium text-slate-800">
-                          <Mail className="w-3.5 h-3.5 text-slate-400" />
+                          <Mail className="w-3.5 h-3.5 text-slate-500" />
                           <span>{u.email}</span>
                         </p>
                         {u.phone && (
                           <p className="flex items-center space-x-1 text-slate-500">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            <Phone className="w-3.5 h-3.5 text-slate-500" />
                             <span>{u.phone}</span>
                           </p>
                         )}
@@ -393,7 +393,7 @@ export const UsersManager: React.FC = () => {
                             key={as.store_id || idx}
                             className="inline-flex items-center px-2 py-0.5 rounded text-micro font-medium bg-slate-100 text-slate-700"
                           >
-                            <StoreIcon className="w-3 h-3 mr-1 text-slate-400" />
+                            <StoreIcon className="w-3 h-3 mr-1 text-slate-500" />
                             {as.store_code || as.store_name}
                           </span>
                         ))}

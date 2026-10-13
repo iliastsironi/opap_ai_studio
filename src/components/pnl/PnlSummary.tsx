@@ -35,7 +35,7 @@ const Delta: React.FC<DeltaProps> = ({ value, previous, lowerIsBetter = false, o
   const diff = round2(value - previous);
   if (diff === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-slate-400">
+      <span className="inline-flex items-center gap-1 text-slate-500">
         <Minus className="w-3 h-3" />
         {formatCurrency(0)}
       </span>
@@ -89,7 +89,7 @@ export const PnlSummary: React.FC<PnlSummaryProps> = ({ result, previous }) => {
             <p className="text-2xl font-black text-slate-900 tabular-nums mt-1">{formatCurrency(tile.value)}</p>
             <p className="mt-2 text-xs flex flex-wrap items-center gap-x-2">
               <Delta value={tile.value} previous={tile.previous} lowerIsBetter={tile.lowerIsBetter} />
-              <span className="text-slate-400">{comparedTo}</span>
+              <span className="text-slate-500">{comparedTo}</span>
             </p>
           </div>
         ))}
@@ -100,8 +100,8 @@ export const PnlSummary: React.FC<PnlSummaryProps> = ({ result, previous }) => {
           </p>
           <p className="mt-2 text-xs flex flex-wrap items-center gap-x-2">
             <Delta value={result.netResult} previous={prior(previous.netResult)} onDark />
-            <span className="text-slate-400">{comparedTo}</span>
-            <span className="text-slate-400">· Περιθώριο {percentLabel(netMargin)}</span>
+            <span className="text-slate-500">{comparedTo}</span>
+            <span className="text-slate-500">· Περιθώριο {percentLabel(netMargin)}</span>
           </p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export const PnlSummary: React.FC<PnlSummaryProps> = ({ result, previous }) => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {units.map((unit) => (
-                <tr key={unit.key} className={unit.hasActivity ? 'text-slate-800' : 'text-slate-400'}>
+                <tr key={unit.key} className={unit.hasActivity ? 'text-slate-800' : 'text-slate-500'}>
                   <td className={`py-3 pr-3 font-bold whitespace-nowrap ${unit.unit === 'FNB' ? 'pl-9 text-slate-600' : 'pl-4 text-slate-900'}`}>
                     {unit.label}
                   </td>

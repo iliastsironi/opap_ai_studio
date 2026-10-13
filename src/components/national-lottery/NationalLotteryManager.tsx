@@ -203,7 +203,7 @@ export const NationalLotteryManager: React.FC = () => {
 
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={query}
@@ -253,7 +253,7 @@ export const NationalLotteryManager: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-2xs divide-y divide-slate-100 max-h-[70vh] overflow-y-auto">
               {results.length === 0 ? (
-                <p className="p-6 text-sm text-slate-400 text-center">
+                <p className="p-6 text-sm text-slate-500 text-center">
                   {query ? 'Δεν βρέθηκαν συνδρομητές.' : 'Δεν υπάρχουν ενεργοί συνδρομητές σε αυτό το κατάστημα ακόμα.'}
                 </p>
               ) : (
@@ -271,7 +271,7 @@ export const NationalLotteryManager: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{c.full_name}</p>
-                      <p className="text-micro text-slate-400">
+                      <p className="text-micro text-slate-500">
                         {c.participation_type === 'FIVE' ? '5άδα' : '10άδα'}
                         {c.lottery_number ? ` · ${c.lottery_number}` : ''}
                       </p>
@@ -300,7 +300,7 @@ export const NationalLotteryManager: React.FC = () => {
                   }}
                 />
               ) : (
-                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400 shadow-2xs">
+                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500 shadow-2xs">
                   Επιλέξτε συνδρομητή από τη λίστα αριστερά.
                 </div>
               )}

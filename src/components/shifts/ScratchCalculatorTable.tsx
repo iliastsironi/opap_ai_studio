@@ -1061,7 +1061,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             <button
               type="button"
               onClick={() => setShowRulesInfo(!showRulesInfo)}
-              className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5 cursor-pointer"
+              className="text-slate-500 hover:text-indigo-600 transition-colors p-0.5 cursor-pointer"
               title={showRulesInfo ? 'Απόκρυψη κανόνων καταμέτρησης' : 'Εμφάνιση κανόνων καταμέτρησης'}
             >
               <Info className="w-3.5 h-3.5" />
@@ -1177,7 +1177,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   <span>Αρχικό</span>
                   {!canEditLockedFields || !managerOverrideEnabled ? (
                     <span title="Κλειδωμένο - μόνο Owner/Admin (αυτόματη μεταφορά από προηγούμενη βάρδια)">
-                      <Lock className="w-3 h-3 text-slate-400" />
+                      <Lock className="w-3 h-3 text-slate-500" />
                     </span>
                   ) : null}
                 </div>
@@ -1189,7 +1189,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   <span>Τελικό</span>
                   {!canEditLockedFields || !managerOverrideEnabled ? (
                     <span title="Κλειδωμένο - μόνο Owner/Admin">
-                      <Lock className="w-3 h-3 text-slate-400" />
+                      <Lock className="w-3 h-3 text-slate-500" />
                     </span>
                   ) : null}
                 </div>
@@ -1352,7 +1352,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
                               {isLaikoBundlesOnly ? formatCurrency((Number(row.price) || 0) * rowBundleSize) : formatCurrency(row.price)}
                               {isBundleTracked && (
-                                <span className="block text-micro font-semibold text-slate-400">
+                                <span className="block text-micro font-semibold text-slate-500">
                                   {isLaikoBundlesOnly ? `/${rowBundleSize}άδα` : '/κομμάτιο'}
                                 </span>
                               )}
@@ -1408,7 +1408,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               }
                             />
                             {!canEditStart && (
-                              <div className="absolute right-1.5 top-2.5 pointer-events-none text-slate-400">
+                              <div className="absolute right-1.5 top-2.5 pointer-events-none text-slate-500">
                                 <Lock className="w-3 h-3" />
                               </div>
                             )}
@@ -1641,7 +1641,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 }
                               />
                               {!canEditBackEnd && (
-                                <div className="absolute right-1.5 top-2.5 pointer-events-none text-slate-400">
+                                <div className="absolute right-1.5 top-2.5 pointer-events-none text-slate-500">
                                   <Lock className="w-3 h-3" />
                                 </div>
                               )}

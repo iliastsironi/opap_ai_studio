@@ -455,7 +455,7 @@ export const ShiftsManager: React.FC = () => {
                 >
                   {formatCurrency(metrics.totalDiscrepancy, { showSign: true })}
                 </span>
-                <span className="text-micro font-bold text-slate-400">
+                <span className="text-micro font-bold text-slate-500">
                   {metrics.totalDiscrepancy === 0 ? toGreekUpper('Ισοζυγιο') : toGreekUpper('Διαφορα')}
                 </span>
               </div>
@@ -546,7 +546,7 @@ export const ShiftsManager: React.FC = () => {
                       </div>
 
                       <div className="text-right shrink-0 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                        <span className="text-micro text-slate-400 block font-bold">
+                        <span className="text-micro text-slate-500 block font-bold">
                           {toGreekUpper('Αποκλιση')}
                         </span>
                         <span
@@ -607,13 +607,13 @@ export const ShiftsManager: React.FC = () => {
 
                 {/* Group 2: Key Financials (md:col-span-3) */}
                 <div className="md:col-span-3 bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-center">
-                  <span className="text-micro font-bold uppercase text-slate-400">
+                  <span className="text-micro font-bold uppercase text-slate-500">
                     {toGreekUpper('Αρχικο Ταμειο (Float)')}
                   </span>
                   <div className="text-lg font-black text-emerald-400 font-mono mt-0.5">
                     {formatCurrency(Number(activeShift.opening_cash))}
                   </div>
-                  <span className="text-micro text-slate-400 mt-0.5">
+                  <span className="text-micro text-slate-500 mt-0.5">
                     {activeShift.shift_type === 'MORNING'
                       ? 'Πρωινή Βάρδια'
                       : activeShift.shift_type === 'AFTERNOON'
@@ -676,14 +676,14 @@ export const ShiftsManager: React.FC = () => {
               {/* Search Field (lg:col-span-5) */}
               <div className="lg:col-span-5 relative">
                 <label htmlFor="shifts-search" className="sr-only">Αναζήτηση βαρδιών</label>
-                <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   id="shifts-search"
                   type="text"
                   placeholder="Αναζήτηση με χειριστή, κατάστημα, ταμείο..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
               </div>
 
@@ -755,15 +755,15 @@ export const ShiftsManager: React.FC = () => {
 
           {/* Shifts Content: Cards Grid or Data Table */}
           {loading ? (
-            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 space-y-3">
+            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-500 space-y-3">
               <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
               <p className="text-xs font-medium">Φόρτωση βαρδιών...</p>
             </div>
           ) : filteredShifts.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 space-y-2">
+            <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-500 space-y-2">
               <Clock className="w-10 h-10 mx-auto text-slate-300" />
               <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν βάρδιες</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {searchQuery
                   ? 'Δεν βρέθηκαν αποτελέσματα με τα κριτήρια αναζήτησης.'
                   : 'Ξεκινήστε μια νέα βάρδια πατώντας το κουμπί "Έναρξη Νέας Βάρδιας".'}
@@ -823,7 +823,7 @@ export const ShiftsManager: React.FC = () => {
                         <User className="w-3.5 h-3.5" />
                       </div>
                       <div className="truncate">
-                        <span className="text-micro text-slate-400 block font-bold uppercase">
+                        <span className="text-micro text-slate-500 block font-bold uppercase">
                           {toGreekUpper('Χειριστης')}
                         </span>
                         <span className="font-bold text-slate-900 truncate block">
@@ -835,7 +835,7 @@ export const ShiftsManager: React.FC = () => {
                     {/* Financial Matrix (2x2 Grid) */}
                     <div className="grid grid-cols-2 gap-2.5 text-xs">
                       <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                        <span className="text-micro font-bold text-slate-400 block uppercase">
+                        <span className="text-micro font-bold text-slate-500 block uppercase">
                           {toGreekUpper('Αναμενομενο')}
                         </span>
                         <span className="font-black text-slate-900 font-mono text-sm block mt-0.5">
@@ -854,10 +854,10 @@ export const ShiftsManager: React.FC = () => {
 
                       <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 col-span-2 flex items-center justify-between">
                         <div>
-                          <span className="text-micro font-bold text-slate-400 block uppercase">
+                          <span className="text-micro font-bold text-slate-500 block uppercase">
                             {toGreekUpper('Αποκλιση Ταμειου')}
                           </span>
-                          <span className="text-micro text-slate-400">
+                          <span className="text-micro text-slate-500">
                             (Καταμέτρηση - Αναμενόμενο)
                           </span>
                         </div>

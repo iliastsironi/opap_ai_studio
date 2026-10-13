@@ -291,7 +291,7 @@ export const ExpensesManager: React.FC = () => {
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
+          <p className="text-micro text-slate-500 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -304,7 +304,7 @@ export const ExpensesManager: React.FC = () => {
               <Tag className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
+          <p className="text-micro text-slate-500 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -319,7 +319,7 @@ export const ExpensesManager: React.FC = () => {
               <ArrowUpRight className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-3">Εντός ορίων ασφαλείας εγκρίσεων</p>
+          <p className="text-micro text-slate-500 mt-3">Εντός ορίων ασφαλείας εγκρίσεων</p>
         </div>
       </div>
 
@@ -327,7 +327,7 @@ export const ExpensesManager: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1">
-            <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             <label htmlFor="expenses-search" className="sr-only">Αναζήτηση εξόδων</label>
             <input
               id="expenses-search"
@@ -373,10 +373,10 @@ export const ExpensesManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
                     <Receipt className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν καταχωρημένα έξοδα</p>
-                    <p className="text-xs text-slate-400 mt-1">Τα νέα έξοδα που καταχωρείτε θα εμφανίζονται εδώ.</p>
+                    <p className="text-xs text-slate-500 mt-1">Τα νέα έξοδα που καταχωρείτε θα εμφανίζονται εδώ.</p>
                   </td>
                 </tr>
               ) : (
@@ -384,7 +384,7 @@ export const ExpensesManager: React.FC = () => {
                   <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{exp.id}</p>
-                      <p className="text-micro text-slate-400">{new Date(exp.created_at).toLocaleString('el-GR')}</p>
+                      <p className="text-micro text-slate-500">{new Date(exp.created_at).toLocaleString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{exp.recipient || '—'}</td>
                     <td className="px-4 py-3">{getCategoryBadge(exp.category)}</td>
@@ -570,7 +570,7 @@ export const ExpensesManager: React.FC = () => {
                     <Building2 className="w-4 h-4 text-indigo-600" />
                     <span>Επιλογή Προμηθευτή / Παραλήπτη</span>
                   </span>
-                  <span className="text-micro font-normal text-slate-400">Επιλογή από λίστα</span>
+                  <span className="text-micro font-normal text-slate-500">Επιλογή από λίστα</span>
                 </label>
                 <select
                   id="expense-supplier"

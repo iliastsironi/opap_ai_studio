@@ -479,7 +479,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           {/* Filter Pills */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200">
             <div className="flex items-center space-x-1.5 overflow-x-auto text-xs">
-              <span className="text-slate-400 font-bold px-2">Φίλτρο:</span>
+              <span className="text-slate-500 font-bold px-2">Φίλτρο:</span>
               {[
                 { id: 'ALL', label: 'Όλα' },
                 { id: 'SYSTEM', label: '🔒 Αυτόματα (Συστημικά)' },
@@ -512,7 +512,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <div className="p-8 text-center bg-white border border-dashed border-slate-200 rounded-2xl text-slate-500 space-y-2">
                 <Sliders className="w-8 h-8 mx-auto text-slate-300" />
                 <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν πεδία</p>
-                <p className="text-xs text-slate-400">Δοκιμάστε διαφορετικό φίλτρο.</p>
+                <p className="text-xs text-slate-500">Δοκιμάστε διαφορετικό φίλτρο.</p>
               </div>
             ) : (
               filteredFields.map((field, idx) => {
@@ -558,7 +558,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         <button
                           onClick={() => handleMoveField(idx, 'UP')}
                           disabled={idx === 0}
-                          className="p-2.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          className="p-2.5 text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                           title="Μετακίνηση Πάνω"
                           aria-label="Μετακίνηση Πάνω"
                         >
@@ -567,7 +567,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         <button
                           onClick={() => handleMoveField(idx, 'DOWN')}
                           disabled={idx === filteredFields.length - 1}
-                          className="p-2.5 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          className="p-2.5 text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
                           title="Μετακίνηση Κάτω"
                           aria-label="Μετακίνηση Κάτω"
                         >
@@ -653,7 +653,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <h3 className="text-base font-extrabold text-white">
                   Ζωντανή Προεπισκόπηση Υπαλλήλου (Employee Closing Preview)
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Έτσι εμφανίζεται η φόρμα κλεισίματος βάρδιας στους υπαλλήλους με τα ενεργά συστημικά & προσαρμοσμένα πεδία.
                 </p>
               </div>
@@ -690,7 +690,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                     </div>
 
                     {field.description && (
-                      <p className="text-micro text-slate-400">{field.description}</p>
+                      <p className="text-micro text-slate-500">{field.description}</p>
                     )}
 
                     {field.type === 'CURRENCY' ? (
@@ -777,7 +777,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                     </div>
 
                     {field.description && (
-                      <p className="text-micro text-slate-400">{field.description}</p>
+                      <p className="text-micro text-slate-500">{field.description}</p>
                     )}
 
                     {field.type === 'CURRENCY' ? (
@@ -928,7 +928,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                   {isEnabled ? (
                     <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
                   ) : (
-                    <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+                    <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
                   )}
                 </div>
               );
@@ -997,7 +997,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                   {isEnabled ? (
                     <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
                   ) : (
-                    <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+                    <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
                   )}
                 </div>
               );
@@ -1039,7 +1039,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 Αλλαγή
               </button>
             ) : (
-              <span className="text-micro text-slate-400 flex items-center gap-1">
+              <span className="text-micro text-slate-500 flex items-center gap-1">
                 <Lock className="w-3 h-3" />
                 Μόνο ο Ιδιοκτήτης
               </span>
@@ -1086,7 +1086,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             {template.show_national_lottery ? (
               <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
             ) : (
-              <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+              <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
             )}
           </div>
 
@@ -1113,7 +1113,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             {template.special_edition_enabled ? (
               <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
             ) : (
-              <ToggleLeft className="w-6 h-6 text-slate-400 flex-shrink-0" />
+              <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
             )}
           </div>
 

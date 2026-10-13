@@ -165,7 +165,7 @@ export const IncidentsManager: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search aria-hidden="true" className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <Search aria-hidden="true" className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
             <label htmlFor="incidents-search" className="sr-only">Αναζήτηση συμβάντων</label>
             <input
               id="incidents-search"
@@ -194,10 +194,10 @@ export const IncidentsManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredIncidents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     <AlertTriangle className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν καταγεγραμμένα συμβάντα</p>
-                    <p className="text-xs text-slate-400 mt-1">Η καταχώρηση νέου συμβάντος θα εμφανίζεται εδώ.</p>
+                    <p className="text-xs text-slate-500 mt-1">Η καταχώρηση νέου συμβάντος θα εμφανίζεται εδώ.</p>
                   </td>
                 </tr>
               ) : (
@@ -205,7 +205,7 @@ export const IncidentsManager: React.FC = () => {
                   <tr key={inc.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{inc.id}</p>
-                      <p className="text-micro text-slate-400">{new Date(inc.created_at).toLocaleString('el-GR')}</p>
+                      <p className="text-micro text-slate-500">{new Date(inc.created_at).toLocaleString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-bold text-slate-800">{inc.title}</p>

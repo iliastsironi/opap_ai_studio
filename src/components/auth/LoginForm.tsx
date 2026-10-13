@@ -107,7 +107,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
             SL
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight">ShiftLedger</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Πλατφόρμα Διαχείρισης & Ταμειακού Ελέγχου Πρακτορείων ΟΠΑΠ
           </p>
         </div>
@@ -288,7 +288,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
 
         {/* Demo Accounts Quick Select */}
         <div className="mt-6 pt-5 border-t border-slate-800">
-          <p className="text-micro font-bold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
+          <p className="text-micro font-bold text-slate-500 uppercase tracking-wider mb-2.5 text-center">
             Δοκιμαστικοί Λογαριασμοί Demo
           </p>
           <div className="grid grid-cols-1 gap-2">
@@ -346,7 +346,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">Επαναφορά Κωδικού</h3>
-                  <p className="text-xs text-slate-400">Αποστολή οδηγιών στο email σας</p>
+                  <p className="text-xs text-slate-500">Αποστολή οδηγιών στο email σας</p>
                 </div>
               </div>
 
@@ -358,7 +358,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                   <p className="text-sm font-semibold text-slate-200">
                     Το email επαναφοράς στάλθηκε στο <span className="text-indigo-400 font-mono">{resetEmail}</span>!
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Ελέγξτε τα εισερχόμενά σας (και τον φάκελο ανεπιθύμητων) για τις οδηγίες ορισμού νέου κωδικού.
                   </p>
                   <button

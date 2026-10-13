@@ -71,7 +71,7 @@ export const NationalLotteryDashboard: React.FC<NationalLotteryDashboardProps> =
                 <span className="text-xs font-bold text-slate-600 shrink-0 font-mono">
                   {progress.receivedCount}/{progress.totalCount}
                 </span>
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
               </button>
               {isExpanded && (
                 <div className="px-3 pb-3">

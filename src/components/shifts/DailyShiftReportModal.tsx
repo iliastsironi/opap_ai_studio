@@ -44,7 +44,7 @@ export const DailyShiftReportModal: React.FC<DailyShiftReportModalProps> = ({
           <button
             onClick={onClose}
             aria-label="Κλείσιμο"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -65,7 +65,7 @@ export const DailyShiftReportModal: React.FC<DailyShiftReportModalProps> = ({
 
         {/* Footer */}
         <div className="bg-white px-6 py-3.5 border-t border-slate-200 flex items-center justify-between shrink-0">
-          <span className="text-micro text-slate-400 font-medium">
+          <span className="text-micro text-slate-500 font-medium">
             ShiftLedger Reporting Engine • Καταμέτρηση χωρίς διπλοχρεώσεις
           </span>
           <button

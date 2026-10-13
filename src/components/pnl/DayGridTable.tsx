@@ -38,7 +38,7 @@ export const DayGridTable: React.FC<DayGridTableProps> = ({ grid, emptyText }) =
               <tr key={day.date} className={day.total === 0 ? 'text-slate-300' : 'text-slate-800'}>
                 <td className="px-3 py-1.5 whitespace-nowrap">
                   <span className="font-semibold">{shortDay(day.date)}</span>{' '}
-                  <span className="text-slate-400">{weekdayLabel(day.date)}</span>
+                  <span className="text-slate-500">{weekdayLabel(day.date)}</span>
                 </td>
                 {grid.columns.map((column) => (
                   <td key={column} className="px-3 py-1.5 text-right whitespace-nowrap">

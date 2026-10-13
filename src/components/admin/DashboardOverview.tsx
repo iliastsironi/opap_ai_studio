@@ -92,7 +92,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
             <span>Αρχική</span>
             <span>/</span>
             <span className="text-slate-900 font-bold">Κεντρικό Ταμπλό Ελέγχου & KPIs</span>
@@ -254,7 +254,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
                 <Receipt className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Έξοδα & Δαπάνες</h3>
             <p className="text-xs text-slate-500 mt-0.5">Καταχώρηση πληρωμών, τιμολογίων & μικροεξόδων</p>
@@ -268,7 +268,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
                 <AlertTriangle className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Συμβάντα & Αποκλίσεις</h3>
             <p className="text-xs text-slate-500 mt-0.5">Καταγραφή συμβάντων, διαφορών & ελέγχων</p>
@@ -282,7 +282,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
                 <BarChart3 className="w-4 h-4" />
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Αναφορές & Analytics</h3>
             <p className="text-xs text-slate-500 mt-0.5">Στατιστικά πωλήσεων, αποκλίσεις & οικονομικά Z</p>

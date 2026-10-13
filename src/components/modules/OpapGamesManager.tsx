@@ -155,7 +155,7 @@ export const OpapGamesManager: React.FC = () => {
         </div>
       ) : (
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center space-x-2">
-          <Clock className="w-4 h-4 text-slate-400" />
+          <Clock className="w-4 h-4 text-slate-500" />
           <span>Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή για το επιλεγμένο κατάστημα. Εμφανίζονται τα τελευταία δεδομένα.</span>
         </div>
       )}
@@ -173,13 +173,13 @@ export const OpapGamesManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Πληρωμές Κερδών (Payouts)</p>
           <h3 className="text-2xl font-extrabold text-rose-600 mt-1">-{formatCurrency(totalPayouts)}</h3>
-          <p className="text-micro text-slate-400 mt-2">Εξόφληση δελτίων από ταμείο πρακτορείου</p>
+          <p className="text-micro text-slate-500 mt-2">Εξόφληση δελτίων από ταμείο πρακτορείου</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Καθαρά Έσοδα ΟΠΑΠ (Net Revenue)</p>
           <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">{formatCurrency(totalNet)}</h3>
-          <p className="text-micro text-slate-400 mt-2">Καθαρή συνεισφορά στο ταμείο βάρδιας</p>
+          <p className="text-micro text-slate-500 mt-2">Καθαρή συνεισφορά στο ταμείο βάρδιας</p>
         </div>
       </div>
 
@@ -190,7 +190,7 @@ export const OpapGamesManager: React.FC = () => {
             <Layers className="w-4 h-4 text-indigo-600" />
             <span>Ανάλυση ανά Κατηγορία Παιχνιδιού ΟΠΑΠ</span>
           </h3>
-          <span className="text-xs font-mono text-slate-400">
+          <span className="text-xs font-mono text-slate-500">
             {gamesData.length} Κατηγορίες
           </span>
         </div>

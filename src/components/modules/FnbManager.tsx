@@ -293,7 +293,7 @@ export const FnbManager: React.FC = () => {
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-2">Απευθείας καταχώρηση στο Ζ του POS/Bar</p>
+          <p className="text-micro text-slate-500 mt-2">Απευθείας καταχώρηση στο Ζ του POS/Bar</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -306,7 +306,7 @@ export const FnbManager: React.FC = () => {
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-2">Προστίθεται στο αναμενόμενο υπόλοιπο συρταριού</p>
+          <p className="text-micro text-slate-500 mt-2">Προστίθεται στο αναμενόμενο υπόλοιπο συρταριού</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -319,7 +319,7 @@ export const FnbManager: React.FC = () => {
               <CreditCard className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-400 mt-2">Επιβεβαιώνεται από το τερματικό POS</p>
+          <p className="text-micro text-slate-500 mt-2">Επιβεβαιώνεται από το τερματικό POS</p>
         </div>
       </div>
 
@@ -346,10 +346,10 @@ export const FnbManager: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {fnbSales.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
                     <Coffee className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                     <p className="text-sm font-bold text-slate-700">Δεν έχουν καταχωρηθεί πωλήσεις FnB</p>
-                    <p className="text-xs text-slate-400 mt-1">Οι πωλήσεις της σημερινής βάρδιας θα εμφανίζονται εδώ.</p>
+                    <p className="text-xs text-slate-500 mt-1">Οι πωλήσεις της σημερινής βάρδιας θα εμφανίζονται εδώ.</p>
                   </td>
                 </tr>
               ) : (
@@ -357,7 +357,7 @@ export const FnbManager: React.FC = () => {
                   <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{s.id}</p>
-                      <p className="text-micro text-slate-400">{new Date(s.created_at).toLocaleTimeString('el-GR')}</p>
+                      <p className="text-micro text-slate-500">{new Date(s.created_at).toLocaleTimeString('el-GR')}</p>
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">{s.item_name}</td>
                     <td className="px-4 py-3 text-center font-bold text-slate-700">{s.quantity}</td>

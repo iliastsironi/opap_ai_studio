@@ -95,7 +95,7 @@ export const InstructionsPage: React.FC = () => {
 
           {/* Search Bar */}
           <div className="pt-2 relative max-w-xl">
-            <Search aria-hidden="true" className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search aria-hidden="true" className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
             <label htmlFor="instructions-search" className="sr-only">Αναζήτηση στις οδηγίες</label>
             <input
               id="instructions-search"
@@ -185,7 +185,7 @@ export const InstructionsPage: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center space-x-2 min-w-0 pr-1">
-                    <IconComp className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <IconComp className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-500'}`} />
                     <span className="truncate">{sec.title}</span>
                   </div>
                   <ArrowRight className={`w-3 h-3 shrink-0 ${isActive ? 'text-indigo-600' : 'opacity-0'}`} />
@@ -311,7 +311,7 @@ export const InstructionsPage: React.FC = () => {
                           key={kIdx}
                           className="p-3 bg-slate-50 border border-slate-100 rounded-xl"
                         >
-                          <p className="text-micro font-bold uppercase tracking-wider text-slate-400">
+                          <p className="text-micro font-bold uppercase tracking-wider text-slate-500">
                             {kp.label}
                           </p>
                           <p className="text-xs font-bold text-slate-800 mt-0.5">
@@ -362,9 +362,9 @@ export const InstructionsPage: React.FC = () => {
                         </span>
                       </div>
                       {isOpen ? (
-                        <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+                        <ChevronUp className="w-4 h-4 text-slate-500 shrink-0" />
                       ) : (
-                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                        <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
                       )}
                     </button>
 

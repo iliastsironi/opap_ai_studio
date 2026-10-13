@@ -168,14 +168,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
             </div>
             <div>
               <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
-              <p className="text-micro tracking-wider text-slate-400 font-semibold">
+              <p className="text-micro tracking-wider text-slate-500 font-semibold">
                 {toGreekUpper('Διαχείριση Ταμείου & Βαρδιών')}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 -mr-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-2 -mr-1 text-slate-500 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Απόκρυψη πλευρικού πάνελ"
             title="Απόκρυψη πλευρικού πάνελ"
           >
@@ -196,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
       <nav aria-label="Κύρια πλοήγηση" className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
         {visibleSections.map((section) => (
           <div key={section.title}>
-            <p className="px-3 py-1.5 text-micro font-bold text-slate-400 tracking-widest">
+            <p className="px-3 py-1.5 text-micro font-bold text-slate-500 tracking-widest">
               {toGreekUpper(section.title)}
             </p>
             <div className="space-y-1">
