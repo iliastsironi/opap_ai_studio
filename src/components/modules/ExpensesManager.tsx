@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
-import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
+import { createSupplierInFirestore, fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -164,6 +164,42 @@ export const ExpensesManager: React.FC = () => {
         },
         activeShift
       );
+
+      // A name typed by hand joins the registry, so the next person picks it
+      // from the list instead of typing it again slightly differently. That is
+      // how «Hausbranft» and «HAUSBRANDT» became two suppliers for one
+      // business in the August import.
+      //
+      // After the expense, never before: a failure to register a supplier must
+      // not cost the operator the expense they just entered, and it is matched
+      // case-insensitively so «ΚΑΒΑ ΖΩΓΡ» does not create a second row beside
+      // «Κάβα Ζωγρ».
+      if (selectedSupplierId === 'CUSTOM' && finalRecipient !== 'Προμηθευτής') {
+        const known = suppliers.some(
+          (sup) =>
+            (sup.company_name || '').trim().toLocaleUpperCase('el-GR') ===
+            finalRecipient.toLocaleUpperCase('el-GR')
+        );
+        if (!known) {
+          try {
+            await createSupplierInFirestore({
+              organization_id: orgId,
+              store_ids: [targetStoreId],
+              code: '',
+              company_name: finalRecipient,
+              category: category === 'EXPENSES_FNB' ? 'BEVERAGES_FNB' : 'OTHER',
+              balance: 0,
+              is_active: true,
+              notes: 'Δημιουργήθηκε κατά την καταχώρηση εξόδου',
+              created_at: new Date().toISOString(),
+            });
+            await loadSuppliers();
+          } catch (supErr) {
+            // Non-fatal on purpose - the expense is saved either way.
+            console.warn('Could not register the new supplier:', supErr);
+          }
+        }
+      }
 
       await loadExpenses();
       setShowModal(false);
@@ -755,7 +791,11 @@ export const ExpensesManager: React.FC = () => {
                   <optgroup label="Εγγεγραμμένοι Προμηθευτές (Μητρώο)">
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.company_name} ({s.code || s.trade_name || 'Προμηθευτής'})
+                        {/* The parenthetical is only worth showing when it says
+                            something. Falling back to the literal «Προμηθευτής»
+                            printed it beside every name in a list of suppliers. */}
+                        {s.company_name}
+                        {s.code || s.trade_name ? ` (${s.code || s.trade_name})` : ''}
                       </option>
                     ))}
                   </optgroup>
@@ -779,7 +819,7 @@ export const ExpensesManager: React.FC = () => {
 
                   {/* Custom Option */}
                   <optgroup label="Χειροκίνητη Καταχώρηση">
-                    <option value="CUSTOM">+ Άλλος / Νέος Προμηθευτής (Χειροκίνητα)...</option>
+                    <option value="CUSTOM">+ Νέος Προμηθευτής (προστίθεται στο μητρώο)...</option>
                   </optgroup>
                 </select>
 
@@ -789,7 +829,7 @@ export const ExpensesManager: React.FC = () => {
                     <input
                       type="text"
                       maxLength={MAX_LABEL_LENGTH}
-                      placeholder="Πληκτρολογήστε όνομα προμηθευτή / καταστήματος..."
+                      placeholder="Όνομα προμηθευτή — θα προστεθεί στο μητρώο"
                       aria-label="Όνομα νέου προμηθευτή"
                       required
                       value={customRecipient}
