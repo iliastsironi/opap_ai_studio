@@ -293,3 +293,49 @@ cannot conflict with round 2, so they go first.
 C before D: the discrepancy ledger's whole point is that an employee sees their
 own balance and a manager sees everyone's. Building that view on top of
 org-wide RLS would mean writing the access rules twice.
+
+---
+
+# Round 2
+
+Captured 2026-10-14. Planned in `plans/006-commissions-and-profitability.md`,
+which carries the four decisions taken before any code moved.
+
+| # | Item | Status |
+|---|---|---|
+| R2.1 | «Καταχώρηση Προμηθειών» — the monthly Allwyn report, three entities per store | **DONE** `bb9e308` |
+| R2.2 | Δείκτης Απωλειών → Δείκτης Κερδοφορίας | **DONE** `bb9e308` |
+| R2.3 | Period and store scope on the Reports overview | **DONE** `bb9e308` |
+| R2.4 | Έξοδα Εταιρίας shortcut | **DONE** `bb9e308` |
+| R2.5 | Expense pie with percentages and amounts | **DONE** `bb9e308` / `063a21d` |
+
+## Why the expense pie is by supplier
+
+The ask was «ανά κατηγορία». The data decided against it: all 94 of August's
+expense rows carry one of **two** category values, `EXPENSES_GP` or
+`EXPENSES_FNB`, so a pie of that is two slices. The same month has 17 distinct
+suppliers. «Κατανομή Εξόδων» still answers *what kind of cost* in five P&L
+buckets; «Έξοδα ανά Προμηθευτή» answers *to whom*.
+
+## Data correction applied 2026-10-14
+
+The supplier breakdown immediately exposed the same business recorded under two
+spellings, because the August import took each store's sheet with its own
+convention:
+
+| Was | Store | Became |
+|---|---|---|
+| `Hausbranft` (6 rows) | 101499 | `Hausbrandt` |
+| `HAUSBRANDT` (2 rows) | 401070 | `Hausbrandt` |
+| `OSTRIA` (2 rows) | 401070 | `Ostria` |
+
+Applied through the service role; only the `recipient` label changed, and the
+expense total held at **€6.265,46** before and after. Hausbrandt now reads
+€1.586,78 — 26,6% and the second largest supplier, where before it looked like
+two smaller ones.
+
+The app folds case when grouping suppliers, so `OSTRIA`/`Ostria` already
+merged on screen; `Hausbranft` differs by a letter and needed the data fixed.
+
+To reverse: the rows are identifiable by `notes = 'Εισαγωγή P&L_0826'` and the
+store/category split above.
