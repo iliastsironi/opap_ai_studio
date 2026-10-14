@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 supabase/.temp/
+
+# Claude Code machine-local permissions; launch.json is shared on purpose.
+.claude/settings.local.json
