@@ -321,8 +321,21 @@ async function main() {
       record('20: monthly rollup shows everyone to a manager, own row only to staff',
         !mgrErr && (mgrRows ?? []).length >= 1 && mine,
         mgrErr ? mgrErr.message : `manager ${(mgrRows ?? []).length} row(s), employee ${(empRows ?? []).length} (own only: ${mine})`);
+
+      // 21: one person is ONE row, however their name was spelled at the time.
+      // u4's shifts here are stored under two different opened_by_user_name
+      // values - 'Test Four' on the 0023 fixtures and nothing at all on the
+      // 0022 ones. Grouping by the name as well as the id split them in two,
+      // which is what will happen in production the moment a «Χωρίς όνομα»
+      // employee is given a real name.
+      {
+        const own = (empRows ?? []).filter((r) => r.employee_user_id === u4.user.id);
+        record('21: one operator is one row even when their stored name differs',
+          own.length === 1,
+          `${own.length} row(s) for a single user id` + (own.length ? ` — "${own[0].employee_name}"` : ''));
+      }
     } else {
-      record('17-20: 0023 fixture setup failed', false);
+      record('17-21: 0023 fixture setup failed', false);
     }
   }
 

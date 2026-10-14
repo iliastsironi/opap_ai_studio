@@ -201,16 +201,16 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
        AND (p_store_id IS NULL OR s.store_id = p_store_id)
        AND (s.closed_at AT TIME ZONE 'Europe/Athens')::date >= b.from_day
        AND (s.closed_at AT TIME ZONE 'Europe/Athens')::date <  b.to_day
+  ),
+  latest_name AS (
+    SELECT DISTINCT ON (opened_by_user_id)
+           opened_by_user_id,
+           COALESCE(NULLIF(TRIM(COALESCE(opened_by_user_name, '')), ''), 'Υπάλληλος') AS display_name
+      FROM scoped
+     ORDER BY opened_by_user_id, closed_at DESC
   )
   SELECT sc.opened_by_user_id,
-         -- Grouped by id alone, with the name they most recently worked under.
-         -- Grouping by the name too splits one person into several rows the
-         -- moment it changes - a renamed employee, or older shifts stored
-         -- before a name was filled in.
-         (ARRAY_AGG(
-            COALESCE(NULLIF(TRIM(COALESCE(sc.opened_by_user_name, '')), ''), 'Υπάλληλος')
-            ORDER BY sc.closed_at DESC
-          ))[1],
+         n.display_name,
          COUNT(*),
          COALESCE(SUM(sc.discrepancy), 0),
          COALESCE(SUM(CASE WHEN sc.discrepancy < 0 THEN -sc.discrepancy ELSE 0 END), 0),
@@ -219,8 +219,9 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
          COALESCE(SUM(CASE WHEN ec.status = 'SETTLED' THEN ec.amount ELSE 0 END), 0),
          COALESCE(SUM(CASE WHEN ec.status = 'WAIVED'  THEN ec.amount ELSE 0 END), 0)
     FROM scoped sc
+    JOIN latest_name n ON n.opened_by_user_id = sc.opened_by_user_id
     LEFT JOIN employee_charges ec ON ec.shift_id = sc.id
-   GROUP BY sc.opened_by_user_id
+   GROUP BY sc.opened_by_user_id, n.display_name
    ORDER BY 4 ASC;
 $$;
 GRANT EXECUTE ON FUNCTION monthly_discrepancy_summary(DATE, TEXT) TO authenticated;
