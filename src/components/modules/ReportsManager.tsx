@@ -55,6 +55,30 @@ import { useMonthlyPnl } from '../pnl/useMonthlyPnl.ts';
 
 type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
 
+// Literal strings, never interpolated: these reach the DOM as inline styles,
+// but keeping them as plain constants matches how Badge.tsx handles the same
+// problem for Tailwind's scanner and stays greppable.
+const SUPPLIER_COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+
+// Percentages to one decimal with a Greek comma, forced to sum to 100,0.
+// Rounding each slice independently lands on 99,9 or 100,1 often enough that a
+// reader notices, and a breakdown that does not add up reads as a bug. The
+// remainder goes to the largest slice, where it is proportionally least
+// visible. Shared by both pies so they round the same way.
+function withShares<T extends { name: string; value: number }>(rows: T[], total: number) {
+  if (total <= 0) return rows.map((r) => ({ ...r, share: 0, shareLabel: '—' }));
+  const rounded = rows.map((r) => ({ ...r, share: Math.round((r.value / total) * 1000) / 10 }));
+  const drift = Math.round((100 - rounded.reduce((a, r) => a + r.share, 0)) * 10) / 10;
+  if (drift !== 0 && rounded.length > 0) {
+    let biggest = 0;
+    rounded.forEach((r, i) => {
+      if (r.value > rounded[biggest].value) biggest = i;
+    });
+    rounded[biggest] = { ...rounded[biggest], share: Math.round((rounded[biggest].share + drift) * 10) / 10 };
+  }
+  return rounded.map((r) => ({ ...r, shareLabel: `${r.share.toFixed(1).replace('.', ',')}%` }));
+}
+
 // Owner-only, like the RLS on the P&L tables.
 const PNL_PERMISSION = 'pnl.manage';
 
@@ -198,25 +222,62 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
         { name: 'Δάνεια', value: overviewPnl.loans, color: '#64748b' },
       ]
     : [];
+  // Where the money actually went, by supplier.
+  //
+  // The cost mix above answers "what kind of cost" in five P&L buckets. This
+  // answers "to whom", which is the question «ανά κατηγορία» really needs here:
+  // shift_expenses carries only two category values in practice - EXPENSES_GP
+  // and EXPENSES_FNB - so a pie by category is two slices and says nothing,
+  // while August alone has 17 distinct suppliers.
+  //
+  // Built from the day grids the engine already produces, so it respects the
+  // same month and scope as everything else and costs no extra query.
+  const supplierData = (() => {
+    const sheets = (overviewPnl?.stores ?? []).filter(
+      (sheet) => overviewScope === 'ALL' || sheet.store.id === overviewScope
+    );
+    // Keyed case-insensitively, because the same supplier gets typed both ways:
+    // August has «OSTRIA» and «Ostria» as separate columns for one business.
+    // Only case is folded - «Hausbranft» and «HAUSBRANDT» differ by a letter, so
+    // they stay apart rather than this guessing at spelling mistakes.
+    const totals = new Map<string, { label: string; value: number }>();
+    for (const sheet of sheets) {
+      for (const grid of [sheet.dailyExpenses, sheet.fnb?.expenses]) {
+        if (!grid) continue;
+        for (const [supplier, amount] of Object.entries(grid.columnTotals)) {
+          if (!amount) continue;
+          const label = supplier.trim() || '(χωρίς όνομα)';
+          const k = label.toLocaleUpperCase('el-GR');
+          const entry = totals.get(k) ?? { label, value: 0 };
+          entry.value += amount;
+          totals.set(k, entry);
+        }
+      }
+    }
+    const sorted = [...totals.values()]
+      .map((e) => [e.label, e.value] as [string, number])
+      .sort((a, b) => b[1] - a[1]);
+    // A pie with 17 slices is unreadable, so beyond the top 8 everything is
+    // gathered into «Λοιποί». It is still in the total, just not its own wedge.
+    const TOP = 8;
+    const head = sorted.slice(0, TOP);
+    const tailTotal = sorted.slice(TOP).reduce((a, [, v]) => a + v, 0);
+    const rows = head.map(([name, value], i) => ({ name, value, color: SUPPLIER_COLORS[i % SUPPLIER_COLORS.length] }));
+    if (tailTotal > 0) {
+      rows.push({ name: `Λοιποί (${sorted.length - TOP})`, value: tailTotal, color: '#94a3b8' });
+    }
+    return rows;
+  })();
+
+  const supplierTotal = supplierData.reduce((a, c) => a + c.value, 0);
+  const supplierShares = withShares(supplierData, supplierTotal);
+
   const costMixTotal = costMixData.reduce((a, c) => a + c.value, 0);
   // Percentages to one decimal, Greek comma, and forced to add up: rounding five
   // slices independently can land on 99,9% or 100,1%, and a breakdown that does
   // not sum to 100 reads as a bug. The remainder goes to the largest slice,
   // where it is proportionally least visible.
-  const costMixShares = (() => {
-    if (costMixTotal <= 0) return costMixData.map((c) => ({ ...c, shareLabel: '—' }));
-    const raw = costMixData.map((c) => ({ ...c, share: (c.value / costMixTotal) * 100 }));
-    const rounded = raw.map((c) => ({ ...c, share: Math.round(c.share * 10) / 10 }));
-    const drift = Math.round((100 - rounded.reduce((a, c) => a + c.share, 0)) * 10) / 10;
-    if (drift !== 0) {
-      let biggest = 0;
-      rounded.forEach((c, i) => {
-        if (c.value > rounded[biggest].value) biggest = i;
-      });
-      rounded[biggest] = { ...rounded[biggest], share: Math.round((rounded[biggest].share + drift) * 10) / 10 };
-    }
-    return rounded.map((c) => ({ ...c, shareLabel: `${c.share.toFixed(1).replace('.', ',')}%` }));
-  })();
+  const costMixShares = withShares(costMixData, costMixTotal);
 
   const hasCosts = costMixData.some((item) => item.value > 0);
   const discrepantShifts = rawShifts.filter((s) => Math.abs(Number(s.discrepancy || 0)) >= 1).length;
@@ -634,6 +695,102 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
               </div>
             )}
           </div>
+
+          {/* Where the money went, by supplier */}
+          {canManagePnl && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="border-b border-slate-100 pb-4 flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <PieIcon className="w-4 h-4 text-indigo-600" />
+                    <span>Έξοδα ανά Προμηθευτή</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {monthLabel(overviewMonth)} ·{' '}
+                    {overviewScope === 'ALL'
+                      ? 'Σύνολο Εταιρείας'
+                      : stores.find((st) => st.id === overviewScope)?.name ?? ''}
+                  </p>
+                </div>
+                <span className="text-sm font-black font-mono tabular-nums text-slate-900">
+                  {formatCurrency(supplierTotal)}
+                </span>
+              </div>
+
+              {supplierTotal > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={supplierShares}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={88}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {supplierShares.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#0f172a',
+                            borderRadius: '8px',
+                            border: 'none',
+                            color: '#fff',
+                            fontSize: '12px',
+                          }}
+                          formatter={(value: any) => [formatCurrency(Number(value) || 0), '']}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {supplierShares.map((item) => (
+                      <div key={item.name} className="flex justify-between items-center text-xs gap-3">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-slate-600 truncate">{item.name}</span>
+                        </div>
+                        <div className="flex items-baseline gap-3 shrink-0">
+                          <span className="font-bold text-slate-900 font-mono tabular-nums">
+                            {formatCurrency(item.value)}
+                          </span>
+                          <span className="font-bold text-slate-500 font-mono tabular-nums w-14 text-right">
+                            {item.shareLabel}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center text-xs pt-2 mt-1 border-t border-slate-100">
+                      <span className="font-black text-slate-900">{toGreekUpper('Συνολο')}</span>
+                      <div className="flex items-baseline gap-3">
+                        <span className="font-black text-slate-900 font-mono tabular-nums">
+                          {formatCurrency(supplierTotal)}
+                        </span>
+                        <span className="font-black text-slate-500 font-mono tabular-nums w-14 text-right">100,0%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 py-10 text-center">
+                  {overviewPnl
+                    ? 'Δεν υπάρχουν καταχωρημένα έξοδα για αυτή την περίοδο.'
+                    : overviewError
+                    ? 'Η φόρτωση απέτυχε.'
+                    : 'Φόρτωση…'}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
