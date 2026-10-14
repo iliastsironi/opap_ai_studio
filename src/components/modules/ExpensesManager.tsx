@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Plus, Search, DollarSign, Tag, ArrowUpRight, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
+import { Receipt, Plus, Search, DollarSign, Tag, CalendarDays, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
@@ -9,6 +9,7 @@ import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { currentMonthKey, shiftMonthKey, monthLabel } from '../../lib/pnlEngine.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
@@ -22,6 +23,14 @@ export const ExpensesManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  // Period is driven by shift_expenses.date - the day the money was spent -
+  // never created_at, which is when the row happened to be written. The August
+  // import wrote all 94 of its rows on one evening in September, so grouping by
+  // created_at puts the entire month in the wrong place.
+  const [periodMode, setPeriodMode] = useState<'MONTH' | 'ALL'>('MONTH');
+  const [periodMonth, setPeriodMonth] = useState<string>(() => currentMonthKey());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [monthPinned, setMonthPinned] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const EXPENSES_PAGE_SIZE = 20;
 
@@ -195,16 +204,61 @@ export const ExpensesManager: React.FC = () => {
     }
   };
 
-  const filteredExpenses = expenses.filter((e) => {
+  // Land on the latest month that actually has expenses rather than on today's,
+  // which would open to an empty screen whenever nothing has been spent yet
+  // this month. Only until the user picks a month themselves.
+  useEffect(() => {
+    if (monthPinned || expenses.length === 0) return;
+    const latest = expenses.reduce((max, e) => (e.date > max ? e.date : max), expenses[0].date);
+    setPeriodMonth(latest.slice(0, 7));
+  }, [expenses, monthPinned]);
+
+  const pickMonth = (next: string) => {
+    setMonthPinned(true);
+    setPeriodMonth(next);
+    setSelectedDay(null);
+    setCurrentPage(1);
+  };
+
+  // Everything in the chosen period, before the day/search/category filters -
+  // this is what the per-day breakdown and the month total are built from.
+  const periodExpenses = expenses.filter(
+    (e) => periodMode === 'ALL' || (e.date || '').slice(0, 7) === periodMonth
+  );
+
+  const dayTotals = (() => {
+    const byDay = new Map<string, { day: string; total: number; count: number }>();
+    for (const e of periodExpenses) {
+      const day = e.date || '';
+      if (!day) continue;
+      const entry = byDay.get(day) || { day, total: 0, count: 0 };
+      entry.total += Number(e.amount) || 0;
+      entry.count += 1;
+      byDay.set(day, entry);
+    }
+    return Array.from(byDay.values()).sort((a, b) => b.day.localeCompare(a.day));
+  })();
+
+  const filteredExpenses = periodExpenses.filter((e) => {
     const matchesSearch =
       (e.notes || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (e.recipient || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'ALL' || e.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesDay = !selectedDay || e.date === selectedDay;
+    return matchesSearch && matchesCategory && matchesDay;
   });
 
   const totalExpenseAmount = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const periodTotal = periodExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const averagePerDay = dayTotals.length > 0 ? periodTotal / dayTotals.length : 0;
+  const busiestDay = dayTotals.reduce<{ day: string; total: number; count: number } | null>(
+    (max, d) => (!max || d.total > max.total ? d : max),
+    null
+  );
+
+  const dayLabel = (day: string) =>
+    new Date(`${day}T00:00:00`).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
   const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / EXPENSES_PAGE_SIZE));
   const pageSafe = Math.min(currentPage, totalPages);
@@ -282,45 +336,155 @@ export const ExpensesManager: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-medium text-slate-500">Σύνολο Εξόδων (Φιλτραρισμένα)</p>
+              <p className="text-xs font-medium text-slate-500">
+                {periodMode === 'ALL' ? 'Σύνολο Εξόδων (Όλες οι περίοδοι)' : `Σύνολο ${monthLabel(periodMonth)}`}
+              </p>
               <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
-                {formatCurrency(totalExpenseAmount)}
+                {formatCurrency(periodTotal)}
               </h3>
             </div>
             <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-500 mt-3">Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου</p>
+          <p className="text-micro text-slate-500 mt-3">
+            {totalExpenseAmount !== periodTotal
+              ? `Φιλτραρισμένα: ${formatCurrency(totalExpenseAmount)}`
+              : 'Αφαιρούνται αυτόματα από το αναμενόμενο υπόλοιπο ταμείου'}
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-medium text-slate-500">Πλήθος Εγγραφών</p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{filteredExpenses.length}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{periodExpenses.length}</h3>
             </div>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
               <Tag className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-500 mt-3">Συνολικές εγκρίσεις εξόδων από ταμείο</p>
+          <p className="text-micro text-slate-500 mt-3">
+            {dayTotals.length} {dayTotals.length === 1 ? 'ημέρα' : 'ημέρες'} με έξοδα
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-medium text-slate-500">Μέσο Έξοδο ανά Βάρδια</p>
+              {/* Was «Μέσο Έξοδο ανά Βάρδια», but it divided by the number of
+                  expenses, not of shifts - so the label promised something the
+                  figure never was. Per day is both true and the thing you want
+                  when you are looking at a month. */}
+              <p className="text-xs font-medium text-slate-500">Μέσος Όρος Ημέρας</p>
               <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
-                {formatCurrency(filteredExpenses.length > 0 ? totalExpenseAmount / filteredExpenses.length : 0)}
+                {formatCurrency(averagePerDay)}
               </h3>
             </div>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-              <ArrowUpRight className="w-5 h-5" />
+              <CalendarDays className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-micro text-slate-500 mt-3">Εντός ορίων ασφαλείας εγκρίσεων</p>
+          <p className="text-micro text-slate-500 mt-3">
+            {busiestDay
+              ? `Υψηλότερη ημέρα: ${dayLabel(busiestDay.day)} — ${formatCurrency(busiestDay.total)}`
+              : 'Καμία καταχώρηση στην περίοδο'}
+          </p>
         </div>
+      </div>
+
+      {/* Period picker + per-day totals */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            <IconButton
+              icon={ChevronLeft}
+              label="Προηγούμενος μήνας"
+              disabled={periodMode === 'ALL'}
+              onClick={() => pickMonth(shiftMonthKey(periodMonth, -1))}
+              className="border border-slate-200 bg-white"
+            />
+            <span className="text-xs font-black text-slate-900 min-w-40 text-center tabular-nums">
+              {periodMode === 'ALL' ? toGreekUpper('Ολες οι περιοδοι') : monthLabel(periodMonth)}
+            </span>
+            <IconButton
+              icon={ChevronRight}
+              label="Επόμενος μήνας"
+              disabled={periodMode === 'ALL'}
+              onClick={() => pickMonth(shiftMonthKey(periodMonth, 1))}
+              className="border border-slate-200 bg-white"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1" role="group" aria-label="Εύρος περιόδου">
+            <button
+              type="button"
+              aria-pressed={periodMode === 'MONTH'}
+              onClick={() => { setPeriodMode('MONTH'); setSelectedDay(null); setCurrentPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                periodMode === 'MONTH' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {toGreekUpper('Μηνας')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={periodMode === 'ALL'}
+              onClick={() => { setPeriodMode('ALL'); setSelectedDay(null); setCurrentPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                periodMode === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {toGreekUpper('Ολα')}
+            </button>
+          </div>
+        </div>
+
+        {dayTotals.length === 0 ? (
+          <p className="text-xs text-slate-500">
+            Δεν υπάρχουν έξοδα{periodMode === 'MONTH' ? ` για ${monthLabel(periodMonth)}` : ''}.
+          </p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {dayTotals.map((d) => {
+              const active = selectedDay === d.day;
+              return (
+                <button
+                  key={d.day}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => { setSelectedDay(active ? null : d.day); setCurrentPage(1); }}
+                  title={`${d.count} ${d.count === 1 ? 'έξοδο' : 'έξοδα'}`}
+                  className={`shrink-0 px-3 py-2 rounded-xl border text-left transition-colors cursor-pointer ${
+                    active
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className={`text-micro font-bold block ${active ? 'text-indigo-100' : 'text-slate-500'}`}>
+                    {dayLabel(d.day)}
+                  </span>
+                  <span className="text-xs font-black font-mono tabular-nums block mt-0.5">
+                    {formatCurrency(d.total)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedDay && (
+          <p className="text-micro text-slate-500">
+            Ο πίνακας δείχνει μόνο την {dayLabel(selectedDay)}.{' '}
+            <button
+              type="button"
+              onClick={() => { setSelectedDay(null); setCurrentPage(1); }}
+              className="font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+            >
+              Καθαρισμός
+            </button>
+          </p>
+        )}
       </div>
 
       {/* Filter and Table Section */}
@@ -384,7 +548,13 @@ export const ExpensesManager: React.FC = () => {
                   <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-mono">
                       <p className="font-bold text-slate-900">{exp.id}</p>
-                      <p className="text-micro text-slate-500">{new Date(exp.created_at).toLocaleString('el-GR')}</p>
+                      {/* exp.date is the day the money was spent; created_at is
+                          when the row was written. The August import wrote all
+                          94 of its rows on one September evening, so created_at
+                          showed the whole month under the wrong date. */}
+                      <p className="text-micro text-slate-500">
+                        {new Date(`${exp.date}T00:00:00`).toLocaleDateString('el-GR')}
+                      </p>
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{exp.recipient || '—'}</td>
                     <td className="px-4 py-3">{getCategoryBadge(exp.category)}</td>

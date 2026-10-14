@@ -176,11 +176,38 @@ missing. They must not share a status, or the ledger stops meaning anything.
 
 | # | Item | Status |
 |---|---|---|
-| E1 | Per-day and per-month totals | TODO |
+| E1 | Per-day and per-month totals | **DONE** |
 
-The page totals whatever the filters leave behind and nothing else. Adding a
-period selector next to the existing category filter is the smallest change
-that answers "what did we spend in September".
+Built as a month stepper (◀ Αύγουστος 2026 ▶) with an «Όλα» escape hatch,
+reusing `currentMonthKey` / `shiftMonthKey` / `monthLabel` from `pnlEngine.ts`
+rather than new helpers, plus a scrollable per-day strip under the cards where
+each day is clickable to filter the table.
+
+It opens on the latest month that actually has expenses, not on today's, which
+would show an empty screen whenever nothing has been spent yet this month.
+
+**This slice had to start with a bug.** The table displayed `created_at` — when
+the row was *written* — rather than `date`, when the money was spent. The August
+import wrote all 94 of its rows in one second on 14/09, so every August expense
+was shown, and would have been counted, as a September one:
+
+| grouped by | result |
+|---|---|
+| `date` | 94 in August, 2 in July, 2 in September |
+| `created_at` | all 98 in September |
+
+Monthly totals built on `created_at` would have been silently wrong for every
+imported month. The list query now orders by `date` too — ordering by
+`created_at` alone left 94 rows sharing one timestamp in arbitrary order, which
+reads as broken once the real date is on screen.
+
+The third card said «Μέσο Έξοδο ανά Βάρδια» but divided by the number of
+*expenses*, not of shifts. It is now «Μέσος Όρος Ημέρας», which is both true and
+the figure you want when looking at a month.
+
+Verified against live data: all-time €6.265,46 over 98 entries matches what the
+screen showed before; August alone is €5.965,86 over 94 entries across 25 days;
+the €299,60 difference is exactly the two July rows (137 + 162,60).
 
 ---
 

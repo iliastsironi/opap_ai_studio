@@ -31,7 +31,12 @@ export async function fetchExpensesFromFirestore(orgId: string, storeId?: string
   try {
     let q = supabase.from(EXPENSES_TABLE).select('*').eq('organization_id', orgId);
     if (storeId && storeId !== 'ALL') q = q.eq('store_id', storeId);
-    const { data, error } = await q.order('created_at', { ascending: false });
+    // Newest spend first, by the day the money went out. Ordering by created_at
+    // alone put the August import - 94 rows written within the same second - in
+    // effectively arbitrary order once the UI started showing the real date.
+    const { data, error } = await q
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
     if (error) throw error;
     return (data ?? []) as ExpenseRecord[];
   } catch (error) {
