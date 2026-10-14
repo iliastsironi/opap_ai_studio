@@ -277,16 +277,20 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               creditCollectedTotal
             );
 
-            const totalReconciliationCount = roundCurrency(
-              shift.custom_field_values?.total_reconciliation_count !== undefined
-                ? safeNum(shift.custom_field_values.total_reconciliation_count)
-                : grossCount - openingCashTotal
+            // total_reconciliation_count is the old name for this value, kept
+            // as a fallback so a shift saved before migration 0021 still reads
+            // correctly. It never held a count - see calculateReconciliationNetTotal.
+            const storedNetTotal =
+              shift.custom_field_values?.reconciliation_net_total ??
+              shift.custom_field_values?.total_reconciliation_count;
+            const reconciliationNetTotal = roundCurrency(
+              storedNetTotal !== undefined ? safeNum(storedNetTotal) : grossCount - openingCashTotal
             );
 
             const discrepancy = roundCurrency(
               shift.discrepancy !== undefined
                 ? safeNum(shift.discrepancy)
-                : totalReconciliationCount - expectedCash
+                : reconciliationNetTotal - expectedCash
             );
             const isBalanced = Math.abs(discrepancy) < 0.01;
 
@@ -646,7 +650,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     {/* Bottom Right Blue Bar */}
                     <div className="bg-blue-900 text-white px-4 py-3 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                       <span>Σύνολο Καταμέτρησης:</span>
-                      <span className="font-mono text-base font-black text-emerald-300">{formatCurrency(totalReconciliationCount)}</span>
+                      <span className="font-mono text-base font-black text-emerald-300">{formatCurrency(reconciliationNetTotal)}</span>
                     </div>
                   </div>
                 </div>

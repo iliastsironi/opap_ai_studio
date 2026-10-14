@@ -207,7 +207,7 @@ export function calculateReconciliationBreakdown(input: TotalReconciliationInput
   Calculates "Σύνολο Καταμέτρησης" (Grand Reconciliation Total):
   (Καταμετρητής Χαρτονομισμάτων & Κερμάτων) + (POS) + expenses_paid_cash + bank_deposits + customer_credit_granted - customer_credit_collected - opening_cash
  */
-export function calculateTotalReconciliationCount(input: TotalReconciliationInput): number {
+export function calculateReconciliationNetTotal(input: TotalReconciliationInput): number {
   const breakdown = calculateReconciliationBreakdown(input);
   return breakdown.netTotal;
 }

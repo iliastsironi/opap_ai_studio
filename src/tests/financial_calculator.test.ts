@@ -4,7 +4,7 @@ import {
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
-  calculateTotalReconciliationCount,
+  calculateReconciliationNetTotal,
   calculateReconciliationBreakdown,
   roundCurrency,
   safeNum,
@@ -163,7 +163,7 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
     });
   });
 
-  describe('calculateTotalReconciliationCount', () => {
+  describe('calculateReconciliationNetTotal', () => {
     it('calculates grand total reconciliation count correctly matching user template', () => {
       // User Template:
       // Μετρητά (1935) + Κέρματα (303) + POS (739.94) + Έξοδα (2383.82 + 18.00 = 2401.82) + Πιστώσεις (45) - Επιστροφές (195) = 5229.76
@@ -182,7 +182,7 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
       expect(breakdown.openingCash).toBe(1274.70);
       expect(breakdown.netTotal).toBe(3955.06);
 
-      const netResult = calculateTotalReconciliationCount({
+      const netResult = calculateReconciliationNetTotal({
         countedCashInDrawer: 2238.00,
         posSalesTotal: 739.94,
         expensesTotal: 2401.82,

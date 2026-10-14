@@ -806,10 +806,9 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             'customer_credits', // shown in the credits section
             'vlts_cash_out_raw', // the signed VLT net is shown above
             'vlts_cash_out_type',
-            // Despite its name this one holds a euro total, not a count
-            // (calculateTotalReconciliationCount returns breakdown.netTotal).
-            // Both are internals of the Σκρατς counter.
-            'total_reconciliation_count',
+            // Internals of the Σκρατς counter, both euro totals.
+            'reconciliation_net_total',
+            'total_reconciliation_count', // its name before migration 0021
             'reconciliation_gross_total',
             'import_source',
             // Both already appear under ΑΡΧΙΚΟ ΚΕΦΑΛΑΙΟ on the reconciliation

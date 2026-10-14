@@ -161,7 +161,7 @@ import {
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
-  calculateTotalReconciliationCount,
+  calculateReconciliationNetTotal,
   calculateReconciliationBreakdown,
   calculateBanknotesAndCoins,
   safeNum,
@@ -996,10 +996,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     customerReturns: creditCollectedTotal,
   });
 
-  const totalReconciliationCount = reconciliationBreakdown.netTotal;
+  const reconciliationNetTotal = reconciliationBreakdown.netTotal;
 
   const discResult = calculateDiscrepancy(
-    totalReconciliationCount,
+    reconciliationNetTotal,
     expectedCash,
     safeNum(discrepancyThreshold)
   );
@@ -1173,7 +1173,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         tora_pos_items: toraPosItems,
         vlts_cash_out_type: vltsOutType,
         vlts_cash_out_raw: safeNum(vltsOut),
-        total_reconciliation_count: totalReconciliationCount,
+        reconciliation_net_total: reconciliationNetTotal,
         reconciliation_gross_total: reconciliationBreakdown.grossTotal,
       },
     };
@@ -2642,7 +2642,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="text-micro font-extrabold text-indigo-100 uppercase tracking-wider block">
                   Σύνολο Καταμέτρησης
                 </span>
-                <span className="text-xl font-black text-white">{formatCurrency(totalReconciliationCount)}</span>
+                <span className="text-xl font-black text-white">{formatCurrency(reconciliationNetTotal)}</span>
               </div>
             </div>
           </div>
@@ -2786,7 +2786,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Σύνολο Καταμέτρησης
               </span>
               <p className="text-3xl font-black text-emerald-400 mt-1 font-mono">
-                {formatCurrency(totalReconciliationCount)}
+                {formatCurrency(reconciliationNetTotal)}
               </p>
               <p className="text-micro text-indigo-200/80 mt-1 font-medium">
                 Μετρητά + POS + Έξοδα + Πιστώσεις - Επιστροφές - Αρχικό
@@ -3212,7 +3212,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 {/* Bottom Right Blue Bar */}
                 <div className="bg-blue-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase tracking-wider border-t border-blue-800">
                   <span>Σύνολο Καταμέτρησης:</span>
-                  <span className="font-mono text-sm text-emerald-300">{formatCurrency(totalReconciliationCount)}</span>
+                  <span className="font-mono text-sm text-emerald-300">{formatCurrency(reconciliationNetTotal)}</span>
                 </div>
               </div>
             </div>
