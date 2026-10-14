@@ -29,6 +29,8 @@ interface PayrollRowModalProps {
   month: string;
   stores: PnlStore[];
   row: PnlPayrollRow | null;
+  /** Org users, so a payroll row can be tied to the account whose till it is. */
+  users: Array<{ id: string; name: string }>;
   onClose: () => void;
   onSave: (row: PnlPayrollRow, storeName: string) => Promise<void>;
 }
@@ -36,12 +38,13 @@ interface PayrollRowModalProps {
 const inputClass =
   'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500';
 
-export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month, stores, row, onClose, onSave }) => {
+export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month, stores, row, users, onClose, onSave }) => {
   const [storeId, setStoreId] = useState('');
   const [unit, setUnit] = useState<PnlUnit>('STORE');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [iban, setIban] = useState('');
+  const [userId, setUserId] = useState<string>('');
   const [leaveDays, setLeaveDays] = useState('');
   const [money, setMoney] = useState<Record<MoneyField, string>>({} as Record<MoneyField, string>);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,6 +57,7 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
     setName(row?.name ?? '');
     setEmail(row?.email ?? '');
     setIban(row?.iban ?? '');
+    setUserId(row?.userId ?? '');
     setLeaveDays(row?.leaveDaysTaken ? String(row.leaveDaysTaken).replace('.', ',') : '');
     setMoney(Object.fromEntries(MONEY_FIELDS.map((field) => [field, moneyInputValue(row ? row[field] : 0)])) as Record<MoneyField, string>);
     setError(null);
@@ -67,6 +71,7 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
     unit,
     period: monthPeriod(month),
     name,
+    userId: userId || null,
     email,
     iban,
     baseSalary: moneyValue('baseSalary'),
@@ -156,6 +161,30 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
               Ονοματεπώνυμο
             </label>
             <input id="payroll-name" type="text" required maxLength={MAX_LABEL_LENGTH} value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          </div>
+
+          <div>
+            <label htmlFor="payroll-user" className="block text-xs font-bold text-slate-600 mb-1">
+              Λογαριασμός χρήστη
+            </label>
+            {/* Chosen, never matched on name. This is what lets the sheet show
+                what the person owes from till shortages, and a wrong guess
+                there would report €0 owed instead of nothing at all. */}
+            <select
+              id="payroll-user"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">— κανένας —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <p className="text-micro text-slate-500 mt-1">
+              Χρειάζεται μόνο για να εμφανίζεται η οφειλή ταμείου του υπαλλήλου. Αφήστε το κενό
+              για κάποιον χωρίς λογαριασμό.
+            </p>
           </div>
           <div>
             <label htmlFor="payroll-email" className="block text-xs font-bold text-slate-600 mb-1">

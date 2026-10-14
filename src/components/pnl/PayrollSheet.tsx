@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Copy, Edit2, Plus, Trash2, Users } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { MonthlyPnlResult, PnlPayrollComputedRow, PnlPayrollRow, monthLabel } from '../../lib/pnlEngine.ts';
-import { copyPayrollFromPreviousMonth, deletePayrollRow, savePayrollRow } from '../../services/pnlService.ts';
+import { copyPayrollFromPreviousMonth, deletePayrollRow, fetchOpenChargeTotals, savePayrollRow } from '../../services/pnlService.ts';
+import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { PayrollRowModal } from './PayrollRowModal.tsx';
 import { PnlSection, iconAction, primaryAction, secondaryAction } from './pnlDisplay.tsx';
 
@@ -26,6 +27,31 @@ export const PayrollSheet: React.FC<PayrollSheetProps> = ({ result, orgId, onCha
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
+  // What each account still owes from till shortages, all months together.
+  // Reported beside «Χέρι», never subtracted from it.
+  const [openCharges, setOpenCharges] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [list, charges] = await Promise.all([
+        fetchUsersFromFirestore(orgId).catch(() => []),
+        fetchOpenChargeTotals(orgId).catch(() => ({})),
+      ]);
+      if (cancelled) return;
+      setUsers(
+        (list ?? []).map((u: any) => ({
+          id: u.id,
+          name: [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.email,
+        }))
+      );
+      setOpenCharges(charges);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
 
   const copyPreviousMonth = async () => {
     setIsCopying(true);
@@ -107,6 +133,7 @@ export const PayrollSheet: React.FC<PayrollSheetProps> = ({ result, orgId, onCha
                         <th className="px-3 py-2 text-right font-bold whitespace-nowrap">Τράπεζα</th>
                         <th className="px-3 py-2 text-right font-bold whitespace-nowrap">Προκαταβολή</th>
                         <th className="px-3 py-2 text-right font-black whitespace-nowrap">Χέρι</th>
+                        <th className="px-3 py-2 text-right font-bold whitespace-nowrap">Οφειλή Ταμείου</th>
                         <th className="px-2 py-2">
                           <span className="sr-only">Ενέργειες</span>
                         </th>
@@ -133,6 +160,18 @@ export const PayrollSheet: React.FC<PayrollSheetProps> = ({ result, orgId, onCha
                           <td className={`${cell} font-black ${row.cashInHand < 0 ? 'bg-rose-50 text-rose-700' : 'text-slate-900'}`}>
                             {row.cashInHand < 0 && <AlertTriangle className="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true" />}
                             {formatCurrency(row.cashInHand)}
+                          </td>
+                          {/* Information, not a deduction. «Χέρι» above is
+                              unchanged by this: taking a till shortage out of
+                              someone's wages is the Owner's call to make, and
+                              a legally constrained one, so the app states the
+                              figure rather than acting on it. */}
+                          <td className={`${cell} ${row.userId ? (openCharges[row.userId] ? 'font-black text-rose-700' : 'text-slate-400') : 'text-slate-300'}`}>
+                            {!row.userId
+                              ? '—'
+                              : openCharges[row.userId]
+                              ? formatCurrency(openCharges[row.userId])
+                              : '0,00 €'}
                           </td>
                           <td className="px-2 py-1.5 whitespace-nowrap text-right">
                             <button
@@ -180,6 +219,7 @@ export const PayrollSheet: React.FC<PayrollSheetProps> = ({ result, orgId, onCha
         month={result.month}
         stores={result.stores.map((sheet) => sheet.store)}
         row={editor.row}
+        users={users}
         onClose={() => setEditor((current) => ({ ...current, open: false }))}
         onSave={async (row, storeName) => {
           await savePayrollRow(orgId, result.month, row, storeName);

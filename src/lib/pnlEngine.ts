@@ -109,6 +109,17 @@ export interface PnlPayrollRow {
   bonus: number;
   bankAmount: number;
   advancePayment: number;
+  /** The account whose till this person works, when they have one. */
+  userId?: string | null;
+  /**
+   * Unpaid till shortages for that account, all months together.
+   *
+   * Reported BESIDE «Χέρι», never inside it: payrollCashInHand() deliberately
+   * does not subtract it. Deducting a till shortage from wages is legally
+   * constrained in Greece, so the app shows the figure and the Owner decides,
+   * rather than quietly reducing someone's pay.
+   */
+  openCharges?: number;
 }
 
 export interface PnlCompanyCost {

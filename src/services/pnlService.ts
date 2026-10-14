@@ -81,6 +81,7 @@ const toPayrollRow = (r: any): PnlPayrollRow => ({
   bonus: num(r.bonus),
   bankAmount: num(r.bank_amount),
   advancePayment: num(r.advance_payment),
+  userId: r.user_id ?? null,
 });
 
 const toCompanyCost = (r: any): PnlCompanyCost => ({
@@ -406,11 +407,39 @@ export async function savePayrollRow(orgId: string, month: string, row: PnlPayro
     total_payroll: payrollTotal(row),
     bank_amount: row.bankAmount,
     advance_payment: row.advancePayment,
+    // cash_in_hand deliberately excludes any till debt - see PnlPayrollRow.openCharges.
     cash_in_hand: payrollCashInHand(row),
+    user_id: row.userId ?? null,
     updated_at: new Date().toISOString(),
   };
   if (row.id) payload.id = row.id;
   await run(PAYROLL_TABLE, row.id ? OperationType.UPDATE : OperationType.CREATE, supabase.from(PAYROLL_TABLE).upsert(payload));
+}
+
+// Unpaid till shortages per account, all months together.
+//
+// Keyed by user id because that is what employee_charges records; a payroll row
+// reaches it through its own user_id, which the Owner sets explicitly. Names
+// are never matched: «Γιώργος Χριστοδούλου» and «ΧΡΙΣΤΟΔΟΥΛΟΥ ΓΕΩΡΓΙΟΣ» are one
+// person to a reader and two to a string comparison, and a silent non-match
+// would report €0 owed - the one wrong answer that looks like a right one.
+export async function fetchOpenChargeTotals(orgId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('employee_charges')
+    .select('employee_user_id, amount, status')
+    .eq('organization_id', orgId)
+    .eq('status', 'OPEN');
+  if (error) {
+    await handleSupabaseError(error, OperationType.LIST, 'employee_charges').catch(() => {});
+    return {};
+  }
+  const totals: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = (row as any).employee_user_id;
+    if (!id) continue;
+    totals[id] = (totals[id] ?? 0) + Number((row as any).amount || 0);
+  }
+  return totals;
 }
 
 export async function deletePayrollRow(id: string): Promise<void> {
