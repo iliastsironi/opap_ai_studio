@@ -57,6 +57,9 @@ async function main() {
   const { data: u5 } = await admin.auth.admin.createUser({
     email: `rls-test-5-${suffix}@example.com`, password: pw, email_confirm: true,
   });
+  const { data: u6 } = await admin.auth.admin.createUser({
+    email: `rls-test-6-${suffix}@example.com`, password: pw, email_confirm: true,
+  });
 
   // Profile rows with NO role_code/organization_id yet - user1 will self-heal these.
   // u3 gets promoted in test 5 - u4 stays EMPLOYEE throughout, dedicated to the
@@ -68,11 +71,13 @@ async function main() {
     { id: u3.user.id, email: u3.user.email, first_name: 'Test', last_name: 'Three', organization_id: orgA, role_code: 'EMPLOYEE' },
     { id: u4.user.id, email: u4.user.email, first_name: 'Test', last_name: 'Four', organization_id: orgA, role_code: 'EMPLOYEE' },
     { id: u5.user.id, email: u5.user.email, first_name: 'Test', last_name: 'Five', organization_id: orgA, role_code: 'EMPLOYEE' },
+    { id: u6.user.id, email: u6.user.email, first_name: 'Test', last_name: 'Six', organization_id: orgA, role_code: 'STORE_MANAGER' },
   ]).throwOnError();
 
   const client1 = await signInAs(u1.user.email, pw);
   const client2 = await signInAs(u2.user.email, pw); // ORG_OWNER in orgB
   const client4 = await signInAs(u4.user.email, pw); // EMPLOYEE in orgA, never promoted
+  const client6 = await signInAs(u6.user.email, pw); // STORE_MANAGER in orgA - elevated, but NOT an owner
 
   // (1) fresh user, NULL role/org, self-sets both once -> succeeds
   {
@@ -255,18 +260,88 @@ async function main() {
     }
   }
 
+
+  // --- 0023: the discrepancy ledger ---
+  {
+    const storeId = `test_store_0023_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'T23', name: 'Test Store 0023', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const mkSubmitted = async (register, discrepancy) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId, register_id: register, store_name: 'Test Store 0023',
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        status: 'SUBMITTED', discrepancy, closed_at: new Date().toISOString(),
+      }).select().maybeSingle();
+      if (error) console.error(`0023 shift insert (${register}):`, error.message);
+      return data;
+    };
+
+    const shortShift = await mkSubmitted('REG-0023-A', -150);
+    const fixableShift = await mkSubmitted('REG-0023-B', -30);
+
+    if (shortShift && fixableShift) {
+      // 17: an off-balance close raises an incident by itself.
+      const { data: inc } = await admin.from('incidents').select('*').eq('shift_id', shortShift.id).maybeSingle();
+      record('17: an off-balance close raises an incident automatically',
+        !!inc && inc.severity === 'HIGH' && inc.category === 'DISCREPANCY',
+        inc ? `${inc.severity} — "${inc.title}"` : 'no incident created');
+
+      // 18: corrected back to balance -> that incident resolves itself, the
+      // same way sync_shift_close_effects cancels the charge. Done through the
+      // OWNER session, because trg_shift_immutability blocks a non-elevated
+      // caller from touching a SUBMITTED shift - and the service role is not
+      // elevated either.
+      await client1.from('shifts').update({ discrepancy: 0 }).eq('id', fixableShift.id);
+      const { data: fixedInc } = await admin.from('incidents').select('status').eq('shift_id', fixableShift.id).maybeSingle();
+      record('18: correcting a shift back to balance resolves its incident',
+        fixedInc?.status === 'RESOLVED', `status=${fixedInc?.status ?? 'no incident'}`);
+
+      // 19: the point of 0023 - a STORE_MANAGER, who is not an owner, may now
+      // settle a charge. Before this it raised 42501.
+      const { data: charge } = await admin.from('employee_charges').select('id, amount').eq('shift_id', shortShift.id).maybeSingle();
+      if (charge) {
+        const { error: settleErr } = await client6.rpc('resolve_employee_charge', {
+          p_charge_id: charge.id, p_status: 'SETTLED', p_note: 'Πληρώθηκε από τον υπάλληλο',
+        });
+        const { data: after } = await admin.from('employee_charges').select('status, resolved_by_user_id').eq('id', charge.id).maybeSingle();
+        record('19: a STORE_MANAGER can settle a charge, not only the Owner',
+          !settleErr && after?.status === 'SETTLED' && after?.resolved_by_user_id === u6.user.id,
+          settleErr ? settleErr.message : `status=${after?.status}`);
+      } else {
+        record('19: charge was not created for the short shift', false);
+      }
+
+      // 20: the monthly rollup - everyone for a manager, own row only for staff.
+      const monthStart = new Date().toISOString().slice(0, 8) + '01';
+      const { data: mgrRows, error: mgrErr } = await client6.rpc('monthly_discrepancy_summary', { p_month: monthStart });
+      const { data: empRows } = await client4.rpc('monthly_discrepancy_summary', { p_month: monthStart });
+      const mine = (empRows ?? []).every((r) => r.employee_user_id === u4.user.id);
+      record('20: monthly rollup shows everyone to a manager, own row only to staff',
+        !mgrErr && (mgrRows ?? []).length >= 1 && mine,
+        mgrErr ? mgrErr.message : `manager ${(mgrRows ?? []).length} row(s), employee ${(empRows ?? []).length} (own only: ${mine})`);
+    } else {
+      record('17-20: 0023 fixture setup failed', false);
+    }
+  }
+
   // --- Cleanup (service role) ---
+  await admin.from('employee_charges').delete().eq('organization_id', orgA);
+  await admin.from('notifications').delete().eq('organization_id', orgA);
   await admin.from('shift_expenses').delete().eq('organization_id', orgA);
   await admin.from('incidents').delete().eq('organization_id', orgA);
   await admin.from('shifts').delete().eq('organization_id', orgA);
   await admin.from('stores').delete().like('id', `test_store_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_0022_${suffix}`);
-  await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id]);
+  await admin.from('stores').delete().like('id', `test_store_0023_${suffix}`);
+  await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
   await admin.auth.admin.deleteUser(u3.user.id);
   await admin.auth.admin.deleteUser(u4.user.id);
   await admin.auth.admin.deleteUser(u5.user.id);
+  await admin.auth.admin.deleteUser(u6.user.id);
   await admin.from('organizations').delete().in('id', [orgA, orgB]);
 
   const failed = results.filter((r) => !r.pass);

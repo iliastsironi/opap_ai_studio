@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Sliders,
+  Scale,
   ChevronDown,
   ChevronUp,
   Trash2,
@@ -57,6 +58,9 @@ const ShiftClosingWizard = lazyWithRetry(() =>
 );
 const ShiftTemplateConfigurator = lazyWithRetry(() =>
   import('./ShiftTemplateConfigurator.tsx').then((m) => ({ default: m.ShiftTemplateConfigurator }))
+);
+const DiscrepancyLedger = lazyWithRetry(() =>
+  import('./DiscrepancyLedger.tsx').then((m) => ({ default: m.DiscrepancyLedger }))
 );
 
 // Statuses that mean "this shift is still someone's to finish". Keep this as
@@ -123,7 +127,7 @@ export const ShiftsManager: React.FC = () => {
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'TEMPLATE'>('SHIFTS');
+  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'DISCREPANCIES' | 'TEMPLATE'>('SHIFTS');
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>(() => {
     try {
       const saved = localStorage.getItem('shiftledger_shifts_view_mode');
@@ -391,6 +395,17 @@ export const ShiftsManager: React.FC = () => {
               >
                 {toGreekUpper('Λιστα Βαρδιων')}
               </button>
+              <button
+                onClick={() => setManagerTab('DISCREPANCIES')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                  managerTab === 'DISCREPANCIES'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>{toGreekUpper('Αποκλισεις')}</span>
+              </button>
               {isOwnerOrAdmin && (
                 <button
                   onClick={() => setManagerTab('TEMPLATE')}
@@ -498,6 +513,10 @@ export const ShiftsManager: React.FC = () => {
       {managerTab === 'TEMPLATE' && isOwnerOrAdmin ? (
         <Suspense fallback={<LazyLoadingFallback />}>
           <ShiftTemplateConfigurator />
+        </Suspense>
+      ) : managerTab === 'DISCREPANCIES' ? (
+        <Suspense fallback={<LazyLoadingFallback />}>
+          <DiscrepancyLedger />
         </Suspense>
       ) : (
         <>

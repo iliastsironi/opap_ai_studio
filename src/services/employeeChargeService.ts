@@ -27,6 +27,63 @@ export interface EmployeeCharge {
   } | null;
 }
 
+// One row per operator for a month: what their tills came to, and what they
+// still owe. Server-side because an employee cannot read a colleague's shifts
+// (0022) and a manager should not pull a month of shifts down the wire to add
+// them up. Managers get everyone; staff get only their own row.
+export interface MonthlyDiscrepancyRow {
+  employee_user_id: string | null;
+  employee_name: string;
+  shift_count: number;
+  discrepancy_total: number;
+  shortage_total: number;
+  surplus_total: number;
+  open_charges: number;
+  settled_charges: number;
+  waived_charges: number;
+}
+
+export async function fetchMonthlyDiscrepancySummary(
+  month: string,
+  storeId?: string
+): Promise<MonthlyDiscrepancyRow[]> {
+  try {
+    const { data, error } = await supabase.rpc('monthly_discrepancy_summary', {
+      p_month: `${month}-01`,
+      p_store_id: storeId && storeId !== 'ALL' ? storeId : null,
+    });
+    if (error) throw error;
+    return ((data ?? []) as any[]).map((r) => ({
+      employee_user_id: r.employee_user_id,
+      employee_name: r.employee_name,
+      shift_count: Number(r.shift_count) || 0,
+      discrepancy_total: Number(r.discrepancy_total) || 0,
+      shortage_total: Number(r.shortage_total) || 0,
+      surplus_total: Number(r.surplus_total) || 0,
+      open_charges: Number(r.open_charges) || 0,
+      settled_charges: Number(r.settled_charges) || 0,
+      waived_charges: Number(r.waived_charges) || 0,
+    }));
+  } catch (error) {
+    await handleSupabaseError(error, OperationType.LIST, 'monthly_discrepancy_summary').catch(() => {});
+    return [];
+  }
+}
+
+// «Αίτημα διόρθωσης»: the shift goes back to the operator to re-enter, rather
+// than the shortage being settled or written off. The two are deliberately
+// different actions - settling records that money changed hands, correcting
+// records that it was never missing - and sharing a status would make the
+// ledger meaningless. sync_shift_close_effects() cancels the charge by itself
+// once the corrected shift is resubmitted balanced.
+export async function requestShiftCorrection(shiftId: string): Promise<void> {
+  const { error } = await supabase
+    .from('shifts')
+    .update({ status: 'CORRECTION_REQUESTED', updated_at: new Date().toISOString() })
+    .eq('id', shiftId);
+  if (error) await handleSupabaseError(error, OperationType.UPDATE, 'shifts');
+}
+
 // Employees only ever get their own rows back - enforced by RLS, not here.
 export async function fetchEmployeeCharges(orgId: string, storeId?: string): Promise<EmployeeCharge[]> {
   try {

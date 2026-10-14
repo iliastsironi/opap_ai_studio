@@ -151,9 +151,9 @@ Cases 15 and 16 cover the two flows above.
 
 | # | Item | Status |
 |---|---|---|
-| D1 | A live monthly total-discrepancy view under Βάρδιες | TODO |
-| D2 | Owner **or Manager** may settle a charge when the employee pays | TODO |
-| D3 | A correction path for a discrepancy caused by a data-entry error | TODO |
+| D1 | A live monthly total-discrepancy view under Βάρδιες | **DONE** |
+| D2 | Owner **or Manager** may settle a charge when the employee pays | **DONE** |
+| D3 | A correction path for a discrepancy caused by a data-entry error | **DONE** |
 
 About 70% of this exists already as `employee_charges` (migration 0018), which
 is better than it looks: charges are raised by an `AFTER` trigger on `shifts`,
@@ -169,6 +169,43 @@ D2 needs a migration: `resolve_employee_charge()` currently raises
 D3 is genuinely new. The distinction that matters: **settling** a charge records
 that money changed hands, **correcting** one records that the money was never
 missing. They must not share a status, or the ledger stops meaning anything.
+«Διόρθωση» therefore sends the shift back to `CORRECTION_REQUESTED` — the status
+the app already had — and leaves the charge for `sync_shift_close_effects()` to
+cancel by itself once the shift is resubmitted balanced.
+
+### Built as
+
+A new **ΑΠΟΚΛΙΣΕΙΣ** tab in Βάρδιες & Ταμείο: month stepper, four totals, a
+per-operator table, and the charge list with Εξόφληση / Διαγραφή / Διόρθωση.
+
+Migration 0023 adds `incidents.shift_id`, widens `resolve_employee_charge()` to
+`auth_is_elevated()`, adds `monthly_discrepancy_summary()`, and raises an
+incident automatically whenever a till closes off-balance — as a **separate**
+trigger, because `sync_shift_close_effects()` already creates charges, cancels
+them on correction and fans out handover notifications, and rewriting 160 lines
+of that to append one INSERT risks all of it.
+
+Two things the build itself exposed:
+
+- **ΑΝΕΞΟΦΛΗΤΑ is deliberately not month-scoped.** A shortage nobody paid is
+  still owed in November, and a card resetting to €0 each month would hide the
+  one balance this page exists to track. Open charges from earlier months are
+  listed too, for the same reason.
+- **The rollup groups by user id alone**, taking the name last worked under.
+  Grouping by name as well split one person into several rows the moment it
+  changed — which is exactly what happens when the «Χωρίς όνομα» employees get
+  real names.
+
+### Verified
+`test-rls.mjs` gains cases 17–20 and runs **21/21**. The incident is raised with
+the right severity and a Greek-formatted title, correcting a shift to balance
+resolves it, a STORE_MANAGER (not an owner) can settle, and the rollup shows
+everyone to a manager but only their own row to staff.
+
+Against real data, Αύγουστος 2026 reads +€3,88 over 4 shifts — €3,61 of
+shortages against €7,49 of surpluses — which is exactly the four till
+discrepancies the workbook import was verified against (−0,85 / +6,07 / −2,76 /
++1,42).
 
 ---
 
