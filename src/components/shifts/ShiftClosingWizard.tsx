@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense, fetchVltTerminalsFromFirestore } from '../../services/moduleServices.ts';
+import { fetchExpensesFromFirestore, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -768,8 +768,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [isSyncingExpenses, setIsSyncingExpenses] = useState<boolean>(false);
   const [isAddingExpense, setIsAddingExpense] = useState<boolean>(false);
   const [syncNotification, setSyncNotification] = useState<string | null>(null);
-  const [isSyncingVlts, setIsSyncingVlts] = useState<boolean>(false);
-  const [vltsSyncNotification, setVltsSyncNotification] = useState<string | null>(null);
 
   const syncExpensesFromStore = async (isManual = false) => {
     setIsSyncingExpenses(true);
@@ -837,42 +835,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // must stay an explicit, reviewable action the user chooses to take rather
   // than something that fires silently whenever the wizard opens.
   //
-  // TEMPORARY, UNCONFIRMED ASSUMPTION (flagged to the user, not yet
-  // resolved): sums each terminal's meter_in/meter_out as this period's
-  // total, matching how VltManager already treats those fields (plain
-  // overwritable numbers, no reading history). Real VLT meters are often
-  // true lifetime/cumulative counters instead, where period revenue is a
-  // delta between a start-of-shift and end-of-shift reading. If that turns
-  // out to be the case here, this whole function needs to change to compute
-  // a delta against a stored prior reading, not just sum current values -
-  // and vlt_terminals (supabase/migrations/0009_vlt_terminals.sql) would
-  // need a reading-history table rather than a single current-value row.
-  const handleFillVltsFromTerminals = async () => {
-    setIsSyncingVlts(true);
-    setVltsSyncNotification(null);
-    try {
-      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
-      const terminals = await fetchVltTerminalsFromFirestore(orgId, shift.store_id);
-      if (terminals.length === 0) {
-        setVltsSyncNotification('Δεν βρέθηκαν καταχωρημένα τερματικά VLT για αυτό το κατάστημα.');
-        return;
-      }
-      const sumIn = terminals.reduce((sum, t) => sum + safeNum(t.meter_in), 0);
-      const sumOut = terminals.reduce((sum, t) => sum + safeNum(t.meter_out), 0);
-      setVltsIn(sumIn.toFixed(2));
-      setVltsOut(sumOut.toFixed(2));
-      setVltsOutType('NEGATIVE');
-      setVltsSyncNotification(
-        `Συμπληρώθηκε από ${terminals.length} τερματικά VLT — Είσπραξη: ${formatCurrency(sumIn)}, Πληρωμές: ${formatCurrency(sumOut)}.`
-      );
-    } catch (err) {
-      console.warn('Error filling VLTs from terminals:', err);
-      setVltsSyncNotification('Αποτυχία ανάκτησης δεδομένων από τα Τερματικά VLT.');
-    } finally {
-      setIsSyncingVlts(false);
-    }
-  };
-
   useEffect(() => {
     syncExpensesFromStore(false);
   }, [shift.id, shift.store_id]);
@@ -2149,47 +2111,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span>🎰 PLAY VLTs</span>
                 </h4>
                 <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={handleFillVltsFromTerminals}
-                    disabled={isSyncingVlts}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
-                    title="Συμπλήρωση από τις τρέχουσες μετρήσεις των Τερματικών VLT (ενότητα Τερματικά VLTs). Προσωρινή λογική - βλ. σημείωση παρακάτω."
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingVlts ? 'animate-spin text-indigo-600' : ''}`} />
-                    <span>{isSyncingVlts ? 'Ανάκτηση...' : 'Συμπλήρωση από Τερματικά'}</span>
-                  </button>
                   <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
                     Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
                   </span>
                 </div>
               </div>
-
-              <p className="text-micro text-amber-700 flex items-start gap-1">
-                <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
-                <span>
-                  Προσωρινή λογική «Συμπλήρωση από Τερματικά»: αθροίζει τις τρέχουσες μετρήσεις κάθε τερματικού ως
-                  σύνολο τρέχουσας περιόδου, όχι ως αθροιστικό (lifetime) μετρητή. Αν επιβεβαιωθεί ότι οι μετρητές VLT
-                  είναι αθροιστικοί, ο υπολογισμός εδώ πρέπει να αλλάξει σε διαφορά μέτρησης έναρξης/λήξης βάρδιας.
-                </span>
-              </p>
-
-              {vltsSyncNotification && (
-                <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center justify-between text-xs text-indigo-900 font-semibold transition-opacity duration-150 starting:opacity-0">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>{vltsSyncNotification}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setVltsSyncNotification(null)}
-                    aria-label="Κλείσιμο ειδοποίησης"
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 ml-2 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>

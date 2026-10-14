@@ -11,9 +11,6 @@ import {
   Clock,
   Receipt,
   Wallet,
-  Gamepad2,
-  Ticket,
-  Coffee,
   AlertTriangle,
   ChevronRight,
   BarChart3,
@@ -53,23 +50,19 @@ interface NavSection {
 // and cash work sits at the top for every role, administration near the
 // bottom (empty and hidden for staff anyway, since each item is permission-gated).
 const NAV_SECTIONS: NavSection[] = [
+  // Εθνικό Λαχείο used to sit in its own «Παιχνίδια & Πωλήσεις» section
+  // alongside ΟΠΑΠ, VLTs and FnB. With those three gone it was the only item
+  // left there, and a section header over a single row reads as a mistake -
+  // so it moved here, next to the other daily cash handling it belongs with.
   {
     title: 'Καθημερινά',
     items: [
       { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
       { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
       { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
+      { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
       { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
       { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
-    ],
-  },
-  {
-    title: 'Παιχνίδια & Πωλήσεις',
-    items: [
-      { id: 'opap', label: 'Παιχνίδια ΟΠΑΠ', icon: Ticket, perm: 'opap.view' },
-      { id: 'vlt', label: 'Τερματικά VLTs', icon: Gamepad2, perm: 'vlt.view' },
-      { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
-      { id: 'fnb', label: 'FnB & Αναψυκτήριο', icon: Coffee, perm: 'fnb.view' },
     ],
   },
   {

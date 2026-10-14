@@ -7,9 +7,6 @@ import { ShieldAlert, Clock } from 'lucide-react';
 import { lazyWithRetry, clearChunkReloadFlag } from './lib/lazyWithRetry.ts';
 
 const ExpensesManager = lazyWithRetry(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
-const OpapGamesManager = lazyWithRetry(() => import('./components/modules/OpapGamesManager.tsx').then((m) => ({ default: m.OpapGamesManager })));
-const VltManager = lazyWithRetry(() => import('./components/modules/VltManager.tsx').then((m) => ({ default: m.VltManager })));
-const FnbManager = lazyWithRetry(() => import('./components/modules/FnbManager.tsx').then((m) => ({ default: m.FnbManager })));
 const IncidentsManager = lazyWithRetry(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
 const NationalLotteryManager = lazyWithRetry(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
 const ReportsManager = lazyWithRetry(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
@@ -43,9 +40,6 @@ const TAB_PERMISSIONS: Record<string, string> = {
   shifts: 'shifts.view',
   expenses: 'expenses.view',
   suppliers: 'suppliers.view',
-  opap: 'opap.view',
-  vlt: 'vlt.view',
-  fnb: 'fnb.view',
   incidents: 'incidents.view',
   national_lottery: 'national_lottery.view',
   reports: 'reports.view',
@@ -68,8 +62,13 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
         </div>
         <div>
           <h3 className="text-lg font-black text-slate-900">Περιορισμός Πρόσβασης</h3>
+          {/* Deliberately does not enumerate the permitted modules. The old
+              copy listed them by name and went stale the moment a module was
+              added or removed; the sidebar already shows exactly what this
+              user can reach. */}
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Ως υπάλληλος βάρδιας δεν έχετε δικαίωμα πρόσβασης σε αυτή την ενότητα. Έχετε πρόσβαση μόνο στις λειτουργικές ενότητες (Βάρδιες & Ταμείο, Έξοδα, Προμηθευτές, ΟΠΑΠ, VLTs, FnB, Συμβάντα).
+            Δεν έχετε δικαίωμα πρόσβασης σε αυτή την ενότητα. Στο πλευρικό μενού
+            βλέπετε τις ενότητες στις οποίες έχετε πρόσβαση.
           </p>
         </div>
         <button
@@ -92,12 +91,6 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <ExpensesManager />;
     case 'suppliers':
       return <SuppliersManager />;
-    case 'opap':
-      return <OpapGamesManager />;
-    case 'vlt':
-      return <VltManager />;
-    case 'fnb':
-      return <FnbManager />;
     case 'incidents':
       return <IncidentsManager />;
     case 'national_lottery':
