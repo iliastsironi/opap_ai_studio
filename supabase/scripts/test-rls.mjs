@@ -51,6 +51,12 @@ async function main() {
   const { data: u4 } = await admin.auth.admin.createUser({
     email: `rls-test-4-${suffix}@example.com`, password: pw, email_confirm: true,
   });
+  // u5: a SECOND employee in orgA. 0022's whole question is "can one employee
+  // see another's records?", which needs two of them, and u3 is promoted by
+  // test 5 so it cannot play the part.
+  const { data: u5 } = await admin.auth.admin.createUser({
+    email: `rls-test-5-${suffix}@example.com`, password: pw, email_confirm: true,
+  });
 
   // Profile rows with NO role_code/organization_id yet - user1 will self-heal these.
   // u3 gets promoted in test 5 - u4 stays EMPLOYEE throughout, dedicated to the
@@ -61,6 +67,7 @@ async function main() {
     { id: u2.user.id, email: u2.user.email, first_name: 'Test', last_name: 'Two', organization_id: orgB, role_code: 'ORG_OWNER' },
     { id: u3.user.id, email: u3.user.email, first_name: 'Test', last_name: 'Three', organization_id: orgA, role_code: 'EMPLOYEE' },
     { id: u4.user.id, email: u4.user.email, first_name: 'Test', last_name: 'Four', organization_id: orgA, role_code: 'EMPLOYEE' },
+    { id: u5.user.id, email: u5.user.email, first_name: 'Test', last_name: 'Five', organization_id: orgA, role_code: 'EMPLOYEE' },
   ]).throwOnError();
 
   const client1 = await signInAs(u1.user.email, pw);
@@ -133,14 +140,133 @@ async function main() {
     record('8: duplicate active shift on same store+register is rejected', !openErr && !!dupErr, dupErr ? `correctly rejected (${dupErr.code})` : `openErr=${openErr?.message} dupErr=${dupErr?.message}`);
   }
 
+
+  // --- 0022: employees see their own records, not the organisation's ---
+  // Fixtures go in via the service role on purpose (setup, not the test); every
+  // assertion below reads through a real employee session.
+  {
+    const storeId = `test_store_0022_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'T22', name: 'Test Store 0022', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const mkShift = async (owner, register, status, countedCash = 0) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId, register_id: register,
+        opened_by_user_id: owner, status, counted_cash: countedCash,
+        closed_at: status === 'SUBMITTED' ? new Date().toISOString() : null,
+      }).select().maybeSingle();
+      if (error) console.error(`0022 shift insert (${register}):`, error.message);
+      return data;
+    };
+
+    const mineClosed = await mkShift(u4.user.id, 'REG-0022-MINE', 'SUBMITTED');
+    const theirsClosed = await mkShift(u5.user.id, 'REG-0022-THEIRS', 'SUBMITTED', 317.45);
+    const theirsOpen = await mkShift(u5.user.id, 'REG-0022-OPEN', 'OPEN');
+
+    if (mineClosed && theirsClosed && theirsOpen) {
+      const seen = async (id) => {
+        const { data } = await client4.from('shifts').select('id').eq('id', id);
+        return data?.length ?? 0;
+      };
+
+      record('9: EMPLOYEE cannot see another employee\'s CLOSED shift',
+        (await seen(theirsClosed.id)) === 0, 'the core privacy ask');
+      record('10: EMPLOYEE CAN still see their own closed shift',
+        (await seen(mineClosed.id)) === 1);
+      record('11: EMPLOYEE CAN see a colleague\'s OPEN shift',
+        (await seen(theirsOpen.id)) === 1, 'deliberate - live records attach to it');
+
+      // The money trap: expected_cash is built from the expenses the closing
+      // wizard can read, and discrepancy becomes an employee_charges row. An
+      // expense a MANAGER put on an employee's till must stay visible to them.
+      const mkExpense = async (shiftId, creator) => {
+        const { data, error } = await admin.from('shift_expenses').insert({
+          organization_id: orgA, store_id: storeId, shift_id: shiftId,
+          category: 'EXPENSES_GP', amount: 42.5, created_by_user_id: creator,
+        }).select().maybeSingle();
+        if (error) console.error('0022 expense insert:', error.message);
+        return data;
+      };
+      const onMyShift = await mkExpense(mineClosed.id, u1.user.id);
+      const onTheirShift = await mkExpense(theirsClosed.id, u1.user.id);
+
+      if (onMyShift && onTheirShift) {
+        const seenExp = async (id) => {
+          const { data } = await client4.from('shift_expenses').select('id').eq('id', id);
+          return data?.length ?? 0;
+        };
+        record('12: EMPLOYEE cannot see an expense on a shift they did not work',
+          (await seenExp(onTheirShift.id)) === 0);
+        record('13: EMPLOYEE CAN see a manager\'s expense on a shift they DID work',
+          (await seenExp(onMyShift.id)) === 1, 'or the till reads short and charges them for it');
+      } else {
+        record('12/13: expense visibility setup failed', false);
+      }
+
+      const { data: inc } = await admin.from('incidents').insert({
+        organization_id: orgA, store_id: storeId, title: 'RLS probe incident',
+      }).select().maybeSingle();
+      if (inc) {
+        const { data: empSees } = await client4.from('incidents').select('id').eq('id', inc.id);
+        const { data: ownerSees } = await client1.from('incidents').select('id').eq('id', inc.id);
+        record('14: EMPLOYEE sees no incidents, elevated does',
+          (empSees?.length ?? 0) === 0 && (ownerSees?.length ?? 0) === 1,
+          `employee ${empSees?.length ?? 0}, owner ${ownerSees?.length ?? 0}`);
+      } else {
+        record('14: incident visibility setup failed', false);
+      }
+
+      // 15: the handover must still work across employees, or the opening
+      // float silently falls back to 0 and the next till reads wildly over.
+      // Test 9 just proved u4 cannot read this shift; the RPC must still
+      // hand over its cash.
+      {
+        const { data, error } = await client4.rpc('shift_handover_snapshot', {
+          p_store_id: storeId, p_register_id: 'REG-0022-THEIRS',
+        });
+        const row = (data ?? [])[0];
+        record('15: handover carry-over survives across employees',
+          !error && Number(row?.counted_cash) === 317.45,
+          error ? error.message : `counted_cash=${row?.counted_cash ?? 'none'} (expected 317.45)`);
+      }
+
+      // 16: the money trap. An UNTIED expense a manager recorded is invisible
+      // to the employee on a plain read - but the wizard must still see it, or
+      // expected_cash comes out high, the till reads short, and 0018 charges
+      // them for their manager's spending.
+      {
+        const { data: untied } = await admin.from('shift_expenses').insert({
+          organization_id: orgA, store_id: storeId, shift_id: null,
+          category: 'EXPENSES_GP', amount: 200, created_by_user_id: u1.user.id,
+        }).select().maybeSingle();
+
+        const { data: direct } = await client4.from('shift_expenses').select('id').eq('id', untied?.id);
+        const { data: viaRpc, error: rpcErr } = await client4.rpc('shift_reconciliation_expenses', {
+          p_shift_id: mineClosed.id,
+        });
+        const found = (viaRpc ?? []).some((e) => e.id === untied?.id);
+        record('16: wizard RPC surfaces a manager\'s untied expense the employee cannot read directly',
+          (direct?.length ?? 0) === 0 && found,
+          rpcErr ? rpcErr.message : `direct ${direct?.length ?? 0} rows, via RPC ${found ? 'found' : 'MISSING'}`);
+      }
+    } else {
+      record('9-16: 0022 fixture setup failed', false);
+    }
+  }
+
   // --- Cleanup (service role) ---
+  await admin.from('shift_expenses').delete().eq('organization_id', orgA);
+  await admin.from('incidents').delete().eq('organization_id', orgA);
   await admin.from('shifts').delete().eq('organization_id', orgA);
   await admin.from('stores').delete().like('id', `test_store_${suffix}`);
-  await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id]);
+  await admin.from('stores').delete().like('id', `test_store_0022_${suffix}`);
+  await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
   await admin.auth.admin.deleteUser(u3.user.id);
   await admin.auth.admin.deleteUser(u4.user.id);
+  await admin.auth.admin.deleteUser(u5.user.id);
   await admin.from('organizations').delete().in('id', [orgA, orgB]);
 
   const failed = results.filter((r) => !r.pass);

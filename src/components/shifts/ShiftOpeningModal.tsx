@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
-import { createShiftInFirestore, fetchLatestShiftForRegister } from '../../services/shiftService.ts';
+import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -58,7 +58,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
   const [openingNotes, setOpeningNotes] = useState<string>('');
 
-  const [previousShift, setPreviousShift] = useState<Shift | null>(null);
+  const [previousShift, setPreviousShift] = useState<HandoverSnapshot | null>(null);
   const [isAutoFetched, setIsAutoFetched] = useState<boolean>(false);
   const [fetchingPrev, setFetchingPrev] = useState<boolean>(false);
 
@@ -77,11 +77,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     async function loadPrevShift() {
       setFetchingPrev(true);
       try {
-        const prev = await fetchLatestShiftForRegister(
-          organization?.id || 'org_opap_demo',
-          selectedStoreId,
-          registerId
-        );
+        // Goes through shift_handover_snapshot() rather than reading the
+        // previous shift row: since 0022 a closed shift is private to whoever
+        // worked it, and at a handover that is someone else.
+        const prev = await fetchHandoverSnapshot(selectedStoreId, registerId);
 
         if (!isMounted) return;
         setPreviousShift(prev);
@@ -90,17 +89,19 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // Calculate physical cash breakdown from previous shift
           let prevNotes = 0;
           let prevCoins = 0;
+          const countedCash = Number(prev.counted_cash ?? 0);
+          const openingCash = Number(prev.opening_cash ?? 0);
 
           if (prev.counted_denominations && Object.keys(prev.counted_denominations).length > 0) {
             const parsed = calculateBanknotesAndCoins(prev.counted_denominations);
             prevNotes = parsed.banknotes;
             prevCoins = parsed.coins;
-          } else if (prev.counted_cash > 0) {
-            prevNotes = Math.floor(prev.counted_cash);
-            prevCoins = roundCurrency(prev.counted_cash - prevNotes);
-          } else if (prev.opening_cash > 0) {
-            prevNotes = prev.opening_cash_notes ?? Math.floor(prev.opening_cash);
-            prevCoins = prev.opening_cash_coins ?? roundCurrency(prev.opening_cash - prevNotes);
+          } else if (countedCash > 0) {
+            prevNotes = Math.floor(countedCash);
+            prevCoins = roundCurrency(countedCash - prevNotes);
+          } else if (openingCash > 0) {
+            prevNotes = Number(prev.opening_cash_notes ?? Math.floor(openingCash));
+            prevCoins = Number(prev.opening_cash_coins ?? roundCurrency(openingCash - prevNotes));
           }
 
           setOpeningBanknotes(prevNotes.toFixed(2));
@@ -147,7 +148,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     try {
       // Calculate carry-over scratch inventory from previous shift
       const prevScratchItems =
-        previousShift?.custom_field_values?.scratch_ticket_items ||
+        previousShift?.scratch_ticket_items ||
         getLatestStoreScratchInventory(targetStoreId);
       const initialScratchInventory = carryOverScratchInventory(prevScratchItems);
 
@@ -352,7 +353,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 </span>
                 <span className="text-micro text-indigo-800 font-medium block mt-0.5">
                   {previousShift
-                    ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.opened_by_user_name || 'Προηγούμενη'}).`
+                    ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.previous_operator_name || 'Προηγούμενη'}).`
                     : 'Δεν βρέθηκε προηγούμενη βάρδια. Εμφανίζονται τα προεπιλεγμένα ποσά.'}
                 </span>
               </div>

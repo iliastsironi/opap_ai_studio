@@ -23,18 +23,25 @@ export async function fetchShiftsFromFirestore(
   }
 }
 
+// registerId is optional on purpose. It used to default to 'REG-01', but
+// ShiftOpeningModal creates every shift with register_id 'Ταμείο 1', so every
+// caller that omitted the argument - the double-open guard, the expenses
+// screen, the National Lottery contribution lookup - filtered on a value no
+// shift has ever carried and silently found nothing. Omitted now means "any
+// register at this store", which is what all three callers actually want.
 export async function fetchActiveShiftFromFirestore(
   orgId: string,
   storeId: string,
-  registerId: string = 'REG-01'
+  registerId?: string
 ): Promise<Shift | null> {
   try {
-    const { data, error } = await supabase
+    let q = supabase
       .from(TABLE_NAME)
       .select('*')
       .eq('organization_id', orgId)
-      .eq('store_id', storeId)
-      .eq('register_id', registerId)
+      .eq('store_id', storeId);
+    if (registerId) q = q.eq('register_id', registerId);
+    const { data, error } = await q
       .in('status', ACTIVE_STATUSES)
       .order('opened_at', { ascending: false })
       .limit(1);
@@ -46,30 +53,42 @@ export async function fetchActiveShiftFromFirestore(
   }
 }
 
-export async function fetchLatestShiftForRegister(
-  orgId: string,
+// The carry-over for the next shift on a register, WITHOUT reading the
+// previous shift itself.
+//
+// 0022_scope_shift_visibility.sql makes a closed shift private to whoever
+// worked it, and the previous shift at a register was usually worked by
+// someone else - that is what a handover is. Reading the row directly would
+// return nothing and the opening float would silently fall back to 0, leaving
+// the next till reading wildly over. shift_handover_snapshot() is SECURITY
+// DEFINER and returns only the cash/coins/scratch fields needed to prefill,
+// plus the previous operator's name so the UI can say where the figure came
+// from. No sales, no discrepancy, no notes.
+export interface HandoverSnapshot {
+  previous_operator_name: string | null;
+  ended_at: string | null;
+  counted_cash: number | null;
+  counted_denominations: Record<string, number> | null;
+  opening_cash: number | null;
+  opening_cash_notes: number | null;
+  opening_cash_coins: number | null;
+  scratch_ticket_items: any[] | null;
+}
+
+export async function fetchHandoverSnapshot(
   storeId: string,
   registerId: string = 'Ταμείο 1'
-): Promise<Shift | null> {
+): Promise<HandoverSnapshot | null> {
   try {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .select('*')
-      .eq('organization_id', orgId)
-      .eq('store_id', storeId)
-      .eq('register_id', registerId)
-      .in('status', ['SUBMITTED', 'APPROVED', 'DRAFT_CLOSING', 'OPEN']);
-    if (error) throw error;
-    const matched = (data ?? []) as Shift[];
-    if (matched.length === 0) return null;
-    matched.sort((a, b) => {
-      const timeA = new Date(a.closed_at || a.opened_at).getTime();
-      const timeB = new Date(b.closed_at || b.opened_at).getTime();
-      return timeB - timeA;
+    const { data, error } = await supabase.rpc('shift_handover_snapshot', {
+      p_store_id: storeId,
+      p_register_id: registerId,
     });
-    return matched[0] || null;
+    if (error) throw error;
+    const rows = (data ?? []) as HandoverSnapshot[];
+    return rows[0] ?? null;
   } catch (error) {
-    console.warn('Error fetching latest shift for register:', error);
+    console.warn('Error fetching handover snapshot:', error);
     return null;
   }
 }

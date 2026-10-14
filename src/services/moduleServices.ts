@@ -40,6 +40,32 @@ export async function fetchExpensesFromFirestore(orgId: string, storeId?: string
   }
 }
 
+// Every expense that counts against the till being reconciled, whoever entered
+// it.
+//
+// Since 0022_scope_shift_visibility.sql an employee can only read expenses
+// they created or that are tied to a shift they worked. Untied expenses - the
+// ones the wizard sweeps in from the hour before the shift opened - would
+// therefore vanish from an employee's view if a manager had recorded them.
+// That is not cosmetic: the wizard builds expected_cash from this list, and
+// discrepancy is what sync_shift_close_effects() (0018) turns into an
+// employee_charges row. A hidden €200 supplier payment would read as the
+// employee being €200 short and charge them for it.
+//
+// shift_reconciliation_expenses() is SECURITY DEFINER and returns the same
+// candidate set the client already filters, but only for a shift the caller
+// actually worked (or any, if elevated).
+export async function fetchShiftReconciliationExpenses(shiftId: string): Promise<ExpenseRecord[]> {
+  const { data, error } = await supabase.rpc('shift_reconciliation_expenses', {
+    p_shift_id: shiftId,
+  });
+  if (error) {
+    await handleSupabaseError(error, OperationType.LIST, 'shift_reconciliation_expenses');
+    throw error;
+  }
+  return (data ?? []) as ExpenseRecord[];
+}
+
 export async function createExpenseInFirestore(record: Omit<ExpenseRecord, 'id' | 'created_at'>): Promise<ExpenseRecord> {
   try {
     const nowIso = new Date().toISOString();

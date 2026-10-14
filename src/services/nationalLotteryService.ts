@@ -498,7 +498,7 @@ export async function cancelCollection(params: {
   if (rowsNeedingReversal.length === 0) return;
 
   const first = rowsNeedingReversal[0];
-  const todayShift = await fetchActiveShiftFromFirestore(first.organization_id, first.store_id, params.registerId || 'REG-01');
+  const todayShift = await fetchActiveShiftFromFirestore(first.organization_id, first.store_id, params.registerId);
   const reversalBatchId = crypto.randomUUID();
   const reversalRows = rowsNeedingReversal.map((row) => ({
     organization_id: row.organization_id,

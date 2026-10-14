@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
+import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -773,7 +773,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     setIsSyncingExpenses(true);
     try {
       const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
-      const storeExpenses = await fetchExpensesFromFirestore(orgId, shift.store_id);
+      // Via the RPC, not a plain table read: 0022 hides an untied expense a
+      // manager recorded from the employee closing the till, and this list
+      // feeds expected_cash -> discrepancy -> their charge.
+      const storeExpenses = await fetchShiftReconciliationExpenses(shift.id);
 
       const shiftOpenTime = new Date(shift.opened_at).getTime();
       const relevant = storeExpenses.filter((e) => {

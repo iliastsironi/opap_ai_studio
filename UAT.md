@@ -91,9 +91,9 @@ the hero card, both ΚΛΕΙΣΙΜΟ buttons — also counted `CORRECTION_REQUES
 
 | # | Item | Status |
 |---|---|---|
-| C1 | Employee sees only their **own shifts** | TODO |
-| C2 | Employee sees only their **own expenses** | TODO |
-| C3 | **Συμβάντα & Αποκλίσεις** hidden from the employee | TODO |
+| C1 | Employee sees only their **own shifts** | **DONE** |
+| C2 | Employee sees only their **own expenses** | **DONE** |
+| C3 | **Συμβάντα & Αποκλίσεις** hidden from the employee | **DONE** |
 
 **C1 and C2 need a migration, not a UI filter.** Today `shifts_select`,
 `shift_expenses_select` and `incidents_select` are all plain
@@ -109,8 +109,41 @@ Ownership columns already exist and are populated: `shifts.opened_by_user_id`,
 USING (belongs_to_org(organization_id) AND (auth_is_elevated() OR <owner_col> = auth.uid()))
 ```
 
-C3 is one line in `rbac.ts` — drop `incidents.view` from `EMPLOYEE`. Worth
-pairing with the RLS change so the list is empty even if the tab is reached.
+C3 dropped `incidents.view` from **both** `EMPLOYEE` and `SHIFT_SUPERVISOR`.
+`auth_is_elevated()` excludes supervisors, so leaving them the tab would have
+opened a list RLS keeps permanently empty.
+
+### What the policies could not simply forbid
+
+Two live flows read across employees for good reasons, and a naive "own rows
+only" rule breaks both.
+
+**Handover.** `ShiftOpeningModal` reads the *previous* shift at the register to
+carry over cash, coins and scratch inventory — and at a handover that shift
+belongs to someone else. Once private, the carry-over would silently fall back
+to 0 and the next till would read wildly over. `shift_handover_snapshot()` is
+SECURITY DEFINER and returns only those carry-over fields.
+
+**The money trap.** The closing wizard builds `expected_cash` — and therefore
+`discrepancy` — from the expenses it can read, and `discrepancy` is what the
+0018 trigger turns into an `employee_charges` row. Hide a manager's €200
+supplier payment from the employee closing that till and the app charges them
+€200 for their manager's spending. `shift_reconciliation_expenses()` gives the
+wizard the full picture for the one shift it is closing.
+
+Shifts that are **still open** stay readable org-wide, so live records can be
+attached to them. Only closed history is private. The double-open guard never
+depended on this: `ux_shifts_one_active_per_register` (0001_schema.sql:232)
+enforces it in the database.
+
+`shifts` and `shift_expenses` also had org-wide `UPDATE`/`DELETE`, so staff
+could edit a colleague's open shift or delete anyone's expense. Both are now
+scoped.
+
+### Verified
+`supabase/scripts/test-rls.mjs` grew cases 9–16 and runs **17/17**, every
+assertion made through a real employee session rather than the service role.
+Cases 15 and 16 cover the two flows above.
 
 ---
 

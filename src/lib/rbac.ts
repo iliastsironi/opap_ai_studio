@@ -44,7 +44,11 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_shifts.view', code: 'shifts.view', module: 'Shifts', description: 'Προβολή ενότητας Βαρδιών & Ταμείου' },
   { id: 'perm_expenses.view', code: 'expenses.view', module: 'Expenses', description: 'Προβολή ενότητας Εξόδων' },
   { id: 'perm_suppliers.view', code: 'suppliers.view', module: 'Suppliers', description: 'Προβολή ενότητας Προμηθευτών' },
-  { id: 'perm_incidents.view', code: 'incidents.view', module: 'Incidents', description: 'Προβολή ενότητας Συμβάντων' },
+  // Managers and owners only, per UAT. Mirrored by incidents_select in
+  // 0022_scope_shift_visibility.sql, which is auth_is_elevated() - so
+  // SHIFT_SUPERVISOR loses this too, or it would open to a list RLS keeps
+  // permanently empty.
+  { id: 'perm_incidents.view', code: 'incidents.view', module: 'Incidents', description: 'Προβολή ενότητας Συμβάντων (διευθυντές & ιδιοκτήτες)' },
   { id: 'perm_reports.view', code: 'reports.view', module: 'Reports', description: 'Προβολή ενότητας Αναφορών' },
   // Εθνικό Λαχείο (National Lottery). '.edition.manage' is deliberately
   // absent from every non-wildcard role below - only ORG_OWNER/
@@ -115,14 +119,14 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   SHIFT_SUPERVISOR: [
     'org.view', 'store.view', 'shift.create', 'shift.submit', 'expense.create', 'cash.view',
-    'shifts.view', 'expenses.view', 'suppliers.view', 'incidents.view',
+    'shifts.view', 'expenses.view', 'suppliers.view',
     'national_lottery.view', 'national_lottery.collect',
     'roster.view',
     'employee_charges.view',
   ],
   EMPLOYEE: [
     'store.view', 'shift.create', 'shift.submit', 'expense.create',
-    'shifts.view', 'expenses.view', 'suppliers.view', 'incidents.view',
+    'shifts.view', 'expenses.view', 'suppliers.view',
     'national_lottery.view', 'national_lottery.collect',
     'roster.view',
     'employee_charges.view',
