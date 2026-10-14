@@ -33,20 +33,14 @@ const chargeMonth = (c: EmployeeCharge): string =>
   (c.shift?.closed_at || c.shift?.opened_at || c.created_at).slice(0, 7);
 
 export const DiscrepancyLedger: React.FC = () => {
-  const { organization, hasPermission, roles } = useAuth();
+  const { organization, hasPermission } = useAuth();
   const { selectedStoreId } = useTenant();
   const orgId = organization?.id || 'org_opap_demo';
 
-  // Mirrors auth_is_elevated() in the database, which is what actually decides
-  // whether resolve_employee_charge() and the correction both go through.
-  const canResolve = useMemo(
-    () =>
-      hasPermission('*') ||
-      (roles || []).some((r) =>
-        ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER'].includes(r.code)
-      ),
-    [hasPermission, roles]
-  );
+  // employee_charges.manage is granted to exactly the roles auth_is_elevated()
+  // covers, so the button and the database agree by naming the same permission
+  // rather than by repeating a role list that can drift out of step with it.
+  const canResolve = hasPermission('employee_charges.manage');
 
   const [month, setMonth] = useState(() => currentMonthKey());
   const [summary, setSummary] = useState<MonthlyDiscrepancyRow[]>([]);
@@ -112,6 +106,22 @@ export const DiscrepancyLedger: React.FC = () => {
       older: open.filter((c) => chargeMonth(c) < month).length,
     };
   }, [charges, month]);
+
+  // Who owes what, all months together. The per-operator table above answers
+  // "how did this month go"; this answers "what does each person still owe",
+  // which is a different question and the one you need before payday.
+  const outstandingByEmployee = useMemo(() => {
+    const byPerson = new Map<string, { key: string; name: string; total: number; count: number }>();
+    for (const c of charges) {
+      if (c.status !== 'OPEN') continue;
+      const key = c.employee_user_id || c.employee_name;
+      const entry = byPerson.get(key) || { key, name: c.employee_name, total: 0, count: 0 };
+      entry.total += Number(c.amount) || 0;
+      entry.count += 1;
+      byPerson.set(key, entry);
+    }
+    return Array.from(byPerson.values()).sort((a, b) => b.total - a.total);
+  }, [charges]);
 
   const pickMonth = (next: string) => setMonth(next);
 
@@ -328,6 +338,28 @@ export const DiscrepancyLedger: React.FC = () => {
             <span className="text-micro text-slate-500">Μόνο ο Ιδιοκτήτης ή ο Διευθυντής μπορεί να τις αλλάξει.</span>
           )}
         </div>
+        {outstandingByEmployee.length > 0 && (
+          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+            <span className="text-micro font-bold text-slate-500 uppercase tracking-wider block mb-2">
+              {toGreekUpper('Ανεξοφλητα ανα υπαλληλο')} · {toGreekUpper('ολοι οι μηνες')}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {outstandingByEmployee.map((e) => (
+                <span
+                  key={e.key}
+                  className="inline-flex items-baseline gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200"
+                  title={`${e.count} ${e.count === 1 ? 'ανεξόφλητη χρέωση' : 'ανεξόφλητες χρεώσεις'}`}
+                >
+                  <span className="text-xs font-bold text-slate-900">{e.name}</span>
+                  <span className="text-xs font-black font-mono tabular-nums text-rose-700">
+                    {formatCurrency(e.total)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {monthCharges.length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-500">
             Καμία χρέωση για {monthLabel(month)} και καμία ανεξόφλητη από παλαιότερα.

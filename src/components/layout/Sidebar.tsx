@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   Clock,
   Receipt,
-  Wallet,
   AlertTriangle,
   ChevronRight,
   BarChart3,
@@ -69,7 +68,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Οικονομικά',
     items: [
       { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
-      { id: 'employee_charges', label: 'Χρεώσεις Υπαλλήλων', icon: Wallet, perm: 'employee_charges.view' },
       { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view' },
     ],
   },

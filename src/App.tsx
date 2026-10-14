@@ -11,7 +11,6 @@ const IncidentsManager = lazyWithRetry(() => import('./components/modules/Incide
 const NationalLotteryManager = lazyWithRetry(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
 const ReportsManager = lazyWithRetry(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
 const RosterManager = lazyWithRetry(() => import('./components/modules/RosterManager.tsx').then((m) => ({ default: m.RosterManager })));
-const EmployeeChargesManager = lazyWithRetry(() => import('./components/modules/EmployeeChargesManager.tsx').then((m) => ({ default: m.EmployeeChargesManager })));
 const DashboardOverview = lazyWithRetry(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
 const StoresManager = lazyWithRetry(() => import('./components/admin/StoresManager.tsx').then((m) => ({ default: m.StoresManager })));
 const UsersManager = lazyWithRetry(() => import('./components/admin/UsersManager.tsx').then((m) => ({ default: m.UsersManager })));
@@ -44,7 +43,6 @@ const TAB_PERMISSIONS: Record<string, string> = {
   national_lottery: 'national_lottery.view',
   reports: 'reports.view',
   roster: 'roster.view',
-  employee_charges: 'employee_charges.view',
   instructions: 'shifts.view',
   copilot: 'shifts.view',
 };
@@ -99,8 +97,6 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <ReportsManager onNavigate={setCurrentTab} />;
     case 'roster':
       return <RosterManager />;
-    case 'employee_charges':
-      return <EmployeeChargesManager />;
     case 'instructions':
       return <InstructionsPage />;
     case 'copilot':

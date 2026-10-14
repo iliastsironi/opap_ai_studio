@@ -196,6 +196,17 @@ Two things the build itself exposed:
   changed — which is exactly what happens when the «Χωρίς όνομα» employees get
   real names.
 
+### Follow-on: «Χρεώσεις Υπαλλήλων» removed
+Its own sidebar tab is gone — the ledger covers it. It was *not* a strict
+subset first, though: that page also showed **who owes what across all months**,
+which the ledger's month-scoped table did not. That strip was added here before
+the page was deleted, so nothing was lost.
+
+`employee_charges.view` went with the tab. `employee_charges.manage` was marked
+Owner-only, which 0023 made untrue, so it is now granted to exactly the roles
+`auth_is_elevated()` covers and the ledger gates on it by name instead of
+repeating a role list that could drift from the database.
+
 ### Verified
 `test-rls.mjs` gains cases 17–20 and runs **21/21**. The incident is raised with
 the right severity and a Greek-formatted title, correcting a shift to balance
