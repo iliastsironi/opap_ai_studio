@@ -794,13 +794,33 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       {/* CUSTOM FIELDS / NOTES */}
       {shift.custom_field_values && Object.keys(shift.custom_field_values).length > 0 && (
         (() => {
+          // This panel is for the custom fields a shift template defines. The
+          // closing wizard also parks its own working state in
+          // custom_field_values - the arrays it needs to rebuild its inputs,
+          // and totals that are already rendered properly further up this
+          // sheet - so those are excluded rather than dumped here as raw JSON.
+          const INTERNAL_KEYS = new Set([
+            'scratch_ticket_items', // the Σκρατς table renders these itself
+            'tora_pos_items', // shown under TORA DIRECT
+            'store_pos_items', // shown under «Πληρωμές με Κάρτα (POS)»
+            'customer_credits', // shown in the credits section
+            'vlts_cash_out_raw', // the signed VLT net is shown above
+            'vlts_cash_out_type',
+            // Despite its name this one holds a euro total, not a count
+            // (calculateTotalReconciliationCount returns breakdown.netTotal).
+            // Both are internals of the Σκρατς counter.
+            'total_reconciliation_count',
+            'reconciliation_gross_total',
+            'import_source',
+            // Both already appear under ΑΡΧΙΚΟ ΚΕΦΑΛΑΙΟ on the reconciliation
+            // tab, as «Προσαύξηση #1/#2».
+            'opening_topup_1',
+            'opening_topup_2',
+          ]);
+
           const entries = Object.entries(shift.custom_field_values).filter(
             ([key, val]) =>
-              key !== 'scratch_ticket_items' &&
-              key !== 'tora_pos_items' &&
-              val !== null &&
-              val !== undefined &&
-              val !== ''
+              !INTERNAL_KEYS.has(key) && val !== null && val !== undefined && val !== ''
           );
 
           if (entries.length === 0) return null;
@@ -816,11 +836,12 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
             if (labelsMap[rawKey]) return labelsMap[rawKey];
             return rawKey
               .replace(/^custom_/, '')
+              .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
               .replace(/_/g, ' ')
               .replace(/\b\w/g, (c) => c.toUpperCase());
           };
 
-          const formatCustomValue = (val: any) => {
+          const formatCustomValue = (key: string, val: any) => {
             if (typeof val === 'boolean') {
               return val ? (
                 <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -832,12 +853,31 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 </span>
               );
             }
+            if (typeof val === 'number' || /(_amount|_total|_expense|_drop)$/.test(key)) {
+              return <span className="font-bold text-slate-900 font-mono">{formatCurrency(safeNum(val))}</span>;
+            }
+            // A custom field could still hold a list or an object. Summarise it
+            // readably - a JSON blob in a Greek operations sheet helps nobody.
+            if (Array.isArray(val)) {
+              return (
+                <span className="text-slate-700">
+                  {val.length} {val.length === 1 ? 'εγγραφή' : 'εγγραφές'}
+                </span>
+              );
+            }
             if (typeof val === 'object') {
-              try {
-                return <span className="font-mono text-slate-700">{JSON.stringify(val)}</span>;
-              } catch {
-                return String(val);
-              }
+              return (
+                <div className="space-y-0.5">
+                  {Object.entries(val).map(([k, v]) => (
+                    <div key={k} className="flex items-baseline justify-between gap-2">
+                      <span className="text-slate-500">{formatCustomLabel(k)}</span>
+                      <span className="font-bold text-slate-900 text-right break-all">
+                        {v === null || v === undefined || v === '' ? '—' : String(v)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
             }
             return <span className="font-bold text-slate-900">{String(val)}</span>;
           };
@@ -854,7 +894,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                     <span className="text-micro text-slate-500 font-extrabold uppercase tracking-wide">
                       {formatCustomLabel(key)}
                     </span>
-                    <div>{formatCustomValue(val)}</div>
+                    <div>{formatCustomValue(key, val)}</div>
                   </div>
                 ))}
               </div>

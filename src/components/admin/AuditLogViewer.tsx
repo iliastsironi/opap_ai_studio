@@ -5,6 +5,26 @@ import { AuditLog } from '../../types/index.js';
 import { fetchAuditLogsFromFirestore, AUDIT_LOGS_PAGE_SIZE } from '../../services/auditLogService.ts';
 import { IconButton } from '../ui/IconButton.tsx';
 
+// after_state is written by whatever produced the log entry, so its keys arrive
+// in whichever convention that code used - snake_case from the database
+// triggers, camelCase from the client. Both are normalised to readable words
+// rather than shown as a raw JSON blob, which told the reader nothing they
+// could act on.
+const auditFieldLabel = (key: string): string =>
+  key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .trim();
+
+const auditFieldValue = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'Ναι' : 'Όχι';
+  // A nested object is rare here and has no fixed shape; compact JSON is the
+  // honest fallback rather than inventing a layout for something unknown.
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
 export const AuditLogViewer: React.FC = () => {
   const { organization } = useAuth();
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -117,10 +137,19 @@ export const AuditLogViewer: React.FC = () => {
                   </div>
                 </div>
 
-                {log.after_state && (
-                  <div className="bg-slate-900 text-slate-200 text-micro font-mono p-3 rounded-lg overflow-x-auto max-h-28">
-                    <pre>{JSON.stringify(log.after_state, null, 2)}</pre>
-                  </div>
+                {log.after_state && Object.keys(log.after_state).length > 0 && (
+                  <dl className="rounded-lg border border-slate-200 bg-slate-50 divide-y divide-slate-200 overflow-hidden">
+                    {Object.entries(log.after_state).map(([key, value]) => (
+                      <div key={key} className="flex items-baseline justify-between gap-3 px-3 py-1.5">
+                        <dt className="text-micro font-bold uppercase tracking-wide text-slate-500 shrink-0">
+                          {auditFieldLabel(key)}
+                        </dt>
+                        <dd className="text-xs font-mono font-bold text-slate-900 text-right break-all">
+                          {auditFieldValue(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 )}
               </div>
             ))}
