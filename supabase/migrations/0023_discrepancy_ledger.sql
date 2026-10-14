@@ -234,16 +234,22 @@ GRANT EXECUTE ON FUNCTION monthly_discrepancy_summary(DATE, TEXT) TO authenticat
 --   SELECT count(*) FROM incidents WHERE shift_id IS NOT NULL;
 
 -- ============================================================
--- OPTIONAL backfill - run it only if you want it
+-- OPTIONAL backfill - APPLIED 2026-10-14
 -- ============================================================
--- The trigger fires on submission, so shifts closed BEFORE this migration have
--- no incident and Συμβάντα stays empty until the next close. This raises one
+-- The trigger fires on submission, so shifts closed BEFORE this migration had
+-- no incident and Συμβάντα stayed empty until the next close. This raises one
 -- for each off-balance shift already submitted or approved.
 --
--- Left as a separate statement rather than part of the migration because it
--- writes rows against closed financial records, which is the Owner's call, not
--- a migration's. Safe to re-run: ux_incidents_one_per_shift makes it a no-op
--- the second time.
+-- Kept separate from the migration because it writes rows against closed
+-- financial records, which is the Owner's call, not a migration's. Safe to
+-- re-run: ux_incidents_one_per_shift and the NOT EXISTS below make a second
+-- run a no-op, which was confirmed by running it twice.
+--
+-- Applied on 2026-10-14 at the Owner's request. It created 4 incidents for the
+-- August import's till differences (-0,85 / +6,07 / -2,76 / +1,42, all LOW),
+-- each dated to its shift's closing rather than to the day of the backfill.
+-- The fifth incident in the table at that point was not from here: the 101498
+-- shift had been submitted that day and the trigger raised it live.
 --
 --   INSERT INTO incidents (organization_id, store_id, shift_id, title, category, severity, status, description, reported_by, created_at)
 --   SELECT s.organization_id, s.store_id, s.id,
