@@ -8,8 +8,12 @@ export type PnlCompanyCostKind = 'FIXED' | 'LOAN';
 export const FNB_EXPENSE_CATEGORY = 'EXPENSES_FNB';
 export const NO_SUPPLIER_LABEL = 'Χωρίς προμηθευτή';
 
-const STORE_COMMISSION_LINES = ['ALLWYN', 'HL', 'HR', 'TORA', 'ΕΘΝΙΚΟ', 'ΑΜΒ ΚΕΝΤΙΡΚΟΥ', 'BONUS', 'CP'];
-const PLAY_COMMISSION_LINES = ['ALLWYN VLTs', 'BONUS', 'ΕΠΔ CT'];
+// The three legal entities that actually pay the commissions, as they appear
+// on the monthly report Allwyn sends. That report is the real gross profit, so
+// it is the single source of τζίρος - it replaced the eight product lines the
+// Excel workbook used (ALLWYN, HL, HR, TORA, ΕΘΝΙΚΟ, ΑΜΒ ΚΕΝΤΙΡΚΟΥ, BONUS, CP)
+// and the three a PLAY store had. See 0024_commission_entities.sql.
+export const COMMISSION_ENTITIES = ['Allwyn ΑΕ', 'Ελληνικά Λαχεία ΑΕ', 'Tora Wallet ΑΕ'];
 
 export const DEFAULT_FIXED_COST_LINES = [
   'Ένοικιο',
@@ -47,8 +51,15 @@ export const DEFAULT_COMPANY_FIXED_LINES = [
 export const DEFAULT_LOAN_LINES = ['ΔΟΣΗ play'];
 export const DEFAULT_COMPANY_PAYEES = ['Περικλής', 'Νίκος', 'Χριστίνα', 'ΑΝΑΚΑΙΝΙΣΗ', 'ΚΑΥΣΙΜΑ'];
 
-export function commissionLinesFor(storeType: string): string[] {
-  return storeType === 'PLAY_STORE' ? PLAY_COMMISSION_LINES : STORE_COMMISSION_LINES;
+// Every store type gets the same three now. A PLAY store will usually carry a
+// figure only against Allwyn ΑΕ; the other two stay at 0 rather than being
+// hidden, so a month with a missing figure looks different from a month with a
+// real zero.
+//
+// Kept as a function although it ignores its argument: it is called per store
+// at two sites below, and changing those to a bare constant is churn.
+export function commissionLinesFor(_storeType: string): string[] {
+  return COMMISSION_ENTITIES;
 }
 
 // ------------------------------------------------------------------

@@ -83,8 +83,8 @@ const emptyInput = (month: string): MonthlyPnlInput => ({
 const AUGUST_2026: MonthlyPnlInput = {
   ...emptyInput('2026-08'),
   commissions: [
-    { id: 'c1', batchId: 'b1', storeId: 'store_101499', entryDate: '2026-08-31', line: 'TORA', amount: 794.5 },
-    { id: 'c2', batchId: 'b2', storeId: 'store_101498', entryDate: '2026-08-31', line: 'TORA', amount: 268.6 },
+    { id: 'c1', batchId: 'b1', storeId: 'store_101499', entryDate: '2026-08-31', line: 'Tora Wallet ΑΕ', amount: 794.5 },
+    { id: 'c2', batchId: 'b2', storeId: 'store_101498', entryDate: '2026-08-31', line: 'Tora Wallet ΑΕ', amount: 268.6 },
   ],
   fixedCosts: [
     { storeId: 'store_101499', period: '2026-08-01', name: 'Ένοικιο', amount: 2072 },
@@ -284,7 +284,7 @@ describe('month boundaries', () => {
   it('ignores data from other months', () => {
     const pnl = computeMonthlyPnl({
       ...emptyInput('2026-08'),
-      commissions: [{ id: 'c', batchId: 'b', storeId: 'store_101499', entryDate: '2026-09-01', line: 'TORA', amount: 10 }],
+      commissions: [{ id: 'c', batchId: 'b', storeId: 'store_101499', entryDate: '2026-09-01', line: 'Tora Wallet ΑΕ', amount: 10 }],
       fixedCosts: [{ storeId: 'store_101499', period: '2026-07-01', name: 'Ένοικιο', amount: 500 }],
     });
     expect(pnl.storesTotal.revenue).toBe(0);

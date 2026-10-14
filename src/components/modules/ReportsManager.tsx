@@ -22,6 +22,10 @@ import {
   DollarSign,
   Layers,
   PieChart as PieIcon,
+  Coins,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
   Plus,
   Receipt,
   RefreshCw,
@@ -41,19 +45,22 @@ import { VltReconciliationRecord } from '../../data/pnlData.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
-import { athensDateKey, currentMonthKey, monthLabel, totalCosts } from '../../lib/pnlEngine.ts';
+import { athensDateKey, currentMonthKey, monthLabel, shiftMonthKey, totalCosts } from '../../lib/pnlEngine.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
+import { IconButton } from '../ui/IconButton.tsx';
 import { PnlWorkspace } from '../pnl/PnlWorkspace.tsx';
+import { CommissionEntrySheet } from '../pnl/CommissionEntrySheet.tsx';
 import { percentLabel } from '../pnl/pnlDisplay.tsx';
 import { useMonthlyPnl } from '../pnl/useMonthlyPnl.ts';
 
-type ReportsTab = 'OVERVIEW' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
+type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
 
 // Owner-only, like the RLS on the P&L tables.
 const PNL_PERMISSION = 'pnl.manage';
 
 const REPORTS_TABS: Array<{ id: ReportsTab; label: string; icon: LucideIcon; permission?: string }> = [
   { id: 'OVERVIEW', label: 'Επισκόπηση & KPIs', icon: BarChart3 },
+  { id: 'COMMISSIONS', label: 'Καταχώρηση Προμηθειών', icon: Coins, permission: PNL_PERMISSION },
   { id: 'PNL', label: 'Οικονομικό P&L', icon: Receipt, permission: PNL_PERMISSION },
   { id: 'DAILY_REPORT', label: 'Ημερήσιο Συγκεντρωτικό Βαρδιών', icon: Layers },
   { id: 'EMPLOYEE_KPIS', label: 'KPIs Εργαζομένων', icon: Users },
@@ -119,7 +126,12 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const orgId = organization?.id || 'org_opap_demo';
 
   // This month's money cards come from the P&L, so they share its Owner-only access.
-  const overviewMonth = useMemo(() => currentMonthKey(), []);
+  // Was frozen with useMemo(..., []) - the overview could only ever show the
+  // current month. UAT asked for a period the Owner picks.
+  const [overviewMonth, setOverviewMonth] = useState(() => currentMonthKey());
+  // 'ALL' is the company: every store plus corporate costs and loans. A single
+  // store shows its own trading only - company costs belong to no one store.
+  const [overviewScope, setOverviewScope] = useState<string>('ALL');
   const { data: overviewData, error: overviewError } = useMonthlyPnl(overviewMonth, { enabled: canManagePnl });
   const overviewPnl = overviewData?.result ?? null;
   const pendingValue = overviewError ? '—' : '…';
@@ -149,6 +161,34 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
     [rawShifts, rawVltRecs]
   );
 
+  // Everything below is derived from the single monthly result the engine
+  // already returns - result.stores[] is per store - so the scope selector
+  // costs no extra query.
+  // ALL of a store's units, not just its STORE one: 101499 also has an F&B unit
+  // carrying +3.511,59 in August, and dropping it would understate the store.
+  const scopedUnits =
+    overviewScope === 'ALL' ? [] : (overviewPnl?.units ?? []).filter((u) => u.storeId === overviewScope);
+  const sumUnits = (pick: (u: (typeof scopedUnits)[number]) => number) =>
+    scopedUnits.reduce((a, u) => a + pick(u), 0);
+
+  const scopedRevenue =
+    overviewScope === 'ALL' ? overviewPnl?.storesTotal.revenue ?? 0 : sumUnits((u) => u.revenue);
+  // A single store carries no company costs or loans - those belong to no one
+  // store - so its costs are only what it spent itself.
+  const scopedCosts =
+    overviewScope === 'ALL'
+      ? overviewPnl
+        ? totalCosts(overviewPnl)
+        : 0
+      : sumUnits((u) => u.dailyExpenses + u.fixedCosts + u.payroll);
+  const scopedResult =
+    overviewScope === 'ALL' ? overviewPnl?.netResult ?? 0 : sumUnits((u) => u.result);
+
+  // «—», never 0%. A month with no commissions entered has no margin, which is
+  // a different thing from a margin of zero, and showing 0% would make a
+  // missing Allwyn report look like a terrible month.
+  const profitabilityLabel = scopedRevenue > 0 ? percentLabel(scopedResult / scopedRevenue) : '—';
+
   const costMixData = overviewPnl
     ? [
         { name: 'Έξοδα Ημέρας & F&B', value: overviewPnl.storesTotal.dailyExpenses, color: '#ef4444' },
@@ -158,6 +198,26 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
         { name: 'Δάνεια', value: overviewPnl.loans, color: '#64748b' },
       ]
     : [];
+  const costMixTotal = costMixData.reduce((a, c) => a + c.value, 0);
+  // Percentages to one decimal, Greek comma, and forced to add up: rounding five
+  // slices independently can land on 99,9% or 100,1%, and a breakdown that does
+  // not sum to 100 reads as a bug. The remainder goes to the largest slice,
+  // where it is proportionally least visible.
+  const costMixShares = (() => {
+    if (costMixTotal <= 0) return costMixData.map((c) => ({ ...c, shareLabel: '—' }));
+    const raw = costMixData.map((c) => ({ ...c, share: (c.value / costMixTotal) * 100 }));
+    const rounded = raw.map((c) => ({ ...c, share: Math.round(c.share * 10) / 10 }));
+    const drift = Math.round((100 - rounded.reduce((a, c) => a + c.share, 0)) * 10) / 10;
+    if (drift !== 0) {
+      let biggest = 0;
+      rounded.forEach((c, i) => {
+        if (c.value > rounded[biggest].value) biggest = i;
+      });
+      rounded[biggest] = { ...rounded[biggest], share: Math.round((rounded[biggest].share + drift) * 10) / 10 };
+    }
+    return rounded.map((c) => ({ ...c, shareLabel: `${c.share.toFixed(1).replace('.', ',')}%` }));
+  })();
+
   const hasCosts = costMixData.some((item) => item.value > 0);
   const discrepantShifts = rawShifts.filter((s) => Math.abs(Number(s.discrepancy || 0)) >= 1).length;
 
@@ -269,12 +329,69 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
       {/* TAB 1: EXECUTIVE OVERVIEW & CORE KPIS */}
       {activeTab === 'OVERVIEW' && (
         <div className="space-y-6">
+          {/* Period and scope. Owner-only, because only the Owner sees the money
+              cards these drive; for anyone else the controls would do nothing. */}
+          {canManagePnl && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <IconButton
+                  icon={ChevronLeft}
+                  label="Προηγούμενος μήνας"
+                  onClick={() => setOverviewMonth(shiftMonthKey(overviewMonth, -1))}
+                  className="border border-slate-200 bg-white"
+                />
+                <span className="text-xs font-black text-slate-900 min-w-40 text-center">
+                  {monthLabel(overviewMonth)}
+                </span>
+                <IconButton
+                  icon={ChevronRight}
+                  label="Επόμενος μήνας"
+                  onClick={() => setOverviewMonth(shiftMonthKey(overviewMonth, 1))}
+                  className="border border-slate-200 bg-white"
+                />
+                {overviewMonth !== currentMonthKey() && (
+                  <button
+                    type="button"
+                    onClick={() => setOverviewMonth(currentMonthKey())}
+                    className="ml-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    {toGreekUpper('Τρεχων Μηνας')}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="overview-scope" className="sr-only">Εύρος αναφοράς</label>
+                <select
+                  id="overview-scope"
+                  value={overviewScope}
+                  onChange={(e) => setOverviewScope(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                >
+                  <option value="ALL">Σύνολο Εταιρείας</option>
+                  {stores.map((st) => (
+                    <option key={st.id} value={st.id}>{st.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('PNL')}
+                  className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  title="Καταχώρηση και προβολή εταιρικών εξόδων και δανείων"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                  {toGreekUpper('Εξοδα Εταιριας')}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${canManagePnl ? 'lg:grid-cols-4' : ''}`}>
             {canManagePnl ? (
               <>
                 <OverviewCard
                   label={`Τζίρος · ${monthLabel(overviewMonth)}`}
-                  value={overviewPnl ? formatCurrency(overviewPnl.storesTotal.revenue) : pendingValue}
+                  value={overviewPnl ? formatCurrency(scopedRevenue) : pendingValue}
                   icon={DollarSign}
                   iconClass="bg-indigo-50 text-indigo-600 border-indigo-100/80"
                   footer={
@@ -293,31 +410,32 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                 />
                 <OverviewCard
                   label={`Έξοδα · ${monthLabel(overviewMonth)}`}
-                  value={overviewPnl ? formatCurrency(totalCosts(overviewPnl)) : pendingValue}
+                  value={overviewPnl ? formatCurrency(scopedCosts) : pendingValue}
                   valueClass="text-rose-600"
                   icon={Receipt}
                   iconClass="bg-rose-50 text-rose-600 border-rose-100/80"
-                  footer={<span>Ημέρας, πάγια, μισθοδοσία, εταιρίας και δάνεια</span>}
+                  footer={
+                    <span>
+                      {overviewScope === 'ALL'
+                        ? 'Ημέρας, πάγια, μισθοδοσία, εταιρίας και δάνεια'
+                        : 'Ημέρας, πάγια και μισθοδοσία — χωρίς εταιρικά'}
+                    </span>
+                  }
                 />
                 <OverviewCard
                   label="Καθαρό αποτέλεσμα προ φόρων"
-                  value={overviewPnl ? formatCurrency(overviewPnl.netResult) : pendingValue}
-                  valueClass={overviewPnl && overviewPnl.netResult < 0 ? 'text-rose-600' : 'text-emerald-600'}
+                  value={overviewPnl ? formatCurrency(scopedResult) : pendingValue}
+                  valueClass={overviewPnl && scopedResult < 0 ? 'text-rose-600' : 'text-emerald-600'}
                   icon={Wallet}
                   iconClass={
-                    overviewPnl && overviewPnl.netResult < 0
+                    overviewPnl && scopedResult < 0
                       ? 'bg-rose-50 text-rose-600 border-rose-100/80'
                       : 'bg-emerald-50 text-emerald-600 border-emerald-100/80'
                   }
                   footer={
-                    <>
-                      <span>Περιθώριο · {monthLabel(overviewMonth)}</span>
-                      <span className="font-bold text-slate-700">
-                        {overviewPnl && overviewPnl.storesTotal.revenue > 0
-                          ? percentLabel(overviewPnl.netResult / overviewPnl.storesTotal.revenue)
-                          : '—'}
-                      </span>
-                    </>
+                    <span>
+                      {overviewScope === 'ALL' ? 'Τζίρος − έξοδα, μετά τα εταιρικά' : 'Τζίρος − έξοδα καταστήματος'}
+                    </span>
                   }
                 />
               </>
@@ -337,16 +455,26 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
             )}
 
             <OverviewCard
-              label="Δείκτης Απωλειών (Shrinkage)"
-              value={`${String(totals.shrinkageRate).replace('.', ',')}%`}
-              valueClass="text-indigo-600"
-              icon={ShieldCheck}
-              iconClass="bg-indigo-50 text-indigo-600 border-indigo-100/80"
+              label="Δείκτης Κερδοφορίας"
+              value={profitabilityLabel}
+              valueClass={
+                scopedRevenue > 0 && scopedResult < 0
+                  ? 'text-rose-600'
+                  : scopedRevenue > 0
+                  ? 'text-emerald-600'
+                  : 'text-slate-400'
+              }
+              icon={TrendingUp}
+              iconClass={
+                scopedRevenue > 0 && scopedResult < 0
+                  ? 'bg-rose-50 text-rose-600 border-rose-100/80'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-100/80'
+              }
               footer={
                 <>
-                  <span>Σύνολο Αποκλίσεων</span>
-                  <span className={`font-bold ${totals.totalDiscrepancy === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {formatCurrency(totals.totalDiscrepancy, { showSign: true })}
+                  <span>Καθαρό επί του τζίρου</span>
+                  <span className="font-bold text-slate-700">
+                    {scopedRevenue > 0 ? formatCurrency(scopedResult) : 'Χωρίς τζίρο'}
                   </span>
                 </>
               }
@@ -471,15 +599,31 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-slate-100">
-                      {costMixData.map((item) => (
-                        <div key={item.name} className="flex justify-between items-center text-xs">
-                          <div className="flex items-center space-x-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
-                            <span className="text-slate-600 truncate max-w-[150px]">{item.name}</span>
+                      {costMixShares.map((item) => (
+                        <div key={item.name} className="flex justify-between items-center text-xs gap-3">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }}></span>
+                            <span className="text-slate-600 truncate">{item.name}</span>
                           </div>
-                          <span className="font-bold text-slate-900">{formatCurrency(item.value)}</span>
+                          <div className="flex items-baseline gap-3 shrink-0">
+                            <span className="font-bold text-slate-900 font-mono tabular-nums">
+                              {formatCurrency(item.value)}
+                            </span>
+                            <span className="font-bold text-slate-500 font-mono tabular-nums w-14 text-right">
+                              {item.shareLabel}
+                            </span>
+                          </div>
                         </div>
                       ))}
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span className="font-black text-slate-900">{toGreekUpper('Συνολο')}</span>
+                        <div className="flex items-baseline gap-3">
+                          <span className="font-black text-slate-900 font-mono tabular-nums">
+                            {formatCurrency(costMixTotal)}
+                          </span>
+                          <span className="font-black text-slate-500 font-mono tabular-nums w-14 text-right">100,0%</span>
+                        </div>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -494,6 +638,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
       )}
 
       {/* TAB 2: MONTHLY P&L (Owner only) */}
+      {activeTab === 'COMMISSIONS' && canManagePnl && <CommissionEntrySheet />}
+
       {activeTab === 'PNL' && canManagePnl && <PnlWorkspace />}
 
       {/* TAB: DAILY AGGREGATION REPORT (ANTI-DOUBLE-COUNTING) */}

@@ -242,6 +242,69 @@ export async function saveCommissionBatch(params: {
   }
 }
 
+// The monthly Allwyn report: one figure per entity per store per month.
+//
+// Upsert, not insert, and it writes all three entities even when a figure is 0.
+// Two reasons. The report is a restatement - keying the same month again
+// corrects it rather than adding to it, which is what
+// ux_pnl_commission_store_month_line (0024) now enforces at the database. And
+// the presence of the three rows is what says "this month's report has been
+// entered"; dropping the zeros, as saveCommissionBatch does for the older
+// free-form batches, would make a reported zero indistinguishable from a month
+// nobody has touched.
+export async function saveMonthlyCommissions(params: {
+  orgId: string;
+  storeId: string;
+  /** Any day inside the month; stored as that month's last day, matching the import. */
+  entryDate: string;
+  values: Array<{ line: string; amount: number }>;
+  note?: string;
+  userId?: string;
+}): Promise<void> {
+  const batchId = crypto.randomUUID();
+  const rows = params.values.map((v) => ({
+    organization_id: params.orgId,
+    store_id: params.storeId,
+    batch_id: batchId,
+    entry_date: params.entryDate,
+    line: v.line,
+    amount: v.amount,
+    note: params.note?.trim() || null,
+    created_by_user_id: params.userId ?? null,
+  }));
+
+  // Insert the new figures first, then drop the month's older ones. Same order
+  // as saveCommissionBatch and for the same reason: a failure half way leaves a
+  // duplicate, which is visible and fixable, rather than an empty month, which
+  // looks like a store that earned nothing.
+  //
+  // Deliberately not an upsert. ON CONFLICT needs a unique constraint to target,
+  // which ties this path to a DDL migration having been applied; doing it as
+  // insert-then-prune keeps the feature working either way.
+  // ux_pnl_commission_store_month_line (0024) is still worth having - it stops a
+  // future bug writing two figures for one entity - but is not required here.
+  await run(COMMISSIONS_TABLE, OperationType.CREATE, supabase.from(COMMISSIONS_TABLE).insert(rows));
+  await run(
+    COMMISSIONS_TABLE,
+    OperationType.DELETE,
+    supabase
+      .from(COMMISSIONS_TABLE)
+      .delete()
+      .eq('organization_id', params.orgId)
+      .eq('store_id', params.storeId)
+      .eq('entry_date', params.entryDate)
+      .in('line', params.values.map((v) => v.line))
+      .neq('batch_id', batchId)
+  );
+}
+
+/** Last day of the month a YYYY-MM key names, as YYYY-MM-DD. */
+export function monthEndDate(month: string): string {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(year, monthNumber, 0));
+  return d.toISOString().slice(0, 10);
+}
+
 export async function deleteCommissionBatch(batchId: string): Promise<void> {
   await run(COMMISSIONS_TABLE, OperationType.DELETE, supabase.from(COMMISSIONS_TABLE).delete().eq('batch_id', batchId));
 }

@@ -1,9 +1,13 @@
-# Animation plans
+# Plans
+
+Each plan is self-contained: exact file paths, current code, target values,
+boundaries and a verification pass. An executor needs no context beyond the
+plan file it is given.
+
+## Animation (001–005)
 
 Produced by an animation audit of the codebase at commit `1bbbbf8`, against
-Emil Kowalski's motion philosophy. Each plan is self-contained: exact file
-paths, current code, target values, boundaries and a feel check. An executor
-needs no context beyond the plan file it is given.
+Emil Kowalski's motion philosophy.
 
 **These plans change motion only.** None of them alters markup, behaviour, data
 or copy.
@@ -79,3 +83,15 @@ Recorded so they are not re-raised:
 - **Modal entry via `@starting-style`** — already the recommended approach for a
   JS-free entrance, and `scale-95` correctly avoids appearing from nothing.
 - **`scale(0)` anywhere** — none found.
+
+---
+
+## UAT round 2 (006–)
+
+| # | Title | Severity | Status |
+| --- | --- | --- | --- |
+| [006](006-commissions-and-profitability.md) | Commission entry, profitability, and a period-aware Reports overview | HIGH | **DONE** |
+
+006 is tracked in `UAT.md` as round 2. It carries the four decisions that were
+settled before any code moved, and its boundaries exist because the August
+figures are real money that the plan must not disturb.

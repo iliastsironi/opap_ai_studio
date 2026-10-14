@@ -21,7 +21,6 @@ export interface DynamicFinancialData {
   totals: {
     shiftTurnover: number;
     totalDiscrepancy: number;
-    shrinkageRate: number;
   };
 }
 
@@ -175,7 +174,7 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     });
 
   // -----------------------------------------------------------------
-  // 3. CASH DISCREPANCY vs SHIFT TURNOVER (Shrinkage)
+  // 3. CASH DISCREPANCY vs SHIFT TURNOVER
   // -----------------------------------------------------------------
   const shiftTurnover = shifts.reduce((sum, shift) => {
     const opapNet = Number(shift.opap_gross_sales || 0) - Number(shift.opap_payouts || 0);
@@ -188,7 +187,6 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
   }, 0);
 
   const totalDiscrepancySum = shifts.reduce((sum, s) => sum + Number(s.discrepancy || 0), 0);
-  const shrinkageRate = shiftTurnover > 0 ? (Math.abs(totalDiscrepancySum) / shiftTurnover) * 100 : 0;
 
   return {
     employeeKpis: finalEmployeeKpis,
@@ -197,7 +195,6 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     totals: {
       shiftTurnover: Math.round(shiftTurnover * 100) / 100,
       totalDiscrepancy: Math.round(totalDiscrepancySum * 100) / 100,
-      shrinkageRate: Math.round(shrinkageRate * 1000) / 1000,
     },
   };
 }
