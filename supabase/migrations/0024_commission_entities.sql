@@ -35,6 +35,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_pnl_commission_store_month_line
 -- UI offers exactly three; uniqueness is the constraint that protects the
 -- figures.
 
+-- APPLIED 2026-10-14, in two halves. The UPDATE was run through the service
+-- role after the pasted statement reported success without changing a row; the
+-- index was created from the SQL editor. Both are verified present: the two
+-- August rows carry the new name and a deliberate duplicate insert is rejected
+-- with 23505.
+
 -- Verify. Expect one row: Tora Wallet ΑΕ | 2 | 1063.10
 --
 --   SELECT line, count(*), sum(amount) FROM pnl_commission_entries GROUP BY line;
