@@ -21,7 +21,6 @@ import {
   ChevronUp,
   Trash2,
   UserCheck,
-  Layers,
   LayoutGrid,
   Table as TableIcon,
   DollarSign,
@@ -59,9 +58,12 @@ const ShiftClosingWizard = lazyWithRetry(() =>
 const ShiftTemplateConfigurator = lazyWithRetry(() =>
   import('./ShiftTemplateConfigurator.tsx').then((m) => ({ default: m.ShiftTemplateConfigurator }))
 );
-const DailyAggregationView = lazyWithRetry(() =>
-  import('./DailyAggregationView.tsx').then((m) => ({ default: m.DailyAggregationView }))
-);
+
+// Statuses that mean "this shift is still someone's to finish". Keep this as
+// the single source: the header button, the KPI count and every ΚΛΕΙΣΙΜΟ
+// action must agree, or the page shows two different answers to "how many are
+// open?" side by side.
+const OPEN_SHIFT_STATUSES = ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'];
 
 const LazyLoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center py-24">
@@ -121,7 +123,7 @@ export const ShiftsManager: React.FC = () => {
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'DAILY_REPORT' | 'TEMPLATE'>('SHIFTS');
+  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'TEMPLATE'>('SHIFTS');
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>(() => {
     try {
       const saved = localStorage.getItem('shiftledger_shifts_view_mode');
@@ -201,7 +203,7 @@ export const ShiftsManager: React.FC = () => {
       const active = fsData.find(
         (s) =>
           s.store_id === (currentStore?.id || 'store_opap_01') &&
-          ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(s.status)
+          OPEN_SHIFT_STATUSES.includes(s.status)
       );
       setActiveShift(active || null);
     } catch (err: any) {
@@ -225,7 +227,7 @@ export const ShiftsManager: React.FC = () => {
       const active = updatedShifts.find(
         (s) =>
           s.store_id === (currentStore?.id || 'store_opap_01') &&
-          ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(s.status)
+          OPEN_SHIFT_STATUSES.includes(s.status)
       );
       setActiveShift(active || null);
       setLoading(false);
@@ -260,19 +262,32 @@ export const ShiftsManager: React.FC = () => {
   // Key KPI metrics
   const metrics = useMemo(() => {
     const totalCount = shifts.length;
-    const openCount = shifts.filter((s) => ['OPEN', 'DRAFT_CLOSING'].includes(s.status)).length;
+    const openCount = shifts.filter((s) => OPEN_SHIFT_STATUSES.includes(s.status)).length;
     const pendingCount = shifts.filter((s) => s.status === 'SUBMITTED').length;
-    const totalCountedCash = shifts.reduce((acc, s) => acc + (Number(s.counted_cash) || 0), 0);
     const totalDiscrepancy = shifts.reduce((acc, s) => acc + (Number(s.discrepancy) || 0), 0);
 
     return {
       totalCount,
       openCount,
       pendingCount,
-      totalCountedCash,
       totalDiscrepancy,
     };
   }, [shifts]);
+
+  // Every shift still open in the current view, for the header button.
+  //
+  // Deliberately derived from `shifts` rather than from `activeShift`:
+  // activeShift matches only `currentStore?.id || 'store_opap_01'`, so with
+  // «Όλα τα Καταστήματα» selected it silently resolves to a demo store and
+  // finds nothing. The whole point of this button is that staff never hunt
+  // for their open shift, so it must not depend on the store picker.
+  const openShifts = useMemo(
+    () =>
+      shifts.filter((s) =>
+        OPEN_SHIFT_STATUSES.includes(s.status)
+      ),
+    [shifts]
+  );
 
   // Pending shifts for approval
   const pendingApprovalShifts = useMemo(
@@ -326,6 +341,44 @@ export const ShiftsManager: React.FC = () => {
 
           {/* Top Actions & Tabs */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            {/* Open shift, reachable without scrolling or searching. The hero
+                card further down says the same thing in more detail; this is
+                the one staff hit on a phone, where the card is below the fold. */}
+            {openShifts.length === 1 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleOpenWizard(openShifts[0])}
+                  className="transition px-3.5 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-xs whitespace-nowrap cursor-pointer"
+                  title={`Κλείσιμο ανοιχτής βάρδιας — ${openShifts[0].store_name || ''} ${openShifts[0].register_id || ''}`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0" />
+                  <span>{toGreekUpper('Ανοιχτη Βαρδια')}</span>
+                  <span className="font-bold opacity-80 hidden sm:inline">
+                    · {toGreekUpper('Κλεισιμο')}
+                  </span>
+                </button>
+                <IconButton
+                  icon={Eye}
+                  label="Προβολή ανοιχτής βάρδιας"
+                  onClick={() => setDetailsShift(openShifts[0])}
+                  className="border border-slate-200 bg-white"
+                />
+              </div>
+            )}
+
+            {openShifts.length > 1 && (
+              <button
+                onClick={() => setSelectedStatusFilter('OPEN')}
+                className="transition px-3.5 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-xs whitespace-nowrap cursor-pointer"
+                title="Εμφάνιση μόνο των ανοιχτών βαρδιών"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0" />
+                <span>
+                  {openShifts.length} {toGreekUpper('Ανοιχτες Βαρδιες')}
+                </span>
+              </button>
+            )}
+
             {/* Manager Navigation Tabs */}
             <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 max-w-full overflow-x-auto">
               <button
@@ -337,17 +390,6 @@ export const ShiftsManager: React.FC = () => {
                 }`}
               >
                 {toGreekUpper('Λιστα Βαρδιων')}
-              </button>
-              <button
-                onClick={() => setManagerTab('DAILY_REPORT')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                  managerTab === 'DAILY_REPORT'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>{toGreekUpper('Ημερησιο')}</span>
               </button>
               {isOwnerOrAdmin && (
                 <button
@@ -399,7 +441,7 @@ export const ShiftsManager: React.FC = () => {
 
         {/* Quick KPI Strip (Responsive Tablet & Desktop Grid) */}
         {managerTab === 'SHIFTS' && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100">
             <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100 flex flex-col justify-between">
               <span className="text-micro font-bold text-slate-500 uppercase tracking-wider">
                 {toGreekUpper('Συνολο Βαρδιων')}
@@ -424,17 +466,6 @@ export const ShiftsManager: React.FC = () => {
                 </span>
                 <span className="text-micro font-black px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-900">
                   {metrics.pendingCount > 0 ? toGreekUpper('Εκκρεμει') : toGreekUpper('Καθαρο')}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col justify-between">
-              <span className="text-micro font-bold text-indigo-700 uppercase tracking-wider">
-                {toGreekUpper('Καταμετρημενο Ταμειο')}
-              </span>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-lg sm:text-xl font-black text-indigo-950 font-mono">
-                  {formatCurrency(metrics.totalCountedCash)}
                 </span>
               </div>
             </div>
@@ -467,15 +498,6 @@ export const ShiftsManager: React.FC = () => {
       {managerTab === 'TEMPLATE' && isOwnerOrAdmin ? (
         <Suspense fallback={<LazyLoadingFallback />}>
           <ShiftTemplateConfigurator />
-        </Suspense>
-      ) : managerTab === 'DAILY_REPORT' ? (
-        <Suspense fallback={<LazyLoadingFallback />}>
-          <DailyAggregationView
-            shifts={shifts}
-            stores={effectiveStores}
-            currentStoreId={currentStore?.id || selectedStoreFilter}
-            onOpenShiftDetails={(s) => setDetailsShift(s)}
-          />
         </Suspense>
       ) : (
         <>
@@ -834,24 +856,6 @@ export const ShiftsManager: React.FC = () => {
 
                     {/* Financial Matrix (2x2 Grid) */}
                     <div className="grid grid-cols-2 gap-2.5 text-xs">
-                      <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100">
-                        <span className="text-micro font-bold text-slate-500 block uppercase">
-                          {toGreekUpper('Αναμενομενο')}
-                        </span>
-                        <span className="font-black text-slate-900 font-mono text-sm block mt-0.5">
-                          {formatCurrency(Number(s.expected_cash || 0))}
-                        </span>
-                      </div>
-
-                      <div className="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/80">
-                        <span className="text-micro font-bold text-indigo-700 block uppercase">
-                          {toGreekUpper('Καταμετρημενο')}
-                        </span>
-                        <span className="font-black text-indigo-950 font-mono text-sm block mt-0.5">
-                          {formatCurrency(Number(s.counted_cash || 0))}
-                        </span>
-                      </div>
-
                       <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-100 col-span-2 flex items-center justify-between">
                         <div>
                           <span className="text-micro font-bold text-slate-500 block uppercase">
@@ -878,7 +882,7 @@ export const ShiftsManager: React.FC = () => {
 
                   {/* Card Action Buttons Group (Tablet Touch Targets 42px+) */}
                   <div className="p-3 bg-slate-50/80 border-t border-slate-100 flex items-center gap-2">
-                    {['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
+                    {OPEN_SHIFT_STATUSES.includes(
                       s.status
                     ) && (
                       <button
@@ -937,9 +941,6 @@ export const ShiftsManager: React.FC = () => {
                       <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Καταστημα & Ταμειο')}</th>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Βαρδια')}</th>
                       <th className="px-3.5 py-3.5 whitespace-nowrap">{toGreekUpper('Χειριστης')}</th>
-                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αρχικο (Float)')}</th>
-                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αναμενομενο')}</th>
-                      <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Καταμετρημενο')}</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Αποκλιση')}</th>
                       <th className="px-3.5 py-3.5 text-center whitespace-nowrap">{toGreekUpper('Κατασταση')}</th>
                       <th className="px-3.5 py-3.5 text-right whitespace-nowrap">{toGreekUpper('Ενεργειες')}</th>
@@ -1025,22 +1026,7 @@ export const ShiftsManager: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* 5. Αρχικό (Float) */}
-                        <td className="px-3.5 py-3 text-right font-mono text-xs font-semibold text-slate-600 whitespace-nowrap">
-                          {formatCurrency(Number(s.opening_cash || 0))}
-                        </td>
-
-                        {/* 6. Αναμενόμενο */}
-                        <td className="px-3.5 py-3 text-right font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
-                          {formatCurrency(Number(s.expected_cash || 0))}
-                        </td>
-
-                        {/* 7. Καταμετρημένο */}
-                        <td className="px-3.5 py-3 text-right font-mono text-xs font-black text-indigo-950 whitespace-nowrap">
-                          {formatCurrency(Number(s.counted_cash || 0))}
-                        </td>
-
-                        {/* 8. Απόκλιση */}
+                        {/* 5. Απόκλιση */}
                         <td className="px-3.5 py-3 text-right whitespace-nowrap">
                           <span
                             className={`inline-block font-mono text-xs font-black px-2 py-0.5 rounded-lg border ${
@@ -1055,18 +1041,18 @@ export const ShiftsManager: React.FC = () => {
                           </span>
                         </td>
 
-                        {/* 9. Κατάσταση */}
+                        {/* 6. Κατάσταση */}
                         <td className="px-3.5 py-3 text-center whitespace-nowrap">
                           <ShiftStatusBadge status={s.status} />
                         </td>
 
-                        {/* 10. Ενέργειες */}
+                        {/* 7. Ενέργειες */}
                         <td
                           className="px-3.5 py-3 text-right whitespace-nowrap"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-end space-x-1.5">
-                            {['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
+                            {OPEN_SHIFT_STATUSES.includes(
                               s.status
                             ) && (
                               <button
@@ -1129,21 +1115,6 @@ export const ShiftsManager: React.FC = () => {
                       <td colSpan={4} className="px-3.5 py-3 text-slate-500 uppercase tracking-wider text-micro">
                         {toGreekUpper('Συνολα Προβολης')} ({filteredShifts.length}{' '}
                         {filteredShifts.length === 1 ? 'Βάρδια' : 'Βάρδιες'})
-                      </td>
-                      <td className="px-3.5 py-3 text-right font-mono text-slate-600">
-                        {formatCurrency(
-                          filteredShifts.reduce((acc, s) => acc + (Number(s.opening_cash) || 0), 0)
-                        )}
-                      </td>
-                      <td className="px-3.5 py-3 text-right font-mono text-slate-900">
-                        {formatCurrency(
-                          filteredShifts.reduce((acc, s) => acc + (Number(s.expected_cash) || 0), 0)
-                        )}
-                      </td>
-                      <td className="px-3.5 py-3 text-right font-mono text-indigo-950 font-black">
-                        {formatCurrency(
-                          filteredShifts.reduce((acc, s) => acc + (Number(s.counted_cash) || 0), 0)
-                        )}
                       </td>
                       <td className="px-3.5 py-3 text-right font-mono font-black">
                         {(() => {
