@@ -47,6 +47,22 @@ const DEMO_ACCOUNT_ROLE_OVERRIDES: Record<string, string> = {
   'employee@shiftledger.gr': 'EMPLOYEE',
 };
 
+/**
+ * One of the three seeded demo accounts, and nothing else.
+ *
+ * Deliberately an exact, case-insensitive match on the full address rather
+ * than a test on the domain: the demo organisation holds real financial data,
+ * and anything looser decides who gets to walk into it. Delete these accounts
+ * and this returns false for everyone, which is the intended end state - see
+ * DEPLOYMENT.md.
+ */
+export function isDemoAccountEmail(email: string): boolean {
+  return Object.prototype.hasOwnProperty.call(
+    DEMO_ACCOUNT_ROLE_OVERRIDES,
+    email.trim().toLowerCase()
+  );
+}
+
 const DEFAULT_OWNER_ROLE: Role = {
   id: 'role_owner',
   code: 'ORG_OWNER',
@@ -93,14 +109,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Supabase offline or read timeout, falling back to cached user state:', fsErr);
       }
 
-      // Check if user is a demo account
-      const isDemoUser = !!(authUser.email && (
-        authUser.email.includes('shiftledger.gr') ||
-        authUser.email.includes('opap.gr') ||
-        authUser.email === 'owner@shiftledger.gr' ||
-        authUser.email === 'manager@shiftledger.gr' ||
-        authUser.email === 'employee@shiftledger.gr'
-      ));
+      // Exactly the three seeded demo accounts, matched in full.
+      //
+      // This used to be a substring test - email.includes('opap.gr') ||
+      // email.includes('shiftledger.gr') - which is not a domain check. It
+      // matched «opap.gr@gmail.com», «x@opap.gr.evil.com» and anyone at OPAP's
+      // own real domain, and every one of them was then placed into
+      // org_opap_demo rather than a tenant of their own. That organisation
+      // holds live financial records, so a stranger who could register any
+      // address containing that substring landed inside it as an EMPLOYEE,
+      // able to see open shifts and suppliers and to create shifts and
+      // expenses against real stores.
+      //
+      // An exact match against the known seed accounts is the whole of what
+      // this check was ever meant to do.
+      const isDemoUser = !!(authUser.email && isDemoAccountEmail(authUser.email));
 
       const hasExistingRow = !!uData;
       const storedRoleCode: string | undefined = uData?.role_code ?? undefined;

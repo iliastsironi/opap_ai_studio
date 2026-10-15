@@ -31,6 +31,19 @@ shifts, and read the P&L.
 Do this before the real org details below, so there is a working way in if
 something goes wrong.
 
+### Delete the demo accounts, and the backdoor closes with them
+
+Until 2026-10-15 the client decided who belonged to the demo organisation with
+a substring test — `email.includes('opap.gr')`. Anyone able to register
+`opap.gr@gmail.com`, `x@opap.gr.evil.com` or an address at OPAP's own domain was
+placed into `org_opap_demo` as an EMPLOYEE, inside live financial records,
+instead of getting a tenant of their own. It is now an exact match on the three
+seeded addresses, pinned by `src/tests/tenant_isolation.test.ts`.
+
+Deleting those three accounts retires the concept entirely: the check then
+returns false for everyone and every new registration gets its own tenant, which
+is the intended end state.
+
 ### The organisation record is a demo
 
 ```
