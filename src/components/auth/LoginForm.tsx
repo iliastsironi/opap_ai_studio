@@ -29,6 +29,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Whether Supabase will actually accept a Google sign-in. The button used to
+  // be shown unconditionally while the provider was disabled in the project, so
+  // clicking it answered with a raw English error from the API on the one
+  // screen a prospective customer sees first. Asking the server means enabling
+  // Google in Supabase makes the button appear on its own, with nothing to
+  // change here.
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+
+  useEffect(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+    let cancelled = false;
+    fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((settings) => {
+        if (!cancelled) setGoogleEnabled(Boolean(settings?.external?.google));
+      })
+      .catch(() => {
+        // Offline, or the endpoint moved. Hiding the button is the safe
+        // failure: a missing option is better than one that errors.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -271,8 +297,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
           </button>
         </form>
 
-        {/* Google Authentication Option */}
-        <div className="mt-4">
+        {/* Google Authentication Option - only when the project actually has it */}
+        <div className={`mt-4 ${googleEnabled ? '' : 'hidden'}`}>
           <button
             type="button"
             onClick={handleGoogleSignIn}

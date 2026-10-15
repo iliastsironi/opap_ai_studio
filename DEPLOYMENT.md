@@ -94,7 +94,31 @@ success and do nothing at all.
 
 ---
 
-## 3. Data that makes the figures true
+## 3. Sign-up, if you are selling this
+
+Checked 2026-10-15 against the project's own `/auth/v1/settings`.
+
+**Only email sign-in is enabled.** Every OAuth provider — Google included — is
+off. The Google button is wired and correct, and now hides itself unless the
+project reports the provider as enabled, so turning it on in Supabase makes it
+appear with no code change.
+
+**Email confirmation is required** (`mailer_autoconfirm` is false), which is the
+right setting. But Supabase's built-in mailer is rate-limited to a handful of
+messages an hour and is explicitly not for production use. Selling to several
+agencies means configuring **custom SMTP** in Supabase → Authentication →
+Emails, or new owners will silently stop receiving their confirmation link.
+`RESEND_API_KEY` covers the app's own invite and summary emails; it does not
+cover Supabase's auth emails, which are a separate pipe.
+
+**Self-service sign-up is open** (`disable_signup` is false). Anyone with an
+email address can create an account, which gives them a brand-new organisation
+of their own — correct for a platform, worth knowing if you expected sign-up to
+be invitation-only.
+
+---
+
+## 4. Data that makes the figures true
 
 Neither blocks going live. Both make the numbers wrong until done, and the
 dashboard now shows a profitability percentage computed from them.
@@ -112,7 +136,7 @@ Until both are in, Δείκτης Κερδοφορίας is flattering the worst
 
 ---
 
-## 4. Debt that bites at volume, not today
+## 5. Debt that bites at volume, not today
 
 **Receipt photos are base64 in a TEXT column.** Every photo inflates its row
 and every query that touches it. Harmless at 98 expenses; a problem at 10.000.
@@ -125,7 +149,7 @@ plan is all that is left.
 
 ---
 
-## 5. Verifying it still holds
+## 6. Verifying it still holds
 
 Run after any migration, and before any release that touches access:
 
