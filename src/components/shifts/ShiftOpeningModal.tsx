@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Play, AlertCircle, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
-import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
@@ -34,13 +33,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const effectiveStores =
     stores && stores.length > 0
       ? stores
-      : tenantStores && tenantStores.length > 0
-      ? tenantStores.map((s) => ({ id: s.id, name: s.name, code: s.code }))
-      : INITIAL_DEMO_STORES.map((s) => ({ id: s.id, name: s.name, code: s.code }));
+      : (tenantStores ?? []).map((s) => ({ id: s.id, name: s.name, code: s.code }));
 
-  const [selectedStoreId, setSelectedStoreId] = useState<string>(
-    effectiveStores[0]?.id || 'store_opap_01'
-  );
+  // No `|| 'store_opap_01'`: that id is not in the database, so defaulting to
+  // it produced a foreign-key failure at the one moment an operator is trying
+  // to start their shift. Empty means "no store chosen yet", which the submit
+  // guard below already refuses.
+  const [selectedStoreId, setSelectedStoreId] = useState<string>(effectiveStores[0]?.id ?? '');
 
   useEffect(() => {
     if (isOpen) {
@@ -109,6 +108,24 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           setIsAutoFetched(true);
         } else if (shiftType === 'MORNING') {
           setIsAutoFetched(false);
+        } else {
+          // Non-morning, and this register has no previous shift to carry from.
+          //
+          // This branch did not exist, and the effect re-runs on registerId -
+          // so picking «Ταμείο 1» (snapshot found: fields filled with 350 and
+          // locked, AUTO lit) and then switching to «Ταμείο 2» left the 350
+          // sitting there, still locked, still badged AUTO, above a line
+          // reading «Δεν βρέθηκε προηγούμενη βάρδια». The operator could not
+          // even correct it - the inputs are disabled while isAutoFetched -
+          // and the shift was written with a note claiming the float had been
+          // carried over from a shift that does not exist, while the till in
+          // front of them was empty.
+          //
+          // Clearing rather than keeping: there is no previous close to carry,
+          // so the only honest float is the one they are about to count.
+          setOpeningBanknotes('');
+          setOpeningCoins('');
+          setIsAutoFetched(false);
         }
       } catch (e) {
         console.warn('Error loading previous shift:', e);
@@ -131,7 +148,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     setError(null);
 
     const activeStore = effectiveStores.find((s) => s.id === selectedStoreId) || effectiveStores[0];
-    const targetStoreId = activeStore?.id || selectedStoreId || 'store_opap_01';
+    // The `|| 'store_opap_01'` that used to close this expression made the
+    // guard below unreachable: there was always a truthy id, so instead of
+    // «Παρακαλώ επιλέξτε κατάστημα» the operator got a shift opened against a
+    // store that does not exist in the database.
+    const targetStoreId = activeStore?.id || selectedStoreId;
 
     if (!targetStoreId) {
       setError('Παρακαλώ επιλέξτε κατάστημα.');
@@ -354,7 +375,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <span className="text-micro text-indigo-800 font-medium block mt-0.5">
                   {previousShift
                     ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.previous_operator_name || 'Προηγούμενη'}).`
-                    : 'Δεν βρέθηκε προηγούμενη βάρδια. Εμφανίζονται τα προεπιλεγμένα ποσά.'}
+                    : 'Δεν βρέθηκε προηγούμενη βάρδια σε αυτό το ταμείο — καταμετρήστε και καταχωρήστε το αρχικό ταμείο.'}
                 </span>
               </div>
             </div>
