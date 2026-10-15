@@ -151,7 +151,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: authUser.email || uData.email || '',
           first_name: uData.first_name || firstName,
           last_name: uData.last_name || lastName,
-          status: 'ACTIVE',
+          // The row's real status, not an assumption. This was hardcoded to
+          // ACTIVE, so a deactivated account looked perfectly normal to the
+          // client while 0027 quietly denied it every row - an empty app with
+          // no explanation, which becomes a phone call.
+          status: uData.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+          must_change_password: uData.must_change_password === true,
+          has_placeholder_email: uData.has_placeholder_email === true,
           created_at: uData.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });

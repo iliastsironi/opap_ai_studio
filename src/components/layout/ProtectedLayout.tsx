@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { LoginForm } from '../auth/LoginForm.tsx';
 import { ForcePasswordChange } from '../auth/ForcePasswordChange.tsx';
+import { AccessDisabled } from '../auth/AccessDisabled.tsx';
 import { LandingPage } from '../marketing/LandingPage.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
@@ -59,6 +60,13 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
         onBack={hasInviteLink() ? undefined : () => setAuthScreen('landing')}
       />
     );
+  }
+
+  // First of all, before even the password prompt. 0027 denies a deactivated
+  // account every row in the database, so without this the app renders empty
+  // everywhere and the person rings whoever deactivated them to ask what broke.
+  if (user?.status === 'INACTIVE') {
+    return <AccessDisabled />;
   }
 
   // Before anything else loads. A staff account starts with a password the
