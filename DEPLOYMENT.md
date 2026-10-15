@@ -103,6 +103,43 @@ off. The Google button is wired and correct, and now hides itself unless the
 project reports the provider as enabled, so turning it on in Supabase makes it
 appear with no code change.
 
+<details>
+<summary>Turning Google on — nothing to change in this repo</summary>
+
+**In Google Cloud Console** (console.cloud.google.com):
+
+1. Pick or create a project, then **APIs & Services → OAuth consent screen**.
+   External, fill in app name and support email, save. While it is in Testing
+   only accounts you list can sign in — publish it when you want real
+   customers.
+2. **APIs & Services → Credentials → Create credentials → OAuth client ID**,
+   type **Web application**.
+3. Under **Authorised redirect URIs** add exactly this, which is Supabase's
+   callback and not your app's address:
+
+   ```
+   https://jjvrechcwxfcalitknhn.supabase.co/auth/v1/callback
+   ```
+
+4. Copy the **Client ID** and **Client secret**.
+
+**In Supabase** (Authentication → Providers → Google):
+
+5. Enable it, paste both values, save.
+6. Then **Authentication → URL Configuration**: set **Site URL** to the
+   production address, and list every origin that may sign in under **Redirect
+   URLs** — the production domain, any custom domain, and `http://localhost:3000`
+   for development. `loginWithGoogle` asks to return to the origin it started
+   from, but Supabase only honours origins on that list.
+
+The button appears by itself once step 5 is saved; the app asks the project
+which providers are on.
+
+Two things that bite here: the redirect URI in step 3 is Supabase's, not the
+app's, and the consent screen stays invisible to anyone outside your test list
+until it is published.
+</details>
+
 **Email confirmation is required** (`mailer_autoconfirm` is false), which is the
 right setting. But Supabase's built-in mailer is rate-limited to a handful of
 messages an hour and is explicitly not for production use. Selling to several

@@ -285,7 +285,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Google's login and back, and onAuthStateChange picks up the new
     // session on return - this call not "resolving" in the usual sense
     // (the page unloads) is expected.
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      // Come back to wherever the app is actually being served from. Without
+      // this, Supabase returns everyone to the project's single configured Site
+      // URL, so signing in from a Vercel preview or a custom domain lands on
+      // whichever origin happened to be set there. Each origin still has to be
+      // listed under Authentication -> URL Configuration -> Redirect URLs;
+      // this only picks the right one from that list.
+      options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+    });
     if (error) throw new Error(error.message || 'Αποτυχία σύνδεσης μέσω Google');
   };
 
