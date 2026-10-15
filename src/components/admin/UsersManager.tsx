@@ -3,7 +3,14 @@ import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, 
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
-import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
+import {
+  fetchUsersFromFirestore,
+  updateUserInFirestore,
+  deleteUserInFirestore,
+  setUserStoreAssignments,
+  fetchStoreAssignmentsByUser,
+  DEMO_ROLES,
+} from '../../services/userService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
@@ -68,10 +75,11 @@ export const UsersManager: React.FC = () => {
     setEditPhone(u.phone || '');
     setEditEmployeeCode(u.employee_code || '');
     setEditRoleCode(u.role_code || 'EMPLOYEE');
-    setEditStatus(u.is_active ? 'ACTIVE' : 'INACTIVE');
+    setEditStatus(u.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE');
 
-    const currentStoreIds = u.stores ? u.stores.map((s: any) => s.store_id) : (u.assigned_stores?.map((s: any) => s.store_id) || []);
-    setEditStoreIds(currentStoreIds);
+    // From user_store_assignments, loaded with the user list. `u.stores` and
+    // `u.assigned_stores` were never populated by anything.
+    setEditStoreIds((u.store_ids as string[]) ?? []);
     setEditError(null);
     setShowEditModal(true);
   };
@@ -83,24 +91,27 @@ export const UsersManager: React.FC = () => {
     setIsSavingUser(true);
 
     try {
-      const assignedStoresList = stores
-        .filter((s) => editStoreIds.includes(s.id))
-        .map((s) => ({ store_id: s.id, store_code: s.code, store_name: s.name }));
-
-      const selectedRoleObj = roles.find((r) => r.code === editRoleCode);
-
+      // Only columns that exist on `users`.
+      //
+      // This update used to carry role_name, is_active, stores and
+      // assigned_stores as well. None of them is a column, PostgREST rejects
+      // the whole statement when one is unknown, and so editing a user has
+      // never worked at all - not their name, not their phone, not their role,
+      // not their status. The modal reported a failure every time and the
+      // underlying reason was four keys that do not belong in this table.
       await updateUserInFirestore(editingUser.id, {
         first_name: editFirstName,
         last_name: editLastName,
         phone: editPhone,
         employee_code: editEmployeeCode,
         role_code: editRoleCode,
-        role_name: selectedRoleObj?.name || editRoleCode,
-        is_active: editStatus === 'ACTIVE',
         status: editStatus,
-        stores: assignedStoresList,
-        assigned_stores: assignedStoresList,
       });
+
+      // Store access lives in its own table, which is why passing it here never
+      // did anything. Replace the set rather than diff it: a handful of rows
+      // per user, and a diff is more ways to be wrong than it saves work.
+      await setUserStoreAssignments(editingUser.id, orgId, editStoreIds);
 
       setSuccessNotification(`Ο χρήστης ${editFirstName} ${editLastName} ενημερώθηκε επιτυχώς.`);
       setShowEditModal(false);
@@ -162,8 +173,13 @@ export const UsersManager: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const fsUsers = await fetchUsersFromFirestore(orgId);
-      setUsers(fsUsers);
+      const [fsUsers, assignments] = await Promise.all([
+        fetchUsersFromFirestore(orgId),
+        fetchStoreAssignmentsByUser(orgId),
+      ]);
+      // Store access comes from its own table; the edit modal reads store_ids
+      // from here rather than from a `stores` field that nothing ever filled.
+      setUsers(fsUsers.map((u: any) => ({ ...u, store_ids: assignments[u.id] ?? [] })));
       setRoles(DEMO_ROLES);
     } catch (err) {
       console.error('Failed to fetch users:', err);
@@ -532,13 +548,13 @@ export const UsersManager: React.FC = () => {
                     <td className="p-4">
                       <span
                         className={`inline-flex items-center text-micro font-bold px-2.5 py-0.5 rounded-full border ${
-                          u.is_active !== false && u.status !== 'INACTIVE'
+                          u.status !== 'INACTIVE'
                             ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                             : 'text-rose-700 bg-rose-50 border-rose-200'
                         }`}
                       >
                         <CheckCircle2 className="w-3 h-3 mr-1" />
-                        {u.is_active !== false && u.status !== 'INACTIVE' ? 'Ενεργός' : 'Απενεργοποιημένος'}
+                        {u.status !== 'INACTIVE' ? 'Ενεργός' : 'Απενεργοποιημένος'}
                       </span>
                     </td>
 
