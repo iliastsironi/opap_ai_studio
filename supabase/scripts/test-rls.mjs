@@ -402,6 +402,52 @@ async function main() {
       (restored?.length ?? 0) > 0, `${restored?.length ?? 0} rows again`);
   }
 
+  // --- 0006-0008: the scratch fields an employee must not move ---
+  // Μπροστά Αρχικό and Πίσω Τελικό are Owner/Admin only, enforced by
+  // trg_enforce_scratch_field_locks rather than by the UI - an employee who
+  // could raise the opening number could hide a shortage, and a client-side
+  // gate is bypassed by one API call.
+  {
+    const storeId = `test_store_scr_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'SCR', name: 'Test Store Scratch', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const items = [{ id: 'scr_1', name: 'Δοκιμή', startNo: '100', endNo: '80', backStartNo: '10', backEndNo: '5' }];
+    const { data: shift } = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId, register_id: 'REG-SCR',
+      opened_by_user_id: u4.user.id, status: 'OPEN',
+      custom_field_values: { scratch_ticket_items: items },
+    }).select().maybeSingle();
+
+    if (shift) {
+      const move = (field, value) => {
+        const next = [{ ...items[0], [field]: value }];
+        return { custom_field_values: { scratch_ticket_items: next } };
+      };
+
+      const { error: frontErr } = await client4.from('shifts').update(move('startNo', '999')).eq('id', shift.id);
+      record('26: an employee cannot move Μπροστά Αρχικό',
+        !!frontErr, frontErr ? `correctly rejected (${frontErr.code})` : 'WAS ALLOWED - BUG');
+
+      const { error: backErr } = await client4.from('shifts').update(move('backEndNo', '999')).eq('id', shift.id);
+      record('27: an employee cannot move Πίσω Τελικό',
+        !!backErr, backErr ? `correctly rejected (${backErr.code})` : 'WAS ALLOWED - BUG');
+
+      // The fields they are meant to fill in while working must still move,
+      // or the lock would stop the shift being closed at all.
+      const { error: sellErr } = await client4.from('shifts').update(move('endNo', '70')).eq('id', shift.id);
+      record('28: an employee CAN still record what they sold',
+        !sellErr, sellErr ? sellErr.message : 'endNo updated');
+
+      const { error: ownerErr } = await client1.from('shifts').update(move('startNo', '150')).eq('id', shift.id);
+      record('29: an Owner can correct Μπροστά Αρχικό',
+        !ownerErr, ownerErr ? ownerErr.message : 'startNo updated by owner');
+    } else {
+      record('26-29: scratch lock fixture failed', false);
+    }
+  }
+
   // --- Cleanup (service role) ---
   await admin.from('employee_charges').delete().eq('organization_id', orgA);
   await admin.from('notifications').delete().eq('organization_id', orgA);
@@ -411,6 +457,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_0022_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_0023_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_scr_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
