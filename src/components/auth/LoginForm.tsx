@@ -19,8 +19,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resettingPassword, setResettingPassword] = useState(false);
-  const [email, setEmail] = useState('owner@shiftledger.gr');
-  const [password, setPassword] = useState('password123');
+  // Empty, not prefilled. The form used to open with owner@shiftledger.gr and
+  // password123 already typed in - convenient during the build, and the first
+  // thing a customer or a prospect would see on the sign-in screen of a product
+  // that holds their cash records. The demo buttons below still sign in with
+  // one click, so nothing is lost but the credentials sitting in the fields.
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);

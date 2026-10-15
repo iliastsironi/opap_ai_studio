@@ -14,6 +14,8 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
+import { fetchEmployeeCharges } from '../../services/employeeChargeService.ts';
+import { fetchIncidentsFromFirestore } from '../../services/moduleServices.ts';
 import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -41,6 +43,8 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
     hasPermission('shifts.approve');
 
   const [pendingShifts, setPendingShifts] = useState<Shift[]>([]);
+  const [openCharges, setOpenCharges] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  const [openIncidents, setOpenIncidents] = useState(0);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
   const [loadingShifts, setLoadingShifts] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -52,10 +56,22 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
     Promise.all([
       fetchShiftsFromFirestore(orgId, activeStoreId, 'SUBMITTED'),
       fetchShiftsFromFirestore(orgId, activeStoreId),
+      // Both are managers-only at the database anyway: employee_charges shows
+      // staff their own rows, incidents_select is auth_is_elevated(). An
+      // employee never reaches this screen, so an empty result here is correct
+      // rather than something to hide.
+      fetchEmployeeCharges(orgId, activeStoreId).catch(() => []),
+      fetchIncidentsFromFirestore(orgId, activeStoreId === 'ALL' ? undefined : activeStoreId).catch(() => []),
     ])
-      .then(([pending, all]) => {
+      .then(([pending, all, charges, incidents]) => {
         setPendingShifts(pending);
         setAllShifts(all);
+        const open = (charges ?? []).filter((c: any) => c.status === 'OPEN');
+        setOpenCharges({
+          count: open.length,
+          total: open.reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0),
+        });
+        setOpenIncidents((incidents ?? []).filter((i: any) => i.status !== 'RESOLVED').length);
       })
       .catch((err: any) => {
         console.error('Error loading dashboard shifts:', err);
@@ -63,6 +79,17 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
       })
       .finally(() => setLoadingShifts(false));
   }, [organization?.id, activeStoreId]);
+
+  // Open since yesterday or earlier, in Athens time. Today's open shifts are
+  // people at work; these are the ones nobody closed.
+  const staleOpenShifts = (() => {
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Athens' });
+    return allShifts.filter(
+      (s) =>
+        ['OPEN', 'DRAFT_CLOSING'].includes(s.status) &&
+        new Date(s.opened_at).toLocaleDateString('en-CA', { timeZone: 'Europe/Athens' }) < todayKey
+    ).length;
+  })();
 
   const activeStoreName =
     activeStoreId === 'ALL'
@@ -190,6 +217,69 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Pending Shift Approval Banner */}
+      {/* Εκκρεμότητες: everything waiting on a manager, in one place.
+          Shifts left open are counted from yesterday or earlier, never today -
+          a shift open at 4pm is someone working, not a problem, and a banner
+          that cries about normal operation gets ignored within a week. */}
+      {canApprove && (openCharges.count > 0 || openIncidents > 0 || staleOpenShifts > 0) && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
+          <h3 className="text-xs font-black text-slate-900">{toGreekUpper('Εκκρεμοτητες')}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {staleOpenShifts > 0 && (
+              <button
+                type="button"
+                onClick={() => onNavigate('shifts')}
+                className="transition text-left p-3 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-50 duration-150 ease-out active:scale-[0.99] cursor-pointer"
+              >
+                <span className="text-micro font-bold text-amber-800 uppercase tracking-wider block">
+                  {toGreekUpper('Ανοιχτες απο προηγουμενη μερα')}
+                </span>
+                <span className="text-lg font-black text-amber-900 font-mono tabular-nums block mt-1">
+                  {staleOpenShifts}
+                </span>
+                <span className="text-micro text-amber-800">
+                  {staleOpenShifts === 1 ? 'βάρδια δεν έκλεισε' : 'βάρδιες δεν έκλεισαν'}
+                </span>
+              </button>
+            )}
+
+            {openCharges.count > 0 && (
+              <button
+                type="button"
+                onClick={() => onNavigate('shifts')}
+                className="transition text-left p-3 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-50 duration-150 ease-out active:scale-[0.99] cursor-pointer"
+              >
+                <span className="text-micro font-bold text-rose-800 uppercase tracking-wider block">
+                  {toGreekUpper('Ανεξοφλητες χρεωσεις')}
+                </span>
+                <span className="text-lg font-black text-rose-900 font-mono tabular-nums block mt-1">
+                  {formatCurrency(openCharges.total)}
+                </span>
+                <span className="text-micro text-rose-800">
+                  {openCharges.count} {openCharges.count === 1 ? 'χρέωση' : 'χρεώσεις'} σε εκκρεμότητα
+                </span>
+              </button>
+            )}
+
+            {openIncidents > 0 && (
+              <button
+                type="button"
+                onClick={() => onNavigate('incidents')}
+                className="transition text-left p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 duration-150 ease-out active:scale-[0.99] cursor-pointer"
+              >
+                <span className="text-micro font-bold text-slate-600 uppercase tracking-wider block">
+                  {toGreekUpper('Ανοιχτα συμβαντα')}
+                </span>
+                <span className="text-lg font-black text-slate-900 font-mono tabular-nums block mt-1">
+                  {openIncidents}
+                </span>
+                <span className="text-micro text-slate-600">χωρίς επίλυση</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {canApprove && pendingShifts.length > 0 && (
         <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-orange-500/10 border-2 border-amber-400/50 p-5 rounded-2xl shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
