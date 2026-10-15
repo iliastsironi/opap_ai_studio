@@ -161,6 +161,7 @@ import {
   calculateCountedCash,
   calculateDiscrepancy,
   calculateExpectedCash,
+  resolveFnbCash,
   calculateReconciliationNetTotal,
   calculateReconciliationBreakdown,
   calculateBanknotesAndCoins,
@@ -933,6 +934,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const effectiveVltsInflow = vltsOutType === 'POSITIVE' ? safeNum(vltsOut) : 0;
   const signedVltsOut = vltsOutType === 'NEGATIVE' ? -safeNum(vltsOut) : safeNum(vltsOut);
 
+  // The same resolution the discrepancy uses, so the «Ταμείο FnB» panel below
+  // cannot show a cash figure the calculation disagrees with.
+  const fnbCashInDrawer = resolveFnbCash({
+    fnb_cash: safeNum(fnbCash),
+    fnb_sales: safeNum(fnbSales),
+    fnb_card: safeNum(fnbCard),
+  });
+
   const expectedCash = calculateExpectedCash({
     opening_cash: openingCashTotal,
     opap_gross_sales: safeNum(arithmoGross),
@@ -945,7 +954,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     clever_point: safeNum(cleverPointTotal),
     vlts_cash_in: safeNum(vltsIn),
     vlts_cash_out: signedVltsOut,
-    fnb_cash: safeNum(fnbCash) || safeNum(fnbSales),
+    // Pass all three as typed. The fallback belongs in one place, where it
+    // can see the cards, instead of being decided twice.
+    fnb_cash: safeNum(fnbCash),
+    fnb_sales: safeNum(fnbSales),
+    fnb_card: safeNum(fnbCard),
   });
 
   const countedCash = calculateCountedCash(denominations);
@@ -2967,7 +2980,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Μετρητά:</span>
-                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(fnbCash) > 0 ? safeNum(fnbCash) : safeNum(fnbSales))}</span>
+                      <span className="font-mono font-bold text-white">{formatCurrency(fnbCashInDrawer)}</span>
                     </div>
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Pos:</span>
@@ -2975,7 +2988,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
-                      <span className="font-mono text-white">{formatCurrency(safeNum(fnbCash) + safeNum(fnbCard) > 0 ? safeNum(fnbCash) + safeNum(fnbCard) : safeNum(fnbSales))}</span>
+                      <span className="font-mono text-white">{formatCurrency(fnbCashInDrawer + safeNum(fnbCard))}</span>
                     </div>
                   </div>
                 </div>

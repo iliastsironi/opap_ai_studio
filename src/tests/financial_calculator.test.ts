@@ -118,6 +118,42 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
       expect(calculateExpectedCash(input)).toBe(1880.0);
     });
 
+    it('does not expect F&B card takings to be in the drawer', () => {
+      // Three separate boxes in the wizard: «Συνολικές Πωλήσεις FnB»,
+      // «Μετρητά FnB», «Κάρτες FnB». A day where the cafe took everything on
+      // card is Σύνολο 120, Μετρητά 0, Κάρτες 120 - and 0 € of that is cash.
+      const allOnCard = calculateExpectedCash({
+        opap_gross_sales: 1000,
+        opap_payouts: 0,
+        fnb_sales: 120,
+        fnb_cash: 0,
+        fnb_card: 120,
+      });
+      // Only the OPAP net. Expecting the 120 as well would report the shift
+      // 120 € short on cash the cafe never took.
+      expect(allOnCard).toBe(1000);
+
+      // Part cash, part card: only the cash half is in the drawer.
+      const split = calculateExpectedCash({
+        opap_gross_sales: 1000,
+        opap_payouts: 0,
+        fnb_sales: 120,
+        fnb_cash: 50,
+        fnb_card: 70,
+      });
+      expect(split).toBe(1050);
+
+      // The operator who fills only the total and skips the split: with no
+      // cards entered there is nothing to subtract, so the total is treated
+      // as cash exactly as it was before.
+      const totalOnly = calculateExpectedCash({
+        opap_gross_sales: 1000,
+        opap_payouts: 0,
+        fnb_sales: 120,
+      });
+      expect(totalOnly).toBe(1120);
+    });
+
     it('handles negative or missing inputs without throwing errors', () => {
       const input = {
         opap_gross_sales: '200',

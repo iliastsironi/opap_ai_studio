@@ -15,6 +15,7 @@ export interface ExpectedCashInput {
   clever_point?: number | string | null;
   fnb_cash?: number | string | null;
   fnb_sales?: number | string | null;
+  fnb_card?: number | string | null;
   customer_credit_collected?: number | string | null;
   card_payments?: number | string | null;
   expenses_paid_cash?: number | string | null;
@@ -98,6 +99,28 @@ export function calculateCountedCash(
   Formula requested:
   Αναμενόμενο = (Αριθμοπαιχνίδια ΟΠΑΠ - OPAP Payouts) + Scratch & Λαχεία + TORA DIRECT + Cleverpoint + VLTs Cash-In + VLTs Cash-Out + FnB
  */
+/**
+ * How much of the cafe's takings is actually in the drawer.
+ *
+ * This used to read `fnb_cash || fnb_sales` - and on a day the cafe took
+ * everything on card («Μετρητά FnB» 0, «Κάρτες FnB» 120) it expected the 120 €
+ * in the till, reporting the shift short by exactly the card takings. The
+ * operator carried a discrepancy for money that was never cash.
+ *
+ * The fallback existed for the operator who fills «Συνολικές Πωλήσεις FnB» and
+ * skips the split, so it stays - but it now subtracts the cards they did enter.
+ * With no cards that is the old behaviour; with cards it is right.
+ *
+ * Exported because the closing wizard shows this same figure back to the
+ * operator, and a screen disagreeing with the discrepancy it produced is how
+ * someone loses an argument about their own till.
+ */
+export function resolveFnbCash(input: Pick<ExpectedCashInput, 'fnb_cash' | 'fnb_sales' | 'fnb_card'>): number {
+  const cash = safeNum(input.fnb_cash);
+  if (cash !== 0) return cash;
+  return Math.max(0, safeNum(input.fnb_sales) - safeNum(input.fnb_card));
+}
+
 export function calculateExpectedCash(input: ExpectedCashInput): number {
   const arithmoNet = safeNum(input.opap_gross_sales) 
     - safeNum(input.opap_payouts) 
@@ -109,7 +132,7 @@ export function calculateExpectedCash(input: ExpectedCashInput): number {
   const vltsIn = safeNum(input.vlts_cash_in);
   const vltsOut = safeNum(input.vlts_cash_out);
   const pameStoixima = safeNum(input.pame_stoixima) || safeNum(input.pame_stoixima_balance);
-  const fnb = safeNum(input.fnb_cash) || safeNum(input.fnb_sales);
+  const fnb = resolveFnbCash(input);
 
   const expected = arithmoNet + scratch + tora + clever + vltsIn + vltsOut + pameStoixima + fnb;
   return roundCurrency(expected);
