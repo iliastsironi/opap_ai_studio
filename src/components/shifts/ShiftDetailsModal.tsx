@@ -38,6 +38,7 @@ import {
   roundCurrency,
   calculateBanknotesAndCoins,
   EUR_DENOMINATIONS,
+  resolveVltNet,
 } from '../../services/financialCalculator.ts';
 import {
   calculateRowQty,
@@ -222,7 +223,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
             const vltsIn = safeNum(shift.vlts_cash_in);
             const vltsOut = safeNum(shift.vlts_cash_out);
-            const vltsNet = roundCurrency(shift.vlts_net !== undefined ? safeNum(shift.vlts_net) : vltsIn - vltsOut);
+            const vltsNet = resolveVltNet(shift);
 
             const scratchSales = safeNum(shift.scratch_sales ?? shift.custom_field_values?.scratch_sales);
             const scratchPayouts = safeNum(shift.scratch_payouts ?? shift.custom_field_values?.scratch_payouts);

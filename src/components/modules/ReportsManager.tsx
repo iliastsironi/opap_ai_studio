@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   PieChart,
   Pie,
   Cell,
@@ -46,6 +48,7 @@ import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { athensDateKey, currentMonthKey, monthLabel, shiftMonthKey, totalCosts } from '../../lib/pnlEngine.ts';
+import { buildShiftDailySeries } from '../../lib/shiftDailySeries.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 import { IconButton } from '../ui/IconButton.tsx';
 import { PnlWorkspace } from '../pnl/PnlWorkspace.tsx';
@@ -282,14 +285,10 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const hasCosts = costMixData.some((item) => item.value > 0);
   const discrepantShifts = rawShifts.filter((s) => Math.abs(Number(s.discrepancy || 0)) >= 1).length;
 
-  // Shift performance chart data. No shifts means an empty chart - a plotted
-  // line the user could mistake for their own trading would be worse than none.
-  const shiftChartData = rawShifts.slice(0, 15).reverse().map((s) => ({
-    date: new Date(s.opened_at || s.closed_at || Date.now()).toLocaleDateString('el-GR', { month: 'numeric', day: 'numeric' }),
-    revenue: Number(s.opap_gross_sales || 0) + Number(s.vlts_cash_in || 0) + Number(s.fnb_sales || 0),
-    vlt: pickNum(s.vlts_net, safeNum(s.vlts_cash_in) - safeNum(s.vlts_cash_out)),
-    expenses: Number(s.expenses_paid_cash || 0),
-  }));
+  // One bar per trading day; see buildShiftDailySeries for what this replaced
+  // and why. No shifts means an empty chart - a plotted line the user could
+  // mistake for their own trading would be worse than none.
+  const shiftChartData = useMemo(() => buildShiftDailySeries(rawShifts), [rawShifts]);
 
   // Filtered employees
   const filteredEmployees = employeeKpis.filter((e) => {
@@ -550,10 +549,10 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-indigo-600" />
-                    <span>Ημερήσια Εξέλιξη Τζίρου & Εσόδων (Από Βάρδιες)</span>
+                    <span>Τζίρος & Έσοδα ανά Ημέρα (Από Βάρδιες)</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Έσοδα ΟΠΑΠ, Net VLTs και έξοδα ανά βάρδια
+                    Μόνο ημέρες με κλεισμένες βάρδιες — οι ημέρες χωρίς βάρδια δεν εμφανίζονται
                   </p>
                 </div>
               </div>
@@ -567,21 +566,12 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   </div>
                 ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={shiftChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.05} />
-                      </linearGradient>
-                      <linearGradient id="colorVlt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#9333ea" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#9333ea" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={shiftChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <Tooltip
+                      cursor={{ fill: '#f8fafc' }}
                       contentStyle={{
                         backgroundColor: '#0f172a',
                         borderRadius: '10px',
@@ -589,28 +579,12 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                         color: '#fff',
                         fontSize: '12px',
                       }}
-                      formatter={(value: any) => [formatCurrency(Number(value) || 0), '']}
+                      formatter={(value: any, name: any) => [formatCurrency(Number(value) || 0), name]}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      name="Συνολικά Έσοδα (€)"
-                      stroke="#4f46e5"
-                      fillOpacity={1}
-                      fill="url(#colorRevenue)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="vlt"
-                      name="VLTs Net (€)"
-                      stroke="#9333ea"
-                      fillOpacity={1}
-                      fill="url(#colorVlt)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
+                    <Bar dataKey="revenue" name="Συνολικά Έσοδα (€)" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="vlt" name="VLTs Net (€)" fill="#9333ea" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                  </BarChart>
                 </ResponsiveContainer>
                 )}
               </div>

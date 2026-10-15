@@ -1,5 +1,5 @@
 import { Shift, NationalLotteryDrawCollection } from '../types/index.ts';
-import { safeNum, roundCurrency } from './financialCalculator.ts';
+import { safeNum, roundCurrency, resolveVltNet } from './financialCalculator.ts';
 
 // Signed sum per shift_id (COLLECTION +amount, REVERSAL -amount,
 // DEBT_TRANSFER excluded since it's never shift-linked) - same formula as
@@ -219,7 +219,7 @@ export function aggregateShiftsForDay(
       const opapNet = safeNum(s.opap_net_sales) || opapGross - opapPayouts;
       const vltsIn = safeNum(s.vlts_cash_in);
       const vltsOut = safeNum(s.vlts_cash_out);
-      const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
+      const vltsNet = resolveVltNet(s);
       const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
       const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
       const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
@@ -319,7 +319,7 @@ export function aggregateShiftsForDay(
     const opapNet = safeNum(s.opap_net_sales) || opapGross - opapPayouts;
     const vltsIn = safeNum(s.vlts_cash_in);
     const vltsOut = safeNum(s.vlts_cash_out);
-    const vltsNet = safeNum(s.vlts_net) || vltsIn - vltsOut;
+    const vltsNet = resolveVltNet(s);
     const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
     const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
     const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);

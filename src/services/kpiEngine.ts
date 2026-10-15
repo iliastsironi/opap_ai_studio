@@ -1,4 +1,5 @@
 import { Shift } from '../types/index.ts';
+import { resolveVltNet } from './financialCalculator.ts';
 import { EmployeeKPI, ShiftKPI, VltReconciliationRecord } from '../data/pnlData.ts';
 
 // The display name for each shift type. These are UI labels, not data - the
@@ -133,7 +134,7 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     const target = shiftTypeTotals[type] || shiftTypeTotals.MORNING;
 
     const opap = Number(shift.opap_gross_sales || 0);
-    const vlt = Number(shift.vlts_net || (Number(shift.vlts_cash_in || 0) - Number(shift.vlts_cash_out || 0)));
+    const vlt = resolveVltNet(shift);
     const fnb = Number(shift.fnb_sales || 0);
     const pos = Number(shift.card_payments || 0);
     const countedCash = Number(shift.counted_cash || 0);
@@ -181,7 +182,9 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
     const scratchSales = Number(shift.scratch_lotto_sales || shift.scratch_sales || 0);
     const vltIn = Number(shift.vlts_cash_in || 0);
     const vltOut = Number(shift.vlts_cash_out || 0);
-    const vltNet = shift.vlts_net !== undefined ? Number(shift.vlts_net) : Math.max(0, vltIn - vltOut);
+    // Was Math.max(0, vltIn - vltOut) on the derived branch, which both
+    // flipped the sign and then hid the result by clamping it to zero.
+    const vltNet = resolveVltNet(shift);
     const fnbSales = Number(shift.fnb_sales || shift.fnb_cash || 0);
     return sum + Math.max(0, opapNet + scratchSales + vltNet + fnbSales);
   }, 0);

@@ -5,6 +5,7 @@ import {
   calculateDiscrepancy,
   calculateExpectedCash,
   calculateReconciliationNetTotal,
+  resolveVltNet,
   calculateReconciliationBreakdown,
   roundCurrency,
   safeNum,
@@ -196,6 +197,32 @@ describe('Financial Calculation Service - ShiftLedger Engine', () => {
       expect(res.discrepancy).toBe(15.0);
       expect(res.discrepancyPercentage).toBe(100);
       expect(res.isExceedingThreshold).toBe(true);
+    });
+  });
+
+  describe('resolveVltNet', () => {
+    it('adds cash out, which is stored already negative', () => {
+      // The live August shifts carry vlts_cash_out = -307 alongside
+      // vlts_net = -307, so net is in + out. Five places derived it as
+      // in - out, which reports a 307 € payout as 307 € taken in.
+      expect(resolveVltNet({ vlts_net: null, vlts_cash_in: 0, vlts_cash_out: -307 })).toBe(-307);
+      expect(resolveVltNet({ vlts_net: null, vlts_cash_in: 1000, vlts_cash_out: -300 })).toBe(700);
+    });
+
+    it('prefers the recorded net over deriving one', () => {
+      expect(resolveVltNet({ vlts_net: -469.5, vlts_cash_in: 0, vlts_cash_out: -469.5 })).toBe(-469.5);
+    });
+
+    it('keeps a recorded zero instead of deriving over it', () => {
+      // `vlts_net || (in - out)` sent a genuine zero - cash in and cash out
+      // cancelling, which is ordinary - to the derived branch, which then
+      // reported double the cash in.
+      expect(resolveVltNet({ vlts_net: 0, vlts_cash_in: 1000, vlts_cash_out: -1000 })).toBe(0);
+    });
+
+    it('derives only when there is no recorded net at all', () => {
+      expect(resolveVltNet({ vlts_cash_in: 500, vlts_cash_out: -120 })).toBe(380);
+      expect(resolveVltNet({})).toBe(0);
     });
   });
 

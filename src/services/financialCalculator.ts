@@ -121,6 +121,34 @@ export function resolveFnbCash(input: Pick<ExpectedCashInput, 'fnb_cash' | 'fnb_
   return Math.max(0, safeNum(input.fnb_sales) - safeNum(input.fnb_card));
 }
 
+/**
+ * Net VLT cashflow for a shift.
+ *
+ * vlts_cash_out is stored already signed - negative - which ShiftClosingWizard
+ * relies on when it writes `vlts_net: vltsIn + signedVltsOut`. Five places
+ * derived the same figure as `in - out`, which flips the sign of every VLT
+ * payout: the live August shifts carry out = -307 and net = -307, and that
+ * subtraction gives +307.
+ *
+ * Three of them also wrote `vlts_net || (in - out)`, so a shift whose cash in
+ * and cash out genuinely cancel - net 0, a real and unremarkable result - fell
+ * through to the derived branch and reported double the cash in.
+ *
+ * Neither has bitten: every shift recorded so far carries a non-zero
+ * vlts_net, so the fallback has never run. It is one import of older data away
+ * from running.
+ */
+export function resolveVltNet(shift: {
+  vlts_net?: number | string | null;
+  vlts_cash_in?: number | string | null;
+  vlts_cash_out?: number | string | null;
+}): number {
+  if (shift.vlts_net !== null && shift.vlts_net !== undefined && shift.vlts_net !== '') {
+    return roundCurrency(safeNum(shift.vlts_net));
+  }
+  return roundCurrency(safeNum(shift.vlts_cash_in) + safeNum(shift.vlts_cash_out));
+}
+
 export function calculateExpectedCash(input: ExpectedCashInput): number {
   const arithmoNet = safeNum(input.opap_gross_sales) 
     - safeNum(input.opap_payouts) 
