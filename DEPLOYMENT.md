@@ -65,6 +65,16 @@ UPDATE organizations
  WHERE id = 'org_opap_demo';
 ```
 
+Or just edit them at Διαχείριση → Ρυθμίσεις Οργανισμού, which writes the same
+row.
+
+**Until 2026-10-15 this had no effect on anything you could see.** The app
+fetched the organisation row only when its id was *not* `org_opap_demo`, so for
+the one organisation that exists it never read the row at all and displayed a
+hardcoded copy instead. The copy happened to carry the same name and ΑΦΜ, so
+nothing looked wrong — but this UPDATE would have changed the database and
+nothing else. Fixed; the row is now read for every tenant.
+
 ---
 
 ## 2. Environment variables on Vercel
@@ -152,6 +162,22 @@ cover Supabase's auth emails, which are a separate pipe.
 email address can create an account, which gives them a brand-new organisation
 of their own — correct for a platform, worth knowing if you expected sign-up to
 be invitation-only.
+
+### The second person to register gets a broken account — run migration 0029
+
+`organizations.vat_number` is `NOT NULL UNIQUE`, and nobody types an ΑΦΜ during
+sign-up, so every new tenant's organisation is created with `''`. The first
+registration takes the empty string; every one after it is rejected with 23505.
+The client treated that code as «the organisation already existed» and carried
+on without one, so the user row then failed on its foreign key.
+
+Measured against this project, not inferred: two organisations inserted with a
+blank ΑΦΜ, the second rejected on `organizations_vat_number_key`.
+
+`supabase/migrations/0029_blank_vat_does_not_block_signup.sql` makes the
+uniqueness partial — it still stops two agencies sharing a real ΑΦΜ, and
+ignores blanks. **Run it before anyone else registers.** The verification query
+is at the bottom of the file.
 
 ---
 
