@@ -359,6 +359,27 @@ async function main() {
           own.length === 1,
           `${own.length} row(s) for a single user id` + (own.length ? ` — "${own[0].employee_name}"` : ''));
       }
+
+      // 30: one shift, one charge - the invariant the rollup above rests on.
+      // monthly_discrepancy_summary LEFT JOINs employee_charges before it
+      // aggregates, so a shift carrying two charge rows would be counted
+      // twice and that employee's discrepancy_total, shortage_total and
+      // shift_count would all double. Only the UNIQUE on shift_id stops it.
+      // Attempted as the service role on purpose: this is a data constraint,
+      // not a policy, and nothing should be able to get around it.
+      {
+        const { error: dupErr } = await admin.from('employee_charges').insert({
+          organization_id: orgA,
+          store_id: shortShift.store_id,
+          shift_id: shortShift.id,
+          employee_user_id: u4.user.id,
+          employee_name: 'Test Four',
+          amount: 1.0,
+        });
+        record('30: a shift cannot carry a second charge, so the rollup cannot double',
+          dupErr?.code === '23505',
+          dupErr ? `rejected (${dupErr.code})` : 'INSERTED - the rollup will now double this shift');
+      }
     } else {
       record('17-21: 0023 fixture setup failed', false);
     }
