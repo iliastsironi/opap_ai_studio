@@ -91,6 +91,7 @@ Recorded so they are not re-raised:
 | # | Title | Severity | Status |
 | --- | --- | --- | --- |
 | [006](006-commissions-and-profitability.md) | Commission entry, profitability, and a period-aware Reports overview | HIGH | **DONE** |
+| [007](007-payroll-suppliers-and-staff-accounts.md) | Payroll till debts, a real supplier registry, and accounts for staff without email | HIGH | **DONE** |
 
 006 is tracked in `UAT.md` as round 2. It carries the four decisions that were
 settled before any code moved, and its boundaries exist because the August

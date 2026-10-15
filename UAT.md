@@ -339,3 +339,53 @@ merged on screen; `Hausbranft` differs by a letter and needed the data fixed.
 
 To reverse: the rows are identifiable by `notes = 'Εισαγωγή P&L_0826'` and the
 store/category split above.
+
+---
+
+## Round 2, second batch
+
+Planned in `plans/007-payroll-suppliers-and-staff-accounts.md`.
+
+| # | Item | Status |
+|---|---|---|
+| R2.6 | What each employee owes from till shortages, on their payroll row | **DONE** `3f642b3` |
+| R2.7 | Suppliers synced with the expenses | **DONE** `d1c98a4` |
+| R2.8 | Staff accounts with a username and password, no email | **DONE** `24956b9` |
+
+### Decisions
+
+| Question | Decision |
+|---|---|
+| Till debt — deduct from «Χέρι» or display? | **Display.** Deducting from wages is legally constrained; the Owner decides. Pinned by `payroll_till_debt.test.ts`. |
+| How does a payroll row find its account? | **An explicit dropdown.** Never matched on name — the live data has both «Γιώργος Χριστοδούλου» and «ΧΡΙΣΤΟΔΟΥΛΟΥ ΓΕΩΡΓΙΟΣ». |
+| Free-text suppliers? | **Pick from the list, new ones join the registry** when typed. |
+| Should the vendor issue credentials? | **No.** The Owner does. See below. |
+
+### Most of the payroll ask already existed
+`payroll_records` and the row editor have carried Μισθός, Αυξ. Μισθού,
+Υπερωρίες, Δώρο Χρ., Επ. Αδείας, Αποζ. Αδείας, Bonus, Ποσό σε Τράπεζα and
+Προκαταβολή — per store, per month — since the P&L was built, with «Χέρι»
+computed as σύνολο − τράπεζα − προκαταβολή. Only the till debt was new.
+
+### Why the vendor does not issue credentials
+The platform will be sold to agencies. Routing staff passwords through whoever
+sells it would mean the vendor had possessed the credentials of the very people
+this app charges for till shortages, which weakens every audit entry and every
+charge it raises. The Owner issues them instead; the app shows each password
+once and stores it nowhere.
+
+Staff have no mailbox, so a username is mapped to
+`<username>@staff.shiftledger.local` — a login handle, never a mailbox. That
+makes usernames unique across the whole platform: a second agency wanting the
+same one is told it is taken. Revisit if that becomes awkward.
+
+### Found while verifying
+`server.ts` never loaded `dotenv`, so **every API route needing the service
+role has failed in local development since the server existed** — invites, the
+copilot, the shift-summary email. Vercel supplies the variables from project
+settings, so production worked and local silently did not. `wrapHandler` also
+swallowed the error without logging it. Both fixed in `823df22`.
+
+### Not verified
+Signing in as a staff account and hitting the forced password-change screen.
+Typing someone's password to authenticate is the Owner's to do, not Claude's.
