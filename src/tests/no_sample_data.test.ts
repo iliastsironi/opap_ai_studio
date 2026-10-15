@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeDynamicFinancials } from '../services/kpiEngine.ts';
 import { Shift } from '../types/index.ts';
 import { VltReconciliationRecord } from '../data/pnlData.ts';
+import { readFileSync } from 'node:fs';
 
 // The KPI engine used to fall back to invented rows whenever the real data was
 // empty - EMPLOYEE_KPIS_SAMPLE, SHIFT_KPIS_SAMPLE, VLT_RECONCILIATIONS_SAMPLE.
@@ -126,5 +127,44 @@ describe('computeDynamicFinancials never invents data', () => {
     expect(result.employeeKpis.map((e) => e.employeeName).sort()).toEqual(['Γιώργος Τυλιγάδας', 'Περικλής Βέττας']);
     expect(result.employeeKpis.every((e) => e.totalShifts === 1)).toBe(true);
     expect(result.totals.totalDiscrepancy).toBe(0.57);
+  });
+});
+
+describe('the store list is never invented', () => {
+  // storeService used to export INITIAL_DEMO_STORES - three shops with
+  // invented addresses and phone numbers - and fall back to it whenever the
+  // stores query came back empty. None of those three ids is in the database,
+  // and the shift-opening modal offered them to the operator as real shops,
+  // defaulting to one of them in the submit path itself.
+  //
+  // The live organisation is org_opap_demo and keeps that id for good, so the
+  // seeder's `orgId === 'org_opap_demo'` guard pointed at the real tenant
+  // rather than away from it.
+  //
+  // Comment lines are stripped before matching: the removal is explained in
+  // comments that necessarily name what was removed.
+  const codeOf = (path: string) => {
+    const src = readFileSync(path, 'utf8');
+    return src
+      .split('\n')
+      .filter((l) => {
+        const t = l.trim();
+        return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+      })
+      .join('\n');
+  };
+
+  it('ships no fabricated store in storeService', () => {
+    const code = codeOf('src/services/storeService.ts');
+    expect(code).not.toContain('INITIAL_DEMO_STORES');
+    expect(code).not.toContain('seedInitialStoresIfEmpty');
+    expect(code).not.toContain('Κηφισίας');
+    expect(code).not.toContain('Γλυφάδα');
+  });
+
+  it('does not name a nonexistent store in the shift-opening path', () => {
+    // Opening a shift is the one flow where an invented store id reaches the
+    // database, against a foreign key that will refuse it.
+    expect(codeOf('src/components/shifts/ShiftOpeningModal.tsx')).not.toContain('store_opap_01');
   });
 });

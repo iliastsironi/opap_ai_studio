@@ -80,7 +80,6 @@ import {
   subscribeToShifts,
   deleteShiftFromFirestore,
 } from '../../services/shiftService.ts';
-import { INITIAL_DEMO_STORES } from '../../services/storeService.ts';
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, assignedStores } = useAuth();
@@ -116,14 +115,9 @@ export const ShiftsManager: React.FC = () => {
           code: s.code,
         }));
 
-  const effectiveStores =
-    availableStores.length > 0
-      ? availableStores
-      : INITIAL_DEMO_STORES.map((s) => ({
-          id: s.id,
-          name: s.name,
-          code: s.code,
-        }));
+  // Was falling back to three invented stores when the list was empty. An
+  // empty list is the truth; the screen handles it.
+  const effectiveStores = availableStores;
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);

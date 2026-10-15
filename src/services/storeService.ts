@@ -3,81 +3,27 @@ import { Store, Department } from '../types/index.ts';
 
 const STORES_TABLE = 'stores';
 
-export const INITIAL_DEMO_STORES: Store[] = [
-  {
-    id: 'store_opap_01',
-    organization_id: 'org_opap_demo',
-    code: 'STR-01',
-    name: 'OPAP Agency - Κηφισίας',
-    store_type: 'OPAP_AGENCY',
-    address: 'Λεωφ. Κηφισίας 100, Αθήνα',
-    phone: '+30 210 1234567',
-    operating_hours: '08:00 - 23:30',
-    pos_count: 3,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'store_play_02',
-    organization_id: 'org_opap_demo',
-    code: 'PLAY-02',
-    name: 'PLAY Store - Γλυφάδα',
-    store_type: 'PLAY_STORE',
-    address: 'Λεωφ. Ποσειδώνος 45, Γλυφάδα',
-    phone: '+30 210 8945612',
-    operating_hours: '10:00 - 02:00',
-    pos_count: 5,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'store_opap_03',
-    organization_id: 'org_opap_demo',
-    code: 'STR-03',
-    name: 'OPAP Agency - Περιστέρι',
-    store_type: 'OPAP_AGENCY',
-    address: 'Παναγή Τσαλδάρη 12, Περιστέρι',
-    phone: '+30 210 5712345',
-    operating_hours: '08:30 - 23:30',
-    pos_count: 2,
-    is_active: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-export async function seedInitialStoresIfEmpty(orgId: string): Promise<void> {
-  if (orgId !== 'org_opap_demo') return;
-  try {
-    const { count } = await supabase.from(STORES_TABLE).select('id', { count: 'exact', head: true }).eq('organization_id', orgId);
-    if (!count) {
-      // Plain insert, not upsert: PostgREST's ON CONFLICT resolution needs
-      // the SELECT RLS policy to see the existing row, which can lag right
-      // after signup (see the matching note in AuthContext.tsx's org-row
-      // bootstrap). A 23505 here just means another concurrent caller
-      // (TenantContext's effect firing more than once) already seeded it.
-      const { error } = await supabase.from(STORES_TABLE).insert(INITIAL_DEMO_STORES);
-      if (error && error.code !== '23505') throw error;
-    }
-  } catch (err) {
-    console.error('Error seeding initial stores:', err);
-  }
-}
+// There was an INITIAL_DEMO_STORES list here - «OPAP Agency - Κηφισίας»,
+// «PLAY Store - Γλυφάδα», «OPAP Agency - Περιστέρι», with invented addresses
+// and phone numbers - plus a seedInitialStoresIfEmpty() that inserted them.
+//
+// Neither is safe any more. The live organisation IS org_opap_demo; the id
+// stays for good because every row references it (see DEPLOYMENT.md), so the
+// seeder's `orgId === 'org_opap_demo'` guard now points at the real tenant
+// rather than away from it. None of those three ids exists in the database,
+// and the fallback handed them to the store picker in the shift-opening
+// modal, which offered the operator three shops that are not there.
+//
+// An empty list is the truth when there are no stores to show.
 
 export async function fetchStoresFromFirestore(orgId: string): Promise<Store[]> {
   try {
-    if (orgId === 'org_opap_demo') {
-      await seedInitialStoresIfEmpty(orgId);
-    }
     const { data, error } = await supabase.from(STORES_TABLE).select('*').eq('organization_id', orgId);
     if (error) throw error;
-    if (data && data.length > 0) return data as Store[];
-    return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
+    return (data ?? []) as Store[];
   } catch (error) {
     await handleSupabaseError(error, OperationType.LIST, STORES_TABLE).catch(() => {});
-    return orgId === 'org_opap_demo' ? INITIAL_DEMO_STORES : [];
+    return [];
   }
 }
 
