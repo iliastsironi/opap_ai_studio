@@ -1,3 +1,9 @@
+// Must come before anything that reads process.env. The API handlers below
+// need SUPABASE_SERVICE_ROLE_KEY, and without this the dev server starts
+// happily and then fails every one of them with "are not set" - the three
+// routes have never worked locally, because on Vercel the variables come from
+// the project settings instead and nothing ever pointed at the gap.
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
@@ -29,6 +35,14 @@ async function startServer() {
         res.status(result.status).json(result.body);
       } catch (error: any) {
         const status = error instanceof HttpError ? error.status : 500;
+        // An unexpected failure used to leave nothing behind but a 500 in the
+        // browser's network tab: the server printed nothing, so diagnosing one
+        // meant reproducing it through the UI to read the response body. A
+        // deliberate HttpError is the handler answering the caller and is not
+        // worth logging; anything else is a bug and should say so here.
+        if (!(error instanceof HttpError)) {
+          console.error(`[api] ${req.method} ${req.path} failed:`, error);
+        }
         res.status(status).json({ error: error.message || 'Internal error' });
       }
     };
