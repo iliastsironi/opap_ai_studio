@@ -193,7 +193,7 @@ Run after any migration, and before any release that touches access:
 ```bash
 node supabase/scripts/test-rls.mjs     # 34 cases, real sessions, self-cleaning
 node supabase/scripts/verify-schema.mjs # every table reachable through PostgREST
-npx vitest run                          # 182 unit tests
+npx vitest run                          # 184 unit tests
 npx tsc --noEmit && npx vite build
 ```
 
