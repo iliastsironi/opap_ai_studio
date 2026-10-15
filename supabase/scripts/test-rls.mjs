@@ -469,7 +469,68 @@ async function main() {
     }
   }
 
+  // --- 31-33: the customer credit book -------------------------------------
+  // «Τεφτέρι πελατών» is on the landing page as a headline feature, and the
+  // database holds 0 customers and 0 transactions: it has never been used. So
+  // the trigger that maintains every balance has never actually run. The first
+  // time it does there will be a customer at the counter.
+  //
+  // current_debt is trigger-maintained - no client code writes it - which is
+  // the right design and also means a wrong trigger would be invisible until
+  // someone disputed their tab.
+  {
+    const storeId = `test_store_cred_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'CRED', name: 'Test Store Credit', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const { data: cust } = await admin.from('customers').insert({
+      organization_id: orgA, store_id: storeId, name: 'Δοκιμαστικός Πελάτης', tier: 'B',
+    }).select().maybeSingle();
+
+    const tx = (type, amount) => admin.from('customer_credit_transactions').insert({
+      organization_id: orgA, store_id: storeId, shift_id: null, customer_id: cust.id,
+      customer_name_snapshot: 'Δοκιμαστικός Πελάτης', customer_tier_snapshot: 'B',
+      type, amount, created_by_user_id: u4.user.id,
+    });
+    const debtNow = async () => {
+      const { data } = await admin.from('customers')
+        .select('current_debt, total_granted, total_collected').eq('id', cust.id).maybeSingle();
+      return data;
+    };
+
+    if (cust) {
+      await tx('GRANTED', 40);
+      await tx('GRANTED', 20);
+      let row = await debtNow();
+      record('31: granting credit raises the balance',
+        Number(row.current_debt) === 60 && Number(row.total_granted) === 60,
+        `debt ${row.current_debt}, granted ${row.total_granted}`);
+
+      await tx('COLLECTED', 25);
+      row = await debtNow();
+      record('32: collecting lowers it, and is counted separately',
+        Number(row.current_debt) === 35 && Number(row.total_collected) === 25,
+        `debt ${row.current_debt}, collected ${row.total_collected}`);
+
+      // Paying more than you owe must not leave the shop owing the customer.
+      // GREATEST(0, ...) in the trigger is what stops it - and it means the
+      // balance deliberately stops matching the sum of the transactions, so
+      // any future reconciliation report has to reconcile to this, not to the
+      // transaction log.
+      await tx('COLLECTED', 100);
+      row = await debtNow();
+      record('33: over-paying floors the balance at zero rather than going negative',
+        Number(row.current_debt) === 0 && Number(row.total_collected) === 125,
+        `debt ${row.current_debt}, collected ${row.total_collected}`);
+    } else {
+      record('31-33: customer credit fixture setup failed', false);
+    }
+  }
+
   // --- Cleanup (service role) ---
+  await admin.from('customer_credit_transactions').delete().eq('organization_id', orgA);
+  await admin.from('customers').delete().eq('organization_id', orgA);
   await admin.from('employee_charges').delete().eq('organization_id', orgA);
   await admin.from('notifications').delete().eq('organization_id', orgA);
   await admin.from('shift_expenses').delete().eq('organization_id', orgA);
@@ -479,6 +540,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_0022_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_0023_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_scr_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_cred_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
