@@ -15,7 +15,7 @@ interface AuthContextType {
   isLoading: boolean;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
@@ -243,22 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Could not create organization row:', orgInsertErr.message);
         }
 
-        // Read back what is actually stored rather than trusting the object we
-        // tried to insert. A 23505 here means a row already existed - either
-        // this organisation, or, before migration 0029, somebody else's blank
-        // ΑΦΜ, since vat_number was UNIQUE and every new tenant starts blank.
-        // Reporting the inserted object in that case would have shown the new
-        // owner an organisation that was never saved.
-        const { data: storedOrg } = await supabase
-          .from('organizations').select('*').eq('id', newOrgId).maybeSingle();
-        activeOrg = (storedOrg as Organization) ?? null;
-        if (!activeOrg) {
-          console.error(
-            `Organisation ${newOrgId} could not be created or read` +
-              (orgInsertErr ? ` (${orgInsertErr.code}: ${orgInsertErr.message})` : '')
-          );
-        }
-
         const { error: userInsertErr } = await supabase.from('users').insert({
           id: defaultUserObj.id,
           email: defaultUserObj.email,
@@ -271,6 +255,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updated_at: defaultUserObj.updated_at,
         });
         if (userInsertErr) console.warn('Could not create user profile row:', userInsertErr.message);
+
+        // Read back what is actually stored rather than trusting the object we
+        // tried to insert, since a 23505 on the insert means a row was already
+        // there and may differ from what we sent.
+        //
+        // This has to come after the users insert, not before it. The SELECT
+        // policy on organizations is belongs_to_org(id), which resolves through
+        // auth_org_id() - and that reads the caller's own users row. Run it
+        // first and a brand-new owner cannot see the organisation they just
+        // created, so activeOrg came back null and they were shown
+        // «Δεν φορτώθηκαν τα στοιχεία του πρακτορείου» on their very first
+        // sign-in.
+        const { data: storedOrg } = await supabase
+          .from('organizations').select('*').eq('id', newOrgId).maybeSingle();
+        activeOrg = (storedOrg as Organization) ?? seedOrg;
+        if (!storedOrg) {
+          console.warn(
+            `Organisation ${newOrgId} could not be read back` +
+              (orgInsertErr ? ` (${orgInsertErr.code}: ${orgInsertErr.message})` : '')
+          );
+        }
       }
 
       setRoles([activeRole]);
@@ -323,12 +328,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUpWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { first_name: firstName, last_name: lastName } },
     });
     if (error) throw new Error(error.message || 'Αποτυχία εγγραφής χρήστη');
+
+    // This project requires email confirmation (mailer_autoconfirm is false),
+    // so signUp returns a user but no session: nothing signs in, no auth state
+    // changes, and the app has nothing to react to. The caller has to say so,
+    // or the person presses «Εγγραφή» and watches nothing happen.
+    //
+    // Supabase also returns success for an address that is already registered,
+    // deliberately, so that signing up cannot be used to discover who has an
+    // account. Telling both cases to go and check their email is therefore the
+    // honest answer as well as the private one.
+    return { needsEmailConfirmation: !data.session };
   };
 
   const logout = async () => {

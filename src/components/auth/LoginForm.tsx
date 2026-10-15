@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft, MailCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { isStaffHandle, toAuthEmail } from '../../lib/staffIdentity.ts';
 import { supabase } from '../../services/supabase.ts';
@@ -14,6 +14,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
   const { loginWithEmail, loginWithGoogle, signUpWithEmail } = useAuth();
   const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
+  const [confirmationSentTo, setConfirmationSentTo] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
@@ -79,7 +80,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
         if (!firstName || !lastName) {
           throw new Error('Παρακαλώ συμπληρώστε Όνομα και Επώνυμο');
         }
-        await signUpWithEmail(toAuthEmail(email), password, firstName, lastName);
+        const { needsEmailConfirmation } = await signUpWithEmail(
+          toAuthEmail(email), password, firstName, lastName
+        );
+        // Without this the form just stopped: confirmation is required, so no
+        // session is created and nothing on screen changes.
+        if (needsEmailConfirmation) {
+          setConfirmationSentTo(email.trim());
+          return;
+        }
       } else {
         // «giorgos» and «owner@shiftledger.gr» both work: a staff username
         // is turned into its auth handle here, so the employee never types a
@@ -118,6 +127,44 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
       setLoading(false);
     }
   };
+
+  if (confirmationSentTo) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 shadow-xl text-center">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center mx-auto">
+            <MailCheck className="w-6 h-6" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-base font-black text-white">Ελέγξτε το email σας</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Στείλαμε έναν σύνδεσμο επιβεβαίωσης στο{' '}
+              <span className="font-mono text-slate-200">{confirmationSentTo}</span>. Ανοίξτε τον
+              για να ενεργοποιήσετε τον λογαριασμό σας — μέχρι τότε δεν είναι δυνατή η σύνδεση.
+            </p>
+            <p className="text-micro text-slate-500 leading-relaxed">
+              Δεν ήρθε; Κοιτάξτε και στα ανεπιθύμητα. Αν η διεύθυνση χρησιμοποιείται ήδη, ο
+              σύνδεσμος δεν ξαναστέλνεται — δοκιμάστε απευθείας σύνδεση.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmationSentTo(null);
+              setIsSignUp(false);
+              setPassword('');
+            }}
+            className="transition w-full py-2.5 rounded-xl duration-150 ease-out active:scale-[0.99] bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm inline-flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <LogIn className="w-4 h-4" />
+            Προς τη σύνδεση
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
