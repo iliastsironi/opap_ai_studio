@@ -6,7 +6,7 @@
 Running list of open work. Split by who is blocked: figures only the Owner has,
 features waiting to be built, and debt worth paying before it bites.
 
-Last updated: 2026-09-17
+Last updated: 2026-10-15
 
 ---
 
@@ -163,6 +163,30 @@ a regression for the one real user to protect a hypothetical one. The fix is
 for components to wait for a known organisation instead of guessing, using the
 loading state the contexts already expose. That is a 20-file change and should
 be done deliberately, before a second agency is onboarded rather than after.
+
+### 3.0b A nonexistent store id is the fallback in seven more files
+
+Same shape as §3.0, same sweep, found while auditing the shift-opening path
+on 2026-10-15: `stores[0]?.id || 'store_opap_01'` appears **12 times across 7
+files** — Incidents, Expenses, Shifts, Customer Credit (both components),
+the shift template configurator and the daily aggregation service.
+
+`store_opap_01` is not in the database. It was one of three fabricated demo
+stores that `storeService` returned whenever the stores query came back
+empty; those are now gone, and so is the worst instance of this fallback —
+the shift-opening modal, which handed the id to the submit path and made its
+own «Παρακαλώ επιλέξτε κατάστημα» guard unreachable.
+
+The twelve that remain are reached only when the store list is empty, which
+for the current tenant means the window before it loads. Three of them are
+*write* paths — an incident, an expense and a customer credit all take
+`store_id` from this expression — so the failure there is a foreign-key
+error on save rather than a wrong figure. The rest are filters and
+comparisons that simply match nothing.
+
+Fix it with §3.0 rather than separately: both are the same mistake, naming a
+specific real-looking record instead of waiting for the data, and both want
+the same answer — components wait for what they need rather than guessing.
 
 ### 3.1 Receipt photos are base64 in a TEXT column — **deferred**
 
