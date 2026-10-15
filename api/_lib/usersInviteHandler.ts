@@ -5,7 +5,37 @@ import { sendUserInviteEmailToEmployee } from '../../src/lib/emailService.js';
 
 const ELEVATED_ROLES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER'];
 
+// Staff have no mailbox. Supabase Auth identifies a user by email, so a
+// username is mapped onto one here and the employee never sees or types it:
+// they sign in with «giorgos», the login form appends the rest.
+//
+// Nothing is ever sent to this domain, and it does not resolve. The UI must
+// never offer a password reset by email to an account that has one.
+export const STAFF_EMAIL_DOMAIN = 'staff.shiftledger.local';
+
+export function usernameToEmail(username: string): string {
+  return `${username.trim().toLowerCase()}@${STAFF_EMAIL_DOMAIN}`;
+}
+
+// Letters, digits, dot, dash, underscore. Greek letters are excluded on
+// purpose: the username is typed on a till keyboard, often by someone who has
+// it written on paper, and a Greek «ο» beside a Latin «o» is an unwinnable
+// support call.
+const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
+
+// Shown once to the Owner and never stored. Ambiguous characters are left out
+// for the same reason - this gets copied off a screen onto paper.
+function generateStaffPassword(): string {
+  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
 interface InviteBody {
+  /** 'USERNAME' creates a staff login with no mailbox. Anything else invites by email. */
+  mode?: unknown;
+  username?: unknown;
   email?: unknown;
   first_name?: unknown;
   last_name?: unknown;
@@ -48,8 +78,17 @@ export async function handleUsersInvite(params: {
     return { status: 403, body: { error: 'Δεν έχετε δικαίωμα πρόσκλησης χρηστών' } };
   }
 
-  const { email, first_name, last_name, phone, employee_code, role_code, store_ids } = params.body;
-  if (typeof email !== 'string' || !email.includes('@')) {
+  const { mode, username, email, first_name, last_name, phone, employee_code, role_code, store_ids } = params.body;
+  const byUsername = mode === 'USERNAME';
+
+  if (byUsername) {
+    if (typeof username !== 'string' || !USERNAME_RE.test(username.trim().toLowerCase())) {
+      return {
+        status: 400,
+        body: { error: 'Το username πρέπει να έχει 3-32 λατινικούς χαρακτήρες, αριθμούς, τελεία, παύλα ή κάτω παύλα' },
+      };
+    }
+  } else if (typeof email !== 'string' || !email.includes('@')) {
     return { status: 400, body: { error: 'Μη έγκυρο email' } };
   }
   if (typeof first_name !== 'string' || !first_name.trim() || typeof last_name !== 'string' || !last_name.trim()) {
@@ -57,21 +96,34 @@ export async function handleUsersInvite(params: {
   }
 
   const orgId = caller.organization_id;
-  const normalizedEmail = email.toLowerCase().trim();
+  const staffUsername = byUsername ? (username as string).trim().toLowerCase() : null;
+  const normalizedEmail = byUsername ? usernameToEmail(staffUsername!) : (email as string).toLowerCase().trim();
+  // Returned once in the response and shown once on the Owner's screen. Never
+  // stored in `users`, never written to audit_logs, never logged.
+  const staffPassword = byUsername ? generateStaffPassword() : null;
   const canonicalRoleCode = normalizeRoleCode(typeof role_code === 'string' ? role_code : undefined);
   const storeIds = Array.isArray(store_ids) ? store_ids.filter((s): s is string => typeof s === 'string') : [];
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email: normalizedEmail,
-    password: randomPlaceholderPassword(),
-    email_confirm: false,
+    password: staffPassword ?? randomPlaceholderPassword(),
+    // A staff address is a handle, not a mailbox - there is nothing to confirm
+    // and no confirmation could ever arrive, so the account is usable at once.
+    email_confirm: byUsername,
     user_metadata: { first_name, last_name },
   });
   if (createError) {
     // Supabase doesn't expose a single stable error code for this across
     // versions - matching on the message is the documented approach.
     if (/already.*registered|already exists/i.test(createError.message)) {
-      return { status: 409, body: { error: 'Υπάρχει ήδη λογαριασμός με αυτό το email' } };
+      return {
+        status: 409,
+        body: {
+          error: byUsername
+            ? `Το username «${staffUsername}» χρησιμοποιείται ήδη. Δοκιμάστε άλλο.`
+            : 'Υπάρχει ήδη λογαριασμός με αυτό το email',
+        },
+      };
     }
     throw createError;
   }
@@ -88,6 +140,8 @@ export async function handleUsersInvite(params: {
     organization_id: orgId,
     role_code: canonicalRoleCode,
     status: 'ACTIVE',
+    must_change_password: byUsername,
+    has_placeholder_email: byUsername,
     created_at: nowIso,
     updated_at: nowIso,
   });
@@ -109,18 +163,23 @@ export async function handleUsersInvite(params: {
     }
   }
 
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: 'invite',
-    email: normalizedEmail,
-  });
-  if (linkError) throw linkError;
-  const inviteLink = linkData.properties?.action_link ?? '';
+  // A staff account has no mailbox, so there is nothing to link to and nothing
+  // to send. Its credentials go back in the response instead, once.
+  let inviteLink = '';
+  if (!byUsername) {
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email: normalizedEmail,
+    });
+    if (linkError) throw linkError;
+    inviteLink = linkData.properties?.action_link ?? '';
+  }
 
   // Server-side send, using the account we just created - the one path
   // that actually works, unlike the old flow where the frontend tried to
   // trigger a Firebase password-reset email for a user it had no way to
   // guarantee existed yet.
-  await sendUserInviteEmailToEmployee({
+  if (!byUsername) await sendUserInviteEmailToEmployee({
     to: normalizedEmail,
     data: {
       email: normalizedEmail,
@@ -151,5 +210,16 @@ export async function handleUsersInvite(params: {
     created_at: nowIso,
   });
 
-  return { status: 201, body: { uid: authUser.id, email: normalizedEmail, resetLink: inviteLink } };
+  // The password is in this response and nowhere else: not in `users`, not in
+  // audit_logs above, not in any log line. If the Owner loses it, the account
+  // gets a new one - it cannot be read back.
+  return {
+    status: 201,
+    body: {
+      uid: authUser.id,
+      email: normalizedEmail,
+      resetLink: inviteLink,
+      ...(byUsername ? { username: staffUsername, password: staffPassword, mustChangePassword: true } : {}),
+    },
+  };
 }

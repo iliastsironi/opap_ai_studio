@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { toAuthEmail } from '../../lib/staffIdentity.ts';
 import { supabase } from '../../services/supabase.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 
@@ -47,9 +48,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
         if (!firstName || !lastName) {
           throw new Error('Παρακαλώ συμπληρώστε Όνομα και Επώνυμο');
         }
-        await signUpWithEmail(email, password, firstName, lastName);
+        await signUpWithEmail(toAuthEmail(email), password, firstName, lastName);
       } else {
-        await loginWithEmail(email, password);
+        // «giorgos» and «owner@shiftledger.gr» both work: a staff username
+        // is turned into its auth handle here, so the employee never types a
+        // domain they do not have.
+        await loginWithEmail(toAuthEmail(email), password);
       }
     } catch (err: any) {
       setError(err.message || 'Αποτυχία αυθεντικοποίησης');
@@ -186,18 +190,24 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-              Email Χρήστη
+            <label htmlFor="login-identifier" className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              {isSignUp ? 'Email Χρήστη' : 'Email ή Username'}
             </label>
             <div className="relative">
-              <Mail className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
+              <Mail aria-hidden="true" className="w-5 h-5 text-slate-500 absolute left-3.5 top-3" />
+              {/* type="text", not "email": staff sign in with a username and the
+                  browser would refuse to submit «giorgos» as an address. */}
               <input
-                type="email"
+                id="login-identifier"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 pl-11 pr-4 text-sm text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                placeholder="name@company.gr"
+                placeholder={isSignUp ? 'name@company.gr' : 'name@company.gr ή giorgos'}
               />
             </div>
           </div>

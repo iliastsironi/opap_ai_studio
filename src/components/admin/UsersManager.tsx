@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight, Users, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Role } from '../../types/index.js';
 import { fetchUsersFromFirestore, updateUserInFirestore, deleteUserInFirestore, DEMO_ROLES } from '../../services/userService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
+import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
@@ -27,6 +28,10 @@ export const UsersManager: React.FC = () => {
   const [inviteLastName, setInviteLastName] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRoleCode, setInviteRoleCode] = useState('EMPLOYEE');
+  // Staff have no mailbox: they get a username and a password shown once.
+  const [inviteMode, setInviteMode] = useState<'EMAIL' | 'USERNAME'>('EMAIL');
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [issuedCredentials, setIssuedCredentials] = useState<{ username: string; password: string; name: string } | null>(null);
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [successNotification, setSuccessNotification] = useState<string | null>(null);
@@ -147,6 +152,10 @@ export const UsersManager: React.FC = () => {
 
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (inviteMode === 'USERNAME' && !/^[a-z0-9._-]{3,32}$/.test(inviteUsername.trim().toLowerCase())) {
+      setInviteError('Το username θέλει 3-32 λατινικούς χαρακτήρες, αριθμούς, τελεία, παύλα ή κάτω παύλα.');
+      return;
+    }
     if (selectedStoreIds.length === 0) {
       setInviteError('Παρακαλώ επιλέξτε τουλάχιστον ένα κατάστημα πρόσβασης.');
       return;
@@ -166,6 +175,8 @@ export const UsersManager: React.FC = () => {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          mode: inviteMode,
+          username: inviteUsername,
           email: inviteEmail,
           first_name: inviteFirstName,
           last_name: inviteLastName,
@@ -181,19 +192,33 @@ export const UsersManager: React.FC = () => {
         throw new Error(inviteResult.error || 'Αποτυχία δημιουργίας λογαριασμού χρήστη');
       }
 
-      // The invite email is now sent server-side, inside /api/users-invite,
-      // using the account it just created - no separate client-side send.
-      setLastInviteInfo({
-        email: inviteEmail,
-        name: `${inviteFirstName} ${inviteLastName}`,
-        inviteLink: inviteResult.resetLink || '',
-      });
-
-      setSuccessNotification(`Η πρόσκληση δημιουργήθηκε επιτυχώς για τον χρήστη ${inviteFirstName} ${inviteLastName} (${inviteEmail})!`);
+      if (inviteMode === 'USERNAME') {
+        // The only time this password exists outside the server's response.
+        // It is not stored anywhere and cannot be read back, so the panel below
+        // says so and the Owner hands it over in person.
+        setIssuedCredentials({
+          username: inviteResult.username,
+          password: inviteResult.password,
+          name: `${inviteFirstName} ${inviteLastName}`,
+        });
+        setSuccessNotification(
+          `Ο λογαριασμός για τον χρήστη ${inviteFirstName} ${inviteLastName} δημιουργήθηκε. Δώστε του τα στοιχεία — δεν θα εμφανιστούν ξανά.`
+        );
+      } else {
+        // The invite email is now sent server-side, inside /api/users-invite,
+        // using the account it just created - no separate client-side send.
+        setLastInviteInfo({
+          email: inviteEmail,
+          name: `${inviteFirstName} ${inviteLastName}`,
+          inviteLink: inviteResult.resetLink || '',
+        });
+        setSuccessNotification(`Η πρόσκληση δημιουργήθηκε επιτυχώς για τον χρήστη ${inviteFirstName} ${inviteLastName} (${inviteEmail})!`);
+      }
 
       await fetchUsers();
       setShowInviteModal(false);
       setInviteEmail('');
+      setInviteUsername('');
       setInviteFirstName('');
       setInviteLastName('');
       setInvitePhone('');
@@ -220,6 +245,64 @@ export const UsersManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Last Invite Info Copy Box */}
+      {issuedCredentials && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0">
+              <KeyRound className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-black text-slate-900">
+                Στοιχεία σύνδεσης: {issuedCredentials.name}
+              </h3>
+              {/* The password is not stored anywhere and cannot be shown again -
+                  saying so here is the difference between the Owner writing it
+                  down now and raising a support call tomorrow. */}
+              <p className="text-xs text-amber-900 mt-0.5">
+                Εμφανίζονται <strong>μία μόνο φορά</strong>. Δεν αποθηκεύονται πουθενά και δεν
+                μπορούν να ξαναδειχθούν — αν χαθούν, δημιουργείται νέος κωδικός.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="bg-white rounded-xl border border-amber-200 p-3">
+              <span className="text-micro font-bold text-slate-500 uppercase tracking-wider block">Username</span>
+              <span className="font-mono text-sm font-black text-slate-900 select-all break-all">
+                {issuedCredentials.username}
+              </span>
+            </div>
+            <div className="bg-white rounded-xl border border-amber-200 p-3">
+              <span className="text-micro font-bold text-slate-500 uppercase tracking-wider block">Κωδικός</span>
+              <span className="font-mono text-sm font-black text-slate-900 select-all break-all">
+                {issuedCredentials.password}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                navigator.clipboard?.writeText(
+                  `ShiftLedger\nUsername: ${issuedCredentials.username}\nΚωδικός: ${issuedCredentials.password}`
+                )
+              }
+              className="transition px-3 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer"
+            >
+              {toGreekUpper('Αντιγραφη')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIssuedCredentials(null)}
+              className="transition px-3 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] border border-amber-300 bg-white hover:bg-amber-50 text-amber-900 font-bold text-xs cursor-pointer"
+            >
+              {toGreekUpper('Τα κατεγραψα - κλεισιμο')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {lastInviteInfo && (
         <div className="p-4 bg-indigo-50 border border-indigo-200 text-indigo-950 rounded-2xl shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
@@ -517,19 +600,71 @@ export const UsersManager: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="invite-email" className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
-                <input
-                  id="invite-email"
-                  type="email"
-                  maxLength={MAX_LABEL_LENGTH}
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="employee@company.gr"
-                  required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
-                />
+              <div className="space-y-2">
+                <span className="block text-xs font-bold text-slate-700 uppercase">Τρόπος πρόσβασης</span>
+                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1" role="group" aria-label="Τρόπος πρόσβασης">
+                  <button
+                    type="button"
+                    aria-pressed={inviteMode === 'EMAIL'}
+                    onClick={() => setInviteMode('EMAIL')}
+                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      inviteMode === 'EMAIL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Πρόσκληση με email
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={inviteMode === 'USERNAME'}
+                    onClick={() => setInviteMode('USERNAME')}
+                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                      inviteMode === 'USERNAME' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Username & κωδικός
+                  </button>
+                </div>
               </div>
+
+              {inviteMode === 'EMAIL' ? (
+                <div>
+                  <label htmlFor="invite-email" className="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+                  <input
+                    id="invite-email"
+                    type="email"
+                    maxLength={MAX_LABEL_LENGTH}
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="employee@company.gr"
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                  <p className="text-micro text-slate-500 mt-1">
+                    Στέλνεται σύνδεσμος· ο χρήστης ορίζει μόνος του τον κωδικό και κανείς άλλος δεν τον βλέπει.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="invite-username" className="block text-xs font-bold text-slate-700 uppercase mb-1">Username</label>
+                  <input
+                    id="invite-username"
+                    type="text"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    maxLength={32}
+                    value={inviteUsername}
+                    onChange={(e) => setInviteUsername(e.target.value.toLowerCase())}
+                    placeholder="giorgos"
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  />
+                  <p className="text-micro text-slate-500 mt-1">
+                    Λατινικοί χαρακτήρες, αριθμοί, τελεία, παύλα. Ο κωδικός δημιουργείται αυτόματα και
+                    εμφανίζεται <strong>μία φορά</strong> — δώστε τον στον υπάλληλο και θα τον αλλάξει
+                    στην πρώτη σύνδεση.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="invite-phone" className="block text-xs font-bold text-slate-700 uppercase mb-1">Τηλέφωνο (Προαιρετικό)</label>

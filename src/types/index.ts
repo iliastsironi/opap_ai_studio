@@ -108,6 +108,14 @@ export interface User {
   employee_code?: string;
   status: UserStatus;
   last_login_at?: string;
+  /**
+   * Set when the account was created with a password someone else generated -
+   * a staff login with no mailbox. Cleared only by the user choosing their own,
+   * which ProtectedLayout forces before anything else loads.
+   */
+  must_change_password?: boolean;
+  /** The address is a login handle at the staff domain, not a mailbox. */
+  has_placeholder_email?: boolean;
   created_at: string;
   updated_at: string;
 }

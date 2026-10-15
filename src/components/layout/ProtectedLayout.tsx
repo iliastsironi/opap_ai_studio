@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { LoginForm } from '../auth/LoginForm.tsx';
+import { ForcePasswordChange } from '../auth/ForcePasswordChange.tsx';
 import { LandingPage } from '../marketing/LandingPage.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
@@ -19,7 +20,7 @@ const hasInviteLink = () =>
   typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('action') === 'accept_invite';
 
 export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) => {
-  const { token, isLoading } = useAuth();
+  const { token, isLoading, user } = useAuth();
   const { isLoadingStores } = useTenant();
   const [currentTab, setCurrentTab] = useState('shifts');
   const [authScreen, setAuthScreen] = useState<'landing' | 'signin' | 'signup'>(
@@ -58,6 +59,14 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
         onBack={hasInviteLink() ? undefined : () => setAuthScreen('landing')}
       />
     );
+  }
+
+  // Before anything else loads. A staff account starts with a password the
+  // Owner generated and could read, and this app charges employees for till
+  // shortages - so that window closes at first sign-in, not whenever someone
+  // happens to open a settings page.
+  if (user?.must_change_password) {
+    return <ForcePasswordChange />;
   }
 
   return (
