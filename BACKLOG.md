@@ -60,7 +60,10 @@ rest would fill the month's «Διαχείριση Ταμείου».
 
 ---
 
-## 2. Requested features
+## 2. Requested features — **deferred to future development**
+
+Parked on 2026-10-15 at the Owner's decision. All three need file storage,
+which does not exist yet; 2.1 and 2.3 cannot start without it.
 
 ### 2.1 Photo / scan of the Απόλλων report — *1–2 days*
 So the Owner can verify a shift's report remotely instead of visiting.
@@ -137,7 +140,14 @@ Still open, both low-stakes:
 
 ## 3. Known debt
 
-### 3.1 Receipt photos are base64 in a TEXT column
+### 3.1 Receipt photos are base64 in a TEXT column — **deferred**
+
+**Not currently biting, and that is the point.** As of 2026-10-15 there are
+zero receipts stored: no Storage bucket exists and `receipt_url` is empty on
+all 96 expenses. So the cost of fixing it today is zero rows migrated. Every
+receipt uploaded from here makes it a real data migration instead. Parked at
+the Owner's decision, with that trade recorded rather than forgotten.
+
 `ShiftClosingWizard.handleFileUpload` stores a data URL in
 `shift_expenses.receipt_url`. A phone photo is 2–5 MB and base64 adds ~33 %;
 `fetchExpenses` selects `*`, so every expense list would pull every photo in
