@@ -182,6 +182,34 @@ describe('computeMonthlyPnl reproduces the August 2026 workbook', () => {
     expect(pnl.storesTotal.revenue - totalCosts(pnl)).toBeCloseTo(pnl.netResult, 2);
   });
 
+  it('reconciles each unit, which is what the store-scoped cards show', () => {
+    // Αναφορές → Επισκόπηση scoped to one store sums that store's units and
+    // puts Τζίρος, Κόστος and Αποτέλεσμα on three cards side by side, with
+    // «Δείκτης Κερδοφορίας» = Αποτέλεσμα / Τζίρος beside them. If result is
+    // not exactly revenue minus those three costs, the cards contradict each
+    // other on screen and the percentage belongs to neither.
+    for (const u of pnl.units) {
+      expect(u.result).toBeCloseTo(u.revenue - u.dailyExpenses - u.fixedCosts - u.payroll, 2);
+    }
+
+    // 101499 is the case worth naming: picking that store sums its Κατάστημα
+    // and its F&B, because dropping the F&B would understate it by 3.511,59.
+    const u101499 = pnl.units.filter((u) => u.storeId === 'store_101499');
+    expect(u101499).toHaveLength(2);
+    const revenue = u101499.reduce((a, u) => a + u.revenue, 0);
+    const costs = u101499.reduce((a, u) => a + u.dailyExpenses + u.fixedCosts + u.payroll, 0);
+    const result = u101499.reduce((a, u) => a + u.result, 0);
+    expect(revenue - costs).toBeCloseTo(result, 2);
+    // 1.573,29 is also, exactly, the bottom line the workbook printed - because
+    // those two rows were the only ones it had linked to a sheet. Pinning the
+    // figure here keeps the record of what the Excel was actually adding up.
+    expect(result).toBeCloseTo(1573.29, 2);
+    // And a store carries none of the company costs or loans, which belong to
+    // no single store - so its margin is positive here while the group's is not.
+    expect(result / revenue).toBeGreaterThan(0);
+    expect(pnl.netResult).toBeLessThan(0);
+  });
+
   it('builds the day × supplier grid like the store sheet', () => {
     const grid = sheet('store_101499').dailyExpenses;
     expect(grid.columns).toEqual(['Ostria', 'Αρώματα']);
