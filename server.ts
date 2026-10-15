@@ -8,7 +8,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { handleCopilotChat } from './api/_lib/copilotChatHandler.js';
-import { handleUsersInvite } from './api/_lib/usersInviteHandler.js';
+import { handleUsersInvite, handleStaffPasswordReset } from './api/_lib/usersInviteHandler.js';
 import { handleNotifyShiftSummary } from './api/_lib/shiftSummaryEmailHandler.js';
 import { HttpError } from './api/_lib/verifyRequestAuth.js';
 
@@ -48,6 +48,7 @@ async function startServer() {
     };
   app.post('/api/copilot-chat', wrapHandler(handleCopilotChat));
   app.post('/api/users-invite', wrapHandler(handleUsersInvite));
+  app.post('/api/staff-password-reset', wrapHandler(handleStaffPasswordReset));
   app.post('/api/notify-shift-summary', wrapHandler(handleNotifyShiftSummary));
 
   // Vite Middleware for Dev / Static serving for Prod

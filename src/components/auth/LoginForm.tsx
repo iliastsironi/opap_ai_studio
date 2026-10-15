@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { toAuthEmail } from '../../lib/staffIdentity.ts';
+import { isStaffHandle, toAuthEmail } from '../../lib/staffIdentity.ts';
 import { supabase } from '../../services/supabase.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 
@@ -385,6 +385,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                     e.preventDefault();
                     if (!resetEmail) return;
                     setResetError(null);
+                    // A staff handle has no mailbox behind it. Sending here
+                    // would succeed, deliver nothing, and leave the employee
+                    // waiting for an email that cannot arrive - worse than
+                    // being told plainly who can help.
+                    if (!resetEmail.includes('@') || isStaffHandle(toAuthEmail(resetEmail))) {
+                      setResetError(
+                        'Ο λογαριασμός σας δεν έχει email, οπότε δεν μπορεί να σταλεί επαναφορά. ' +
+                          'Ζητήστε από τον υπεύθυνο να σας δώσει καινούργιο κωδικό.'
+                      );
+                      return;
+                    }
                     setResettingPassword(true);
                     try {
                       await supabase.auth.resetPasswordForEmail(resetEmail);

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Store as StoreIcon, User as UserIcon, LogOut, Menu, PanelLeft, ChevronDown, Check, Shield } from 'lucide-react';
+import { Store as StoreIcon, User as UserIcon, LogOut, Menu, PanelLeft, ChevronDown, Check, Shield, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal.tsx';
 
 interface TopbarProps {
   sidebarOpen?: boolean;
@@ -10,6 +11,7 @@ interface TopbarProps {
 
 export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) => {
   const { user, logout, roles } = useAuth();
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const { stores, activeStoreId, setActiveStoreId } = useTenant();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -113,6 +115,20 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
                 </div>
               </div>
 
+              {/* The only way a staff account can ever change its password:
+                  with no mailbox there is no reset email, so without this entry
+                  the one the Owner issued is the one they keep forever. */}
+              <button
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  setShowChangePassword(true);
+                }}
+                className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center space-x-2 transition-colors cursor-pointer mt-1"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                <span>Αλλαγή κωδικού</span>
+              </button>
+
               <button
                 onClick={() => {
                   setUserMenuOpen(false);
@@ -127,6 +143,8 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
           )}
         </div>
       </div>
+
+      <ChangePasswordModal isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
     </header>
   );
 };

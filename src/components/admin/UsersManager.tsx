@@ -32,6 +32,8 @@ export const UsersManager: React.FC = () => {
   const [inviteMode, setInviteMode] = useState<'EMAIL' | 'USERNAME'>('EMAIL');
   const [inviteUsername, setInviteUsername] = useState('');
   const [issuedCredentials, setIssuedCredentials] = useState<{ username: string; password: string; name: string } | null>(null);
+  const [userToReset, setUserToReset] = useState<any | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [successNotification, setSuccessNotification] = useState<string | null>(null);
@@ -107,6 +109,30 @@ export const UsersManager: React.FC = () => {
       setEditError(err.message || 'Αποτυχία ενημέρωσης χρήστη');
     } finally {
       setIsSavingUser(false);
+    }
+  };
+
+  // Replaces the password of a staff account that has lost theirs. The old one
+  // was never stored and cannot be read back, so recovery means a new one.
+  const confirmPasswordReset = async () => {
+    if (!userToReset) return;
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/staff-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ user_id: userToReset.id }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.error || 'Η επαναφορά κωδικού απέτυχε');
+      setIssuedCredentials({ username: result.username, password: result.password, name: result.name });
+      setUserToReset(null);
+      await fetchUsers();
+    } catch (err: any) {
+      setDeleteUserError(err.message);
+      setUserToReset(null);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -245,6 +271,26 @@ export const UsersManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Last Invite Info Copy Box */}
+      {userToReset && (
+        <ConfirmDialog
+          isOpen
+          tone="destructive"
+          icon={KeyRound}
+          title="Νέος κωδικός"
+          message={
+            <>
+              Ο λογαριασμός <strong>{userToReset.first_name} {userToReset.last_name}</strong> θα πάρει
+              καινούργιο κωδικό και ο παλιός θα πάψει να ισχύει αμέσως. Θα εμφανιστεί μία φορά για να
+              τον δώσετε, και ο υπάλληλος θα τον αλλάξει στην πρώτη σύνδεση.
+            </>
+          }
+          confirmLabel="Δημιουργία"
+          isLoading={isResetting}
+          onConfirm={confirmPasswordReset}
+          onCancel={() => setUserToReset(null)}
+        />
+      )}
+
       {issuedCredentials && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
           <div className="flex items-start gap-3">
@@ -504,6 +550,18 @@ export const UsersManager: React.FC = () => {
                           tone="primary"
                           onClick={() => openEditModal(u)}
                         />
+                        {/* Only for accounts with no mailbox. Everyone else has
+                            «Ξέχασα τον κωδικό» and must keep it: an Owner able
+                            to set a manager's password at will is the problem
+                            this whole design avoids. */}
+                        {u.has_placeholder_email && (
+                          <IconButton
+                            icon={KeyRound}
+                            label="Νέος κωδικός"
+                            onClick={() => setUserToReset(u)}
+                            className="border border-slate-200 bg-white"
+                          />
+                        )}
                         <IconButton
                           icon={Trash2}
                           label="Διαγραφή Εργαζομένου"

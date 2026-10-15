@@ -223,3 +223,83 @@ export async function handleUsersInvite(params: {
     },
   };
 }
+
+/**
+ * Issue a new one-time password for a staff account that has lost theirs.
+ *
+ * The only recovery path they have: with no mailbox there is no reset email,
+ * and the old password cannot be read back - it was never stored. So it is
+ * replaced, shown to the Owner once, and must_change_password is set again so
+ * the employee replaces it in turn.
+ *
+ * Refuses any account with a real email address. Those have
+ * resetPasswordForEmail and must keep it: an Owner being able to set a
+ * manager's password at will is exactly the problem this whole design avoids.
+ */
+export async function handleStaffPasswordReset(params: {
+  authHeader: string | string[] | undefined;
+  body: { user_id?: unknown };
+}): Promise<{ status: number; body: Record<string, unknown> }> {
+  const { uid: callerUid } = await verifyAuthHeader(params.authHeader);
+  const admin = getSupabaseAdmin();
+
+  const { data: caller } = await admin
+    .from('users')
+    .select('organization_id, role_code, email')
+    .eq('id', callerUid)
+    .maybeSingle();
+  if (!caller?.organization_id) {
+    return { status: 400, body: { error: 'Το προφίλ σας δεν έχει συνδεδεμένο οργανισμό' } };
+  }
+  if (!ELEVATED_ROLES.includes(normalizeRoleCode(caller.role_code))) {
+    return { status: 403, body: { error: 'Δεν έχετε δικαίωμα επαναφοράς κωδικού' } };
+  }
+
+  const userId = typeof params.body.user_id === 'string' ? params.body.user_id : '';
+  if (!userId) return { status: 400, body: { error: 'Λείπει ο χρήστης' } };
+
+  const { data: target } = await admin
+    .from('users')
+    .select('id, email, first_name, last_name, organization_id, has_placeholder_email')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!target || target.organization_id !== caller.organization_id) {
+    return { status: 404, body: { error: 'Ο χρήστης δεν βρέθηκε' } };
+  }
+  if (!target.has_placeholder_email) {
+    return {
+      status: 400,
+      body: { error: 'Ο χρήστης έχει email — η επαναφορά γίνεται από τον ίδιο με «Ξέχασα τον κωδικό».' },
+    };
+  }
+
+  const password = generateStaffPassword();
+  const { error: updateError } = await admin.auth.admin.updateUserById(userId, { password });
+  if (updateError) throw updateError;
+
+  await admin
+    .from('users')
+    .update({ must_change_password: true, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+
+  // Records that a reset happened and who did it. Deliberately not what to.
+  await admin.from('audit_logs').insert({
+    id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    organization_id: caller.organization_id,
+    user_id: callerUid,
+    user_email: caller.email ?? null,
+    action: 'STAFF_PASSWORD_RESET',
+    entity_type: 'user',
+    entity_id: userId,
+    after_state: { email: target.email, must_change_password: true },
+  });
+
+  return {
+    status: 200,
+    body: {
+      username: (target.email ?? '').split('@')[0],
+      password,
+      name: `${target.first_name} ${target.last_name}`.trim(),
+    },
+  };
+}
