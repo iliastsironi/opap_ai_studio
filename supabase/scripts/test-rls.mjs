@@ -146,6 +146,31 @@ async function main() {
   }
 
 
+  // --- the hardcoded-org fallback ---
+  // Twenty client files read `organization?.id || 'org_opap_demo'`. For a
+  // tenant whose organisation has not loaded yet, every query in that window
+  // aims at someone else's organisation. These prove the database refuses it
+  // whatever the client sends, so the fallback is a confusing failure rather
+  // than a way into another agency's books.
+  {
+    const { data: readOther } = await client4.from('shifts').select('id').eq('organization_id', orgB);
+    record('4c: naming another org on a SELECT returns nothing',
+      (readOther?.length ?? 0) === 0, `got ${readOther?.length ?? 0} rows`);
+
+    const { error: insertOther } = await client4.from('shifts').insert({
+      organization_id: orgB, store_id: 'whatever', opened_by_user_id: u4.user.id, status: 'OPEN',
+    });
+    record('4d: INSERT carrying another org id is rejected',
+      !!insertOther, insertOther ? `correctly rejected (${insertOther.code})` : 'WAS ALLOWED - BUG');
+
+    const { error: expenseOther } = await client4.from('shift_expenses').insert({
+      organization_id: orgB, store_id: 'whatever', category: 'EXPENSES_GP', amount: 1,
+      created_by_user_id: u4.user.id,
+    });
+    record('4e: an expense carrying another org id is rejected',
+      !!expenseOther, expenseOther ? `correctly rejected (${expenseOther.code})` : 'WAS ALLOWED - BUG');
+  }
+
   // --- 0022: employees see their own records, not the organisation's ---
   // Fixtures go in via the service role on purpose (setup, not the test); every
   // assertion below reads through a real employee session.

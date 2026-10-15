@@ -140,6 +140,30 @@ Still open, both low-stakes:
 
 ## 3. Known debt
 
+### 3.0 Twenty files fall back to a hardcoded organisation id
+
+`organization?.id || 'org_opap_demo'` appears **38 times across 20 files** —
+every manager component, both contexts, and several services. For the current
+single tenant the fallback never fires, because that *is* their organisation.
+For a second tenant it fires in the window before their organisation loads, and
+every query in that window names someone else's.
+
+**Contained, and proven so, not assumed.** `test-rls.mjs` cases 4c–4e send a
+forged `organization_id` through a real employee session: the SELECT returns
+nothing and both INSERTs are rejected with `42501`. The database refuses it
+whatever the client sends.
+
+So this is a confusing failure — empty screens and rejected writes for a new
+tenant — rather than a breach. It is still a landmine: it aims a default at a
+real organisation, and it is only safe because RLS is doing all the work.
+
+The fix is not to change the string. Replacing it with something inert would
+make the *current* tenant flash empty screens while their org loads, which is
+a regression for the one real user to protect a hypothetical one. The fix is
+for components to wait for a known organisation instead of guessing, using the
+loading state the contexts already expose. That is a 20-file change and should
+be done deliberately, before a second agency is onboarded rather than after.
+
 ### 3.1 Receipt photos are base64 in a TEXT column — **deferred**
 
 **Not currently biting, and that is the point.** As of 2026-10-15 there are
