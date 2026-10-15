@@ -1,9 +1,11 @@
 import React from 'react';
 import { ShieldCheck, Lock, Check } from 'lucide-react';
-import { SYSTEM_PERMISSIONS, SYSTEM_ROLES } from '../../lib/rbac.ts';
+import { ASSIGNABLE_ROLES, SYSTEM_PERMISSIONS } from '../../lib/rbac.ts';
 
 export const RolesManager: React.FC = () => {
-  const roles = SYSTEM_ROLES;
+  // The three a person can be given. PLATFORM_ADMIN exists for support
+  // access set directly in the database and is deliberately not shown.
+  const roles = ASSIGNABLE_ROLES;
   const permissions = SYSTEM_PERMISSIONS;
 
   return (

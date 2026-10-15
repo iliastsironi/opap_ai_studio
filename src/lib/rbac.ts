@@ -101,16 +101,6 @@ function expandAliases(codes: string[]): string[] {
 const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
   PLATFORM_ADMIN: ['*'],
   ORG_OWNER: ['*'],
-  AREA_MANAGER: [
-    'org.view', 'store.view', 'users.view', 'shift.create', 'shift.submit',
-    'shift.approve', 'shift.reopen', 'expense.create', 'expense.approve',
-    'cash.view', 'reports.store.view', 'audit.view',
-    'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
-    'incidents.view', 'reports.view',
-    'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
-    'roster.view', 'roster.manage',
-    'employee_charges.manage',
-  ],
   STORE_MANAGER: [
     'org.view', 'store.view', 'users.view', 'shift.create', 'shift.submit',
     'shift.approve', 'expense.create', 'expense.approve', 'cash.view',
@@ -121,30 +111,10 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'roster.view', 'roster.manage',
     'employee_charges.manage',
   ],
-  SHIFT_SUPERVISOR: [
-    'org.view', 'store.view', 'shift.create', 'shift.submit', 'expense.create', 'cash.view',
-    'shifts.view', 'expenses.view', 'suppliers.view',
-    'national_lottery.view', 'national_lottery.collect',
-    'roster.view',
-  ],
   EMPLOYEE: [
     'store.view', 'shift.create', 'shift.submit', 'expense.create',
     'shifts.view', 'expenses.view', 'suppliers.view',
     'national_lottery.view', 'national_lottery.collect',
-    'roster.view',
-  ],
-  ACCOUNTANT: [
-    'org.view', 'store.view', 'expense.create', 'cash.view',
-    'reports.organization.view', 'reports.store.view',
-    'dashboard.view', 'reports.view',
-    'national_lottery.view',
-    'roster.view',
-  ],
-  AUDITOR: [
-    'org.view', 'store.view', 'cash.view',
-    'reports.organization.view', 'reports.store.view', 'audit.view',
-    'dashboard.view', 'reports.view',
-    'national_lottery.view',
     'roster.view',
   ],
 };
@@ -156,25 +126,51 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = Object.fromEntries(
   ])
 );
 
+// Every role the system understands. PLATFORM_ADMIN is not offered in any
+// picker - see ASSIGNABLE_ROLES below - but stays defined, because
+// auth_is_elevated() and auth_is_owner() name it in 0002, 0012, 0013, 0018 and
+// 0023, and because an account set to it directly in the database is the
+// support path into a customer's organisation. Removing it would mean
+// rewriting five migrations to gain nothing.
 export const SYSTEM_ROLES: Role[] = [
   { id: 'role_platform_admin', code: 'PLATFORM_ADMIN', name: 'Διαχειριστής Πλατφόρμας', description: 'Πλήρης πρόσβαση στην πλατφόρμα ShiftLedger', is_system: true, permissions: ROLE_PERMISSIONS.PLATFORM_ADMIN, created_at: nowIso },
   { id: 'role_org_owner', code: 'ORG_OWNER', name: 'Ιδιοκτήτης Οργανισμού', description: 'Πλήρης πρόσβαση στον οργανισμό, όλα τα καταστήματα και τις αναφορές', is_system: true, permissions: ROLE_PERMISSIONS.ORG_OWNER, created_at: nowIso },
-  { id: 'role_area_manager', code: 'AREA_MANAGER', name: 'Area Manager', description: 'Διαχείριση και έγκριση ανατεθειμένων καταστημάτων', is_system: true, permissions: ROLE_PERMISSIONS.AREA_MANAGER, created_at: nowIso },
   { id: 'role_store_manager', code: 'STORE_MANAGER', name: 'Διευθυντής Καταστήματος', description: 'Διαχείριση καταστήματος, βαρδιών, εξόδων και εγκρίσεων', is_system: true, permissions: ROLE_PERMISSIONS.STORE_MANAGER, created_at: nowIso },
-  { id: 'role_shift_supervisor', code: 'SHIFT_SUPERVISOR', name: 'Υπεύθυνος Βάρδιας', description: 'Άνοιγμα, κλείσιμο και έλεγχος ταμείου βάρδιας', is_system: true, permissions: ROLE_PERMISSIONS.SHIFT_SUPERVISOR, created_at: nowIso },
   { id: 'role_employee', code: 'EMPLOYEE', name: 'Υπάλληλος', description: 'Καταχώρηση βάρδιας και καταμέτρηση ταμείου στο ανατεθειμένο κατάστημα', is_system: true, permissions: ROLE_PERMISSIONS.EMPLOYEE, created_at: nowIso },
-  { id: 'role_accountant', code: 'ACCOUNTANT', name: 'Λογιστής', description: 'Πρόσβαση σε οικονομικές αναφορές, έξοδα και εγκεκριμένα δεδομένα', is_system: true, permissions: ROLE_PERMISSIONS.ACCOUNTANT, created_at: nowIso },
-  { id: 'role_auditor', code: 'AUDITOR', name: 'Ελεγκτής (Read-Only)', description: 'Μόνο ανάγνωση αναφορών και καταγραφών ελέγχου', is_system: true, permissions: ROLE_PERMISSIONS.AUDITOR, created_at: nowIso },
 ];
+
+// What a person can actually be given, in ascending order of what they can do.
+// UAT cut the model to these three: «υπάλληλος, manager/διευθυντής και
+// ιδιοκτήτης (super admin)». Area managers, shift supervisors, accountants and
+// auditors were never used by anyone - the four of them held zero accounts -
+// and each extra row in a picker is one more way to give someone the wrong
+// access by accident.
+export const ASSIGNABLE_ROLE_CODES = ['EMPLOYEE', 'STORE_MANAGER', 'ORG_OWNER'] as const;
+
+export const ASSIGNABLE_ROLES: Role[] = ASSIGNABLE_ROLE_CODES.map(
+  (code) => SYSTEM_ROLES.find((r) => r.code === code)!
+);
 
 // Old role-code strings already sitting in written Firestore user docs (or
 // hardcoded in userService.ts's now-retired DEMO_ROLES) - map them onto the
 // canonical set above so existing users don't need a data migration.
 export const LEGACY_ROLE_CODE_ALIASES: Record<string, string> = {
   ORG_ADMIN: 'ORG_OWNER',
-  SHIFT_LEADER: 'SHIFT_SUPERVISOR',
   CASHIER: 'EMPLOYEE',
   SHIFT_OPERATOR: 'EMPLOYEE',
+  // Retired when UAT cut the model to three roles. Mapped explicitly rather
+  // than left to normalizeRoleCode's fallback, so what each one becomes is
+  // written down instead of inferred:
+  //
+  //   AREA_MANAGER   -> STORE_MANAGER, the surviving role at the same level;
+  //                     both are inside auth_is_elevated() in the database.
+  //   the rest       -> EMPLOYEE. None of them could approve a shift, and a
+  //                     demotion is the safe direction to fail in.
+  AREA_MANAGER: 'STORE_MANAGER',
+  SHIFT_SUPERVISOR: 'EMPLOYEE',
+  SHIFT_LEADER: 'EMPLOYEE',
+  ACCOUNTANT: 'EMPLOYEE',
+  AUDITOR: 'EMPLOYEE',
 };
 
 // Least-privilege default: an unset or unrecognized role_code becomes

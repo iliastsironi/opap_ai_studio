@@ -1,6 +1,6 @@
 import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
 import { User, Role } from '../types/index.ts';
-import { SYSTEM_ROLES } from '../lib/rbac.ts';
+import { ASSIGNABLE_ROLES } from '../lib/rbac.ts';
 
 const USERS_TABLE = 'users';
 
@@ -8,7 +8,7 @@ const USERS_TABLE = 'users';
 // list with role codes and permission strings that didn't match anything
 // else in the app. SYSTEM_ROLES (src/lib/rbac.ts) is now the one canonical
 // source, shared with AuthContext and RolesManager.
-export const DEMO_ROLES: Role[] = SYSTEM_ROLES;
+export const DEMO_ROLES: Role[] = ASSIGNABLE_ROLES;
 
 export async function fetchUsersFromFirestore(orgId: string): Promise<any[]> {
   try {
