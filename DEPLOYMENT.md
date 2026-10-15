@@ -191,18 +191,20 @@ plan is all that is left.
 Run after any migration, and before any release that touches access:
 
 ```bash
-node supabase/scripts/test-rls.mjs     # 22 cases, real sessions, self-cleaning
+node supabase/scripts/test-rls.mjs     # 33 cases, real sessions, self-cleaning
 node supabase/scripts/verify-schema.mjs # every table reachable through PostgREST
-npx vitest run                          # 168 unit tests
+npx vitest run                          # 182 unit tests
 npx tsc --noEmit && npx vite build
 ```
 
 `test-rls.mjs` is the one that matters most: it creates throwaway users and
 organisations, exercises every policy through their own session tokens rather
 than the service role, and deletes everything it made. It covers what an
-employee can and cannot see, that the handover still works across employees,
-that a manager can settle a charge, and that one operator is one row in the
-monthly rollup.
+employee can and cannot see, that a forged `organization_id` is refused in
+both directions, that the handover still works across employees, that a
+manager can settle a charge, that one operator is one row in the monthly
+rollup, that a deactivated account loses access, and that the scratch field
+locks hold while still letting an employee record what they sold.
 
 ### Still unverified
 Signing in as a staff account and hitting the forced password-change screen.
