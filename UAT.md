@@ -1,5 +1,9 @@
 # ShiftLedger — UAT change list
 
+> See also [BACKLOG.md](BACKLOG.md) for open work the Owner is blocked on, and
+> [DEPLOYMENT.md](DEPLOYMENT.md) for what still stands between this and
+> production.
+
 Changes requested after user-acceptance testing, with the decisions that were
 taken on each before any code moved. Companion to `BACKLOG.md`: that file holds
 open work the Owner is blocked on, this one holds work UAT asked for.

@@ -1,0 +1,149 @@
+# Going live
+
+The app already deploys to Vercel on every push to `main`, and Supabase is the
+real database — the August figures and every account live there now. So this is
+not a list of things to switch on. It is the list of what is still wrong with a
+system that is already running.
+
+Ordered by what actually blocks what. Written 2026-10-15.
+
+---
+
+## 1. Dangerous — fix before anyone else uses it
+
+### The Owner account has a known password
+
+Three accounts exist from the demo seed, all with `password123`:
+
+| Account | Role | |
+|---|---|---|
+| `owner@shiftledger.gr` | ORG_OWNER | **the account currently in daily use** |
+| `manager@shiftledger.gr` | STORE_MANAGER | |
+| `employee@shiftledger.gr` | EMPLOYEE | |
+
+Anyone who has seen a demo of this app can sign into live cash records, approve
+shifts, and read the P&L.
+
+1. Create the real Owner account with a real email and a real password.
+2. Sign in as it and confirm it reaches Αναφορές → Οικονομικό P&L.
+3. Delete the three demo accounts, or at minimum change every password.
+
+Do this before the real org details below, so there is a working way in if
+something goes wrong.
+
+### The organisation record is a demo
+
+```
+id          org_opap_demo
+trade_name  ShiftLedger OPAP Demo Store
+vat_number  EL998877665
+```
+
+That name and ΑΦΜ print on the sidebar, on shift receipts and in the Excel
+export the accountant receives. The `id` can stay — it is referenced by every
+row in the database and renaming it would be a migration for no benefit. The
+name and VAT are what people see:
+
+```sql
+UPDATE organizations
+   SET trade_name = 'ΤΟ ΠΡΑΓΜΑΤΙΚΟ ΟΝΟΜΑ',
+       legal_name = 'Η ΠΛΗΡΗΣ ΕΠΩΝΥΜΙΑ',
+       vat_number = 'EL…'
+ WHERE id = 'org_opap_demo';
+```
+
+---
+
+## 2. Environment variables on Vercel
+
+Eight. Three of them fail *silently* — the app looks fine and quietly does
+nothing, which is worse than an error.
+
+| Variable | Without it |
+|---|---|
+| `SUPABASE_URL` | invites, copilot and emails return 500 |
+| `SUPABASE_SERVICE_ROLE_KEY` | same — **never expose this to the browser** |
+| `VITE_SUPABASE_URL` | the app cannot start |
+| `VITE_SUPABASE_ANON_KEY` | the app cannot start |
+| `APP_URL` | invite links point somewhere wrong |
+| `RESEND_API_KEY` | **silent** — emails are logged, never sent |
+| `EMAIL_FROM` | **silent** — same |
+| `CRON_SECRET` | **silent** — the λαχεία reminder stops running |
+| `GEMINI_API_KEY` | AI Copilot fails |
+
+`vercel.json` already schedules `/api/lottery-cancel-reminder` at `0 6 * * *`.
+Vercel crons run in **UTC**, so that is 09:00 Athens in summer and 08:00 in
+winter — fine for a morning nudge, worth knowing before someone wonders why it
+lands an hour earlier in November.
+
+**Test one real invite after deploying.** It is the single path that can report
+success and do nothing at all.
+
+---
+
+## 3. Data that makes the figures true
+
+Neither blocks going live. Both make the numbers wrong until done, and the
+dashboard now shows a profitability percentage computed from them.
+
+### Payroll — August understates costs by €6.170,89
+€6.480,89 left the bank; €310 is recorded as salary. Every «Χέρι» reads
+negative as a result. Needs a monthly salary for 11 people and real names for
+the five «Χωρίς όνομα». Enter at Αναφορές → Οικονομικό P&L → Μισθοδοσία.
+
+### 401070 commissions
+The store reports a loss with **zero revenue** against €300.890 of VLT cash.
+Enter at Αναφορές → Καταχώρηση Προμηθειών.
+
+Until both are in, Δείκτης Κερδοφορίας is flattering the worst store.
+
+---
+
+## 4. Debt that bites at volume, not today
+
+**Receipt photos are base64 in a TEXT column.** Every photo inflates its row
+and every query that touches it. Harmless at 98 expenses; a problem at 10.000.
+The fix is Supabase Storage with the row holding a path.
+
+**Skew Protection is implemented but inert** — it needs Vercel Pro. Without it,
+someone with the app open during a deploy can load a chunk that no longer
+exists. `src/lib/deploymentAssetUrl.ts` is already wired for it; enabling the
+plan is all that is left.
+
+---
+
+## 5. Verifying it still holds
+
+Run after any migration, and before any release that touches access:
+
+```bash
+node supabase/scripts/test-rls.mjs     # 22 cases, real sessions, self-cleaning
+node supabase/scripts/verify-schema.mjs # every table reachable through PostgREST
+npx vitest run                          # 168 unit tests
+npx tsc --noEmit && npx vite build
+```
+
+`test-rls.mjs` is the one that matters most: it creates throwaway users and
+organisations, exercises every policy through their own session tokens rather
+than the service role, and deletes everything it made. It covers what an
+employee can and cannot see, that the handover still works across employees,
+that a manager can settle a charge, and that one operator is one row in the
+monthly rollup.
+
+### Still unverified
+Signing in as a staff account and hitting the forced password-change screen.
+Typing someone else's password to authenticate was deliberately left to a
+human. Create a staff account, sign in as them, and confirm «Ορίστε τον δικό
+σας κωδικό» appears before anything else loads.
+
+---
+
+## A note on migrations
+
+Several pasted SQL statements during development reported success in the
+Supabase editor without changing a row — three times, while others applied
+cleanly, and the cause was never established. Nothing was lost because every
+migration was probed afterwards rather than trusted.
+
+Keep doing that. Each migration file ends with a verification query for exactly
+this reason; run it, and believe the result rather than the editor.

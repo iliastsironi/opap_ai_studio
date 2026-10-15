@@ -1,5 +1,8 @@
 # ShiftLedger — Backlog
 
+> Going live is tracked separately in [DEPLOYMENT.md](DEPLOYMENT.md) — what is
+> still wrong with a system that is already running, ordered by what blocks what.
+
 Running list of open work. Split by who is blocked: figures only the Owner has,
 features waiting to be built, and debt worth paying before it bites.
 
