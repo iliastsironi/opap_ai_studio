@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Building2, Save, CheckCircle, Crown, Zap, Shield, Mail, Database, CreditCard, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { supabase, cleanData } from '../../services/supabase.ts';
@@ -13,6 +13,21 @@ export const OrganizationSettings: React.FC = () => {
   const [address, setAddress] = useState(organization?.address || '');
   const [phone, setPhone] = useState(organization?.phone || '');
   const [email, setEmail] = useState(organization?.email || '');
+
+  // The six fields above are seeded once, at mount. `organization` is null
+  // until the row is read, so a mount during that window left every field
+  // empty - and submitting would then have written those blanks over the real
+  // details. Re-seed when the organisation arrives, keyed on its id so this
+  // does not wipe what someone is in the middle of typing.
+  useEffect(() => {
+    if (!organization) return;
+    setLegalName(organization.legal_name || '');
+    setTradeName(organization.trade_name || '');
+    setTaxOffice(organization.tax_office || '');
+    setAddress(organization.address || '');
+    setPhone(organization.phone || '');
+    setEmail(organization.email || '');
+  }, [organization?.id]);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,10 +56,13 @@ export const OrganizationSettings: React.FC = () => {
     };
 
     try {
-      // upsert rather than update: the demo organization (org_opap_demo)
-      // has never actually been written to the table - it's a client-side
-      // fallback object - so this needs to create the row the first time a
-      // real org's settings are ever saved, not require it to already exist.
+      // upsert rather than update, so this still creates the row the first
+      // time a brand-new tenant saves its settings.
+      //
+      // The note that used to sit here said org_opap_demo was a client-side
+      // object that had never been written to the table. It is a real row and
+      // always was; what was client-side was the hardcoded copy the app
+      // displayed instead of reading it.
       const { error: upsertError } = await supabase.from('organizations').upsert(cleanData(updates));
       if (upsertError) throw upsertError;
 

@@ -23,20 +23,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEFAULT_ORG: Organization = {
-  id: 'org_opap_demo',
-  legal_name: 'ΟΠΑΠ Πρακτορείο Α.Ε.',
-  trade_name: 'ShiftLedger OPAP Demo Store',
-  vat_number: 'EL998877665',
-  tax_office: 'ΔΟΥ Αθηνών',
-  address: 'Λεωφ. Κηφισίας 100, Αθήνα',
-  phone: '+30 210 1234567',
-  email: 'contact@shiftledger.gr',
-  timezone: 'Europe/Athens',
-  currency: 'EUR',
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
+// There was a DEFAULT_ORG here: a hardcoded organisation - «ShiftLedger OPAP
+// Demo Store», ΑΦΜ EL998877665, an invented Κηφισίας address - used both as
+// the initial state and as the value whenever a real row was not read. Since
+// the live tenant's row was never read at all (see below), that hardcoded copy
+// was what the app displayed, always.
 
 // The 3 fixed demo accounts advertised on the login screen. Kept as an exact,
 // narrow lookup (not a substring match on the email) so nothing else gets an
@@ -76,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [supabaseUser, setSupabaseUser] = useState<SupabaseAuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(DEFAULT_ORG);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [roles, setRoles] = useState<Role[]>([DEFAULT_OWNER_ROLE]);
   const [permissions, setPermissions] = useState<string[]>(['*']);
   const [assignedStores, setAssignedStores] = useState<UserStoreAssignment[]>([]);
@@ -98,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated_at: new Date().toISOString(),
       };
 
-      let activeOrg = DEFAULT_ORG;
+      let activeOrg: Organization | null = null;
 
       let uData: Record<string, any> | null = null;
       try {
@@ -177,7 +168,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
         }
 
-        if (userOrgId !== 'org_opap_demo') {
+        // Read the organisation row, whatever its id.
+        //
+        // This was `if (userOrgId !== 'org_opap_demo')`, so the live tenant -
+        // whose id IS org_opap_demo and keeps it, because every row references
+        // it - never had its row read at all. The app showed a hardcoded
+        // DEFAULT_ORG instead, and changing trade_name or vat_number in the
+        // database changed nothing anyone could see: not the sidebar, not a
+        // shift receipt, not the Excel the accountant receives. The go-live
+        // step in DEPLOYMENT.md that updates those fields would have appeared
+        // to do nothing at all.
+        {
           try {
             const { data: orgData } = await supabase.from('organizations').select('*').eq('id', userOrgId).maybeSingle();
             if (orgData) {
@@ -220,25 +221,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // (any signed-in user, per 0002_rls.sql) - a 23505 conflict just
         // means another of the 3 demo accounts already created this same
         // 'org_opap_demo' row moments earlier, which is fine.
-        activeOrg = isDemoUser
-          ? { ...DEFAULT_ORG, updated_at: new Date().toISOString() }
-          : {
-              id: newOrgId,
-              legal_name: `${firstName} ${lastName}`,
-              trade_name: `Πρακτορείο ${firstName}`,
-              vat_number: '',
-              tax_office: '',
-              address: '',
-              phone: '',
-              email: authUser.email || '',
-              timezone: 'Europe/Athens',
-              currency: 'EUR',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-        const { error: orgInsertErr } = await supabase.from('organizations').insert(activeOrg);
+        // One shape for everybody. The demo branch used to seed this from a
+        // hardcoded DEFAULT_ORG; its row exists in the database like any
+        // other, so it is read back below with the rest.
+        const seedOrg: Organization = {
+          id: newOrgId,
+          legal_name: `${firstName} ${lastName}`,
+          trade_name: `Πρακτορείο ${firstName}`,
+          vat_number: '',
+          tax_office: '',
+          address: '',
+          phone: '',
+          email: authUser.email || '',
+          timezone: 'Europe/Athens',
+          currency: 'EUR',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        const { error: orgInsertErr } = await supabase.from('organizations').insert(seedOrg);
         if (orgInsertErr && orgInsertErr.code !== '23505') {
           console.warn('Could not create organization row:', orgInsertErr.message);
+        }
+
+        // Read back what is actually stored rather than trusting the object we
+        // tried to insert. A 23505 here means a row already existed - either
+        // this organisation, or, before migration 0029, somebody else's blank
+        // ΑΦΜ, since vat_number was UNIQUE and every new tenant starts blank.
+        // Reporting the inserted object in that case would have shown the new
+        // owner an organisation that was never saved.
+        const { data: storedOrg } = await supabase
+          .from('organizations').select('*').eq('id', newOrgId).maybeSingle();
+        activeOrg = (storedOrg as Organization) ?? null;
+        if (!activeOrg) {
+          console.error(
+            `Organisation ${newOrgId} could not be created or read` +
+              (orgInsertErr ? ` (${orgInsertErr.code}: ${orgInsertErr.message})` : '')
+          );
         }
 
         const { error: userInsertErr } = await supabase.from('users').insert({

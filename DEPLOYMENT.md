@@ -191,7 +191,7 @@ plan is all that is left.
 Run after any migration, and before any release that touches access:
 
 ```bash
-node supabase/scripts/test-rls.mjs     # 37 cases, real sessions, self-cleaning
+node supabase/scripts/test-rls.mjs     # 39 cases, real sessions, self-cleaning
 node supabase/scripts/verify-schema.mjs # every table, view and function present
 npx vitest run                          # 193 unit tests
 npx tsc --noEmit && npx vite build

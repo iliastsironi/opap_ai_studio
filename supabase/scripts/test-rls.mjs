@@ -469,6 +469,25 @@ async function main() {
     }
   }
 
+  // --- 34: a user can read their own organisation --------------------------
+  // The whole app now depends on this. AuthContext used to display a hardcoded
+  // organisation and never read the row; it reads it now, so if this SELECT
+  // were refused the sidebar, every shift receipt and the accountant's Excel
+  // would fall back to a generated «Πρακτορείο X» instead of the real name.
+  {
+    const { data: ownOrg, error: ownErr } = await client4
+      .from('organizations').select('id, trade_name, vat_number').eq('id', orgA).maybeSingle();
+    record('34: a signed-in user can read their own organisation row',
+      !ownErr && ownOrg?.id === orgA,
+      ownErr ? ownErr.message : ownOrg ? `read "${ownOrg.trade_name}"` : 'NO ROW - the app would show a generated name');
+
+    // And not anybody else's, which is the other half of belongs_to_org(id).
+    const { data: otherOrg } = await client4
+      .from('organizations').select('id').eq('id', orgB).maybeSingle();
+    record('35: but not another organisation\'s',
+      !otherOrg, otherOrg ? 'LEAKED' : 'not visible');
+  }
+
   // --- 31-33: the customer credit book -------------------------------------
   // «Τεφτέρι πελατών» is on the landing page as a headline feature, and the
   // database holds 0 customers and 0 transactions: it has never been used. So
