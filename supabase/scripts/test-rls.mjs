@@ -364,6 +364,44 @@ async function main() {
     }
   }
 
+  // --- 0027: deactivating a user actually removes their access ---
+  // Until 0027 this was cosmetic twice over: the client wrote a column that
+  // does not exist, and auth_org_id()/auth_role_code() never looked at status,
+  // so every policy kept treating a deactivated account as a member in good
+  // standing. The only way to cut someone off was deleting their account - in
+  // an app that charges them for till shortages and keeps an audit trail
+  // naming them.
+  {
+    const { data: beforeRows } = await client4.from('shifts').select('id');
+    const couldSeeBefore = (beforeRows?.length ?? 0) > 0;
+
+    await admin.from('users').update({ status: 'INACTIVE' }).eq('id', u4.user.id);
+    const { data: afterRows } = await client4.from('shifts').select('id');
+    const { error: writeErr } = await client4.from('shift_expenses').insert({
+      organization_id: orgA, store_id: `test_store_0022_${suffix}`, category: 'EXPENSES_GP',
+      amount: 1, created_by_user_id: u4.user.id,
+    });
+
+    record('22: a deactivated user reads nothing',
+      couldSeeBefore && (afterRows?.length ?? 0) === 0,
+      `saw ${beforeRows?.length ?? 0} rows while active, ${afterRows?.length ?? 0} after`);
+    record('23: a deactivated user cannot write',
+      !!writeErr, writeErr ? `correctly rejected (${writeErr.code})` : 'WAS ALLOWED - BUG');
+
+    // Their own profile row stays readable on purpose: users_select allows
+    // id = auth.uid() directly, and that is what lets the app explain itself
+    // instead of showing a blank page.
+    const { data: ownRow } = await client4.from('users').select('id, status').eq('id', u4.user.id);
+    record('24: a deactivated user can still read their own row, so the app can say why',
+      (ownRow?.length ?? 0) === 1 && ownRow?.[0]?.status === 'INACTIVE',
+      `${ownRow?.length ?? 0} row(s)`);
+
+    await admin.from('users').update({ status: 'ACTIVE' }).eq('id', u4.user.id);
+    const { data: restored } = await client4.from('shifts').select('id');
+    record('25: reactivating restores access',
+      (restored?.length ?? 0) > 0, `${restored?.length ?? 0} rows again`);
+  }
+
   // --- Cleanup (service role) ---
   await admin.from('employee_charges').delete().eq('organization_id', orgA);
   await admin.from('notifications').delete().eq('organization_id', orgA);
