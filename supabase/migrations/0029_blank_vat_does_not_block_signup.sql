@@ -39,3 +39,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_organizations_vat_number
 --   -- expect: ERROR, duplicate key ... ux_organizations_vat_number
 --
 --   DELETE FROM organizations WHERE id LIKE 'probe_%';
+
+-- APPLIED 2026-10-15 and verified in both directions, not from the editor's
+-- report: two organisations with a blank ΑΦΜ were both created, where the
+-- second had been rejected an hour earlier, and a duplicate of the live ΑΦΜ
+-- was refused with 23505 on ux_organizations_vat_number. Both probes removed.
