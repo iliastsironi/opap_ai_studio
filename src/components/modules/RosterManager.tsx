@@ -37,7 +37,7 @@ const emptyRows = (): ScheduleRow[] => [
 export const RosterManager: React.FC = () => {
   const { organization, hasPermission } = useAuth();
   const { stores } = useTenant();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
   const canManage = hasPermission('roster.manage');
 
   const [loading, setLoading] = useState(true);

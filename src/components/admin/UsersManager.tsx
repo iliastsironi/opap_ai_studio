@@ -168,7 +168,7 @@ export const UsersManager: React.FC = () => {
     }
   };
 
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   const fetchUsers = async () => {
     setLoading(true);

@@ -61,7 +61,7 @@ export const StoresManager: React.FC = () => {
     setLoadingDepts(true);
     setDeptsLoadError(null);
     try {
-      const orgId = organization?.id || 'org_opap_demo';
+      const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
       const data = await fetchDepartmentsForStore(st.id, orgId);
       setDepartments(data);
     } catch (err) {
@@ -140,7 +140,7 @@ export const StoresManager: React.FC = () => {
       } else {
         // Create new store
         await createStoreInFirestore({
-          organization_id: organization?.id || 'org_opap_demo',
+          organization_id: organization!.id,
           code: storeCode,
           name: storeName,
           store_type: storeType,
@@ -170,7 +170,7 @@ export const StoresManager: React.FC = () => {
     setIsSavingDept(true);
 
     try {
-      const orgId = organization?.id || 'org_opap_demo';
+      const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
       await createDepartmentInFirestore({
         organization_id: orgId,
         store_id: selectedStore.id,

@@ -50,7 +50,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const orgId = organization?.id || 'org_opap_demo';
+    const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
     setLoadingShifts(true);
     setFetchError(null);
     Promise.all([

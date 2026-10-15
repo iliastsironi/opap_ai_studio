@@ -147,7 +147,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const [showVltModal, setShowVltModal] = useState(false);
   const [newVltRec, setNewVltRec] = useState<VltFormState>({ storeId: '', date: '', opapnetAmount: 0, countedAmount: 0 });
 
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   // This month's money cards come from the P&L, so they share its Owner-only access.
   // Was frozen with useMemo(..., []) - the overview could only ever show the

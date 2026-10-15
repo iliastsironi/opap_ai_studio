@@ -35,7 +35,7 @@ const chargeMonth = (c: EmployeeCharge): string =>
 export const DiscrepancyLedger: React.FC = () => {
   const { organization, hasPermission } = useAuth();
   const { selectedStoreId } = useTenant();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   // employee_charges.manage is granted to exactly the roles auth_is_elevated()
   // covers, so the button and the database agree by naming the same permission

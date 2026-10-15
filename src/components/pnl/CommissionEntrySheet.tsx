@@ -18,7 +18,7 @@ const key = (storeId: string, entity: string) => `${storeId}::${entity}`;
 export const CommissionEntrySheet: React.FC = () => {
   const { user, organization } = useAuth();
   const { stores } = useTenant();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
   const [month, setMonth] = useState(() => currentMonthKey());
   const { data, error: loadError, reload } = useMonthlyPnl(month);
 

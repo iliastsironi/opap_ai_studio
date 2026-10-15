@@ -24,9 +24,17 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activeStoreId, setActiveStoreId] = useState<string | 'ALL'>('ALL');
   const [isLoadingStores, setIsLoadingStores] = useState<boolean>(false);
 
-  const orgId = organization?.id || 'org_opap_demo';
+  // No `|| 'org_opap_demo'` here. This provider sits outside ProtectedLayout's
+  // organisation guard, so it is the one place that genuinely has to cope with
+  // not having one - and the honest answer is to fetch nothing rather than to
+  // fetch a specific real agency's stores.
+  const orgId = organization?.id ?? null;
 
   const refreshStores = async () => {
+    if (!orgId) {
+      setStores([]);
+      return;
+    }
     setIsLoadingStores(true);
     try {
       const fsStores = await fetchStoresFromFirestore(orgId);

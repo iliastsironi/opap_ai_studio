@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
       return;
     }
     let cancelled = false;
-    getShiftTemplateConfig(organization?.id || 'org_opap_demo', activeStoreId)
+    getShiftTemplateConfig(organization!.id, activeStoreId)
       .then((config) => {
         if (!cancelled) setShowNationalLottery(config.show_national_lottery !== false);
       })

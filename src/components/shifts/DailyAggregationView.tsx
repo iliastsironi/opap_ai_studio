@@ -52,7 +52,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
   onNavigate,
 }) => {
   const { organization } = useAuth();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
   const [selectedStore, setSelectedStore] = useState<string>(currentStoreId || 'ALL');
 
   // Εθνικό Λαχείο contribution per shift - fetched once per org/store,

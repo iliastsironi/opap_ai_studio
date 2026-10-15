@@ -4,6 +4,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { LoginForm } from '../auth/LoginForm.tsx';
 import { ForcePasswordChange } from '../auth/ForcePasswordChange.tsx';
 import { AccessDisabled } from '../auth/AccessDisabled.tsx';
+import { OrganizationUnavailable } from '../auth/OrganizationUnavailable.tsx';
 import { LandingPage } from '../marketing/LandingPage.tsx';
 import { Sidebar } from './Sidebar.tsx';
 import { Topbar } from './Topbar.tsx';
@@ -21,7 +22,7 @@ const hasInviteLink = () =>
   typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('action') === 'accept_invite';
 
 export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) => {
-  const { token, isLoading, user } = useAuth();
+  const { token, isLoading, user, organization } = useAuth();
   const { isLoadingStores } = useTenant();
   const [currentTab, setCurrentTab] = useState('shifts');
   const [authScreen, setAuthScreen] = useState<'landing' | 'signin' | 'signup'>(
@@ -75,6 +76,17 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
   // happens to open a settings page.
   if (user?.must_change_password) {
     return <ForcePasswordChange />;
+  }
+
+  // After the two above, both of which are reasons an organisation legitimately
+  // cannot be read - 0027 denies a deactivated account every row, this one
+  // included - and before anything that queries.
+  //
+  // This is what lets every screen below assume an organisation instead of
+  // falling back to `organization!.id`, which aimed a
+  // default at one real agency.
+  if (!organization) {
+    return <OrganizationUnavailable />;
   }
 
   return (

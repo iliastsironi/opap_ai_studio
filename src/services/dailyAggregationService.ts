@@ -420,7 +420,10 @@ export function aggregateShiftsForDay(
   return {
     date: selectedDate,
     formattedDate: formatGreekDate(selectedDate),
-    storeId: storeId || 'store_opap_01',
+    // Was `storeId || 'store_opap_01'`. When the caller does not say which
+    // store, the honest answer is that the report does not name one - not
+    // that it belongs to a specific real agency.
+    storeId: storeId ?? '',
     storeName,
     totalShiftsCount: dayShifts.length,
     registersCount: Object.keys(registersMap).length,

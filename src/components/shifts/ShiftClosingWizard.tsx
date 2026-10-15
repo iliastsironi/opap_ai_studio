@@ -327,7 +327,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // earlier explicit toggle carried in via the catalog) has already set.
   useEffect(() => {
     let cancelled = false;
-    const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+    const orgId = shift.organization_id || organization!.id;
     getShiftTemplateConfig(orgId, shift.store_id)
       .then((config) => {
         if (cancelled) return;
@@ -773,7 +773,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const syncExpensesFromStore = async (isManual = false) => {
     setIsSyncingExpenses(true);
     try {
-      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+      const orgId = shift.organization_id || organization!.id;
       // Via the RPC, not a plain table read: 0022 hides an untied expense a
       // manager recorded from the employee closing the till, and this list
       // feeds expected_cash -> discrepancy -> their charge.
@@ -1273,7 +1273,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const handleAddExpense = async () => {
     setIsAddingExpense(true);
     try {
-      const orgId = shift.organization_id || organization?.id || 'org_opap_demo';
+      const orgId = shift.organization_id || organization!.id;
       const created = await createAndSyncShiftExpense(
         {
           organization_id: orgId,
@@ -1327,7 +1327,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       try {
         await deleteAndSyncShiftExpense({
           id: exp.id,
-          organization_id: shift.organization_id || organization?.id || 'org_opap_demo',
+          organization_id: shift.organization_id || organization!.id,
           store_id: shift.store_id,
           shift_id: shift.id,
         });
@@ -1406,7 +1406,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       // Apply customer credit debt balances to store directory
       try {
-        const creditOrgId = shift.organization_id || organization?.id || 'org_opap_demo';
+        const creditOrgId = shift.organization_id || organization!.id;
         await applyShiftCustomerCredits(customerCredits, creditOrgId, shift.store_id, shift.id, user?.id || '');
       } catch (custErr) {
         console.warn('Customer credit sync warning:', custErr);
@@ -2551,7 +2551,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <CustomerCreditSection
               customerCredits={customerCredits}
               onChangeCredits={setCustomerCredits}
-              orgId={shift.organization_id || organization?.id || 'org_opap_demo'}
+              orgId={shift.organization_id || organization!.id}
               storeId={shift.store_id}
               isOwnerOrManager={isOwnerOrManager}
             />

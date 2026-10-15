@@ -174,7 +174,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       const initialScratchInventory = carryOverScratchInventory(prevScratchItems);
 
       const fsShift = await createShiftInFirestore({
-        organization_id: organization?.id || 'org_opap_demo',
+        organization_id: organization!.id,
         store_id: targetStoreId,
         store_name: activeStore?.name || 'OPAP Agency',
         store_code: activeStore?.code || 'STR-01',

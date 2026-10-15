@@ -51,7 +51,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export const SuppliersManager: React.FC = () => {
   const { organization } = useAuth();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<'suppliers' | 'orders'>('suppliers');

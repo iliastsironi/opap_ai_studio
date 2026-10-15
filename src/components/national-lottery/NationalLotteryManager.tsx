@@ -35,7 +35,7 @@ function loadSortMode(): SortMode {
 export const NationalLotteryManager: React.FC = () => {
   const { organization, user, hasPermission } = useAuth();
   const { selectedStoreId, stores, currentStore } = useTenant();
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
   const storeId = selectedStoreId && selectedStoreId !== 'ALL' ? selectedStoreId : stores[0]?.id;
 
   const canCollect = hasPermission('national_lottery.collect');

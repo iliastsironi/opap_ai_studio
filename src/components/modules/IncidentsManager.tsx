@@ -28,7 +28,17 @@ export const IncidentsManager: React.FC = () => {
 
   // New Incident Modal
   const [showModal, setShowModal] = useState(false);
-  const [targetStoreId, setTargetStoreId] = useState(stores[0]?.id || 'store_opap_01');
+  // Seeded once, at mount, and `stores` is empty until TenantContext has
+  // fetched them - so this used to settle on 'store_opap_01', an id that is
+  // not in the database, and the insert died on a foreign key. Start empty and
+  // adopt the first real store when the list arrives.
+  const [targetStoreId, setTargetStoreId] = useState('');
+
+  useEffect(() => {
+    if (!targetStoreId && stores.length > 0) {
+      setTargetStoreId(stores[0].id);
+    }
+  }, [stores, targetStoreId]);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<'EQUIPMENT' | 'SECURITY' | 'DISCREPANCY' | 'STAFF' | 'OTHER'>('DISCREPANCY');
   const [severity, setSeverity] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
@@ -38,7 +48,7 @@ export const IncidentsManager: React.FC = () => {
   const [pageError, setPageError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   const loadIncidents = async () => {
     setLoading(true);

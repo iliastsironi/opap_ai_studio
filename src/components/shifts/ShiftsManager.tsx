@@ -165,7 +165,7 @@ export const ShiftsManager: React.FC = () => {
   const [isDeletingShift, setIsDeletingShift] = useState(false);
   const [deleteShiftError, setDeleteShiftError] = useState<string | null>(null);
 
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   // Delete draft shift handler (Owner / Manager privilege)
   const handleDeleteShift = async (shiftToDel: Shift) => {
@@ -200,7 +200,7 @@ export const ShiftsManager: React.FC = () => {
       // Find active shift for current store
       const active = fsData.find(
         (s) =>
-          s.store_id === (currentStore?.id || 'store_opap_01') &&
+          s.store_id === currentStore?.id &&
           OPEN_SHIFT_STATUSES.includes(s.status)
       );
       setActiveShift(active || null);
@@ -224,7 +224,7 @@ export const ShiftsManager: React.FC = () => {
 
       const active = updatedShifts.find(
         (s) =>
-          s.store_id === (currentStore?.id || 'store_opap_01') &&
+          s.store_id === currentStore?.id &&
           OPEN_SHIFT_STATUSES.includes(s.status)
       );
       setActiveShift(active || null);
@@ -275,10 +275,14 @@ export const ShiftsManager: React.FC = () => {
   // Every shift still open in the current view, for the header button.
   //
   // Deliberately derived from `shifts` rather than from `activeShift`:
-  // activeShift matches only `currentStore?.id || 'store_opap_01'`, so with
-  // «Όλα τα Καταστήματα» selected it silently resolves to a demo store and
-  // finds nothing. The whole point of this button is that staff never hunt
-  // for their open shift, so it must not depend on the store picker.
+  // activeShift matches on currentStore, which is null under «Όλα τα
+  // Καταστήματα», so it finds nothing there. The whole point of this button is
+  // that staff never hunt for their open shift, so it must not depend on the
+  // store picker.
+  //
+  // That match used to read `currentStore?.id || 'store_opap_01'` - naming a
+  // store that is not in the database. Same empty result, but it pointed a
+  // default at a specific real agency to get there.
   const openShifts = useMemo(
     () =>
       shifts.filter((s) =>
@@ -1265,8 +1269,8 @@ export const ShiftsManager: React.FC = () => {
       <CustomerCreditDirectoryModal
         isOpen={showCreditDirectoryModal}
         onClose={() => setShowCreditDirectoryModal(false)}
-        orgId={organization?.id || 'org_opap_demo'}
-        storeId={currentStore?.id || 'store_opap_01'}
+        orgId={organization!.id}
+        storeId={currentStore?.id}
         isOwnerOrManager={Boolean(isOwnerOrAdmin || canApprove)}
       />
 

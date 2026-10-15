@@ -168,3 +168,53 @@ describe('the store list is never invented', () => {
     expect(codeOf('src/components/shifts/ShiftOpeningModal.tsx')).not.toContain('store_opap_01');
   });
 });
+
+describe('no screen falls back to a specific real tenant', () => {
+  // `organization?.id || 'org_opap_demo'` appeared 38 times across 20 files and
+  // `stores[0]?.id || 'store_opap_01'` 12 times across 7. Both aimed a default
+  // at one real agency - and at a store id that is not in the database at all.
+  //
+  // RLS contained the organisation one (harness cases 4c-4e), so the result for
+  // a second tenant was empty screens and rejected writes rather than a breach.
+  // The store one was worse, because 'store_opap_01' does not exist: it reached
+  // foreign keys, including on the path that opens a shift.
+  //
+  // ProtectedLayout now refuses to render the app without an organisation, so
+  // screens below it can simply have one. Stores are different - an
+  // organisation may legitimately have none yet - so those paths ask, or
+  // refuse, instead of guessing.
+  const sourceFiles = (): string[] => {
+    const { readdirSync, statSync } = require('node:fs');
+    const { join } = require('node:path');
+    const walk = (dir: string): string[] =>
+      readdirSync(dir).flatMap((entry: string) => {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) return walk(full);
+        return /\.tsx?$/.test(entry) && !full.includes('/tests/') ? [full] : [];
+      });
+    return walk('src');
+  };
+
+  const offenders = (needle: string) => {
+    const { readFileSync } = require('node:fs');
+    return sourceFiles().filter((f) => {
+      const code = readFileSync(f, 'utf8')
+        .split('\n')
+        .filter((l: string) => {
+          const t = l.trim();
+          return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+        })
+        .join('\n');
+      return code.includes(needle);
+    });
+  };
+
+  it('never defaults an organisation id to the live tenant', () => {
+    expect(offenders("|| 'org_opap_demo'")).toEqual([]);
+  });
+
+  it('never defaults a store id to one that does not exist', () => {
+    expect(offenders("|| 'store_opap_01'")).toEqual([]);
+    expect(offenders("'store_opap_01'")).toEqual([]);
+  });
+});

@@ -131,6 +131,12 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
 
   const handleQuickCreateCustomer = async (index: number) => {
     if (!quickName.trim() || isCreatingCustomer) return;
+    // See the matching guard in CustomerCreditDirectoryModal: the old
+    // `storeId || 'store_opap_01'` named a store that does not exist.
+    if (!storeId) {
+      setQuickCreateError('Δεν έχει επιλεγεί κατάστημα, οπότε δεν μπορεί να καταχωρηθεί πελάτης. Επιλέξτε κατάστημα και δοκιμάστε ξανά.');
+      return;
+    }
     setIsCreatingCustomer(true);
     setQuickCreateError(null);
     try {
@@ -139,7 +145,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
         name: quickName.trim(),
         phone: quickPhone.trim(),
         tier: quickTier,
-        store_id: storeId || 'store_opap_01',
+        store_id: storeId,
       });
       await refreshCustomers();
 

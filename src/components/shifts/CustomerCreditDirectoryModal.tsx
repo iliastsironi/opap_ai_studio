@@ -181,6 +181,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || isSavingCustomer) return;
+    // storeId is an optional prop. It used to fall back to 'store_opap_01',
+    // an id that is not in the database, so the insert died on the foreign
+    // key and the person was shown whatever Postgres said about it.
+    if (!storeId) {
+      setCustomerFormError('Δεν έχει επιλεγεί κατάστημα, οπότε δεν μπορεί να καταχωρηθεί πελάτης. Επιλέξτε κατάστημα και δοκιμάστε ξανά.');
+      return;
+    }
     setIsSavingCustomer(true);
     setCustomerFormError(null);
 
@@ -194,7 +201,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
         tier: formData.tier,
         custom_limit: formData.custom_limit ? parseFloat(formData.custom_limit) : null,
         notes: formData.notes.trim(),
-        store_id: storeId || 'store_opap_01',
+        store_id: storeId,
       });
 
       // current_debt is trigger-maintained from customer_credit_transactions,
@@ -205,7 +212,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
         await adjustCustomerDebt({
           customerId: saved.id,
           organizationId: orgId,
-          storeId: storeId || 'store_opap_01',
+          storeId,
           currentDebt: priorDebt,
           desiredDebt,
           createdByUserId: user?.id || '',
@@ -269,7 +276,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
     };
 
     try {
-      await saveStoreCreditTierConfigs(orgId, storeId || 'store_opap_01', updated);
+      await saveStoreCreditTierConfigs(orgId, storeId, updated);
       setTierConfigs(updated);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), TOAST_AUTO_DISMISS_MS);

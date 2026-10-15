@@ -80,8 +80,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     custom_shift_note: 'Όλα pota & τερματικά λειτούργησαν κανονικά.',
   });
 
-  const orgId = organization?.id || 'org_opap_demo';
-  const storeId = currentStore?.id || 'store_opap_01';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
+  // No fallback: this screen reads and writes one store's shift template, and
+  // 'store_opap_01' is not a store. Without a current store there is nothing
+  // to configure, which the guard in the effect below reflects.
+  const storeId = currentStore?.id ?? null;
 
   const canEdit = hasPermission('organization.update') || hasPermission('store.update');
   // Deliberately its own permission check, not folded into canEdit above -
@@ -93,6 +96,10 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   useEffect(() => {
     async function loadConfig() {
       setLoading(true);
+      if (!storeId) {
+        setLoading(false);
+        return;
+      }
       const loaded = await getShiftTemplateConfig(orgId, storeId);
       setTemplate(loaded);
       setLoading(false);
@@ -109,6 +116,12 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   };
 
   const handleSave = async () => {
+    // store_id is NOT NULL on the table; without a store there is nothing to
+    // save this template against.
+    if (!storeId) {
+      setErrorMsg('Επιλέξτε πρώτα κατάστημα για να αποθηκεύσετε το πρότυπο βάρδιας.');
+      return;
+    }
     setSaving(true);
     setSuccessMsg(null);
     setErrorMsg(null);

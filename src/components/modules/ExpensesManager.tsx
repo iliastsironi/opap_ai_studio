@@ -40,7 +40,17 @@ export const ExpensesManager: React.FC = () => {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [targetStoreId, setTargetStoreId] = useState(stores[0]?.id || 'store_opap_01');
+  // Seeded once, at mount, and `stores` is empty until TenantContext has
+  // fetched them - so this used to settle on 'store_opap_01', an id that is
+  // not in the database, and the insert died on a foreign key. Start empty and
+  // adopt the first real store when the list arrives.
+  const [targetStoreId, setTargetStoreId] = useState('');
+
+  useEffect(() => {
+    if (!targetStoreId && stores.length > 0) {
+      setTargetStoreId(stores[0].id);
+    }
+  }, [stores, targetStoreId]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [category, setCategory] = useState('EXPENSES_GP');
   const [amount, setAmount] = useState('');
@@ -57,7 +67,7 @@ export const ExpensesManager: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const orgId = organization?.id || 'org_opap_demo';
+  const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
   const loadExpenses = async () => {
     setLoading(true);

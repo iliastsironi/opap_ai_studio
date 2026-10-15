@@ -140,53 +140,33 @@ Still open, both low-stakes:
 
 ## 3. Known debt
 
-### 3.0 Twenty files fall back to a hardcoded organisation id
+### 3.0 Hardcoded tenant fallbacks — **done 2026-10-15**
 
-`organization?.id || 'org_opap_demo'` appears **38 times across 20 files** —
-every manager component, both contexts, and several services. For the current
-single tenant the fallback never fires, because that *is* their organisation.
-For a second tenant it fires in the window before their organisation loads, and
-every query in that window names someone else's.
+`organization?.id || 'org_opap_demo'` appeared 38 times across 20 files, and
+`stores[0]?.id || 'store_opap_01'` 12 times across 7. Both named one real
+agency as the default, and `store_opap_01` is not in the database at all.
 
-**Contained, and proven so, not assumed.** `test-rls.mjs` cases 4c–4e send a
-forged `organization_id` through a real employee session: the SELECT returns
-nothing and both INSERTs are rejected with `42501`. The database refuses it
-whatever the client sends.
+RLS contained the organisation one — harness cases 4c–4e send a forged
+`organization_id` through a real employee session and the database refuses it
+— so for a second tenant the result was empty screens and rejected writes
+rather than a breach. The store one reached foreign keys, including on the
+path that opens a shift.
 
-So this is a confusing failure — empty screens and rejected writes for a new
-tenant — rather than a breach. It is still a landmine: it aims a default at a
-real organisation, and it is only safe because RLS is doing all the work.
+**The root was in the contexts, not the call sites.** `AuthContext` seeded
+`organization` with a hardcoded `DEFAULT_ORG` and never read the live tenant's
+row at all, so the fallbacks were a symptom of a fabricated organisation one
+level up. With that fixed, `ProtectedLayout` refuses to render the app without
+an organisation — one guard instead of 38 — and every screen below it simply
+has one.
 
-The fix is not to change the string. Replacing it with something inert would
-make the *current* tenant flash empty screens while their org loads, which is
-a regression for the one real user to protect a hypothetical one. The fix is
-for components to wait for a known organisation instead of guessing, using the
-loading state the contexts already expose. That is a 20-file change and should
-be done deliberately, before a second agency is onboarded rather than after.
+Stores are not the same shape: an organisation may legitimately have none yet,
+so those paths ask or refuse rather than guess. Creating a customer without a
+store now says so instead of failing on a foreign key, the Incidents and
+Expenses store pickers start empty and adopt the first real store when the
+list arrives, and the shift-template screen will not save without one.
 
-### 3.0b A nonexistent store id is the fallback in seven more files
-
-Same shape as §3.0, same sweep, found while auditing the shift-opening path
-on 2026-10-15: `stores[0]?.id || 'store_opap_01'` appears **12 times across 7
-files** — Incidents, Expenses, Shifts, Customer Credit (both components),
-the shift template configurator and the daily aggregation service.
-
-`store_opap_01` is not in the database. It was one of three fabricated demo
-stores that `storeService` returned whenever the stores query came back
-empty; those are now gone, and so is the worst instance of this fallback —
-the shift-opening modal, which handed the id to the submit path and made its
-own «Παρακαλώ επιλέξτε κατάστημα» guard unreachable.
-
-The twelve that remain are reached only when the store list is empty, which
-for the current tenant means the window before it loads. Three of them are
-*write* paths — an incident, an expense and a customer credit all take
-`store_id` from this expression — so the failure there is a foreign-key
-error on save rather than a wrong figure. The rest are filters and
-comparisons that simply match nothing.
-
-Fix it with §3.0 rather than separately: both are the same mistake, naming a
-specific real-looking record instead of waiting for the data, and both want
-the same answer — components wait for what they need rather than guessing.
+Pinned by `no_sample_data.test.ts`, which walks every source file and fails if
+either default returns.
 
 ### 3.1 Receipt photos are base64 in a TEXT column — **deferred**
 
