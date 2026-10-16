@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
+import { installEnterAdvancesFocus } from './lib/enterAdvancesFocus.ts';
 import { TenantProvider } from './context/TenantContext.tsx';
 import { ProtectedLayout } from './components/layout/ProtectedLayout.tsx';
 import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
@@ -125,6 +126,12 @@ export default function App() {
   useEffect(() => {
     clearChunkReloadFlag();
   }, []);
+
+  // Enter moves to the next field, on every screen. Counting a till is a long
+  // run of numbers and reaching for Tab between each one is the slow part.
+  // Installed once here rather than on each input, so screens written later
+  // behave the same without opting in.
+  useEffect(() => installEnterAdvancesFocus(), []);
 
   return (
     <AuthProvider>
