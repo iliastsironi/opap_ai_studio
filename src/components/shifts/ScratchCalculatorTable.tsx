@@ -682,12 +682,15 @@ export function calculateRowQty(row: ScratchTicketRow): number {
     }
     return end - start;
   } else {
-    // Στα Λαχεία
-    if (end >= start) {
-      return end - start;
-    } else {
-      return Math.abs(start - end);
-    }
+    // Στα Λαχεία the figure is a remaining count, not a serial number: 15
+    // tickets become 14 when one is sold. So a sale is a decrease, and only a
+    // decrease.
+    //
+    // This was Math.abs, which counted either direction - typing 16 against a
+    // stock of 15 read as one sale rather than as the typo it is. Stock going
+    // up inside a shift is not a sale at all; it is a delivery, or a slip.
+    // calculateRowIssues flags it so it is visible rather than silently zero.
+    return start > end ? start - end : 0;
   }
 }
 
@@ -765,7 +768,28 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
   // reach and pass the pack-size checks further down, which make no sense
   // for a product with no start/end pack position at all.
   if (getCountingMode(row) === 'manual') return { errors, isValid: true };
-  if (isLotteryRow(row)) return { errors, isValid: true };
+
+  if (isLotteryRow(row)) {
+    // A lottery figure is a remaining count, not a position in a pack: 15
+    // tickets become 14 when one is sold. So it only ever goes down inside a
+    // shift. Going up is a delivery or a slip of the finger, and used to be
+    // counted as a sale in its own right - 15 typed as 16 read as one sold.
+    const remainingStart = row.startNo?.trim() ? parseInt(row.startNo, 10) : null;
+    const remainingEnd = row.endNo?.trim() ? parseInt(row.endNo, 10) : null;
+    if (
+      remainingStart !== null &&
+      remainingEnd !== null &&
+      !isNaN(remainingStart) &&
+      !isNaN(remainingEnd) &&
+      remainingEnd > remainingStart
+    ) {
+      err(
+        `Το τελικό απόθεμα (${remainingEnd}) είναι μεγαλύτερο από το αρχικό (${remainingStart}). ` +
+          'Τα λαχεία μετρούν πλήθος: το απόθεμα μόνο μειώνεται μέσα στη βάρδια.'
+      );
+    }
+    return { errors, isValid: errors.every((e) => e.severity !== 'error') };
+  }
 
   const pieceCount = getPackagePieceCount(row.price);
   const frontStart = row.startNo?.trim() ? parseInt(row.startNo, 10) : 0;
@@ -1504,7 +1528,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               inputMode="numeric"
                               maxLength={MAX_LABEL_LENGTH}
                               disabled={!canEditStart}
-                              value={row.startNo}
+                              value={
+                                isLaikoBundlesOnly
+                                  ? String(Math.floor((parseInt(row.startNo, 10) || 0) / rowBundleSize))
+                                  : row.startNo
+                              }
                               onFocus={(e) => {
                                 e.currentTarget.select();
                                 if (/^0+$/.test(row.startNo)) {
@@ -1523,7 +1551,23 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   handleUpdateRow(row.id, 'startNo', '000');
                                 }
                               }}
-                              onChange={(e) => handleTicketNumberChange(row.id, 'startNo', e.target.value, row.startNo)}
+                              onChange={(e) => {
+                                // «Πεντάδες» is a unit on screen only. The row
+                                // keeps a piece count, because that is what the
+                                // sale entry and the 0008 trigger both work in -
+                                // storing bundles here would make 3 πεντάδες
+                                // read as 3 tickets everywhere else.
+                                if (isLaikoBundlesOnly) {
+                                  const bundles = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
+                                  handleUpdateRow(
+                                    row.id,
+                                    'startNo',
+                                    Number.isFinite(bundles) ? String(bundles * rowBundleSize) : ''
+                                  );
+                                  return;
+                                }
+                                handleTicketNumberChange(row.id, 'startNo', e.target.value, row.startNo);
+                              }}
                               placeholder="000"
                               className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
                                 canEditStart
@@ -1533,8 +1577,10 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               title={
                                 isBundleTracked
                                   ? canEditStart
-                                    ? 'Διαχειριστής: Αρχικό σύνολο κομματιών (καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια)'
-                                    : 'Κλειδωμένο: Αρχικό σύνολο κομματιών - Αυτόματη μεταφορά από την προηγούμενη βάρδια'
+                                    ? isLaikoBundlesOnly
+                                      ? `Διαχειριστής: Αρχικό απόθεμα σε ${rowBundleSize}άδες`
+                                      : 'Διαχειριστής: Αρχικό σύνολο κομματιών (καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια)'
+                                    : 'Κλειδωμένο: Αρχικό απόθεμα - Αυτόματη μεταφορά από την προηγούμενη βάρδια'
                                   : canEditStart
                                   ? 'Διαχειριστής: Μπορείτε να ορίσετε νέο αρχικό νούμερο'
                                   : 'Κλειδωμένο: Αυτόματη μεταφορά από την προηγούμενη βάρδια'
@@ -1547,7 +1593,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             )}
                             {isBundleTracked && (
                               <span className="text-micro font-bold text-slate-500 block mt-0.5">
-                                ≈ {startPiecesSplit.bundles} πεντ. + {startPiecesSplit.pieces} κομ.
+                                {isLaikoBundlesOnly
+                                  ? `${rowBundleSize}άδες · ${parseInt(row.startNo, 10) || 0} κομ.`
+                                  : `≈ ${startPiecesSplit.bundles} πεντ. + ${startPiecesSplit.pieces} κομ.`}
                               </span>
                             )}
                           </div>
