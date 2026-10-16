@@ -963,6 +963,48 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // keeps meaning exactly what it always has ("remaining after") without
   // the User ever typing it directly. Normalizes pieces >= bundleSize into
   // whole bundles before storing, per spec.
+  /**
+   * «Πεντάδες» mode: the box under ΤΕΛΙΚΟ holds what is LEFT, not what was
+   * sold.
+   *
+   * It held the sale, which put «ΑΡΧΙΚΟ 13 · ΤΕΛΙΚΟ 12» on screen meaning
+   * twelve πεντάδες sold - while every other lottery row, and the column
+   * heading above it, mean «down from 13 to 12», one sold. Thirteen πεντάδες
+   * of stock read as €120 of sales where the shop had sold €10 worth.
+   *
+   * saleBundles and endNo are still what gets stored, because that is what
+   * the totals and the 0008 trigger work in; only which of them the operator
+   * types has changed.
+   */
+  const handleUpdateRemainingBundles = (id: string, rawValue: string) => {
+    if (readOnly) return;
+    const digitsOnly = rawValue.replace(/[^0-9]/g, '');
+    const updated = rows.map((r) => {
+      if (r.id !== id) return r;
+      const bundleSize = r.bundleSize || 5;
+      const availablePieces = parseNonNegativeInt(r.startNo).value;
+      const availableBundles = Math.floor(availablePieces / bundleSize);
+
+      if (digitsOnly === '') {
+        return { ...r, saleBundles: '', salePieces: '', endNo: '' };
+      }
+
+      // Clamped at the opening stock: a lottery count only goes down, so
+      // «more left than we started with» is a typo, not a delivery recorded
+      // in the wrong box.
+      const remainingBundles = Math.min(availableBundles, parseInt(digitsOnly, 10) || 0);
+      const soldBundles = Math.max(0, availableBundles - remainingBundles);
+      const soldPieces = soldBundles * bundleSize;
+      return {
+        ...r,
+        saleBundles: String(soldBundles),
+        salePieces: '0',
+        endNo: String(Math.max(0, availablePieces - soldPieces)),
+      };
+    });
+    onChangeRows(updated);
+  };
+
   const handleUpdateBundleSale = (id: string, field: 'saleBundles' | 'salePieces', rawValue: string) => {
     if (readOnly) return;
     const digitsOnly = rawValue.replace(/[^0-9]/g, '');
@@ -1640,11 +1682,29 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   inputMode="numeric"
                                   maxLength={MAX_LABEL_LENGTH}
                                   disabled={readOnly}
-                                  value={row.saleBundles || ''}
+                                  value={
+                                    isLaikoBundlesOnly
+                                      ? row.endNo?.trim()
+                                        ? String(Math.floor((parseInt(row.endNo, 10) || 0) / rowBundleSize))
+                                        : ''
+                                      : row.saleBundles || ''
+                                  }
                                   onFocus={(e) => e.currentTarget.select()}
-                                  onChange={(e) => handleUpdateBundleSale(row.id, 'saleBundles', e.target.value)}
-                                  placeholder="0"
-                                  title="Πεντάδες που πωλήθηκαν"
+                                  onChange={(e) =>
+                                    isLaikoBundlesOnly
+                                      ? handleUpdateRemainingBundles(row.id, e.target.value)
+                                      : handleUpdateBundleSale(row.id, 'saleBundles', e.target.value)
+                                  }
+                                  placeholder={
+                                    isLaikoBundlesOnly
+                                      ? String(Math.floor((parseInt(row.startNo, 10) || 0) / rowBundleSize))
+                                      : '0'
+                                  }
+                                  title={
+                                    isLaikoBundlesOnly
+                                      ? `${rowBundleSize}άδες που απομένουν στο τέλος της βάρδιας`
+                                      : 'Πεντάδες που πωλήθηκαν'
+                                  }
                                   className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                     rowErrors.length > 0
                                       ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
@@ -1684,7 +1744,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   (undefined) rows, not show a stale "sale recorded" state. */}
                               {bundleSaleCheck.soldPieces > 0 && (
                                 <span className="text-micro font-bold text-indigo-600 block">
-                                  = {bundleSaleCheck.soldPieces} τμχ
+                                  {isLaikoBundlesOnly
+                                    ? `Πώληση: ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize} = ${bundleSaleCheck.soldPieces} τμχ`
+                                    : `= ${bundleSaleCheck.soldPieces} τμχ`}
                                 </span>
                               )}
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
