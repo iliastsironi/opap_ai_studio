@@ -159,6 +159,11 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   // 'ALL' is the company: every store plus corporate costs and loans. A single
   // store shows its own trading only - company costs belong to no one store.
   const [overviewScope, setOverviewScope] = useState<string>('ALL');
+  // Empty means «no range asked for»: the chart then shows the most recent
+  // recorded days rather than nothing, which is the useful default on a blank
+  // overview.
+  const [chartFrom, setChartFrom] = useState<string>('');
+  const [chartTo, setChartTo] = useState<string>('');
   const { data: overviewData, error: overviewError } = useMonthlyPnl(overviewMonth, { enabled: canManagePnl });
   const overviewPnl = overviewData?.result ?? null;
   const pendingValue = overviewError ? '—' : '…';
@@ -288,7 +293,10 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   // One bar per trading day; see buildShiftDailySeries for what this replaced
   // and why. No shifts means an empty chart - a plotted line the user could
   // mistake for their own trading would be worse than none.
-  const shiftChartData = useMemo(() => buildShiftDailySeries(rawShifts), [rawShifts]);
+  const shiftChartData = useMemo(
+    () => buildShiftDailySeries(rawShifts, { from: chartFrom || undefined, to: chartTo || undefined }),
+    [rawShifts, chartFrom, chartTo]
+  );
 
   // Filtered employees
   const filteredEmployees = employeeKpis.filter((e) => {
@@ -549,11 +557,41 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-indigo-600" />
-                    <span>Τζίρος & Έσοδα ανά Ημέρα (Από Βάρδιες)</span>
+                    <span>Τζίρος & Καταμετρημένο Ταμείο ανά Ημέρα</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Μόνο ημέρες με κλεισμένες βάρδιες — οι ημέρες χωρίς βάρδια δεν εμφανίζονται
                   </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="chart-from" className="text-micro font-bold text-slate-500 uppercase tracking-wider">Από</label>
+                  <input
+                    id="chart-from"
+                    type="date"
+                    value={chartFrom}
+                    max={chartTo || undefined}
+                    onChange={(e) => setChartFrom(e.target.value)}
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                  />
+                  <label htmlFor="chart-to" className="text-micro font-bold text-slate-500 uppercase tracking-wider">Έως</label>
+                  <input
+                    id="chart-to"
+                    type="date"
+                    value={chartTo}
+                    min={chartFrom || undefined}
+                    onChange={(e) => setChartTo(e.target.value)}
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                  />
+                  {(chartFrom || chartTo) && (
+                    <button
+                      type="button"
+                      onClick={() => { setChartFrom(''); setChartTo(''); }}
+                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      Καθαρισμός
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -561,7 +599,9 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                 {shiftChartData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center">
                     <p className="text-xs text-slate-500 max-w-xs">
-                      Δεν υπάρχουν κλεισμένες βάρδιες για αυτό το διάστημα, οπότε δεν υπάρχει γράφημα εξέλιξης.
+                      {chartFrom || chartTo
+                        ? 'Δεν υπάρχουν κλεισμένες βάρδιες σε αυτό το διάστημα. Δοκιμάστε άλλες ημερομηνίες ή καθαρίστε το φίλτρο.'
+                        : 'Δεν υπάρχουν κλεισμένες βάρδιες, οπότε δεν υπάρχει γράφημα.'}
                     </p>
                   </div>
                 ) : (
@@ -583,7 +623,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                     <Bar dataKey="revenue" name="Συνολικά Έσοδα (€)" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                    <Bar dataKey="vlt" name="VLTs Net (€)" fill="#9333ea" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="countedCash" name="Καταμετρημένο Ταμείο (€)" fill="#0d9488" radius={[4, 4, 0, 0]} maxBarSize={48} />
                   </BarChart>
                 </ResponsiveContainer>
                 )}

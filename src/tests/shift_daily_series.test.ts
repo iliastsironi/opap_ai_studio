@@ -76,25 +76,78 @@ describe('the daily series behind the overview chart', () => {
     expect(series.map((p) => p.date)).toEqual(['30/8', '22/9']);
   });
 
-  it('adds VLT cash out, because it is stored already negative', () => {
-    // The live shifts carry out = -307 with net = -307, so net is in + out.
-    // Deriving it as in - out flips the sign of every payout.
-    const derived = buildShiftDailySeries([
-      shift({ vlts_net: null, vlts_cash_in: 1000, vlts_cash_out: -300 } as Partial<Shift>),
-    ]);
-    expect(derived[0].vlt).toBe(700);
-
-    const recorded = buildShiftDailySeries([shift({ vlts_net: -427 })]);
-    expect(recorded[0].vlt).toBe(-427);
-  });
-
   it('keeps only the most recent days when there are more than asked for', () => {
     const many = Array.from({ length: 20 }, (_, i) =>
       shift({ id: `s${i}`, opened_at: `2026-09-${String(i + 1).padStart(2, '0')}T06:00:00Z` })
     );
-    const series = buildShiftDailySeries(many, 15);
+    const series = buildShiftDailySeries(many, { maxDays: 15 });
     expect(series).toHaveLength(15);
     expect(series[0].day).toBe('2026-09-06');
     expect(series[14].day).toBe('2026-09-20');
+  });
+});
+
+describe('καταμετρημένο ταμείο per day', () => {
+  it('ends the day on the last count of the till, never the sum', () => {
+    // Three shifts handing one till along: 200 -> 350 -> 410. Summing the
+    // counts reports 960 of cash that never existed - the same double count
+    // the daily view puts «ANTI-DOUBLE-COUNTING ACTIVE» on the screen about.
+    const series = buildShiftDailySeries([
+      shift({ id: 'a', opened_at: '2026-08-27T06:00:00Z', counted_cash: 200 }),
+      shift({ id: 'b', opened_at: '2026-08-27T11:00:00Z', counted_cash: 350 }),
+      shift({ id: 'c', opened_at: '2026-08-27T17:00:00Z', counted_cash: 410 }),
+    ]);
+    expect(series).toHaveLength(1);
+    expect(series[0].countedCash).toBe(410);
+    expect(series[0].countedCash).not.toBe(960);
+  });
+
+  it('adds separate tills, because that is genuinely more cash', () => {
+    const series = buildShiftDailySeries([
+      shift({ id: 'a', register_id: 'Ταμείο 1', opened_at: '2026-08-27T06:00:00Z', counted_cash: 200 }),
+      shift({ id: 'b', register_id: 'Ταμείο 1', opened_at: '2026-08-27T17:00:00Z', counted_cash: 410 }),
+      shift({ id: 'c', register_id: 'Ταμείο 2', opened_at: '2026-08-27T06:00:00Z', counted_cash: 150 }),
+    ]);
+    expect(series[0].countedCash).toBe(560);
+  });
+
+  it('keeps two stores apart even when their tills share a name', () => {
+    const series = buildShiftDailySeries([
+      shift({ id: 'a', store_id: 'store_1', register_id: 'Ταμείο 1', opened_at: '2026-08-27T06:00:00Z', counted_cash: 300 }),
+      shift({ id: 'b', store_id: 'store_2', register_id: 'Ταμείο 1', opened_at: '2026-08-27T06:00:00Z', counted_cash: 500 }),
+    ]);
+    expect(series[0].countedCash).toBe(800);
+  });
+});
+
+describe('the date range', () => {
+  const days = [
+    shift({ id: 'a', opened_at: '2026-08-27T06:00:00Z', opap_gross_sales: 100 }),
+    shift({ id: 'b', opened_at: '2026-08-29T06:00:00Z', opap_gross_sales: 200 }),
+    shift({ id: 'c', opened_at: '2026-09-22T06:00:00Z', opap_gross_sales: 300 }),
+  ];
+
+  it('includes both ends of the range', () => {
+    expect(buildShiftDailySeries(days, { from: '2026-08-27', to: '2026-08-29' }).map((p) => p.date))
+      .toEqual(['27/8', '29/8']);
+  });
+
+  it('accepts an open-ended range at either side', () => {
+    expect(buildShiftDailySeries(days, { from: '2026-08-29' }).map((p) => p.date)).toEqual(['29/8', '22/9']);
+    expect(buildShiftDailySeries(days, { to: '2026-08-29' }).map((p) => p.date)).toEqual(['27/8', '29/8']);
+  });
+
+  it('returns nothing rather than the nearest days when the range is empty', () => {
+    expect(buildShiftDailySeries(days, { from: '2026-07-01', to: '2026-07-31' })).toEqual([]);
+  });
+
+  it('stops capping once a range is asked for', () => {
+    // The 15-day cap is a default for «recent activity». Asking for a period
+    // and silently getting part of it would be worse than a crowded chart.
+    const many = Array.from({ length: 20 }, (_, i) =>
+      shift({ id: `s${i}`, opened_at: `2026-09-${String(i + 1).padStart(2, '0')}T06:00:00Z` })
+    );
+    expect(buildShiftDailySeries(many)).toHaveLength(15);
+    expect(buildShiftDailySeries(many, { from: '2026-09-01', to: '2026-09-20' })).toHaveLength(20);
   });
 });
