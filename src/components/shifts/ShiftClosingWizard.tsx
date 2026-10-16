@@ -295,6 +295,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   //
   // Defaults are all on, matching every existing store, so nothing flashes
   // off and back on while the template loads.
+  // Who may move the figures the till is measured against. Defaults are the
+  // strict ones; a store opens them up in «Διαμόρφωση». canManage is still
+  // what actually unlocks them - these only decide whether an employee counts
+  // as allowed on top of that.
+  const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
+  const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
+
   const [modules, setModules] = useState({
     scratch: true,
     nationalLottery: true,
@@ -351,6 +358,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // `!== false` rather than a truthy test: a template row that predates
         // one of these columns reads undefined, and the safe answer there is
         // to keep showing the module rather than to hide a till section.
+        setFloatEditableByEmployee(config.opening_float_employee_editable === true);
+        setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
+        // The store's rule, not this shift's. A shift already closed keeps the
+        // threshold it was judged against (shift.discrepancy_threshold above);
+        // one still open follows the configuration.
+        if (shift.status === 'OPEN' || shift.status === 'DRAFT_CLOSING') {
+          setDiscrepancyThreshold(String(config.discrepancy_threshold ?? 15));
+        }
         setModules({
           scratch: config.show_scratch !== false,
           nationalLottery: config.show_national_lottery !== false,
@@ -1771,8 +1786,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     min="0"
                     max={MAX_CURRENCY_AMOUNT}
                     value={openingNotesAmount}
+                    disabled={!canManage && !floatEditableByEmployee}
                     onChange={(e) => setOpeningNotesAmount(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -1786,8 +1802,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     min="0"
                     max={MAX_CURRENCY_AMOUNT}
                     value={openingCoinsAmount}
+                    disabled={!canManage && !floatEditableByEmployee}
                     onChange={(e) => setOpeningCoinsAmount(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -1802,8 +1819,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
                     value={openingTopUp1}
+                    disabled={!canManage && !topUpAllowedForEmployee}
                     onChange={(e) => setOpeningTopUp1(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -1818,8 +1836,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
                     value={openingTopUp2}
+                    disabled={!canManage && !topUpAllowedForEmployee}
                     onChange={(e) => setOpeningTopUp2(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -1828,6 +1847,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="font-bold text-slate-600">Σύνολο Αρχικού Κεφαλαίου:</span>
                 <span className="font-black text-indigo-900 text-sm">{formatCurrency(openingCashTotal)}</span>
               </div>
+
+              {!canManage && (!floatEditableByEmployee || !topUpAllowedForEmployee) && (
+                <p className="text-micro text-slate-500 mt-2 leading-relaxed">
+                  {!floatEditableByEmployee && !topUpAllowedForEmployee
+                    ? 'Το αρχικό ταμείο και οι προσαυξήσεις ορίζονται από τον υπεύθυνο.'
+                    : !floatEditableByEmployee
+                    ? 'Το αρχικό ταμείο ορίζεται από τον υπεύθυνο.'
+                    : 'Οι προσαυξήσεις καταχωρούνται από τον υπεύθυνο.'}
+                </p>
+              )}
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
@@ -1850,24 +1879,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Όριο Αποδεκτής Απόκλισης (€)
-            </label>
-            <div className="flex items-center space-x-3">
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max={MAX_CURRENCY_AMOUNT}
-                value={discrepancyThreshold}
-                onChange={(e) => setDiscrepancyThreshold(e.target.value)}
-                className="w-36 px-4 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-              />
-              <span className="text-xs text-slate-500 font-medium">
-                Αποκλίσεις άνω των <strong>{discrepancyThreshold || 10}€</strong> θα επισημανθούν.
+          {/* Shown, not asked. This was an input: the employee whose till is
+              being measured set the figure that decides whether it is short.
+              It is the Owner's, in «Διαμόρφωση». */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Όριο Αποδεκτής Απόκλισης
+              </span>
+              <span className="block text-micro text-slate-500 mt-0.5">
+                Ορίζεται από τον ιδιοκτήτη στη Διαμόρφωση.
               </span>
             </div>
+            <span className="text-base font-black font-mono text-slate-900 bg-white px-4 py-2 rounded-xl border border-slate-300">
+              {formatCurrency(safeNum(discrepancyThreshold))}
+            </span>
           </div>
         </div>
       )}

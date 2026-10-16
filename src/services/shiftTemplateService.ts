@@ -15,6 +15,15 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   show_fnb: true,
   show_coins_breakdown: true,
   show_notes_breakdown: true,
+  // Matching what the shift-opening screen used to default to, so no store
+  // sees a different figure until an Owner changes one.
+  discrepancy_threshold: 15,
+  opening_float_notes: 150,
+  opening_float_coins: 50,
+  opening_float_employee_editable: false,
+  shifts_per_day: 3,
+  topup_employee_allowed: false,
+  pos_terminal_count: 2,
   // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
   // Λαχεία: plain pieces) - existing orgs see zero behavior change until an
   // owner flips one of these in the Configurator.

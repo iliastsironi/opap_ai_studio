@@ -342,6 +342,20 @@ export interface ShiftTemplateConfig {
   show_fnb: boolean;
   show_coins_breakdown: boolean;
   show_notes_breakdown: boolean;
+  // How this store counts, set by the Owner and applied to every shift.
+  // Added in 0030; all of these were previously typed per shift by whoever
+  // opened it, or not configurable at all.
+  //
+  // The threshold and the float are deliberately not the employee's to set:
+  // they decide what counts as a shortage and what the till is measured
+  // against, and the person measured should not be the person setting them.
+  discrepancy_threshold: number;
+  opening_float_notes: number;
+  opening_float_coins: number;
+  opening_float_employee_editable: boolean;
+  shifts_per_day: 2 | 3;
+  topup_employee_allowed: boolean;
+  pos_terminal_count: number;
   // Org/store-level defaults for how never-explicitly-configured Σκρατς/
   // Λαχεία rows count: front-only vs front+back for Σκρατς, and plain
   // pieces vs €10 bundles for Λαχεία. A row's own explicit override (set

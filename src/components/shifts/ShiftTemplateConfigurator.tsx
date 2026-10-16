@@ -980,6 +980,158 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 3 (cont.): HOW THIS STORE COUNTS
+          The threshold and the opening float used to be inputs on the
+          shift-opening screen, typed by the employee whose till they measure.
+          They decide what counts as a shortage and what the drawer is weighed
+          against, so they belong to the Owner. */}
+      {activeTab === 'MODULES' && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h3 className="font-extrabold text-slate-900 text-sm">Κανόνες Ταμείου & Βάρδιας</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Ισχύουν σε κάθε βάρδια αυτού του καταστήματος. Μόνο ο ιδιοκτήτης τα αλλάζει.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="cfg-threshold" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Όριο αποδεκτής απόκλισης (€)
+              </label>
+              <input
+                id="cfg-threshold"
+                type="number"
+                step="0.01"
+                min="0"
+                disabled={!canManageScratchMode}
+                value={template.discrepancy_threshold ?? 15}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, discrepancy_threshold: Number(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+              <p className="text-micro text-slate-500 mt-1">Πάνω από αυτό, η βάρδια επισημαίνεται.</p>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-shifts" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Βάρδιες ανά ημέρα
+              </label>
+              <select
+                id="cfg-shifts"
+                disabled={!canManageScratchMode}
+                value={template.shifts_per_day ?? 3}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, shifts_per_day: Number(e.target.value) === 2 ? 2 : 3 }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 bg-white disabled:bg-slate-50 cursor-pointer"
+              >
+                <option value={2}>2 βάρδιες (Πρωινή, Βραδινή)</option>
+                <option value={3}>3 βάρδιες (Πρωινή, Απογευματινή, Βραδινή)</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-pos" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Τερματικά POS / Tora
+              </label>
+              <input
+                id="cfg-pos"
+                type="number"
+                step="1"
+                min="1"
+                max="20"
+                disabled={!canManageScratchMode}
+                value={template.pos_terminal_count ?? 2}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, pos_terminal_count: Math.min(20, Math.max(1, parseInt(e.target.value, 10) || 1)) }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+              <p className="text-micro text-slate-500 mt-1">Προστίθενται μόνο από εδώ, όχι μέσα στη βάρδια.</p>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-notes" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Αρχικό ταμείο — χαρτονομίσματα (€)
+              </label>
+              <input
+                id="cfg-notes"
+                type="number"
+                step="0.01"
+                min="0"
+                disabled={!canManageScratchMode}
+                value={template.opening_float_notes ?? 150}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, opening_float_notes: Number(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="cfg-coins" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Αρχικό ταμείο — κέρματα (€)
+              </label>
+              <input
+                id="cfg-coins"
+                type="number"
+                step="0.01"
+                min="0"
+                disabled={!canManageScratchMode}
+                value={template.opening_float_coins ?? 50}
+                onChange={(e) => setTemplate((prev) => ({ ...prev, opening_float_coins: Number(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+              <p className="text-micro text-slate-500 mt-1">
+                Στην πρωινή βάρδια τα κέρματα έρχονται από το προηγούμενο βράδυ· αυτό είναι η τιμή εκκίνησης.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.opening_float_employee_editable === true}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, opening_float_employee_editable: !prev.opening_float_employee_editable }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.opening_float_employee_editable ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Ο υπάλληλος αλλάζει το αρχικό ταμείο</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Κλειστό: τα ποσά έρχονται από εδώ και εμφανίζονται κλειδωμένα στο άνοιγμα.
+                </span>
+              </span>
+              {template.opening_float_employee_editable ? (
+                <ToggleRight className="w-6 h-6 text-amber-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.topup_employee_allowed === true}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, topup_employee_allowed: !prev.topup_employee_allowed }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.topup_employee_allowed ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Ο υπάλληλος καταχωρεί προσαύξηση</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Κλειστό: μόνο ο ιδιοκτήτης προσθέτει χρήματα στο ταμείο μέσα στη βάρδια.
+                </span>
+              </span>
+              {template.topup_employee_allowed ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TAB 3 (cont.): SCRATCH/LOTTERY COUNTING DEFAULTS */}
       {activeTab === 'MODULES' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
