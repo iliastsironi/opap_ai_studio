@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -27,7 +28,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   onSuccess,
   stores,
 }) => {
-  const { user, organization } = useAuth();
+  const { user, organization, hasPermission } = useAuth();
   const { stores: tenantStores } = useTenant();
 
   const effectiveStores =
@@ -55,6 +56,15 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
   const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
+  // The store's configured starting float. Defaults match what this screen
+  // used to hardcode, so nothing moves until an Owner sets their own.
+  const [floatNotes, setFloatNotes] = useState<number>(150);
+  const [floatCoins, setFloatCoins] = useState<number>(50);
+  const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
+  // The opening float decides what the till is measured against at close, so
+  // by default it is not set by the person being measured. A store can open it
+  // up in «Διαμόρφωση».
+  const canSetFloat = hasPermission('organization.update') || hasPermission('store.update');
   const [openingNotes, setOpeningNotes] = useState<string>('');
 
   const [previousShift, setPreviousShift] = useState<HandoverSnapshot | null>(null);
@@ -79,12 +89,21 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // Goes through shift_handover_snapshot() rather than reading the
         // previous shift row: since 0022 a closed shift is private to whoever
         // worked it, and at a handover that is someone else.
-        const prev = await fetchHandoverSnapshot(selectedStoreId, registerId);
+        const [prev, config] = await Promise.all([
+          fetchHandoverSnapshot(selectedStoreId, registerId),
+          getShiftTemplateConfig(organization!.id, selectedStoreId).catch(() => null),
+        ]);
 
         if (!isMounted) return;
+
+        const floatNotes = Number(config?.opening_float_notes ?? 150);
+        const floatCoins = Number(config?.opening_float_coins ?? 50);
+        setFloatNotes(floatNotes);
+        setFloatCoins(floatCoins);
+        setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
         setPreviousShift(prev);
 
-        if (shiftType !== 'MORNING' && prev) {
+        if (prev) {
           // Calculate physical cash breakdown from previous shift
           let prevNotes = 0;
           let prevCoins = 0;
@@ -103,10 +122,26 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             prevCoins = Number(prev.opening_cash_coins ?? roundCurrency(openingCash - prevNotes));
           }
 
-          setOpeningBanknotes(prevNotes.toFixed(2));
+          // The coins carry over either way. They are the physical ψιλά left in
+          // the drawer overnight - nobody counts them out and banks them, so
+          // starting a morning on a round figure would be inventing a number
+          // and then measuring the till against it.
           setOpeningCoins(prevCoins.toFixed(2));
-          setIsAutoFetched(true);
+
+          if (shiftType === 'MORNING') {
+            // The notes are set fresh for the day, from the store's configured
+            // float, because the night's takings go to the safe.
+            setOpeningBanknotes(floatNotes.toFixed(2));
+            // Not «auto», so the morning notes stay editable: this is the one
+            // figure somebody genuinely puts in the drawer by hand.
+            setIsAutoFetched(false);
+          } else {
+            setOpeningBanknotes(prevNotes.toFixed(2));
+            setIsAutoFetched(true);
+          }
         } else if (shiftType === 'MORNING') {
+          setOpeningBanknotes(floatNotes.toFixed(2));
+          setOpeningCoins(floatCoins.toFixed(2));
           setIsAutoFetched(false);
         } else {
           // Non-morning, and this register has no previous shift to carry from.
@@ -414,7 +449,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
-                    disabled={shiftType !== 'MORNING' && isAutoFetched}
+                    disabled={(shiftType !== 'MORNING' && isAutoFetched) || (!canSetFloat && !floatEditableByEmployee)}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
@@ -444,7 +479,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
-                    disabled={shiftType !== 'MORNING' && isAutoFetched}
+                    disabled={(shiftType !== 'MORNING' && isAutoFetched) || (!canSetFloat && !floatEditableByEmployee)}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
