@@ -25,6 +25,19 @@ export interface PreviousClose {
 export interface ConfiguredFloat {
   notes: number;
   coins: number;
+  /**
+   * Whether a morning inherits the night's coins.
+   *
+   * Depends on how the shop runs. If the ψιλά stay in the drawer overnight,
+   * the morning starts on what was left and counting out a fixed figure would
+   * be inventing one. If the drawer is emptied and a prepared float goes in,
+   * last night's coins are in the safe and carrying them would measure the
+   * till against money that is not there.
+   *
+   * Undefined behaves as true, which is the behaviour that was running before
+   * this became a choice.
+   */
+  morningCoinsCarryOver?: boolean;
 }
 
 export interface OpeningFloat {
@@ -60,15 +73,17 @@ export function resolveOpeningFloat(
   }
 
   if (isMorning) {
-    // Coins carry only when the previous close actually recorded some. A
-    // count of zero coins is not a handover of an empty drawer, it is a
-    // close where nobody counted the ψιλά - the live data has exactly this,
-    // an August close whose denominations hold notes and no coin keys at
-    // all - and starting the morning on zero would mean the configured float
-    // never applies at the one store that has history.
-    //
-    // Somebody does put coins in the drawer each morning. That is what a
-    // float is, and it is why the store configures one.
+    // Either way the notes reset: the night's takings go to the safe.
+    if (configured.morningCoinsCarryOver === false) {
+      return { notes: configured.notes, coins: configured.coins, carriedOver: false };
+    }
+
+    // Carrying, but only what was actually counted. A close recording zero
+    // coins is not a handover of an empty drawer, it is a close where nobody
+    // counted the ψιλά - the live data has exactly that, an August close
+    // whose denominations hold notes and no coin keys at all - and starting
+    // on zero would mean the configured float never applies at the one store
+    // with any history behind it.
     const carriedCoins = num(previous!.coins);
     return {
       notes: configured.notes,

@@ -24,6 +24,7 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   shifts_per_day: 3,
   topup_employee_allowed: false,
   safedrop_employee_allowed: false,
+  morning_coins_carry_over: true,
   pos_terminal_count: 2,
   // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
   // Λαχεία: plain pieces) - existing orgs see zero behavior change until an

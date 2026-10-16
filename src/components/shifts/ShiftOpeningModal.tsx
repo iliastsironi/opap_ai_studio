@@ -78,6 +78,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [floatNotes, setFloatNotes] = useState<number>(150);
   const [floatCoins, setFloatCoins] = useState<number>(50);
   const [configuredThreshold, setConfiguredThreshold] = useState<number>(15);
+  const [morningCoinsCarryOver, setMorningCoinsCarryOver] = useState<boolean>(true);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -131,6 +132,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setFloatCoins(floatCoins);
         setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
         setConfiguredThreshold(Number(config?.discrepancy_threshold ?? 15));
+        const carryCoins = (config as any)?.morning_coins_carry_over !== false;
+        setMorningCoinsCarryOver(carryCoins);
         setPreviousShift(prev);
 
         if (prev) {
@@ -155,13 +158,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           const float = resolveOpeningFloat(
             shiftType === 'MORNING',
             { countedCash, openingCash, notes: prevNotes, coins: prevCoins },
-            { notes: floatNotes, coins: floatCoins }
+            { notes: floatNotes, coins: floatCoins, morningCoinsCarryOver: carryCoins }
           );
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
         } else if (shiftType === 'MORNING') {
-          const float = resolveOpeningFloat(true, null, { notes: floatNotes, coins: floatCoins });
+          const float = resolveOpeningFloat(true, null, {
+            notes: floatNotes,
+            coins: floatCoins,
+            morningCoinsCarryOver: carryCoins,
+          });
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(false);
@@ -447,8 +454,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   ☀️ {toGreekUpper('Πρωινη Βαρδια — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
                 <span className="text-micro text-amber-800 font-medium">
-                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος. Τα κέρματα κρατούν ό,τι
-                  έμεινε στο συρτάρι από την προηγούμενη βάρδια, αν υπάρχει καταμέτρηση.
+                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος.
+                  {morningCoinsCarryOver
+                    ? ' Τα κέρματα κρατούν ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ, αν έχει καταμετρηθεί.'
+                    : ' Τα κέρματα ξεκινούν από το ορισμένο αρχικό ταμείο.'}
                 </span>
               </div>
             </div>
@@ -553,7 +562,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
             <p className="text-micro text-slate-500">
               {shiftType === 'MORNING'
-                ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από την προηγούμενη βάρδια όταν έχει καταμετρηθεί.'
+                ? morningCoinsCarryOver
+                  ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από το προηγούμενο βράδυ όταν έχουν καταμετρηθεί.'
+                  : 'Προκαθορισμένα από τη Διαμόρφωση.'
                 : 'Τα ποσά χαρτονομισμάτων και κερμάτων προέρχονται αυτόματα από τα υπόλοιπα της προηγούμενης βάρδιας.'}
             </p>
 

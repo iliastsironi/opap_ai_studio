@@ -43,6 +43,34 @@ describe('what the drawer starts with', () => {
     });
   });
 
+  it('starts the morning on the float when the store does not carry coins', () => {
+    // A shop that empties the drawer overnight and prepares a float: last
+    // night's coins are in the safe, so carrying them would measure the till
+    // against money that is not in it.
+    const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
+    expect(
+      resolveOpeningFloat(true, lastNight, { ...configured, morningCoinsCarryOver: false })
+    ).toEqual({ notes: 150, coins: 50, carriedOver: false });
+  });
+
+  it('carries the coins when the store does, which is the default', () => {
+    const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
+    expect(resolveOpeningFloat(true, lastNight, { ...configured, morningCoinsCarryOver: true }))
+      .toEqual({ notes: 150, coins: 12.37, carriedOver: false });
+    // Undefined behaves as the carrying it replaced.
+    expect(resolveOpeningFloat(true, lastNight, configured).coins).toBe(12.37);
+  });
+
+  it('leaves afternoon and evening alone whichever way the setting goes', () => {
+    // The setting is about the morning. Later shifts carry everything,
+    // because the drawer has not been emptied between them.
+    const earlier = { countedCash: 500, notes: 480, coins: 20 };
+    for (const carry of [true, false]) {
+      expect(resolveOpeningFloat(false, earlier, { ...configured, morningCoinsCarryOver: carry }))
+        .toEqual({ notes: 480, coins: 20, carriedOver: true });
+    }
+  });
+
   it('carries everything into an afternoon or evening shift', () => {
     const earlier = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(resolveOpeningFloat(false, earlier, configured)).toEqual({

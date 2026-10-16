@@ -356,6 +356,7 @@ export interface ShiftTemplateConfig {
   shifts_per_day: 2 | 3;
   topup_employee_allowed: boolean;
   safedrop_employee_allowed: boolean;
+  morning_coins_carry_over: boolean;
   pos_terminal_count: number;
   // Org/store-level defaults for how never-explicitly-configured Σκρατς/
   // Λαχεία rows count: front-only vs front+back for Σκρατς, and plain

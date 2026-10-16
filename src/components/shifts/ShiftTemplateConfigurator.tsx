@@ -1131,6 +1131,30 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <button
               type="button"
               role="switch"
+              aria-checked={template.morning_coins_carry_over !== false}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, morning_coins_carry_over: prev.morning_coins_carry_over === false }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.morning_coins_carry_over !== false ? 'bg-indigo-50/60 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Τα κέρματα της πρωινής έρχονται από το προηγούμενο βράδυ</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Κλειστό: η πρωινή ξεκινά πάντα με τα κέρματα που ορίζονται πιο πάνω.
+                  Τα χαρτονομίσματα ξεκινούν από το αρχικό ταμείο και στις δύο περιπτώσεις.
+                </span>
+              </span>
+              {template.morning_coins_carry_over !== false ? (
+                <ToggleRight className="w-6 h-6 text-indigo-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="switch"
               aria-checked={template.safedrop_employee_allowed === true}
               disabled={!canManageScratchMode}
               onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, safedrop_employee_allowed: !prev.safedrop_employee_allowed }))}
