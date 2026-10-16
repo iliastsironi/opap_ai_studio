@@ -38,8 +38,7 @@ import {
   ScratchTicketRow,
   calculateRowTotal,
   isLotteryRow,
-  getSavedScratchCatalog,
-  saveScratchCatalog,
+  mergeScratchCatalogWithSaved,
   carryOverScratchInventory,
   getLatestStoreScratchInventory,
   saveLatestStoreScratchInventory,
@@ -48,6 +47,7 @@ import {
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
+import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
 import { getNationalLotteryShiftContribution } from '../../services/nationalLotteryService.ts';
 import { CustomerCreditSection } from './CustomerCreditSection.tsx';
 import { applyShiftCustomerCredits } from '../../services/customerCreditService.ts';
@@ -253,52 +253,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // Step 2 - Granular OPAP Reports State
   // 1. Ελληνικά Λαχεία | Σκρατς
   const [scratchRows, setScratchRows] = useState<ScratchTicketRow[]>(() => {
-    const catalog = getSavedScratchCatalog();
+    // The presets, for the first paint only. The store's real catalogue is
+    // read from the database in an effect below and merged over this - it used
+    // to come out of this browser's localStorage, which meant the Owner's
+    // laptop and the till computer each had their own list of games at their
+    // own prices.
+    const catalog = DEFAULT_SCRATCH_PRESETS;
     const saved =
       shift.custom_field_values?.scratch_ticket_items ||
       localDraft?.custom_field_values?.scratch_ticket_items;
     if (Array.isArray(saved) && saved.length > 0) {
-      const merged: ScratchTicketRow[] = [];
-      for (const item of catalog) {
-        const match = saved.find((s: any) => s.id === item.id || s.name === item.name);
-        if (match) {
-          merged.push({
-            ...item,
-            startNo: match.startNo || '',
-            endNo: match.endNo || '',
-            backStartNo: match.backStartNo || '',
-            backEndNo: match.backEndNo || '',
-            manualQty: match.manualQty !== undefined ? match.manualQty : '',
-            isNewPack: match.isNewPack || false,
-            // Bundle-tracked rows (e.g. Λαϊκό Λαχείο): saleBundles/salePieces
-            // must survive this merge same as endNo does - dropping them
-            // while keeping endNo would desync the two, and the backend
-            // trigger (0008) rejects exactly that inconsistency on save.
-            saleBundles: match.saleBundles || '',
-            salePieces: match.salePieces || '',
-            // bundleSize/backSideEnabled are per-row config (like price) that
-            // can now be toggled per Λαχεία game. Prefer what THIS shift's
-            // own saved row actually used - it's what its saleBundles/
-            // salePieces/backStartNo were entered against - falling back to
-            // the current catalog only for a row untouched in this shift.
-            bundleSize: match.bundleSize !== undefined ? match.bundleSize : item.bundleSize,
-            backSideEnabled: match.backSideEnabled !== undefined ? match.backSideEnabled : item.backSideEnabled,
-            countingMode: match.countingMode !== undefined ? match.countingMode : item.countingMode,
-          });
-        } else {
-          merged.push(item);
-        }
-      }
-      // Add custom items from saved that might not exist in catalog
-      for (const s of saved) {
-        if (!merged.some((m) => m.id === s.id || m.name === s.name)) {
-          merged.push(s);
-        }
-      }
-      return merged;
+      return mergeScratchCatalogWithSaved(catalog, saved);
     }
 
-    // Try carry-over from latest store inventory
     const storeLatest = getLatestStoreScratchInventory(shift.store_id);
     if (storeLatest && Array.isArray(storeLatest) && storeLatest.length > 0) {
       return carryOverScratchInventory(storeLatest, catalog);
@@ -347,6 +314,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // synchronous initializer above - applyCountingDefaults only ever fills
   // an undefined field, so this can never clobber a row this shift (or an
   // earlier explicit toggle carried in via the catalog) has already set.
+  // The store's catalogue of games, from the database rather than from this
+  // browser. Merged over whatever is on screen, so a row already being counted
+  // keeps its figures and only the definitions - name, price, bundle, order -
+  // come from the catalogue.
+  useEffect(() => {
+    let cancelled = false;
+    fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id)
+      .then((catalog) => {
+        if (cancelled) return;
+        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current));
+      })
+      .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.organization_id, shift.store_id, organization]);
+
   useEffect(() => {
     let cancelled = false;
     const orgId = shift.organization_id || organization!.id;
@@ -428,7 +412,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const handleScratchRowsChange = (newRows: ScratchTicketRow[]) => {
     setScratchRows(newRows);
-    saveScratchCatalog(newRows);
+    // No catalogue write here. This fires on every keystroke of a serial
+    // number, and it used to rewrite the store's whole list of games from
+    // whatever the employee had on screen. The catalogue is the Owner's, is
+    // edited in «Διαμόρφωση», and is Owner-only in the database (0030), so
+    // this call would now be refused anyway.
     saveLatestStoreScratchInventory(shift.store_id, newRows);
     // Αυτόματος υπολογισμός συνολικής αξίας πωλήσεων Σκρατς & Λαχείων από τον πίνακα
     const totalCalc = newRows.reduce((sum, r) => sum + calculateRowTotal(r), 0);

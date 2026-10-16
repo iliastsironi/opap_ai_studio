@@ -469,6 +469,47 @@ async function main() {
     }
   }
 
+  // --- 36-38: the scratch catalogue ----------------------------------------
+  // 0030 moved it out of localStorage, where the Owner's laptop and the till
+  // computer each held their own list of games at their own prices. The point
+  // of the move is that one list now binds every device, so what matters is
+  // that the Owner can write it and nobody else can.
+  {
+    const row = (code, order) => ({
+      organization_id: orgA, store_id: null, code, name: `Παιχνίδι ${code}`,
+      kind: 'SCRATCH', category: 'Σκρατς 2€', price: 2, sort_order: order,
+    });
+
+    // 36: an employee reads the catalogue - they are the one counting the till.
+    await admin.from('scratch_catalog').insert([row('probe_a', 0), row('probe_b', 1)]).throwOnError();
+    const { data: seen, error: readErr } = await client4
+      .from('scratch_catalog').select('code, sort_order').order('sort_order');
+    record('36: an employee can read the scratch catalogue',
+      !readErr && (seen ?? []).length === 2,
+      readErr ? readErr.message : `${(seen ?? []).length} game(s), in order ${(seen ?? []).map((r) => r.code).join(', ')}`);
+
+    // 37: but cannot change what a game costs.
+    const { error: empWriteErr } = await client4
+      .from('scratch_catalog').update({ price: 999 }).eq('code', 'probe_a');
+    const { data: afterEmp } = await admin
+      .from('scratch_catalog').select('price').eq('code', 'probe_a').maybeSingle();
+    record('37: an employee cannot reprice a game',
+      Number(afterEmp?.price) === 2,
+      empWriteErr ? `rejected (${empWriteErr.code})` : `silently ignored, price still ${afterEmp?.price}`);
+
+    // 38: nor can a STORE_MANAGER - this is Owner-only, like every other
+    // «how this store counts» setting since 0012.
+    const { error: mgrWriteErr } = await client6
+      .from('scratch_catalog').update({ price: 999 }).eq('code', 'probe_a');
+    const { data: afterMgr } = await admin
+      .from('scratch_catalog').select('price').eq('code', 'probe_a').maybeSingle();
+    record('38: a STORE_MANAGER cannot reprice a game either',
+      Number(afterMgr?.price) === 2,
+      mgrWriteErr ? `rejected (${mgrWriteErr.code})` : `silently ignored, price still ${afterMgr?.price}`);
+
+    await admin.from('scratch_catalog').delete().eq('organization_id', orgA);
+  }
+
   // --- 34: a user can read their own organisation --------------------------
   // The whole app now depends on this. AuthContext used to display a hardcoded
   // organisation and never read the row; it reads it now, so if this SELECT
@@ -548,6 +589,7 @@ async function main() {
   }
 
   // --- Cleanup (service role) ---
+  await admin.from('scratch_catalog').delete().eq('organization_id', orgA);
   await admin.from('customer_credit_transactions').delete().eq('organization_id', orgA);
   await admin.from('customers').delete().eq('organization_id', orgA);
   await admin.from('employee_charges').delete().eq('organization_id', orgA);

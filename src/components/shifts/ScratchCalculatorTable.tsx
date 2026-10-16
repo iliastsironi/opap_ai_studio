@@ -55,6 +55,12 @@ export interface ScratchTicketRow {
   // 'manual' (only ever set explicitly, e.g. on the e-Λαϊκό preset), so no
   // row saved before this field existed can be misclassified by it.
   countingMode?: 'range' | 'bundle' | 'manual';
+  // Σκρατς or Λαχείο, said rather than guessed. isLotteryRow used to read it
+  // out of the category and the name - «λαχεί» appearing anywhere in either -
+  // which quietly made a game called «Λαχείο της Τύχης» a lottery and a
+  // lottery named without the word a scratch card. Rows that predate the
+  // column leave it undefined and keep being inferred exactly as before.
+  kind?: 'SCRATCH' | 'LOTTERY';
 }
 
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
@@ -285,7 +291,61 @@ export function getLatestStoreScratchInventory(storeId: string): ScratchTicketRo
   return null;
 }
 
+
+/**
+ * A catalogue of games, combined with the rows a shift has already counted.
+ *
+ * The catalogue decides which games exist and what they cost; the saved rows
+ * decide what has been sold. Where both describe the same game, the figures
+ * entered against it win - they were typed against that row's own bundleSize
+ * and back-side setting, and the 0008 trigger rejects a row whose parts
+ * disagree.
+ *
+ * Extracted so it can run twice: once synchronously for the first paint, and
+ * again when the store's catalogue arrives from the database, without the
+ * second run discarding anything typed in between.
+ */
+export function mergeScratchCatalogWithSaved(
+  catalog: ScratchTicketRow[],
+  saved: ScratchTicketRow[] | undefined | null
+): ScratchTicketRow[] {
+  if (!Array.isArray(saved) || saved.length === 0) return catalog;
+
+  const merged: ScratchTicketRow[] = [];
+  for (const item of catalog) {
+    const match = saved.find((s) => s.id === item.id || s.name === item.name);
+    if (!match) {
+      merged.push(item);
+      continue;
+    }
+    merged.push({
+      ...item,
+      startNo: match.startNo || '',
+      endNo: match.endNo || '',
+      backStartNo: match.backStartNo || '',
+      backEndNo: match.backEndNo || '',
+      manualQty: match.manualQty !== undefined ? match.manualQty : '',
+      isNewPack: match.isNewPack || false,
+      saleBundles: match.saleBundles || '',
+      salePieces: match.salePieces || '',
+      bundleSize: match.bundleSize !== undefined ? match.bundleSize : item.bundleSize,
+      backSideEnabled:
+        match.backSideEnabled !== undefined ? match.backSideEnabled : item.backSideEnabled,
+      countingMode: match.countingMode !== undefined ? match.countingMode : item.countingMode,
+    });
+  }
+  // A game counted on this shift that the catalogue no longer lists stays on
+  // the shift. Removing it would silently drop tickets somebody sold.
+  for (const row of saved) {
+    if (!merged.some((m) => m.id === row.id || m.name === row.name)) merged.push(row);
+  }
+  return merged;
+}
+
 export function isLotteryRow(row: ScratchTicketRow): boolean {
+  // An explicit kind wins. It is what the catalogue stores, so once a game has
+  // been through the configurator the guess below never runs for it again.
+  if (row.kind) return row.kind === 'LOTTERY';
   const cat = (row.category || '').toLowerCase();
   const name = (row.name || '').toLowerCase();
   return cat.includes('λαχεί') || cat.includes('λαχει') || name.includes('λαχεί') || name.includes('λαχει');
