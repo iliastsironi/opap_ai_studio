@@ -23,3 +23,13 @@ ALTER TABLE shift_templates
 --
 --   SELECT store_id, opening_float_coins, morning_coins_carry_over
 --     FROM shift_templates;
+
+-- APPLIED 2026-10-17. All three stores read true, which is the behaviour that
+-- was already running, so nothing changed by it landing.
+--
+-- It was not optional, whatever the note above says about reading. The
+-- configuration screen sends every field on save, and PostgREST refuses the
+-- whole statement over one key that is not a column - so until this ran, that
+-- screen could save nothing at all. saveShiftTemplateConfig now drops an
+-- unknown column and retries, which is the general fix; this column still has
+-- to exist for the setting to be stored.
