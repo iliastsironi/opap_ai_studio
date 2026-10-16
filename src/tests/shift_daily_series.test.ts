@@ -29,8 +29,8 @@ describe('the daily series behind the overview chart', () => {
     const series = buildShiftDailySeries([
       // Both inside the same Athens day. 22:00 UTC would not be: Athens is
       // UTC+3 in August, so that is 01:00 the next morning.
-      shift({ id: 'a', closed_at: '2026-08-27T09:00:00Z', opap_gross_sales: 100, fnb_sales: 10 }),
-      shift({ id: 'b', closed_at: '2026-08-27T18:00:00Z', opap_gross_sales: 250, fnb_sales: 5 }),
+      shift({ id: 'a', opened_at: '2026-08-27T09:00:00Z', opap_gross_sales: 100, fnb_sales: 10 }),
+      shift({ id: 'b', opened_at: '2026-08-27T18:00:00Z', opap_gross_sales: 250, fnb_sales: 5 }),
     ]);
     expect(series).toHaveLength(1);
     expect(series[0].revenue).toBe(365);
@@ -40,20 +40,38 @@ describe('the daily series behind the overview chart', () => {
     // The shift list comes back newest-first, and the previous code just
     // reversed it - which is only the same thing while one shift is one day.
     const series = buildShiftDailySeries([
-      shift({ id: 'c', closed_at: '2026-08-30T14:00:00Z' }),
-      shift({ id: 'a', closed_at: '2026-08-27T14:00:00Z' }),
-      shift({ id: 'b', closed_at: '2026-08-29T14:00:00Z' }),
+      shift({ id: 'c', opened_at: '2026-08-30T06:00:00Z' }),
+      shift({ id: 'a', opened_at: '2026-08-27T06:00:00Z' }),
+      shift({ id: 'b', opened_at: '2026-08-29T06:00:00Z' }),
     ]);
     expect(series.map((p) => p.day)).toEqual(['2026-08-27', '2026-08-29', '2026-08-30']);
     expect(series.map((p) => p.date)).toEqual(['27/8', '29/8', '30/8']);
+  });
+
+  it('files a shift under the day it traded, not the day it was approved', () => {
+    // The live data has one opened 22/9 and closed 14/10 - three weeks later.
+    // Bucketing on the close dated its takings to October and left a gap where
+    // the trading actually was. dailyAggregationService uses opened_at for the
+    // same shifts, so the close would also have disagreed with «Ημερήσια
+    // Διαχείριση Ταμείου» about the very same day.
+    const series = buildShiftDailySeries([
+      shift({
+        id: 'late-approval',
+        opened_at: '2026-09-22T05:31:00Z',
+        closed_at: '2026-10-14T17:01:00Z',
+        opap_gross_sales: 900,
+      }),
+    ]);
+    expect(series[0].day).toBe('2026-09-22');
+    expect(series[0].date).toBe('22/9');
   });
 
   it('keeps a gap as a gap, by simply not inventing the missing days', () => {
     // 30/8 to 22/9 is 23 days with nothing recorded. Those days are absent
     // rather than present-and-zero: nobody traded zero, nobody traded at all.
     const series = buildShiftDailySeries([
-      shift({ id: 'a', closed_at: '2026-08-30T14:00:00Z', opap_gross_sales: 5000 }),
-      shift({ id: 'b', closed_at: '2026-09-22T14:00:00Z' }),
+      shift({ id: 'a', opened_at: '2026-08-30T06:00:00Z', opap_gross_sales: 5000 }),
+      shift({ id: 'b', opened_at: '2026-09-22T06:00:00Z' }),
     ]);
     expect(series.map((p) => p.date)).toEqual(['30/8', '22/9']);
   });
@@ -72,7 +90,7 @@ describe('the daily series behind the overview chart', () => {
 
   it('keeps only the most recent days when there are more than asked for', () => {
     const many = Array.from({ length: 20 }, (_, i) =>
-      shift({ id: `s${i}`, closed_at: `2026-09-${String(i + 1).padStart(2, '0')}T14:00:00Z` })
+      shift({ id: `s${i}`, opened_at: `2026-09-${String(i + 1).padStart(2, '0')}T06:00:00Z` })
     );
     const series = buildShiftDailySeries(many, 15);
     expect(series).toHaveLength(15);

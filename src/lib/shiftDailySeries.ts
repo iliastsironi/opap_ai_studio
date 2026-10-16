@@ -42,7 +42,13 @@ export function buildShiftDailySeries(shifts: Shift[], maxDays = 15): ShiftDayPo
 
   for (const s of shifts) {
     if (!CLOSED.includes(s.status)) continue;
-    const stamp = s.closed_at || s.opened_at;
+    // opened_at, not closed_at: a shift belongs to the day it traded, not the
+    // day somebody got round to approving it. The live data has a shift opened
+    // 22/9 and closed 14/10, and bucketing it on the close put three weeks of
+    // nothing in front of it and its takings on the wrong day - while
+    // dailyAggregationService, which draws «Ημερήσια Διαχείριση Ταμείου» from
+    // the same shifts, buckets on opened_at. Two screens, one day, two answers.
+    const stamp = s.opened_at || s.closed_at;
     if (!stamp) continue;
 
     const day = athensDateKey(stamp);
