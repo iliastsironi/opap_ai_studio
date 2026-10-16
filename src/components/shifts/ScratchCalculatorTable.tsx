@@ -1636,7 +1636,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             {isBundleTracked && (
                               <span className="text-micro font-bold text-slate-500 block mt-0.5">
                                 {isLaikoBundlesOnly
-                                  ? `${rowBundleSize}άδες · ${parseInt(row.startNo, 10) || 0} κομ.`
+                                  ? `${rowBundleSize}άδες`
                                   : `≈ ${startPiecesSplit.bundles} πεντ. + ${startPiecesSplit.pieces} κομ.`}
                               </span>
                             )}
@@ -1745,7 +1745,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               {bundleSaleCheck.soldPieces > 0 && (
                                 <span className="text-micro font-bold text-indigo-600 block">
                                   {isLaikoBundlesOnly
-                                    ? `Πώληση: ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize} = ${bundleSaleCheck.soldPieces} τμχ`
+                                    ? `Πώληση: ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize}άδα`
                                     : `= ${bundleSaleCheck.soldPieces} τμχ`}
                                 </span>
                               )}
@@ -1756,7 +1756,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                       pieces". Matches the same abbreviation used in the ≈X πεντ. + Y κομ.
                                       hint above, which needed it for the same reason: the full words
                                       ("πεντάδες"/"κομμάτια") wrapped to 3 lines at this column width. */}
-                                  Μένουν: {remainingSplit.bundles} πεντ. + {remainingSplit.pieces} κομ.
+                                  {isLaikoBundlesOnly
+                                    ? `Μένουν: ${remainingSplit.bundles} × ${rowBundleSize}άδα`
+                                    : `Μένουν: ${remainingSplit.bundles} πεντ. + ${remainingSplit.pieces} κομ.`}
                                 </span>
                               )}
                             </div>
@@ -1904,9 +1906,21 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                                 : 'bg-slate-100 text-slate-700 border border-slate-200'
                             }`}
-                            title={rowHasBackSide ? `Μπροστά: ${frontQty} τμχ • Πίσω: ${backQty} τμχ` : undefined}
+                            title={
+                              isLaikoBundlesOnly
+                                ? `${rowBundleSize}άδες που πωλήθηκαν`
+                                : rowHasBackSide
+                                ? `Μπροστά: ${frontQty} τμχ • Πίσω: ${backQty} τμχ`
+                                : undefined
+                            }
                           >
-                            {totalQty}
+                            {/* In «πεντάδες» the unit is the πεντάδα, here as
+                                everywhere else on the row. Showing 5 τμχ for
+                                one πεντάδα sold is the translation the agency
+                                asked not to see: they count packets. The value
+                                beside it is the same either way - one πεντάδα
+                                at 10 € is five tickets at 2 €. */}
+                            {isLaikoBundlesOnly ? Math.floor(totalQty / rowBundleSize) : totalQty}
                           </span>
                         </td>
 
