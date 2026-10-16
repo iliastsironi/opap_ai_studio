@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Play, AlertCircle, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
+
+/** `YYYY-MM-DDTHH:mm` in local time, which is what datetime-local expects. */
+function localDateTimeValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
@@ -43,6 +49,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [selectedStoreId, setSelectedStoreId] = useState<string>(effectiveStores[0]?.id ?? '');
 
   useEffect(() => {
+    // Re-seeded each time the dialog opens, so it never shows a time from
+    // whenever the screen last rendered.
+    if (isOpen) setOpenedAt(localDateTimeValue(new Date()));
+  }, [isOpen]);
+
+  useEffect(() => {
     if (isOpen) {
       if (!selectedStoreId || !effectiveStores.some((s) => s.id === selectedStoreId)) {
         if (effectiveStores.length > 0) {
@@ -53,6 +65,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   }, [isOpen, effectiveStores, selectedStoreId]);
 
   const [registerId, setRegisterId] = useState<string>('Ταμείο 1');
+  // When the shift actually started. Defaults to now; an Owner can set it in
+  // the past, which is how the 27 August workbooks that were never imported
+  // get entered after the fact.
+  const [openedAt, setOpenedAt] = useState<string>('');
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
   const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
@@ -218,7 +234,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         status: 'OPEN' as ShiftStatus,
         opened_by_user_id: user?.id || 'usr_anonymous',
         opened_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Χρήστης',
-        opened_at: new Date().toISOString(),
+        opened_at: (openedAt ? new Date(openedAt) : new Date()).toISOString(),
         opening_cash: cashNum,
         opening_cash_notes: banknotesNum,
         opening_cash_coins: coinsNum,
@@ -259,7 +275,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       onSuccess(fsShift.id);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Σφάλμα επικοινωνίας με το διακομιστή');
+      // ux_shifts_one_active_per_register: one shift at a time per till. Worth
+      // naming, because back-dating a shift while today's is still open is
+      // exactly when somebody meets it, and «duplicate key value violates
+      // unique constraint» explains nothing to whoever is standing there.
+      if (err?.code === '23505' || /unique constraint/i.test(err?.message ?? '')) {
+        setError(
+          'Υπάρχει ήδη ανοιχτή βάρδια σε αυτό το ταμείο. Κλείστε την πρώτα, ή επιλέξτε άλλο ταμείο.'
+        );
+      } else {
+        setError(err.message || 'Σφάλμα επικοινωνίας με το διακομιστή');
+      }
     } finally {
       setLoading(false);
     }
@@ -361,6 +387,27 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   <option value="Ταμείο 3">Ταμείο 3</option>
                 </select>
               </div>
+
+              {canSetFloat && (
+                <div className="sm:col-span-2">
+                  <label htmlFor="opening-when" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    {toGreekUpper('Εναρξη Βαρδιας')}
+                  </label>
+                  <input
+                    id="opening-when"
+                    type="datetime-local"
+                    value={openedAt}
+                    max={localDateTimeValue(new Date())}
+                    onChange={(e) => setOpenedAt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <p className="text-micro text-slate-500 mt-1 leading-relaxed">
+                    Αφήστε το ως έχει για τώρα. Βάλτε περασμένη ημερομηνία για να καταχωρήσετε
+                    βάρδια που έγινε ήδη — το ταμείο θα μετρηθεί κανονικά, απλώς θα ανήκει σε
+                    εκείνη την ημέρα.
+                  </p>
+                </div>
+              )}
 
               {/* Shift Type */}
               <div>

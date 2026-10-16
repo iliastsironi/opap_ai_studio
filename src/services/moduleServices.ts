@@ -137,6 +137,10 @@ export interface CreateShiftExpenseInput {
   receipt_number?: string;
   receipt_url?: string;
   notes?: string;
+  // The day the money was spent, YYYY-MM-DD. Defaults to today, which is what
+  // this always hardcoded - so an invoice from last week could only ever be
+  // filed under the day it was typed, and the month it belonged to was wrong.
+  date?: string;
 }
 
 // Single entry point for "create an expense that counts toward a shift",
@@ -194,7 +198,7 @@ export async function createAndSyncShiftExpense(
     amount: input.amount,
     payment_method: input.payment_method,
     recipient: input.recipient,
-    date: new Date().toISOString().split('T')[0],
+    date: input.date || new Date().toISOString().split('T')[0],
     ...(activeShift?.id ? { shift_id: activeShift.id } : {}),
     ...(input.created_by_user_id ? { created_by_user_id: input.created_by_user_id } : {}),
     ...(input.created_by_user_name ? { created_by_user_name: input.created_by_user_name } : {}),

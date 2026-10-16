@@ -9,7 +9,7 @@ import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { currentMonthKey, shiftMonthKey, monthLabel } from '../../lib/pnlEngine.ts';
+import { athensDateKey, currentMonthKey, shiftMonthKey, monthLabel } from '../../lib/pnlEngine.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
@@ -17,9 +17,13 @@ import { IconButton } from '../ui/IconButton.tsx';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
-  const { user, organization } = useAuth();
+  const { user, organization, hasPermission } = useAuth();
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Dating an expense to another day is the Owner's, not the counter's: it
+  // moves money between months and so between P&L figures that have already
+  // been read.
+  const canBackdate = hasPermission('organization.update') || hasPermission('store.update');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -59,6 +63,9 @@ export const ExpensesManager: React.FC = () => {
   const [recipient, setRecipient] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
+  // The day the money was spent. Defaults to today, which is what every
+  // expense was filed under until now whatever its invoice said.
+  const [expenseDate, setExpenseDate] = useState(() => athensDateKey(new Date().toISOString()));
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string } | null>(null);
@@ -171,6 +178,7 @@ export const ExpensesManager: React.FC = () => {
           created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
           receipt_number: receiptNumber || undefined,
           notes: notes || undefined,
+          date: expenseDate || undefined,
         },
         activeShift
       );
@@ -738,6 +746,25 @@ export const ExpensesManager: React.FC = () => {
                     <option value="CARD">Κάρτα/POS</option>
                     <option value="CREDIT">Πίστωση</option>
                   </select>
+                </div>
+                <div>
+                  <label htmlFor="expense-date" className="block text-slate-700 font-semibold mb-1">
+                    Ημερομηνία
+                  </label>
+                  <input
+                    id="expense-date"
+                    type="date"
+                    value={expenseDate}
+                    max={athensDateKey(new Date().toISOString())}
+                    disabled={!canBackdate}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 disabled:bg-slate-100 disabled:text-slate-600"
+                  />
+                  {canBackdate && (
+                    <p className="text-micro text-slate-500 mt-1">
+                      Η ημέρα που έγινε η δαπάνη, όχι η ημέρα καταχώρησης.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="expense-receipt-number" className="block text-slate-700 font-semibold mb-1">Αρ. Απόδειξης/ΤΠΥ</label>

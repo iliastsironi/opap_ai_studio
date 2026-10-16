@@ -10,6 +10,12 @@ import { MAX_CURRENCY_AMOUNT } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import type { Shift } from '../../types/index.ts';
 
+/** `YYYY-MM-DDTHH:mm` in local time, which is what datetime-local wants. */
+function localDateTimeValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export type QuickCashKind = 'TOPUP' | 'SAFEDROP';
 
 const COPY: Record<QuickCashKind, {
@@ -59,6 +65,10 @@ export const QuickCashDialog: React.FC<{
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  // When the money actually moved. Defaults to now; a manager can date it
+  // back, because cash is often recorded after the fact rather than as it
+  // happens.
+  const [movedAt, setMovedAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -71,6 +81,7 @@ export const QuickCashDialog: React.FC<{
     setDone(null);
     setAmount('');
     setNote('');
+    setMovedAt(localDateTimeValue(new Date()));
 
     Promise.all([
       fetchActiveShiftFromFirestore(orgId, storeId ?? ''),
@@ -125,7 +136,11 @@ export const QuickCashDialog: React.FC<{
       } else {
         const drops = sortSafeDrops([
           ...readSafeDrops(custom),
-          { amount: value, note: note.trim() || undefined, at: new Date().toISOString() },
+          {
+            amount: value,
+            note: note.trim() || undefined,
+            at: (movedAt ? new Date(movedAt) : new Date()).toISOString(),
+          },
         ]);
         patch = {
           custom_field_values: { ...custom, safe_drops: drops },
@@ -207,6 +222,25 @@ export const QuickCashDialog: React.FC<{
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+
+            {canManage && (
+              <div>
+                <label htmlFor="quick-cash-when" className="block text-xs font-bold text-slate-700 mb-1">
+                  Πότε
+                </label>
+                <input
+                  id="quick-cash-when"
+                  type="datetime-local"
+                  value={movedAt}
+                  max={localDateTimeValue(new Date())}
+                  onChange={(e) => setMovedAt(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-micro text-slate-500 mt-1">
+                  Η ώρα που κινήθηκαν τα χρήματα, όχι η ώρα καταχώρησης.
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="quick-cash-note" className="block text-xs font-bold text-slate-700 mb-1">
