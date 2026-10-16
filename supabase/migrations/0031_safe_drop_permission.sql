@@ -22,3 +22,12 @@ ALTER TABLE shift_templates
 --
 --   SELECT topup_employee_allowed, safedrop_employee_allowed FROM shift_templates;
 --   -- and on a project with no template rows yet, simply that it selects.
+
+-- APPLIED 2026-10-16, verified rather than taken from the editor: the column
+-- selects, and a freshly inserted template row defaults to false - the strict
+-- reading, so no store gains the permission by saving its configuration.
+--
+-- Noted while verifying: shift_templates now holds three rows, one per store,
+-- where it held none. The configuration screen has been saved for the first
+-- time, so every store is on explicit settings rather than on
+-- DEFAULT_OPAP_SHIFT_TEMPLATE. The values match the defaults exactly.
