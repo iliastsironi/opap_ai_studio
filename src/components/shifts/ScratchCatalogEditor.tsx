@@ -7,6 +7,7 @@ import {
 } from './ScratchCalculatorTable.tsx';
 import { fetchScratchCatalog, saveScratchCatalog } from '../../services/scratchCatalogService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
+import { NumericField } from '../ui/NumericField.tsx';
 
 /**
  * The Owner's list of games: what the store sells, what each costs, and the
@@ -239,13 +240,13 @@ export const ScratchCatalogEditor: React.FC<{
                   />
                 </td>
                 <td className="py-2 pr-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <NumericField
+                    min={0}
+                    decimals={2}
                     value={row.price}
                     disabled={!canEdit}
-                    onChange={(e) => update(index, { price: Number(e.target.value) || 0 })}
+                    aria-label={`Τιμή για ${row.name || "το παιχνίδι"}`}
+                    onChange={(next) => update(index, { price: next })}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono font-bold text-slate-900 bg-white disabled:bg-slate-50 text-right"
                   />
                 </td>
@@ -253,18 +254,15 @@ export const ScratchCatalogEditor: React.FC<{
                   {/* Pieces per bundle - 5 for a πεντάδα. The bundle's price
                       follows from the piece price, so a πεντάδα of a €2 game
                       is €10 without anyone entering that separately. */}
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={row.bundleSize ?? ''}
+                  <NumericField
+                    min={0}
+                    decimals={0}
+                    value={row.bundleSize ?? 0}
                     disabled={!canEdit}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value, 10);
-                      update(index, { bundleSize: Number.isFinite(n) && n > 1 ? n : undefined });
-                    }}
                     placeholder="—"
                     title="Τεμάχια ανά πακέτο (π.χ. 5 για πεντάδα). Κενό για μεμονωμένα."
+                    aria-label={`Τεμάχια ανά πακέτο για ${row.name || "το παιχνίδι"}`}
+                    onChange={(next) => update(index, { bundleSize: next > 1 ? next : undefined })}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right"
                   />
                 </td>

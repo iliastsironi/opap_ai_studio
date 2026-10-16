@@ -1,0 +1,92 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  clampNumber,
+  formatLooseNumber,
+  isPartialNumber,
+  parseLooseNumber,
+} from '../../lib/looseNumber.ts';
+
+/**
+ * A number field that lets you finish typing the number.
+ *
+ * `<input type="number">` bound to `Number(e.target.value) || 0` cannot: the
+ * browser reports «5,» as an empty string, the parse gives 0, and the field
+ * clears itself the moment somebody reaches for the decimals. On a Greek
+ * keyboard the decimal separator is a comma, so that is the first key pressed
+ * after the whole euros - the field wiped itself on nearly every entry.
+ *
+ * This keeps the text as typed and reports the number it currently means,
+ * committing nothing while the entry is unfinished. It is `type="text"` with
+ * `inputMode="decimal"` so a phone still offers a numeric keypad and a comma
+ * is a legal character rather than an invalid one.
+ */
+export const NumericField: React.FC<{
+  value: number;
+  onChange: (next: number) => void;
+  id?: string;
+  min?: number;
+  max?: number;
+  /** 0 for whole numbers, 2 for money. Only affects how a value is shown. */
+  decimals?: number;
+  disabled?: boolean;
+  placeholder?: string;
+  className?: string;
+  title?: string;
+  'aria-label'?: string;
+}> = ({
+  value,
+  onChange,
+  id,
+  min,
+  max,
+  decimals = 2,
+  disabled,
+  placeholder,
+  className,
+  title,
+  'aria-label': ariaLabel,
+}) => {
+  const [text, setText] = useState(() => formatLooseNumber(value, decimals));
+  const focused = useRef(false);
+
+  // Follow the value from outside, but never while somebody is typing into
+  // it - that is what would reformat «5,» back to «5» mid-keystroke.
+  useEffect(() => {
+    if (!focused.current) setText(formatLooseNumber(value, decimals));
+  }, [value, decimals]);
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      value={text}
+      disabled={disabled}
+      placeholder={placeholder}
+      className={className}
+      title={title}
+      aria-label={ariaLabel}
+      onFocus={(e) => {
+        focused.current = true;
+        e.target.select();
+      }}
+      onBlur={() => {
+        focused.current = false;
+        // Settle on the committed value, so a field left as «5,» reads «5».
+        setText(formatLooseNumber(value, decimals));
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        // Refuse keystrokes that could never be part of a number, rather than
+        // accepting them and silently parsing to something else.
+        if (!isPartialNumber(raw)) return;
+        setText(raw);
+
+        const parsed = parseLooseNumber(raw);
+        // Null means the entry is unfinished - «», «-», «,». Nothing is
+        // committed, so the previous value stands until there is a new one.
+        if (parsed !== null) onChange(clampNumber(parsed, min, max));
+      }}
+    />
+  );
+};

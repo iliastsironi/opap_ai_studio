@@ -35,6 +35,7 @@ import {
 } from '../../services/shiftTemplateService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { ScratchCatalogEditor } from './ScratchCatalogEditor.tsx';
+import { NumericField } from '../ui/NumericField.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -999,14 +1000,13 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <label htmlFor="cfg-threshold" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Όριο αποδεκτής απόκλισης (€)
               </label>
-              <input
+              <NumericField
                 id="cfg-threshold"
-                type="number"
-                step="0.01"
-                min="0"
+                min={0}
+                decimals={2}
                 disabled={!canManageScratchMode}
                 value={template.discrepancy_threshold ?? 15}
-                onChange={(e) => setTemplate((prev) => ({ ...prev, discrepancy_threshold: Number(e.target.value) || 0 }))}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, discrepancy_threshold: next }))}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
               <p className="text-micro text-slate-500 mt-1">Πάνω από αυτό, η βάρδια επισημαίνεται.</p>
@@ -1032,15 +1032,14 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <label htmlFor="cfg-pos" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Τερματικά POS / Tora
               </label>
-              <input
+              <NumericField
                 id="cfg-pos"
-                type="number"
-                step="1"
-                min="1"
-                max="20"
+                min={1}
+                max={20}
+                decimals={0}
                 disabled={!canManageScratchMode}
                 value={template.pos_terminal_count ?? 2}
-                onChange={(e) => setTemplate((prev) => ({ ...prev, pos_terminal_count: Math.min(20, Math.max(1, parseInt(e.target.value, 10) || 1)) }))}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, pos_terminal_count: next }))}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
               <p className="text-micro text-slate-500 mt-1">Προστίθενται μόνο από εδώ, όχι μέσα στη βάρδια.</p>
@@ -1050,14 +1049,13 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <label htmlFor="cfg-notes" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Αρχικό ταμείο — χαρτονομίσματα (€)
               </label>
-              <input
+              <NumericField
                 id="cfg-notes"
-                type="number"
-                step="0.01"
-                min="0"
+                min={0}
+                decimals={2}
                 disabled={!canManageScratchMode}
                 value={template.opening_float_notes ?? 150}
-                onChange={(e) => setTemplate((prev) => ({ ...prev, opening_float_notes: Number(e.target.value) || 0 }))}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, opening_float_notes: next }))}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
             </div>
@@ -1066,14 +1064,13 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <label htmlFor="cfg-coins" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Αρχικό ταμείο — κέρματα (€)
               </label>
-              <input
+              <NumericField
                 id="cfg-coins"
-                type="number"
-                step="0.01"
-                min="0"
+                min={0}
+                decimals={2}
                 disabled={!canManageScratchMode}
                 value={template.opening_float_coins ?? 50}
-                onChange={(e) => setTemplate((prev) => ({ ...prev, opening_float_coins: Number(e.target.value) || 0 }))}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, opening_float_coins: next }))}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
               <p className="text-micro text-slate-500 mt-1">
