@@ -219,13 +219,57 @@ export async function getShiftTemplateConfig(
 /**
  * Saves a customized shift template configuration for an organization or store.
  */
+/**
+ * PostgREST answers PGRST204 when the payload names something that is not a
+ * column, and it refuses the whole statement rather than the one key - so a
+ * single unknown field loses every setting on the screen.
+ *
+ * That happens whenever a deploy lands before its migration, which is the
+ * normal order here: the code ships on push and the SQL is run by hand. It
+ * has now cost the configuration screen twice, once for a users table and
+ * once for morning_coins_carry_over, both times reading as «δεν με αφήνει να
+ * αποθηκεύσω» with nothing saying which field was at fault.
+ *
+ * The message names the column. Drop it, try again, and say so - the setting
+ * that could not be stored simply has no column yet, and the other twenty
+ * have no reason to go down with it.
+ */
+const UNKNOWN_COLUMN = /Could not find the '([^']+)' column/i;
+
+/** The column PostgREST is complaining about, or null if it is not that. */
+export function unknownColumnFrom(message: string | null | undefined): string | null {
+  return UNKNOWN_COLUMN.exec(message ?? '')?.[1] ?? null;
+}
+
 export async function saveShiftTemplateConfig(
   templateConfig: ShiftTemplateConfig
 ): Promise<void> {
   const { id, ...rest } = templateConfig;
-  const { error } = await supabase.from('shift_templates').upsert(
-    { ...rest, updated_at: new Date().toISOString() },
-    { onConflict: 'organization_id,store_id' }
-  );
-  if (error) throw error;
+  let payload: Record<string, any> = { ...rest, updated_at: new Date().toISOString() };
+  const dropped: string[] = [];
+
+  // Bounded: each attempt removes one column, and the payload is finite.
+  for (let attempt = 0; attempt < Object.keys(payload).length; attempt += 1) {
+    const { error } = await supabase
+      .from('shift_templates')
+      .upsert(payload, { onConflict: 'organization_id,store_id' });
+    if (!error) {
+      if (dropped.length > 0) {
+        console.warn(
+          `[shiftTemplate] saved without ${dropped.join(', ')} - no such column yet. ` +
+            'Run the pending migration to store these.'
+        );
+      }
+      return;
+    }
+
+    const missing = unknownColumnFrom(error.message);
+    if (!missing || !(missing in payload)) throw error;
+
+    const { [missing]: _removed, ...remaining } = payload;
+    payload = remaining;
+    dropped.push(missing);
+  }
+
+  throw new Error('Η αποθήκευση της διαμόρφωσης απέτυχε.');
 }
