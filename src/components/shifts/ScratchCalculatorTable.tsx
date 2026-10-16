@@ -1105,9 +1105,26 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const visibleRows = specialEditionEnabled ? rows : rows.filter((r) => !SPECIAL_EDITION_ROW_IDS.includes(r.id));
 
   // Group rows by category
-  const categories = Array.from(
-    new Set(visibleRows.map((r) => r.category || 'Άλλα Σκρατς'))
-  );
+  // Σκρατς first, then Λαχεία, never interleaved - they are different products
+  // and the agency adds them up separately.
+  //
+  // Each row is placed by its own kind, not by its category's majority. The
+  // catalogue lets the Owner set kind and category independently, so a
+  // category holding both products is possible; it appears once under each,
+  // rather than dragging its lottery rows under the Σκρατς heading.
+  const categories: { cat: string; isLottery: boolean }[] = [];
+  for (const isLottery of [false, true]) {
+    const seen = new Set<string>();
+    for (const r of visibleRows) {
+      if (isLotteryRow(r) !== isLottery) continue;
+      const cat = r.category || 'Άλλα Σκρατς';
+      if (seen.has(cat)) continue;
+      seen.add(cat);
+      categories.push({ cat, isLottery });
+    }
+  }
+  const firstLotteryCategory = categories.find((c) => c.isLottery)?.cat;
+  const firstScratchCategory = categories.find((c) => !c.isLottery)?.cat;
 
   return (
     <div className="space-y-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
@@ -1259,18 +1276,41 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium">
-            {categories.map((cat) => {
-              const catRows = visibleRows.filter((r) => (r.category || 'Άλλα Σκρατς') === cat);
+            {categories.map(({ cat, isLottery: isCatLottery }) => {
+              const catRows = visibleRows.filter(
+                (r) => (r.category || 'Άλλα Σκρατς') === cat && isLotteryRow(r) === isCatLottery
+              );
               const catTotal = catRows.reduce((acc, r) => acc + calculateRowTotal(r, sellingMode), 0);
               // calculateCombinedRowQty (front+back), not calculateRowQty (front-only) -
               // matches catTotal above (calculateRowTotal already combines both sides),
               // and the per-row Σύνολο column. Pre-existing gap from the Front/Back
               // feature: this header badge undercounted any row with back-side sales.
               const catQty = catRows.reduce((acc, r) => acc + calculateCombinedRowQty(r, sellingMode), 0);
-              const isCatLottery = cat.toLowerCase().includes('λαχεί') || cat.toLowerCase().includes('λαχει');
 
+              const colCount = readOnly || !canManage ? 8 : 9;
               return (
                 <React.Fragment key={cat}>
+                  {/* A banner at each change of product, carrying that
+                      product's own total - the two are counted apart. */}
+                  {(cat === firstScratchCategory || cat === firstLotteryCategory) && (
+                    <tr className={isCatLottery ? 'bg-amber-100/70' : 'bg-indigo-100/70'}>
+                      <td colSpan={colCount} className="px-3 py-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className={`font-black text-xs tracking-widest uppercase ${
+                            isCatLottery ? 'text-amber-900' : 'text-indigo-900'
+                          }`}>
+                            {isCatLottery ? '🎟️ Λαχεία' : '🎫 Σκρατς'}
+                          </span>
+                          <span className={`text-micro font-black font-mono px-2.5 py-1 rounded-md border bg-white ${
+                            isCatLottery ? 'text-amber-900 border-amber-300' : 'text-indigo-900 border-indigo-300'
+                          }`}>
+                            {isCatLottery ? lotteryPieces : scratchPieces} τμχ •{' '}
+                            {formatCurrency(isCatLottery ? lotterySales : scratchSales)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {/* Category Header Row */}
                   <tr className="bg-slate-50/90 border-t border-b border-slate-200">
                     <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 py-1.5">
@@ -2013,10 +2053,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             </span>
           )}
         </div>
-        <div className="text-right flex items-center space-x-2">
-          <span className="text-micro text-slate-600 font-semibold">Σύνολο Αξίας Πωλήσεων Σκρατς & Λαχείων:</span>
+        {/* Σκρατς and Λαχεία add up separately, then together. The combined
+            figure is what feeds the shift, so it stays - but it is no longer
+            the only number on show, which is what hid a lottery total inside
+            a scratch one. */}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <span className="text-micro font-bold font-mono text-indigo-900 bg-white px-2.5 py-1 rounded-lg border border-indigo-200">
+            🎫 Σκρατς: {formatCurrency(scratchSales)}
+          </span>
+          <span className="text-micro font-bold font-mono text-amber-900 bg-white px-2.5 py-1 rounded-lg border border-amber-300">
+            🎟️ Λαχεία: {formatCurrency(lotterySales)}
+          </span>
           <span className="text-sm font-black text-emerald-700 font-mono bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-2xs">
-            {formatCurrency(grandTotalSales)}
+            Σύνολο: {formatCurrency(grandTotalSales)}
           </span>
         </div>
       </div>
