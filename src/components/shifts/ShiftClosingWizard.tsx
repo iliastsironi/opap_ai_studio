@@ -317,6 +317,28 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // 0017_scratch_layout_settings.sql. Defaults match DEFAULT_OPAP_SHIFT_
   // TEMPLATE exactly, so there's no flash of the wrong state before load.
   const [specialEditionEnabled, setSpecialEditionEnabled] = useState(false);
+
+  // Which modules this store actually runs.
+  //
+  // Every one of these has had a switch in «Διαμόρφωση» since the first
+  // migration, and not one of them was ever read here: the wizard fetched the
+  // template for five scratch settings and ignored the rest. Turning off a
+  // module an agency does not have - a café it never built, VLTs it does not
+  // host - saved a row in the database and changed nothing an employee saw.
+  //
+  // Defaults are all on, matching every existing store, so nothing flashes
+  // off and back on while the template loads.
+  const [modules, setModules] = useState({
+    scratch: true,
+    nationalLottery: true,
+    tora: true,
+    cleverPoint: true,
+    ippodromos: true,
+    vlts: true,
+    pameStoixima: true,
+    numberGames: true,
+    fnb: true,
+  });
   const [laikoSellingMode, setLaikoSellingMode] = useState<'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'>('PIECES_AND_BUNDLES');
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
@@ -342,6 +364,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
         setSpecialEditionEnabled(config.special_edition_enabled === true);
         setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
+        // `!== false` rather than a truthy test: a template row that predates
+        // one of these columns reads undefined, and the safe answer there is
+        // to keep showing the module rather than to hide a till section.
+        setModules({
+          scratch: config.show_scratch !== false,
+          nationalLottery: config.show_national_lottery !== false,
+          tora: config.show_tora !== false,
+          cleverPoint: config.show_clever_point !== false,
+          ippodromos: config.show_ippodromos !== false,
+          vlts: config.show_vlts !== false,
+          pameStoixima: config.show_pame_stoixima !== false,
+          numberGames: config.show_number_games !== false,
+          fnb: config.show_fnb !== false,
+        });
       })
       .catch((err) => {
         console.warn('[ShiftClosingWizard] Could not load scratch counting defaults:', err);
@@ -625,13 +661,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   );
   const rawVltsOutNum =
     initialVltsOut !== undefined && initialVltsOut !== '' ? Number(initialVltsOut) : 0;
+  // One signed figure, typed as it is meant: «-307» for a payout. This used to
+  // be a magnitude plus an «Εκροή / Είσπραξη» toggle, which is two controls and
+  // one more thing to get wrong on a till that is already being counted.
+  //
+  // shifts.vlts_cash_out is stored signed and always has been, so it is what
+  // seeds this. The older vlts_cash_out_type / _raw pair is still read, so a
+  // draft saved before this change reopens showing the same number; nothing
+  // writes that pair any more.
   const [vltsOut, setVltsOut] = useState<string>(() => {
-    if (savedVltsRaw !== undefined && savedVltsRaw !== '') return String(savedVltsRaw);
-    return rawVltsOutNum !== 0 ? String(Math.abs(rawVltsOutNum)) : '';
-  });
-  const [vltsOutType, setVltsOutType] = useState<'NEGATIVE' | 'POSITIVE'>(() => {
-    if (savedVltsType === 'NEGATIVE' || savedVltsType === 'POSITIVE') return savedVltsType;
-    return rawVltsOutNum > 0 ? 'POSITIVE' : 'NEGATIVE';
+    if (rawVltsOutNum !== 0) return String(rawVltsOutNum);
+    if (savedVltsRaw !== undefined && savedVltsRaw !== '') {
+      const magnitude = Math.abs(Number(savedVltsRaw) || 0);
+      if (!magnitude) return '';
+      return savedVltsType === 'POSITIVE' ? String(magnitude) : String(-magnitude);
+    }
+    return '';
   });
 
   // 6. Pame Stoixima | Virtuals
@@ -930,9 +975,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     0
   );
 
-  const effectiveVltsOutflow = vltsOutType === 'NEGATIVE' ? safeNum(vltsOut) : 0;
-  const effectiveVltsInflow = vltsOutType === 'POSITIVE' ? safeNum(vltsOut) : 0;
-  const signedVltsOut = vltsOutType === 'NEGATIVE' ? -safeNum(vltsOut) : safeNum(vltsOut);
+  const signedVltsOut = safeNum(vltsOut);
 
   // The same resolution the discrepancy uses, so the «Ταμείο FnB» panel below
   // cannot show a cash figure the calculation disagrees with.
@@ -1149,8 +1192,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         ),
         store_pos_items: storePosItems,
         tora_pos_items: toraPosItems,
-        vlts_cash_out_type: vltsOutType,
-        vlts_cash_out_raw: safeNum(vltsOut),
         reconciliation_net_total: reconciliationNetTotal,
         reconciliation_gross_total: reconciliationBreakdown.grossTotal,
       },
@@ -1205,7 +1246,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     ippodromosBalance,
     vltsIn,
     vltsOut,
-    vltsOutType,
     pameStoiximaBalance,
     arithmoGross,
     arithmoCancels,
@@ -1470,7 +1510,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const steps = [
     { num: 1, name: 'Έναρξη', icon: Building2 },
     { num: 2, name: 'ΟΠΑΠ & VLTs', icon: Ticket },
-    { num: 3, name: 'FnB & Έξοδα', icon: Coffee },
+    // A store without a café has no FnB step to speak of - the step is still
+    // where expenses are entered, so it stays, under a name that is true.
+    { num: 3, name: modules.fnb ? 'FnB & Έξοδα' : 'Έξοδα', icon: modules.fnb ? Coffee : Receipt },
     { num: 4, name: 'Καταμέτρηση', icon: Coins },
     { num: 5, name: 'Επιβεβαίωση', icon: CheckCircle2 },
   ];
@@ -1862,6 +1904,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
           <div className="space-y-6">
             {/* 1. Ελληνικά Λαχεία | Σκρατς */}
+            {modules.scratch && (
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
                 <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
@@ -1971,8 +2014,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </div>
               </div>
             </div>
+            )}
 
             {/* 2b. Tora Direct (Υπηρεσίες Tora) */}
+            {modules.tora && (
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2">
                 <div>
@@ -2056,6 +2101,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 ))}
               </div>
             </div>
+            )}
 
             {/* 3. Clever Point, 4. Ιππόδρομος & 6. Pame Stoixima | Virtuals */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -2121,6 +2167,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
 
             {/* 5. VLTs (PLAY) */}
+            {modules.vlts && (
             <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
                 <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
@@ -2150,70 +2197,37 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className={`block text-xs font-bold ${vltsOutType === 'NEGATIVE' ? 'text-rose-800' : 'text-emerald-800'}`}>
-                      Ροή Μετρητών VLTs (€)
-                    </label>
-                    <div className="flex items-center space-x-2 bg-slate-200/80 p-1 rounded-lg text-xs font-bold">
-                      <button
-                        type="button"
-                        onClick={() => setVltsOutType('NEGATIVE')}
-                        aria-pressed={vltsOutType === 'NEGATIVE'}
-                        className={`px-3 py-2 rounded-md transition-colors cursor-pointer ${
-                          vltsOutType === 'NEGATIVE'
-                            ? 'bg-rose-600 text-white shadow-2xs font-extrabold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        - Εκροή
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setVltsOutType('POSITIVE')}
-                        aria-pressed={vltsOutType === 'POSITIVE'}
-                        className={`px-3 py-2 rounded-md transition-colors cursor-pointer ${
-                          vltsOutType === 'POSITIVE'
-                            ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        + Είσπραξη
-                      </button>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <span
-                      className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black ${
-                        vltsOutType === 'NEGATIVE' ? 'text-rose-600' : 'text-emerald-600'
-                      }`}
-                    >
-                      {vltsOutType === 'NEGATIVE' ? '-' : '+'}
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
-                      value={vltsOut}
-                      onChange={(e) => setVltsOut(e.target.value)}
-                      placeholder="0.00"
-                      className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl border text-base font-bold ${
-                        vltsOutType === 'NEGATIVE'
-                          ? 'border-rose-200 text-rose-700 bg-white focus:ring-2 focus:ring-rose-500'
-                          : 'border-emerald-200 text-emerald-700 bg-white focus:ring-2 focus:ring-emerald-500'
-                      }`}
-                    />
-                  </div>
+                  <label htmlFor="vlts-out" className={`block text-xs font-bold mb-1 ${
+                    signedVltsOut < 0 ? 'text-rose-800' : 'text-slate-700'
+                  }`}>
+                    Ροή Μετρητών VLTs (€)
+                  </label>
+                  <input
+                    id="vlts-out"
+                    type="number"
+                    step="0.01"
+                    min={-MAX_CURRENCY_AMOUNT}
+                    max={MAX_CURRENCY_AMOUNT}
+                    value={vltsOut}
+                    onChange={(e) => setVltsOut(e.target.value)}
+                    placeholder="0.00"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono ${
+                      signedVltsOut < 0
+                        ? 'border-rose-300 text-rose-700 bg-white focus:ring-2 focus:ring-rose-500'
+                        : 'border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500'
+                    }`}
+                  />
                   <p className="text-micro text-slate-500 mt-1">
-                    {vltsOutType === 'NEGATIVE'
-                      ? '🔴 Εκροή / Πληρωμή (αφαιρείται από το ταμείο)'
-                      : '🟢 Είσπραξη / Πλεόνασμα (προστίθεται στο ταμείο)'}
+                    Με πρόσημο: <span className="font-mono font-bold">-</span> για εκροή/πληρωμή,
+                    χωρίς πρόσημο για είσπραξη.
                   </p>
                 </div>
               </div>
             </div>
+            )}
 
             {/* 7. Αριθμοπαιχνίδια (KINO, Τζόκερ, Λόττο κλπ.) */}
+            {modules.numberGames && (
             <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100 space-y-3">
               <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
                 <h4 className="font-extrabold text-sm text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
@@ -2290,6 +2304,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -2298,6 +2313,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       {currentStep === 3 && (
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8 transition-opacity duration-150 starting:opacity-0">
           {/* FnB Sales */}
+          {modules.fnb && (
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
@@ -2356,6 +2372,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
             </div>
           </div>
+          )}
 
           {/* Daily Expenses */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
@@ -2859,6 +2876,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
                 <div className="p-3.5 space-y-3.5 text-xs">
                   {/* 1. Ελληνικά Λαχεία | Σκρατς */}
+                  {modules.scratch && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ελληνικά Λαχεία | Σκρατς
@@ -2876,8 +2894,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(totalScratchNet)}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 2. Tora */}
+                  {modules.tora && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Tora
@@ -2893,8 +2913,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(totalToraPos)}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 3. Clever Point */}
+                  {modules.cleverPoint && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Clever Point
@@ -2904,8 +2926,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(safeNum(cleverPointTotal))}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 4. Ιππόδρομος */}
+                  {modules.ippodromos && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ιππόδρομος
@@ -2915,8 +2939,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono font-bold text-white">{formatCurrency(safeNum(ippodromosBalance))}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 5. VLTs */}
+                  {modules.vlts && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       VLTs
@@ -2932,8 +2958,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       </span>
                     </div>
                   </div>
+                  )}
 
                   {/* 6. Pame Stoixima | Virtuals */}
+                  {modules.pameStoixima && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Pame Stoixima | Virtuals
@@ -2943,8 +2971,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono font-bold text-white">{formatCurrency(safeNum(pameStoiximaBalance))}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 7. Αριθμοπαιχνίδια */}
+                  {modules.numberGames && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Αριθμοπαιχνίδια
@@ -2972,8 +3002,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(totalArithmoNet)}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* 8. Ταμείο FnB */}
+                  {modules.fnb && (
                   <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/40 space-y-1">
                     <div className="text-center font-black text-indigo-300 border-b border-slate-700/40 pb-1 text-micro uppercase tracking-wider">
                       Ταμείο FnB
@@ -2991,6 +3023,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(fnbCashInDrawer + safeNum(fnbCard))}</span>
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Bottom Left Blue Bar */}
