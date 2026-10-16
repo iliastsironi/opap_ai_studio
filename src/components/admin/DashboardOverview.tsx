@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
-import { QuickTopUpDialog } from '../shifts/QuickTopUpDialog.tsx';
+import { QuickCashDialog, type QuickCashKind } from '../shifts/QuickCashDialog.tsx';
 import { fetchShiftsFromFirestore } from '../../services/shiftService.ts';
 import { fetchEmployeeCharges } from '../../services/employeeChargeService.ts';
 import { fetchIncidentsFromFirestore } from '../../services/moduleServices.ts';
@@ -29,7 +29,7 @@ interface DashboardProps {
 
 export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { organization, roles, hasPermission } = useAuth();
-  const [showQuickTopUp, setShowQuickTopUp] = useState(false);
+  const [quickCash, setQuickCash] = useState<QuickCashKind | null>(null);
   const { stores, activeStoreId } = useTenant();
 
   const canApprove =
@@ -342,7 +342,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           {/* Money into the till happens mid-shift and takes five seconds.
               Reaching it meant walking back through the whole closing wizard. */}
           <button
-            onClick={() => setShowQuickTopUp(true)}
+            onClick={() => setQuickCash('TOPUP')}
             className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-300 transition-colors text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between mb-2">
@@ -353,6 +353,20 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             </div>
             <h3 className="font-bold text-slate-900 text-sm">Προσαύξηση Ταμείου</h3>
             <p className="text-xs text-slate-500 mt-0.5">Προσθήκη μετρητών στην ανοιχτή βάρδια, χωρίς κλείσιμο</p>
+          </button>
+
+          <button
+            onClick={() => setQuickCash('SAFEDROP')}
+            className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/40 hover:bg-indigo-50 hover:border-indigo-300 transition-colors text-left group cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                <Vault className="w-4 h-4" />
+              </div>
+              <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm">Κατάθεση Χρηματοκιβωτίου</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Μεταφορά μετρητών στο χρηματοκιβώτιο μέσα στη βάρδια</p>
           </button>
 
           <button
@@ -399,9 +413,10 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <QuickTopUpDialog
-        isOpen={showQuickTopUp}
-        onClose={() => setShowQuickTopUp(false)}
+      <QuickCashDialog
+        isOpen={quickCash !== null}
+        kind={quickCash ?? 'TOPUP'}
+        onClose={() => setQuickCash(null)}
         orgId={organization!.id}
         storeId={activeStoreId !== 'ALL' ? activeStoreId : stores[0]?.id}
         canManage={hasPermission('organization.update') || hasPermission('store.update')}

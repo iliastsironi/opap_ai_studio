@@ -4,26 +4,56 @@ import { supabase } from '../../services/supabase.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { readTopUps, topUpsForLegacyFields } from '../../lib/shiftTopUps.ts';
+import { readSafeDrops, safeDropShiftFields, sortSafeDrops } from '../../lib/shiftSafeDrops.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import type { Shift } from '../../types/index.ts';
 
+export type QuickCashKind = 'TOPUP' | 'SAFEDROP';
+
+const COPY: Record<QuickCashKind, {
+  title: string;
+  verb: string;
+  blurb: string;
+  denied: string;
+}> = {
+  TOPUP: {
+    title: 'Προσαύξηση Ταμείου',
+    verb: 'Καταχωρήθηκε προσαύξηση',
+    blurb: 'Προστίθεται στο αρχικό ταμείο της ανοιχτής βάρδιας',
+    denied: 'Οι προσαυξήσεις καταχωρούνται από τον υπεύθυνο. Μπορεί να αλλάξει στη Διαμόρφωση.',
+  },
+  SAFEDROP: {
+    title: 'Κατάθεση Χρηματοκιβωτίου',
+    verb: 'Καταχωρήθηκε κατάθεση',
+    blurb: 'Βγαίνει από το συρτάρι της ανοιχτής βάρδιας και μπαίνει στο χρηματοκιβώτιο',
+    denied: 'Οι καταθέσεις χρηματοκιβωτίου καταχωρούνται από τον υπεύθυνο. Μπορεί να αλλάξει στη Διαμόρφωση.',
+  },
+};
+
 /**
- * Put money in the till, without opening the closing wizard to do it.
+ * Move money into the till, or out of it into the safe, without opening the
+ * closing wizard to do it.
  *
- * A προσαύξηση happens mid-shift and takes five seconds; reaching it meant
- * walking back through the whole close. This writes to the shift that is
- * actually open, and refuses when there is not one - a top-up recorded against
- * no shift is money that lands nowhere.
+ * Both happen mid-shift and take five seconds; reaching either meant walking
+ * back through the whole close. This writes to the shift that is actually
+ * open, and refuses when there is not one - money recorded against no shift
+ * lands nowhere.
+ *
+ * A safe drop is not money leaving: the reconciliation adds bank_deposits back
+ * when working out what the drawer should hold, so it stays money the shift
+ * took.
  */
-export const QuickTopUpDialog: React.FC<{
+export const QuickCashDialog: React.FC<{
   isOpen: boolean;
   onClose: () => void;
+  kind: QuickCashKind;
   orgId: string;
   storeId?: string;
   canManage: boolean;
-}> = ({ isOpen, onClose, orgId, storeId, canManage }) => {
+}> = ({ isOpen, onClose, kind, orgId, storeId, canManage }) => {
+  const copy = COPY[kind];
   const [shift, setShift] = useState<Shift | null>(null);
   const [allowed, setAllowed] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -49,7 +79,12 @@ export const QuickTopUpDialog: React.FC<{
       .then(([active, config]) => {
         if (cancelled) return;
         setShift(active);
-        setAllowed(canManage || config?.topup_employee_allowed === true);
+        setAllowed(
+          canManage ||
+            (kind === 'TOPUP'
+              ? config?.topup_employee_allowed === true
+              : (config as any)?.safedrop_employee_allowed === true)
+        );
       })
       .catch((err) => {
         if (!cancelled) setError(err?.message || 'Δεν ήταν δυνατή η ανάγνωση της βάρδιας');
@@ -61,7 +96,7 @@ export const QuickTopUpDialog: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [isOpen, orgId, storeId, canManage]);
+  }, [isOpen, orgId, storeId, canManage, kind]);
 
   const value = Number(String(amount).replace(',', '.'));
   const invalid = !Number.isFinite(value) || value <= 0 || value > MAX_CURRENCY_AMOUNT;
@@ -72,26 +107,39 @@ export const QuickTopUpDialog: React.FC<{
     setError(null);
     try {
       const custom = (shift.custom_field_values ?? {}) as Record<string, any>;
-      // Append rather than replace, so a top-up entered here and one entered
-      // in the wizard do not overwrite each other.
-      const existing = readTopUps(custom).filter((v) => Number(v) > 0);
-      const next = [...existing, String(value)];
 
-      const { error: writeErr } = await supabase
-        .from('shifts')
-        .update({
+      // Appending, not replacing: an entry made here and one made in the
+      // wizard must not overwrite each other.
+      let patch: Record<string, any>;
+      if (kind === 'TOPUP') {
+        const existing = readTopUps(custom).filter((v) => Number(v) > 0);
+        const next = [...existing, String(value)];
+        patch = {
           custom_field_values: {
             ...custom,
             opening_topups: next.map((v) => Number(v)),
             ...topUpsForLegacyFields(next),
             ...(note.trim() ? { opening_topup_notes: [...(custom.opening_topup_notes ?? []), note.trim()] } : {}),
           },
-          updated_at: new Date().toISOString(),
-        })
+        };
+      } else {
+        const drops = sortSafeDrops([
+          ...readSafeDrops(custom),
+          { amount: value, note: note.trim() || undefined, at: new Date().toISOString() },
+        ]);
+        patch = {
+          custom_field_values: { ...custom, safe_drops: drops },
+          ...safeDropShiftFields(drops),
+        };
+      }
+
+      const { error: writeErr } = await supabase
+        .from('shifts')
+        .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', shift.id);
       if (writeErr) throw writeErr;
 
-      setDone(`Καταχωρήθηκε προσαύξηση ${formatCurrency(value)}.`);
+      setDone(`${copy.verb} ${formatCurrency(value)}.`);
       setAmount('');
       setNote('');
     } catch (err: any) {
@@ -107,7 +155,7 @@ export const QuickTopUpDialog: React.FC<{
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Προσαύξηση Ταμείου"
+      title={copy.title}
       icon={Banknote}
       size="sm"
       footer={
@@ -134,21 +182,21 @@ export const QuickTopUpDialog: React.FC<{
           </p>
         ) : !allowed ? (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3 leading-relaxed">
-            Οι προσαυξήσεις καταχωρούνται από τον υπεύθυνο. Μπορεί να αλλάξει στη Διαμόρφωση.
+            {copy.denied}
           </p>
         ) : (
           <>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Προστίθεται στο αρχικό ταμείο της ανοιχτής βάρδιας
+              {copy.blurb}
               {shift.register_id ? <> στο <span className="font-bold">{shift.register_id}</span></> : null}.
             </p>
 
             <div>
-              <label htmlFor="quick-topup-amount" className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="quick-cash-amount" className="block text-xs font-bold text-slate-700 mb-1">
                 Ποσό (€)
               </label>
               <input
-                id="quick-topup-amount"
+                id="quick-cash-amount"
                 type="number"
                 step="0.01"
                 min="0"
@@ -161,11 +209,11 @@ export const QuickTopUpDialog: React.FC<{
             </div>
 
             <div>
-              <label htmlFor="quick-topup-note" className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="quick-cash-note" className="block text-xs font-bold text-slate-700 mb-1">
                 Σημείωση (προαιρετικά)
               </label>
               <input
-                id="quick-topup-note"
+                id="quick-cash-note"
                 type="text"
                 maxLength={120}
                 value={note}

@@ -1128,6 +1128,28 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
               )}
             </button>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.safedrop_employee_allowed === true}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, safedrop_employee_allowed: !prev.safedrop_employee_allowed }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.safedrop_employee_allowed ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Ο υπάλληλος καταχωρεί κατάθεση χρηματοκιβωτίου</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Κλειστό: τις βλέπει στο κλείσιμο αλλά τις καταχωρεί ο υπεύθυνος.
+                </span>
+              </span>
+              {template.safedrop_employee_allowed ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
           </div>
         </div>
       )}

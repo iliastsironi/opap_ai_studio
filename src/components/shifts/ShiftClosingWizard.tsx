@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   AlertCircle,
   Receipt,
+  Vault,
   Coins,
   Ticket,
   Coffee,
@@ -33,6 +34,7 @@ import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
+import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type SafeDrop } from '../../lib/shiftSafeDrops.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -305,6 +307,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [configuredPosCount, setConfiguredPosCount] = useState<number | null>(null);
   const [supplierNames, setSupplierNames] = useState<string[]>([]);
   const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
+  const [safeDropAllowedForEmployee, setSafeDropAllowedForEmployee] = useState(false);
+  const [newSafeDropAmount, setNewSafeDropAmount] = useState('');
+  const [newSafeDropNote, setNewSafeDropNote] = useState('');
 
   const [modules, setModules] = useState({
     scratch: true,
@@ -383,6 +388,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         setFloatEditableByEmployee(config.opening_float_employee_editable === true);
         setConfiguredPosCount(Math.max(1, Number(config.pos_terminal_count) || 2));
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
+        setSafeDropAllowedForEmployee((config as any).safedrop_employee_allowed === true);
         // The store's rule, not this shift's. A shift already closed keeps the
         // threshold it was judged against (shift.discrepancy_threshold above);
         // one still open follows the configuration.
@@ -740,13 +746,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       : ''
   );
 
-  const [bankDeposits, setBankDeposits] = useState<string>(
-    shift.bank_deposits !== undefined
-      ? String(shift.bank_deposits)
-      : localDraft?.bank_deposits !== undefined
-      ? String(localDraft.bank_deposits)
-      : ''
+  // Safe drops: cash moved to the χρηματοκιβώτιο during the shift.
+  //
+  // This used to be a single `bankDeposits` figure whose setter was never
+  // called from anywhere, so the feature had no way in and every shift the
+  // app created read 0. It is a list now, each entry carrying its own amount,
+  // note and time, and the total still lands in bank_deposits / safe_drop -
+  // the reconciliation adds that back, which is how money in the safe stays
+  // money the shift took rather than money missing.
+  const [safeDrops, setSafeDrops] = useState<SafeDrop[]>(() =>
+    sortSafeDrops(readSafeDrops(shift.custom_field_values ?? localDraft?.custom_field_values))
   );
+  const bankDeposits = String(totalSafeDrops(safeDrops));
   const [discrepancyThreshold, setDiscrepancyThreshold] = useState<string>(
     String(shift.discrepancy_threshold || localDraft?.discrepancy_threshold || 10.0)
   );
@@ -1158,8 +1169,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       expenses_paid_cash: expensesCashTotal,
       customer_credit_granted: creditGrantedTotal,
       customer_credit_collected: creditCollectedTotal,
-      bank_deposits: safeNum(bankDeposits),
-      safe_drop: safeNum(bankDeposits),
+      ...safeDropShiftFields(safeDrops),
 
       counted_denominations: denominations,
       counted_cash: countedCash,
@@ -1174,6 +1184,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       custom_field_values: {
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
+        safe_drops: safeDrops,
         opening_topups: topUps.map((v) => safeNum(v)).filter((n) => n !== 0),
         ...topUpsForLegacyFields(topUps),
         customer_credits: customerCredits,
@@ -2704,6 +2715,121 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Καταθέσεις χρηματοκιβωτίου (safe drops).
+              Money that left the drawer during the shift and is not missing:
+              the reconciliation adds it back, which is why it is listed here
+              beside the count rather than buried in the review. */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-200/80 pb-2">
+              <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Vault className="w-4 h-4 text-indigo-600" />
+                <span>Χρηματοκιβώτιο (Safe Drop)</span>
+              </h4>
+              <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 font-mono">
+                {formatCurrency(totalSafeDrops(safeDrops))}
+              </span>
+            </div>
+
+            {safeDrops.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                Καμία κατάθεση σε αυτή τη βάρδια.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {safeDrops.map((drop, idx) => (
+                  <li
+                    key={`${drop.at}-${idx}`}
+                    className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold text-slate-900 font-mono">
+                        {formatCurrency(drop.amount)}
+                      </span>
+                      <span className="block text-micro text-slate-500 truncate">
+                        {drop.at ? new Date(drop.at).toLocaleString('el-GR') : '—'}
+                        {drop.note ? ` · ${drop.note}` : ''}
+                        {drop.by ? ` · ${drop.by}` : ''}
+                      </span>
+                    </span>
+                    {(canManage || safeDropAllowedForEmployee) && (
+                      <button
+                        type="button"
+                        onClick={() => setSafeDrops((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer shrink-0"
+                        aria-label={`Αφαίρεση κατάθεσης ${formatCurrency(drop.amount)}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {canManage || safeDropAllowedForEmployee ? (
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-32">
+                  <label htmlFor="safe-drop-amount" className="block text-micro font-bold text-slate-600 mb-1">
+                    Ποσό (€)
+                  </label>
+                  <input
+                    id="safe-drop-amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={MAX_CURRENCY_AMOUNT}
+                    value={newSafeDropAmount}
+                    onChange={(e) => setNewSafeDropAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex-1 min-w-40">
+                  <label htmlFor="safe-drop-note" className="block text-micro font-bold text-slate-600 mb-1">
+                    Σημείωση
+                  </label>
+                  <input
+                    id="safe-drop-note"
+                    type="text"
+                    maxLength={MAX_LABEL_LENGTH}
+                    value={newSafeDropNote}
+                    onChange={(e) => setNewSafeDropNote(e.target.value)}
+                    placeholder="προαιρετικά"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={safeNum(newSafeDropAmount) <= 0}
+                  onClick={() => {
+                    setSafeDrops((prev) =>
+                      sortSafeDrops([
+                        ...prev,
+                        {
+                          amount: safeNum(newSafeDropAmount),
+                          note: newSafeDropNote.trim() || undefined,
+                          at: new Date().toISOString(),
+                          by: user?.first_name ? `${user.first_name} ${user.last_name ?? ''}`.trim() : undefined,
+                        },
+                      ])
+                    );
+                    setNewSafeDropAmount('');
+                    setNewSafeDropNote('');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-extrabold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Κατάθεση
+                </button>
+              </div>
+            ) : (
+              <p className="text-micro text-slate-500">
+                Οι καταθέσεις χρηματοκιβωτίου καταχωρούνται από τον υπεύθυνο.
+              </p>
+            )}
+          </div>
+
         </div>
       )}
 
