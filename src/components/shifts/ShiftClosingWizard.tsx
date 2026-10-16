@@ -207,7 +207,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const isOwnerOrManager = canManage;
 
-  const [managerUnlockedPos, setManagerUnlockedPos] = useState<boolean>(canManage);
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Load any local draft for initial hydration fallback
@@ -300,6 +299,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // what actually unlocks them - these only decide whether an employee counts
   // as allowed on top of that.
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
+  // How many terminals this store has, per «Διαμόρφωση». It used to be a
+  // number in this browser's localStorage, which meant the till computer and
+  // the Owner's laptop could disagree about how many machines the shop owns.
+  const [configuredPosCount, setConfiguredPosCount] = useState<number | null>(null);
   const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
 
   const [modules, setModules] = useState({
@@ -359,6 +362,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // one of these columns reads undefined, and the safe answer there is
         // to keep showing the module rather than to hide a till section.
         setFloatEditableByEmployee(config.opening_float_employee_editable === true);
+        setConfiguredPosCount(Math.max(1, Number(config.pos_terminal_count) || 2));
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
         // The store's rule, not this shift's. A shift already closed keeps the
         // threshold it was judged against (shift.discrepancy_threshold above);
@@ -544,65 +548,34 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     }
   }, [storePosItems.length, toraPosItems.length]);
 
+  // Bring both lists to the configured number of terminals. The pair is kept
+  // the same length by the effect above; this decides what that length is.
+  // Only ever applied to a shift still being counted - a closed one keeps the
+  // terminals it was actually counted on.
+  useEffect(() => {
+    if (configuredPosCount === null) return;
+    if (shift.status !== 'OPEN' && shift.status !== 'DRAFT_CLOSING') return;
+
+    const resize = (items: ToraPosItem[], label: (n: number) => string): ToraPosItem[] => {
+      if (items.length === configuredPosCount) return items;
+      if (items.length > configuredPosCount) return items.slice(0, configuredPosCount);
+      const next = [...items];
+      for (let i = items.length; i < configuredPosCount; i += 1) {
+        next.push({ id: `${label(i + 1)}_${Date.now()}_${i}`, name: label(i + 1), amount: '' });
+      }
+      return next;
+    };
+
+    setToraPosItems((prev) => resize(prev, (n) => `TORA DIRECT #${n}`));
+    setStorePosItems((prev) => resize(prev, (n) => `Pos #${n}`));
+  }, [configuredPosCount, shift.status]);
+
   // Synchronized Terminal Management
   // Adding or removing a POS terminal applies to both Store POS & Tora Direct POS simultaneously
-  const handleAddTerminal = () => {
-    const nextNum = Math.max(storePosItems.length, toraPosItems.length) + 1;
-    const timestamp = Date.now();
-    const rand = Math.random().toString(36).substring(2, 5);
 
-    const newStoreItem: ToraPosItem = {
-      id: `store_pos_${timestamp}_${rand}`,
-      name: `Pos #${nextNum}`,
-      amount: '',
-    };
-    const newToraItem: ToraPosItem = {
-      id: `tora_${timestamp}_${rand}`,
-      name: `TORA DIRECT #${nextNum}`,
-      amount: '',
-    };
 
-    const nextStore = [...storePosItems, newStoreItem];
-    const nextTora = [...toraPosItems, newToraItem];
 
-    setStorePosItems(nextStore);
-    setToraPosItems(nextTora);
 
-    saveSharedPosCount(shift.store_id, nextStore.length);
-    saveStorePosConfig(shift.store_id, nextStore);
-    saveToraPosConfig(shift.store_id, nextTora);
-  };
-
-  const handleRemoveTerminal = (index: number) => {
-    if (storePosItems.length <= 1 || toraPosItems.length <= 1) return;
-
-    const nextStore = storePosItems.filter((_, idx) => idx !== index);
-    const nextTora = toraPosItems.filter((_, idx) => idx !== index);
-
-    setStorePosItems(nextStore);
-    setToraPosItems(nextTora);
-
-    saveSharedPosCount(shift.store_id, nextStore.length);
-    saveStorePosConfig(shift.store_id, nextStore);
-    saveToraPosConfig(shift.store_id, nextTora);
-  };
-
-  const handleAddStorePosItem = () => handleAddTerminal();
-  const handleAddPosItem = () => handleAddTerminal();
-
-  const handleRemoveStorePosItem = (id: string) => {
-    const idx = storePosItems.findIndex((item) => item.id === id);
-    if (idx !== -1) {
-      handleRemoveTerminal(idx);
-    }
-  };
-
-  const handleRemovePosItem = (id: string) => {
-    const idx = toraPosItems.findIndex((item) => item.id === id);
-    if (idx !== -1) {
-      handleRemoveTerminal(idx);
-    }
-  };
 
   // Updating amounts remains strictly independent between Store POS and TORA Direct
   const handleUpdateStorePosItem = (id: string, field: 'name' | 'amount', value: string) => {
@@ -2051,17 +2024,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
                         {toraPosItems.length} Τερματικά POS
                       </span>
-                      {(canManage || managerUnlockedPos) && (
-                        <button
-                          type="button"
-                          onClick={handleAddTerminal}
-                          className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
-                          title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στις Πληρωμές Καρτών POS)"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Προσθήκη POS</span>
-                        </button>
-                      )}
+                      {/* «Προσθήκη POS» used to live here, so the number of
+                          terminals a shop owns was decided mid-count, by whoever
+                          was counting, and stored in their own browser. It is a
+                          property of the shop, set once in «Διαμόρφωση». */}
                       <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
                         Σύνολο TORA DIRECT: {formatCurrency(totalToraPos)}
                       </span>
@@ -2076,7 +2042,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                             <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
                               Μηχάνημα #{idx + 1}
                             </span>
-                            {canManage || managerUnlockedPos ? (
+                            {canManage ? (
                               <input
                                 type="text"
                                 maxLength={MAX_LABEL_LENGTH}
@@ -2090,17 +2056,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                             )}
                           </div>
 
-                          {(canManage || managerUnlockedPos) && toraPosItems.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTerminal(idx)}
-                              className="text-slate-300 hover:text-rose-600 p-2.5 transition-colors cursor-pointer shrink-0"
-                              title="Διαγραφή Τερματικού POS (θα αφαιρεθεί και από τις Πληρωμές Καρτών)"
-                              aria-label="Διαγραφή Τερματικού POS"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          {/* No per-terminal delete either: removing a machine here
+                              changed how many the shop had, from inside a count. */}
                         </div>
 
                         <div className="relative">
@@ -2670,17 +2627,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="text-xs font-bold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
                   {storePosItems.length} Τερματικά POS
                 </span>
-                {(canManage || managerUnlockedPos) && (
-                  <button
-                    type="button"
-                    onClick={handleAddTerminal}
-                    className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
-                    title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στο Tora Direct)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Προσθήκη POS</span>
-                  </button>
-                )}
+                {/* Same again: the shop's terminal count is set in
+                    «Διαμόρφωση», not partway through a count. */}
                 <span className="text-xs font-black text-indigo-800 bg-white px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs font-mono">
                   Σύνολο POS: {formatCurrency(totalStorePos)}
                 </span>
@@ -2695,7 +2643,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
                         Μηχάνημα #{idx + 1}
                       </span>
-                      {canManage || managerUnlockedPos ? (
+                      {canManage ? (
                         <input
                           type="text"
                           maxLength={MAX_LABEL_LENGTH}
@@ -2709,17 +2657,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       )}
                     </div>
 
-                    {(canManage || managerUnlockedPos) && storePosItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTerminal(idx)}
-                        className="text-slate-300 hover:text-rose-600 p-2.5 transition-colors cursor-pointer shrink-0"
-                        title="Διαγραφή Τερματικού POS (θα αφαιρεθεί και από το Tora Direct)"
-                        aria-label="Διαγραφή Τερματικού POS"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    {/* and no delete here, for the same reason. */}
                   </div>
 
                   <div className="relative">
