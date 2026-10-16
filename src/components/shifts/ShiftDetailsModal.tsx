@@ -246,10 +246,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             const expectedCash = roundCurrency(safeNum(shift.expected_cash));
 
             // Right Column - Physical Count Extractions
-            const openingNotesAmount = safeNum(shift.custom_field_values?.opening_notes);
-            const openingCoinsAmount = safeNum(shift.custom_field_values?.opening_coins);
-            const openingTopUp1 = safeNum(shift.custom_field_values?.opening_topup1);
-            const openingTopUp2 = safeNum(shift.custom_field_values?.opening_topup2);
+            // These read opening_notes / opening_coins / opening_topup1 /
+            // opening_topup2 - none of which is ever written. The notes and
+            // coins are columns on the shift, and the top-ups are stored with
+            // an underscore before the digit, so all four came back undefined
+            // and the breakdown below showed zero against a non-zero total.
+            const openingNotesAmount = safeNum(shift.opening_cash_notes);
+            const openingCoinsAmount = safeNum(shift.opening_cash_coins);
+            const openingTopUp1 = safeNum(shift.custom_field_values?.opening_topup_1);
+            const openingTopUp2 = safeNum(shift.custom_field_values?.opening_topup_2);
             const openingCashTotal = roundCurrency(
               openingNotesAmount + openingCoinsAmount + openingTopUp1 + openingTopUp2 || safeNum(shift.opening_cash)
             );

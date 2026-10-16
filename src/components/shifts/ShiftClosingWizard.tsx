@@ -31,6 +31,7 @@ import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpe
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -228,26 +229,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       ? String(localDraft.opening_cash_coins)
       : String(roundCurrency(initialOpeningCash - Math.floor(initialOpeningCash)))
   );
-  const [openingTopUp1, setOpeningTopUp1] = useState<string>(
-    shift.custom_field_values?.opening_topup_1 !== undefined
-      ? String(shift.custom_field_values.opening_topup_1)
-      : localDraft?.custom_field_values?.opening_topup_1 !== undefined
-      ? String(localDraft.custom_field_values.opening_topup_1)
-      : ''
+  // A list, not two fixed slots. A till can be topped up more than twice in a
+  // shift, and «Προσαύξηση #2» was simply where the third one had nowhere to
+  // go.
+  //
+  // Still written back as opening_topup_1 and opening_topup_2 as well: the
+  // first entry and the sum of the rest. The monthly P&L reads those two and
+  // adds them (pnlService), so the total it reports stays right whether a
+  // shift recorded one top-up or five.
+  const [topUps, setTopUps] = useState<string[]>(() =>
+    readTopUps(shift.custom_field_values ?? localDraft?.custom_field_values)
   );
-  const [openingTopUp2, setOpeningTopUp2] = useState<string>(
-    shift.custom_field_values?.opening_topup_2 !== undefined
-      ? String(shift.custom_field_values.opening_topup_2)
-      : localDraft?.custom_field_values?.opening_topup_2 !== undefined
-      ? String(localDraft.custom_field_values.opening_topup_2)
-      : ''
-  );
+
+  const topUpTotal = totalTopUps(topUps);
 
   const openingCashTotal =
     safeNum(openingNotesAmount) +
     safeNum(openingCoinsAmount) +
-    safeNum(openingTopUp1) +
-    safeNum(openingTopUp2);
+    topUpTotal;
 
   // Step 2 - Granular OPAP Reports State
   // 1. Ελληνικά Λαχεία | Σκρατς
@@ -1025,8 +1024,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
     openingNotes: safeNum(openingNotesAmount),
     openingCoins: safeNum(openingCoinsAmount),
-    openingTopUp1: safeNum(openingTopUp1),
-    openingTopUp2: safeNum(openingTopUp2),
+    openingTopUp1: topUpsForLegacyFields(topUps).opening_topup_1,
+    openingTopUp2: topUpsForLegacyFields(topUps).opening_topup_2,
     openingCashTotal: openingCashTotal,
 
     arithmoGross: safeNum(arithmoGross),
@@ -1155,8 +1154,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       custom_field_values: {
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
-        opening_topup_1: safeNum(openingTopUp1),
-        opening_topup_2: safeNum(openingTopUp2),
+        opening_topups: topUps.map((v) => safeNum(v)).filter((n) => n !== 0),
+        ...topUpsForLegacyFields(topUps),
         customer_credits: customerCredits,
         // Never send a locked field this user isn't allowed to change - see
         // lockScratchRowsForSave. Otherwise drift introduced by the mount-time
@@ -1211,8 +1210,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   }, [
     openingNotesAmount,
     openingCoinsAmount,
-    openingTopUp1,
-    openingTopUp2,
+    topUps,
     scratchRows,
     scratchSales,
     scratchPayouts,
@@ -1781,39 +1779,50 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Προσαύξηση #1 (€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    placeholder="0.00"
-                    value={openingTopUp1}
-                    disabled={!canManage && !topUpAllowedForEmployee}
-                    onChange={(e) => setOpeningTopUp1(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
-                  />
-                </div>
+                {topUps.map((value, idx) => (
+                  <div key={idx}>
+                    <label htmlFor={`topup-${idx}`} className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1">
+                      <span>Προσαύξηση #{idx + 1} (€)</span>
+                      {topUps.length > 1 && (canManage || topUpAllowedForEmployee) && (
+                        <button
+                          type="button"
+                          onClick={() => setTopUps((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          aria-label={`Αφαίρεση προσαύξησης ${idx + 1}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </label>
+                    <input
+                      id={`topup-${idx}`}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={MAX_CURRENCY_AMOUNT}
+                      placeholder="0.00"
+                      value={value}
+                      disabled={!canManage && !topUpAllowedForEmployee}
+                      onChange={(e) =>
+                        setTopUps((prev) => prev.map((v, i) => (i === idx ? e.target.value : v)))
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                ))}
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Προσαύξηση #2 (€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    placeholder="0.00"
-                    value={openingTopUp2}
-                    disabled={!canManage && !topUpAllowedForEmployee}
-                    onChange={(e) => setOpeningTopUp2(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
-                  />
-                </div>
+                {(canManage || topUpAllowedForEmployee) && (
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => setTopUps((prev) => [...prev, ''])}
+                      className="w-full px-3 py-2.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-700 text-xs font-extrabold hover:bg-indigo-50 transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Προσαύξηση
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between text-xs">
@@ -3024,14 +3033,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span>Κέρματα:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingCoinsAmount))}</span>
                     </div>
-                    <div className="flex justify-between text-slate-300 py-0.5">
-                      <span>Προσαύξηση #1:</span>
-                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingTopUp1))}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-300 py-0.5">
-                      <span>Προσαύξηση #2:</span>
-                      <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingTopUp2))}</span>
-                    </div>
+                    {topUps.map((value, idx) =>
+                      safeNum(value) === 0 ? null : (
+                        <div key={idx} className="flex justify-between text-slate-300 py-0.5">
+                          <span>Προσαύξηση #{idx + 1}:</span>
+                          <span className="font-mono font-bold text-white">{formatCurrency(safeNum(value))}</span>
+                        </div>
+                      )
+                    )}
                     <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-700/30 pt-1">
                       <span>Σύνολο:</span>
                       <span className="font-mono text-white">{formatCurrency(openingCashTotal)}</span>
