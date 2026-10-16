@@ -25,6 +25,7 @@ import {
   Info,
   Sparkles,
   X,
+  Ticket,
 } from 'lucide-react';
 import { ShiftTemplateConfig, TemplateFieldConfig } from '../../types/index.ts';
 import {
@@ -33,6 +34,7 @@ import {
   DEFAULT_OPAP_SHIFT_TEMPLATE,
 } from '../../services/shiftTemplateService.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
+import { ScratchCatalogEditor } from './ScratchCatalogEditor.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -52,7 +54,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Active View Tab
-  const [activeTab, setActiveTab] = useState<'FIELDS' | 'PREVIEW' | 'MODULES'>('FIELDS');
+  const [activeTab, setActiveTab] = useState<'FIELDS' | 'PREVIEW' | 'MODULES' | 'CATALOG'>('FIELDS');
 
   // Filter in Fields Tab
   const [fieldFilter, setFieldFilter] = useState<'ALL' | 'SYSTEM' | 'CUSTOM' | 'REPORTS' | 'COUNTING'>('ALL');
@@ -463,6 +465,18 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('CATALOG')}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
+              activeTab === 'CATALOG'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Ticket className="w-4 h-4" />
+            <span>🎫 Κατάλογος Σκρατς</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('PREVIEW')}
             className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
               activeTab === 'PREVIEW'
@@ -651,6 +665,22 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               })
             )}
           </div>
+        </div>
+      )}
+
+      {/* TAB: SCRATCH & LOTTERY CATALOGUE
+          Which games the store sells and in what order. Kept in the database
+          since 0030; it used to live in each browser's localStorage, edited
+          from inside the closing wizard by whoever happened to be counting. */}
+      {activeTab === 'CATALOG' && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          {storeId ? (
+            <ScratchCatalogEditor orgId={orgId} storeId={storeId} canEdit={canManageScratchMode} />
+          ) : (
+            <p className="text-xs text-slate-500 py-6 text-center">
+              Επιλέξτε κατάστημα για να δείτε τον κατάλογό του.
+            </p>
+          )}
         </div>
       )}
 
