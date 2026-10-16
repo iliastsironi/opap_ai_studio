@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
-import { createSupplierInFirestore, fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
+import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, Supplier } from '../../types/index.ts';
 import { Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -175,43 +175,15 @@ export const ExpensesManager: React.FC = () => {
         activeShift
       );
 
-      // A name typed by hand joins the registry, so the next person picks it
-      // from the list instead of typing it again slightly differently. That is
-      // how «Hausbranft» and «HAUSBRANDT» became two suppliers for one
-      // business in the August import.
-      //
-      // After the expense, never before: a failure to register a supplier must
-      // not cost the operator the expense they just entered, and it is matched
-      // case-insensitively so «ΚΑΒΑ ΖΩΓΡ» does not create a second row beside
-      // «Κάβα Ζωγρ».
-      if (selectedSupplierId === 'CUSTOM' && finalRecipient !== 'Προμηθευτής') {
-        const known = suppliers.some(
-          (sup) =>
-            (sup.company_name || '').trim().toLocaleUpperCase('el-GR') ===
-            finalRecipient.toLocaleUpperCase('el-GR')
-        );
-        if (!known) {
-          try {
-            await createSupplierInFirestore({
-              organization_id: orgId,
-              store_ids: [targetStoreId],
-              code: '',
-              company_name: finalRecipient,
-              category: category === 'EXPENSES_FNB' ? 'BEVERAGES_FNB' : 'OTHER',
-              balance: 0,
-              is_active: true,
-              notes: 'Δημιουργήθηκε κατά την καταχώρηση εξόδου',
-              created_at: new Date().toISOString(),
-            });
-            await loadSuppliers();
-          } catch (supErr) {
-            // Non-fatal on purpose - the expense is saved either way.
-            console.warn('Could not register the new supplier:', supErr);
-          }
-        }
-      }
+      // Registering a hand-typed recipient as a supplier now happens inside
+      // createAndSyncShiftExpense, so it covers expenses entered during a
+      // shift too - which is most of them, and which never reached the
+      // registry while this lived only here.
 
       await loadExpenses();
+      // A recipient typed just now may have become a supplier inside
+      // createAndSyncShiftExpense; pick it up so the next entry offers it.
+      await loadSuppliers();
       setShowModal(false);
       setAmount('');
       setSelectedSupplierId('');

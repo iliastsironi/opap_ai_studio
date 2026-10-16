@@ -1135,6 +1135,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // catalogue lets the Owner set kind and category independently, so a
   // category holding both products is possible; it appears once under each,
   // rather than dragging its lottery rows under the Σκρατς heading.
+  // «Μόνο Μπροστά» means the Πίσω columns are not shown at all, rather than
+  // shown and ignored. Two empty columns on a counting screen are two more
+  // things to read past on a till.
+  const showBack = sellingMode !== 'FRONT_ONLY';
+  const spannedColumns = (readOnly || !canManage ? 8 : 9) - (showBack ? 0 : 2);
+
   const categories: { cat: string; isLottery: boolean }[] = [];
   for (const isLottery of [false, true]) {
     const seen = new Set<string>();
@@ -1264,10 +1270,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 <span className="text-indigo-700">Μπροστά</span>
                 <span className="block text-micro font-medium normal-case text-indigo-500/80 tracking-normal mt-0.5">Πώληση από την αρχή του πακέτου</span>
               </th>
-              <th className="p-2 text-center bg-purple-50/70 border-l border-purple-100" colSpan={2} scope="colgroup">
-                <span className="text-purple-700">Πίσω</span>
-                <span className="block text-micro font-medium normal-case text-purple-500/80 tracking-normal mt-0.5">Πώληση από το τέλος του πακέτου</span>
-              </th>
+              {showBack && (
+                <th className="p-2 text-center bg-purple-50/70 border-l border-purple-100" colSpan={2} scope="colgroup">
+                  <span className="text-purple-700">Πίσω</span>
+                  <span className="block text-micro font-medium normal-case text-purple-500/80 tracking-normal mt-0.5">Πώληση από το τέλος του πακέτου</span>
+                </th>
+              )}
               <th className="p-2.5 w-24 text-center border-l border-slate-200" colSpan={2} scope="colgroup">Σύνολο</th>
               {!readOnly && canManage && <th className="p-2.5 w-20 text-center" rowSpan={2} scope="col">Ενέργειες</th>}
             </tr>
@@ -1283,7 +1291,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 </div>
               </th>
               <th className="p-2 w-28 text-center bg-indigo-50/40" scope="col">Τελικό</th>
-              <th className="p-2 w-28 text-center bg-purple-50/40" scope="col">Αρχικό</th>
+              {showBack && <th className="p-2 w-28 text-center bg-purple-50/40" scope="col">Αρχικό</th>}
+              {showBack && (
               <th className="p-2 w-28 text-center bg-purple-50/40" scope="col">
                 <div className="flex items-center justify-center space-x-1">
                   <span>Τελικό</span>
@@ -1294,6 +1303,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   ) : null}
                 </div>
               </th>
+              )}
               <th className="p-2 w-20 text-center border-l border-slate-200" scope="col">Τμχ</th>
               <th className="p-2 w-24 text-right" scope="col">Αξία (€)</th>
             </tr>
@@ -1310,7 +1320,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               // feature: this header badge undercounted any row with back-side sales.
               const catQty = catRows.reduce((acc, r) => acc + calculateCombinedRowQty(r, sellingMode), 0);
 
-              const colCount = readOnly || !canManage ? 8 : 9;
+              const colCount = spannedColumns;
               return (
                 <React.Fragment key={cat}>
                   {/* A banner at each change of product, carrying that
@@ -1336,7 +1346,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   )}
                   {/* Category Header Row */}
                   <tr className="bg-slate-50/90 border-t border-b border-slate-200">
-                    <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 py-1.5">
+                    <td colSpan={spannedColumns} className="px-3 py-1.5">
                       <div className="flex items-center justify-between">
                         <span className="font-black text-slate-800 text-xs tracking-wide uppercase flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-indigo-600 inline-block"></span>
@@ -1695,6 +1705,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         </td>
 
                         {/* Πίσω - Αρχικό (User-editable, mirrors Μπροστά-Τελικό) */}
+                        {showBack && (
+                        <>
                         <td className="p-2 text-center bg-purple-50/20">
                           {!rowHasBackSide ? (
                             <span className="text-slate-300 text-xs">—</span>
@@ -1771,6 +1783,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             </div>
                           )}
                         </td>
+                        </>
+                        )}
 
                         {/* Combined Quantity (Μπροστά + Πίσω) */}
                         <td className="p-2 text-center border-l border-slate-200">
@@ -1839,7 +1853,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                       </tr>
                       {isEditing && canEditLockedFields && (
                         <tr>
-                          <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-3 pt-0">
+                          <td colSpan={spannedColumns} className="px-3 pb-3 pt-0">
                             <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-lg space-y-2.5">
                               <p className="text-micro font-bold text-indigo-700 uppercase tracking-wide">
                                 Ρυθμίσεις Καταμέτρησης
@@ -1901,7 +1915,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         const warnings = rowErrors.filter((e) => e.severity === 'warning');
                         return (
                           <tr>
-                            <td colSpan={readOnly || !canManage ? 8 : 9} className="px-3 pb-2 pt-0 space-y-1.5">
+                            <td colSpan={spannedColumns} className="px-3 pb-2 pt-0 space-y-1.5">
                               {criticalErrors.length > 0 && (
                                 <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-micro text-rose-800 space-y-0.5">
                                   {criticalErrors.map((e, i) => (

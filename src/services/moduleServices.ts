@@ -1,6 +1,7 @@
 import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
 import { Shift } from '../types/index.ts';
 import { updateShiftInFirestore } from './shiftService.ts';
+import { createSupplierInFirestore, fetchSuppliersFromFirestore } from './supplierService.ts';
 
 // ----------------------------------------------------
 // EXPENSES SERVICE (backed by the shift_expenses table - absorbs what used
@@ -143,6 +144,45 @@ export interface CreateShiftExpenseInput {
 // row editor - same record, same shift-total sync, one behavior either
 // way. activeShift is optional: an expense created with no open shift
 // just has no shift_id and doesn't touch expenses_paid_cash.
+/**
+ * Adds a recipient to the supplier registry when it is not already there.
+ *
+ * Matched case-insensitively against both the trade and the company name,
+ * because «ΟΠΑΠ Α.Ε.» typed in a hurry should not become a second supplier
+ * beside «ΟΠΑΠ Α.Ε».
+ */
+async function registerRecipientAsSupplier(
+  orgId: string,
+  storeId: string,
+  recipient: string | null | undefined,
+  expenseCategory?: string
+): Promise<void> {
+  const name = (recipient ?? '').trim();
+  // «Προμηθευτής» is the placeholder the form falls back to, not a business.
+  if (!name || name === 'Προμηθευτής') return;
+
+  const existing = await fetchSuppliersFromFirestore(orgId);
+  const upper = name.toLocaleUpperCase('el-GR');
+  const known = existing.some(
+    (sup) =>
+      (sup.company_name || '').trim().toLocaleUpperCase('el-GR') === upper ||
+      (sup.trade_name || '').trim().toLocaleUpperCase('el-GR') === upper
+  );
+  if (known) return;
+
+  await createSupplierInFirestore({
+    organization_id: orgId,
+    store_ids: storeId ? [storeId] : [],
+    code: '',
+    company_name: name,
+    category: expenseCategory === 'EXPENSES_FNB' ? 'BEVERAGES_FNB' : 'OTHER',
+    balance: 0,
+    is_active: true,
+    notes: 'Δημιουργήθηκε κατά την καταχώρηση εξόδου',
+    created_at: new Date().toISOString(),
+  } as any);
+}
+
 export async function createAndSyncShiftExpense(
   input: CreateShiftExpenseInput,
   activeShift: Shift | null
@@ -164,6 +204,24 @@ export async function createAndSyncShiftExpense(
   };
 
   const created = await createExpenseInFirestore(payload);
+
+  // A recipient nobody has registered becomes a supplier, so the next expense
+  // offers it and the books can be reconciled against one list of names.
+  //
+  // This lived only in the Έξοδα screen, so an expense recorded during a shift
+  // - which is most of them - never reached the registry, and the wizard's own
+  // suggestions came from twelve invented names that were nobody's supplier.
+  // Doing it here covers both screens from one place.
+  //
+  // Deliberately after the expense is written and never allowed to fail it:
+  // the expense is the record that matters, and a supplier that did not get
+  // registered is a missing suggestion, not a missing payment.
+  await registerRecipientAsSupplier(
+    input.organization_id,
+    input.store_id,
+    input.recipient,
+    input.category
+  ).catch((err) => console.warn('Could not register the recipient as a supplier:', err));
 
   if (activeShift?.id) {
     await syncShiftExpensesCashTotal(input.organization_id, input.store_id, activeShift.id).catch((err) => {

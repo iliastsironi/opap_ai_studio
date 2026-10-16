@@ -45,6 +45,9 @@ export const EUR_DENOMINATIONS = [
   { key: '0.50', value: 0.5, label: '0,50 €' },
   { key: '0.20', value: 0.2, label: '0,20 €' },
   { key: '0.10', value: 0.1, label: '0,10 €' },
+  // 0,05 € was missing outright, so five-cent pieces had nowhere to be counted
+  // and quietly landed in the drawer's discrepancy instead.
+  { key: '0.05', value: 0.05, label: '0,05 €' },
 ] as const;
 
 /**

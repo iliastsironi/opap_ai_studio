@@ -29,6 +29,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
+import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
@@ -302,6 +303,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // number in this browser's localStorage, which meant the till computer and
   // the Owner's laptop could disagree about how many machines the shop owns.
   const [configuredPosCount, setConfiguredPosCount] = useState<number | null>(null);
+  const [supplierNames, setSupplierNames] = useState<string[]>([]);
   const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
 
   const [modules, setModules] = useState({
@@ -323,6 +325,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // synchronous initializer above - applyCountingDefaults only ever fills
   // an undefined field, so this can never clobber a row this shift (or an
   // earlier explicit toggle carried in via the catalog) has already set.
+  useEffect(() => {
+    let cancelled = false;
+    fetchSuppliersFromFirestore(shift.organization_id || organization!.id)
+      .then((list) => {
+        if (cancelled) return;
+        setSupplierNames(
+          list
+            .map((sup) => (sup.trade_name || sup.company_name || '').trim())
+            .filter((name) => name.length > 0)
+            .sort((a, b) => a.localeCompare(b, 'el'))
+        );
+      })
+      .catch((err) => console.warn('[ShiftClosingWizard] could not load suppliers:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.organization_id, organization]);
+
   // The store's catalogue of games, from the database rather than from this
   // browser. Merged over whatever is on screen, so a row already being counted
   // keeps its figures and only the definitions - name, price, bundle, order -
@@ -2545,19 +2565,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             )}
 
             {/* Datalist for fast supplier selection */}
+            {/* The agency's own suppliers, from «Προμηθευτές».
+                This was twelve invented names - «Coca-Cola 3Ε Ελλάδος
+                Α.Β.Ε.Ε.», «Nova / Wind», «Προμηθευτής Καφέ & Ροφημάτων» -
+                none of which was anybody's actual supplier, while the
+                Έξοδα screen next door already offered the real ones. An
+                expense typed against a suggested name that is not in the
+                registry is a supplier the books will never match up. */}
             <datalist id="shift-suppliers-list">
-              <option value="ΟΠΑΠ Α.Ε. - Κεντρικά" />
-              <option value="Coca-Cola 3Ε Ελλάδος Α.Β.Ε.Ε." />
-              <option value="Tora Wallet Α.Ε. - Υπηρεσίες Πληρωμών" />
-              <option value="ΔΕΗ / Ενέργεια (Ηλεκτρικό Ρεύμα)" />
-              <option value="ΕΥΔΑΠ (Ύδρευση / Αποχέτευση)" />
-              <option value="Cosmote / ΟΤΕ (Internet & Τηλεφωνία)" />
-              <option value="Nova / Wind (Τηλεπικοινωνίες & TV)" />
-              <option value="Καθαριστικά & Είδη Υγιεινής" />
-              <option value="Χαρτικά, Ρολά POS & Τερματικών" />
-              <option value="Προμηθευτής Καφέ & Ροφημάτων (FnB)" />
-              <option value="Snacks & Είδη Κυλικείου (FnB)" />
-              <option value="Τεχνικός Συντήρησης / Βλάβες" />
+              {supplierNames.map((name) => (
+                <option key={name} value={name} />
+              ))}
             </datalist>
           </div>
 
@@ -3172,48 +3190,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
-          {/* Detailed Financial Ledger Breakdown Table */}
-          <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs shadow-2xs">
-            <div className="bg-slate-100 px-4 py-3 font-extrabold text-slate-800 border-b border-slate-200">
-              Αναλυτικό Ισοζύγιο Βάρδιας (Σύστημα)
-            </div>
-            <div className="divide-y divide-slate-100 bg-white">
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">Αρχικό Ταμείο</span>
-                <span className="font-bold text-slate-900">{formatCurrency(openingCashTotal)}</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">(+) Πωλήσεις ΟΠΑΠ</span>
-                <span className="font-bold text-emerald-700">+{formatCurrency(opapGrossTotal)}</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">(-) Πληρωμές Κερδών ΟΠΑΠ</span>
-                <span className="font-bold text-rose-600">-{formatCurrency(opapPayoutsTotal)}</span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">(+) PLAY VLTs Net</span>
-                <span className="font-bold text-emerald-700">
-                  +{formatCurrency(safeNum(vltsIn) - safeNum(vltsOut))}
-                </span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">(+) Μετρητά FnB & Σκρατς</span>
-                <span className="font-bold text-emerald-700">
-                  +{formatCurrency(safeNum(fnbCash) + totalScratchNet)}
-                </span>
-              </div>
-              <div className="px-4 py-2.5 flex justify-between">
-                <span className="text-slate-600 font-medium">(-) Πληρωμές Καρτών POS & Έξοδα</span>
-                <span className="font-bold text-rose-600">
-                  -{formatCurrency(totalToraPos + expensesCashTotal)}
-                </span>
-              </div>
-              <div className="px-4 py-3 flex justify-between bg-slate-50 font-black border-t border-slate-200 text-sm">
-                <span className="text-slate-900">Τελικό Αναμενόμενο Ταμείο</span>
-                <span className="text-slate-900 font-mono">{formatCurrency(expectedCash)}</span>
-              </div>
-            </div>
-          </div>
+          {/* The «Αναλυτικό Ισοζύγιο Βάρδιας (Σύστημα)» table stood here. It
+              restated, line by line, figures the three cards above already
+              give - and it did so at the point where someone is trying to
+              decide whether the till balances. Removed at the Owner's
+              request; nothing was computed only here. */}
 
           {/* Owners are never charged for their own till (see 0018 trigger). */}
           {discResult.discrepancy < 0 &&

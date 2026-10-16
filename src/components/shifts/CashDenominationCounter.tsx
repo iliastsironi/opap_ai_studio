@@ -95,7 +95,13 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
   });
 
   const grandTotal = totalNotes + totalCoins;
-  const banknotes = EUR_DENOMINATIONS.filter((d) => d.value >= 5);
+  // Coins run 2 € down to 0,05 €, notes run 5 € up to 500 €, each in its own
+  // column. EUR_DENOMINATIONS is ordered high to low, which is already the
+  // coin order; the notes are reversed so the column starts at the smallest.
+  //
+  // Two columns rather than a three-across grid also fixes the tab order:
+  // Enter walks a column top to bottom instead of zig-zagging across rows.
+  const banknotes = [...EUR_DENOMINATIONS.filter((d) => d.value >= 5)].reverse();
   const coins = EUR_DENOMINATIONS.filter((d) => d.value < 5);
 
   const isDark = theme === 'dark';
@@ -110,7 +116,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     return (
       <div
         key={denom.key}
-        className={`transition p-3.5 sm:p-4 rounded-2xl border flex flex-col justify-between space-y-3 ${
+        className={`transition px-2.5 py-1.5 rounded-xl border flex items-center gap-2 ${
           isDark
             ? isCoin
               ? 'bg-slate-900/90 border-amber-900/30 hover:border-amber-600/50 shadow-2xs'
@@ -120,11 +126,12 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             : 'bg-white border-emerald-200/90 hover:border-emerald-400 hover:shadow-xs'
         }`}
       >
-        {/* Card Header: Value & Subtotal Badge */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 min-w-0">
+        {/* One line per denomination - value, running subtotal, stepper.
+            Thirteen of these as two-row cards three across was most of a
+            screen, and a till gets counted on a phone as often as a desk. */}
+        <div className="flex items-center gap-1.5 min-w-0 w-24 shrink-0">
             <div
-              className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+              className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shrink-0 ${
                 isCoin
                   ? isDark
                     ? 'bg-amber-950 text-amber-400 border border-amber-800/60'
@@ -134,17 +141,18 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
               }`}
             >
-              {isCoin ? <CoinsIcon className="w-3.5 h-3.5" /> : <Banknote className="w-3.5 h-3.5" />}
+              {isCoin ? <CoinsIcon className="w-3 h-3" /> : <Banknote className="w-3 h-3" />}
             </div>
             <span
-              className={`text-sm font-black tracking-tight ${
+              className={`text-xs font-black tracking-tight truncate ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
             >
               {denom.label}
             </span>
-          </div>
+        </div>
 
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
           <span
             className={`text-xs font-black font-mono px-2.5 py-1 rounded-lg border shadow-2xs shrink-0 ${
               subtotal > 0
@@ -166,7 +174,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
 
         {/* Counter Stepper Row */}
         <div
-          className={`flex items-center p-0.5 rounded-xl border shadow-2xs transition-colors gap-0.5 ${
+          className={`flex items-center p-0.5 rounded-lg border shadow-2xs transition-colors gap-0.5 shrink-0 ${
             isDark
               ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
               : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
@@ -176,7 +184,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             type="button"
             disabled={readOnly || qty <= 0}
             onClick={() => updateCount(denom.key, -1)}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-base shrink-0 active:scale-95 transition-all select-none ${
+            className={`w-7 h-7 rounded-md flex items-center justify-center font-black text-base shrink-0 active:scale-95 transition-all select-none ${
               readOnly || qty <= 0
                 ? isDark
                   ? 'bg-slate-900 text-slate-700 cursor-not-allowed'
@@ -191,7 +199,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <Minus className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 min-w-20 flex items-center justify-center px-1">
+          <div className="w-14 flex items-center justify-center px-0.5">
             <input
               type="number"
               min="0"
@@ -204,22 +212,20 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               }}
               onChange={(e) => setDirectCount(denom.key, e.target.value)}
               placeholder="0"
-              className={`w-full min-w-0 text-center font-black font-mono text-lg bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
+              className={`w-full min-w-0 text-center font-black font-mono text-sm bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
                 isDark
                   ? 'text-white placeholder:text-slate-600'
                   : 'text-slate-900 placeholder:text-slate-500'
               }`}
             />
-            <span className={`text-micro font-bold ml-1 select-none shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-              τμχ
-            </span>
+
           </div>
 
           <button
             type="button"
             disabled={readOnly || qty >= MAX_DENOMINATION_QUANTITY}
             onClick={() => updateCount(denom.key, 1)}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-base text-white active:scale-95 transition-all select-none shrink-0 ${
+            className={`w-7 h-7 rounded-md flex items-center justify-center font-black text-base text-white active:scale-95 transition-all select-none shrink-0 ${
               readOnly || qty >= MAX_DENOMINATION_QUANTITY
                 ? 'bg-slate-300 cursor-not-allowed'
                 : `cursor-pointer shadow-2xs ${isCoin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`
@@ -357,8 +363,94 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         </div>
       </div>
 
-      {/* Two Distinct Sections: Banknotes & Coins */}
-      <div className="space-y-6">
+      {/* Κέρματα αριστερά, χαρτονομίσματα δεξιά. Counting a drawer goes down
+          the coins and up the notes, and the two lists are read side by side
+          rather than one under the other. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0,05€) */}
+        {(activeFilter === 'all' || activeFilter === 'coins') && (
+          <div
+            className={`transition p-4 sm:p-5 rounded-2xl border space-y-4 ${
+              isDark
+                ? 'bg-slate-900/60 border-amber-900/40 shadow-sm'
+                : 'bg-amber-50/25 border-amber-200/80 shadow-2xs'
+            }`}
+          >
+            {/* Coins Section Header */}
+            <div className="flex items-center justify-between border-b border-amber-200/60 pb-3 flex-wrap gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
+                    isDark
+                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  }`}
+                >
+                  <CoinsIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5
+                    className={`font-black text-sm uppercase tracking-wide flex items-center space-x-2 ${
+                      isDark ? 'text-amber-300' : 'text-amber-950'
+                    }`}
+                  >
+                    <span>Κέρματα</span>
+                    <span className="text-xs font-normal opacity-70 font-mono">(2€ - 0,10€)</span>
+                  </h5>
+                  <p className={`text-micro font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
+                    Καταμέτρηση κερμάτων και υποδιαιρέσεων
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                {!readOnly && countCoins > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetCoins}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer select-none ${
+                      isDark
+                        ? 'bg-slate-800 text-slate-300 hover:bg-rose-950 hover:text-rose-300 border border-slate-700'
+                        : 'bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-amber-200 shadow-2xs'
+                    }`}
+                    title="Μηδενισμός μόνο των κερμάτων"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Μηδενισμός</span>
+                  </button>
+                )}
+                <span
+                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border font-mono ${
+                    isDark
+                      ? 'bg-slate-900 text-slate-300 border-slate-700'
+                      : 'bg-white text-slate-700 border-amber-200'
+                  }`}
+                >
+                  {countCoins} τμχ
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black font-mono px-3.5 py-1.5 rounded-xl border shadow-2xs ${
+                    totalCoins > 0
+                      ? isDark
+                        ? 'bg-amber-950 text-amber-300 border-amber-700'
+                        : 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                      : isDark
+                      ? 'bg-slate-900 text-slate-400 border-slate-700'
+                      : 'bg-white text-amber-950 border-amber-200'
+                  }`}
+                >
+                  Σύνολο: {formatCurrency(totalCoins)}
+                </span>
+              </div>
+            </div>
+
+            {/* Coins Grid */}
+            <div className="space-y-2">
+              {coins.map((denom) => renderDenomCard(denom, true))}
+            </div>
+          </div>
+        )}
+
         {/* SECTION 1: BANKNOTES (ΧΑΡΤΟΝΟΜΙΣΜΑΤΑ) */}
         {(activeFilter === 'all' || activeFilter === 'notes') && (
           <div
@@ -437,92 +529,8 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             </div>
 
             {/* Banknotes Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
+            <div className="space-y-2">
               {banknotes.map((denom) => renderDenomCard(denom, false))}
-            </div>
-          </div>
-        )}
-
-        {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0.10€) */}
-        {(activeFilter === 'all' || activeFilter === 'coins') && (
-          <div
-            className={`transition p-4 sm:p-5 rounded-2xl border space-y-4 ${
-              isDark
-                ? 'bg-slate-900/60 border-amber-900/40 shadow-sm'
-                : 'bg-amber-50/25 border-amber-200/80 shadow-2xs'
-            }`}
-          >
-            {/* Coins Section Header */}
-            <div className="flex items-center justify-between border-b border-amber-200/60 pb-3 flex-wrap gap-2">
-              <div className="flex items-center space-x-2.5">
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
-                    isDark
-                      ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                      : 'bg-amber-100 text-amber-800 border border-amber-200'
-                  }`}
-                >
-                  <CoinsIcon className="w-5 h-5" />
-                </div>
-                <div>
-                  <h5
-                    className={`font-black text-sm uppercase tracking-wide flex items-center space-x-2 ${
-                      isDark ? 'text-amber-300' : 'text-amber-950'
-                    }`}
-                  >
-                    <span>Κέρματα</span>
-                    <span className="text-xs font-normal opacity-70 font-mono">(2€ - 0,10€)</span>
-                  </h5>
-                  <p className={`text-micro font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-700/80'}`}>
-                    Καταμέτρηση κερμάτων και υποδιαιρέσεων
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                {!readOnly && countCoins > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleResetCoins}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer select-none ${
-                      isDark
-                        ? 'bg-slate-800 text-slate-300 hover:bg-rose-950 hover:text-rose-300 border border-slate-700'
-                        : 'bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-amber-200 shadow-2xs'
-                    }`}
-                    title="Μηδενισμός μόνο των κερμάτων"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Μηδενισμός</span>
-                  </button>
-                )}
-                <span
-                  className={`text-xs font-bold px-2.5 py-1 rounded-lg border font-mono ${
-                    isDark
-                      ? 'bg-slate-900 text-slate-300 border-slate-700'
-                      : 'bg-white text-slate-700 border-amber-200'
-                  }`}
-                >
-                  {countCoins} τμχ
-                </span>
-                <span
-                  className={`text-xs sm:text-sm font-black font-mono px-3.5 py-1.5 rounded-xl border shadow-2xs ${
-                    totalCoins > 0
-                      ? isDark
-                        ? 'bg-amber-950 text-amber-300 border-amber-700'
-                        : 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                      : isDark
-                      ? 'bg-slate-900 text-slate-400 border-slate-700'
-                      : 'bg-white text-amber-950 border-amber-200'
-                  }`}
-                >
-                  Σύνολο: {formatCurrency(totalCoins)}
-                </span>
-              </div>
-            </div>
-
-            {/* Coins Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-3.5">
-              {coins.map((denom) => renderDenomCard(denom, true))}
             </div>
           </div>
         )}
