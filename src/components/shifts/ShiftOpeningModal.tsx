@@ -11,6 +11,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
+import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -76,6 +77,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // used to hardcode, so nothing moves until an Owner sets their own.
   const [floatNotes, setFloatNotes] = useState<number>(150);
   const [floatCoins, setFloatCoins] = useState<number>(50);
+  const [configuredThreshold, setConfiguredThreshold] = useState<number>(15);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -117,6 +119,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setFloatNotes(floatNotes);
         setFloatCoins(floatCoins);
         setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
+        setConfiguredThreshold(Number(config?.discrepancy_threshold ?? 15));
         setPreviousShift(prev);
 
         if (prev) {
@@ -138,26 +141,18 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             prevCoins = Number(prev.opening_cash_coins ?? roundCurrency(openingCash - prevNotes));
           }
 
-          // The coins carry over either way. They are the physical ψιλά left in
-          // the drawer overnight - nobody counts them out and banks them, so
-          // starting a morning on a round figure would be inventing a number
-          // and then measuring the till against it.
-          setOpeningCoins(prevCoins.toFixed(2));
-
-          if (shiftType === 'MORNING') {
-            // The notes are set fresh for the day, from the store's configured
-            // float, because the night's takings go to the safe.
-            setOpeningBanknotes(floatNotes.toFixed(2));
-            // Not «auto», so the morning notes stay editable: this is the one
-            // figure somebody genuinely puts in the drawer by hand.
-            setIsAutoFetched(false);
-          } else {
-            setOpeningBanknotes(prevNotes.toFixed(2));
-            setIsAutoFetched(true);
-          }
+          const float = resolveOpeningFloat(
+            shiftType === 'MORNING',
+            { countedCash, openingCash, notes: prevNotes, coins: prevCoins },
+            { notes: floatNotes, coins: floatCoins }
+          );
+          setOpeningBanknotes(float.notes.toFixed(2));
+          setOpeningCoins(float.coins.toFixed(2));
+          setIsAutoFetched(float.carriedOver);
         } else if (shiftType === 'MORNING') {
-          setOpeningBanknotes(floatNotes.toFixed(2));
-          setOpeningCoins(floatCoins.toFixed(2));
+          const float = resolveOpeningFloat(true, null, { notes: floatNotes, coins: floatCoins });
+          setOpeningBanknotes(float.notes.toFixed(2));
+          setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(false);
         } else {
           // Non-morning, and this register has no previous shift to carry from.
@@ -263,7 +258,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         expected_cash: cashNum,
         discrepancy: 0,
         discrepancy_percentage: 0,
-        discrepancy_threshold: 15,
+        // The store's own limit, from «Διαμόρφωση». This was a hardcoded 15,
+        // so changing the setting moved what the closing wizard displayed and
+        // not what the shift was actually judged against.
+        discrepancy_threshold: configuredThreshold,
         is_unbalanced: false,
         custom_field_values: {
           scratch_ticket_items: initialScratchInventory,
@@ -438,7 +436,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   ☀️ {toGreekUpper('Πρωινη Βαρδια — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
                 <span className="text-micro text-amber-800 font-medium">
-                  Στην πρωινή βάρδια το αρχικό κεφάλαιο/ταμείο ορίζεται χειροκίνητα από τον διαχειριστή ή υπεύθυνο.
+                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος. Τα κέρματα κρατούν ό,τι
+                  έμεινε στο συρτάρι από την προηγούμενη βάρδια, αν υπάρχει καταμέτρηση.
                 </span>
               </div>
             </div>
@@ -543,8 +542,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
             <p className="text-micro text-slate-500">
               {shiftType === 'MORNING'
-                ? 'Ορίστε τα χαρτονομίσματα και τα κέρματα που παραδίδονται στο ταμείο.'
+                ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από την προηγούμενη βάρδια όταν έχει καταμετρηθεί.'
                 : 'Τα ποσά χαρτονομισμάτων και κερμάτων προέρχονται αυτόματα από τα υπόλοιπα της προηγούμενης βάρδιας.'}
+            </p>
+
+            {/* The limit this shift will be judged against, shown where it is
+                decided rather than only at the close. */}
+            <p className="text-micro text-slate-500 flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <span>Όριο αποδεκτής απόκλισης</span>
+              <span className="font-mono font-bold text-slate-700">
+                {configuredThreshold.toFixed(2)} €
+              </span>
             </p>
           </div>
 
