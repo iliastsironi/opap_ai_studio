@@ -1094,9 +1094,9 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               } ${template.opening_float_employee_editable ? 'bg-amber-50/60 border-amber-200' : 'bg-slate-50 border-slate-200'}`}
             >
               <span>
-                <span className="block text-xs font-bold text-slate-900">Ο υπάλληλος αλλάζει το αρχικό ταμείο</span>
+                <span className="block text-xs font-bold text-slate-900">Το αρχικό ταμείο αλλάζει μέσα στη βάρδια</span>
                 <span className="block text-micro text-slate-500 mt-0.5">
-                  Κλειστό: τα ποσά έρχονται από εδώ και εμφανίζονται κλειδωμένα στο άνοιγμα.
+                  Κλειστό: τα ποσά από εδώ μπαίνουν αυτόματα και δεν ζητούνται ξανά σε κάθε άνοιγμα.
                 </span>
               </span>
               {template.opening_float_employee_editable ? (

@@ -1788,7 +1788,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     min="0"
                     max={MAX_CURRENCY_AMOUNT}
                     value={openingNotesAmount}
-                    disabled={!canManage && !floatEditableByEmployee}
+                    disabled={!floatEditableByEmployee}
                     onChange={(e) => setOpeningNotesAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
@@ -1804,7 +1804,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     min="0"
                     max={MAX_CURRENCY_AMOUNT}
                     value={openingCoinsAmount}
-                    disabled={!canManage && !floatEditableByEmployee}
+                    disabled={!floatEditableByEmployee}
                     onChange={(e) => setOpeningCoinsAmount(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
@@ -1861,12 +1861,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="font-black text-indigo-900 text-sm">{formatCurrency(openingCashTotal)}</span>
               </div>
 
-              {!canManage && (!floatEditableByEmployee || !topUpAllowedForEmployee) && (
+              {(!floatEditableByEmployee || (!canManage && !topUpAllowedForEmployee)) && (
                 <p className="text-micro text-slate-500 mt-2 leading-relaxed">
-                  {!floatEditableByEmployee && !topUpAllowedForEmployee
-                    ? 'Το αρχικό ταμείο και οι προσαυξήσεις ορίζονται από τον υπεύθυνο.'
+                  {!floatEditableByEmployee && !canManage && !topUpAllowedForEmployee
+                    ? 'Το αρχικό ταμείο ορίζεται στη Διαμόρφωση· οι προσαυξήσεις καταχωρούνται από τον υπεύθυνο.'
                     : !floatEditableByEmployee
-                    ? 'Το αρχικό ταμείο ορίζεται από τον υπεύθυνο.'
+                    ? 'Το αρχικό ταμείο ορίζεται στη Διαμόρφωση του καταστήματος.'
                     : 'Οι προσαυξήσεις καταχωρούνται από τον υπεύθυνο.'}
                 </p>
               )}

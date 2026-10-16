@@ -82,7 +82,18 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
   // up in «Διαμόρφωση».
-  const canSetFloat = hasPermission('organization.update') || hasPermission('store.update');
+  // The float is set once, in «Διαμόρφωση», and applied from there. It is
+  // asked for here only when a store has explicitly said it may be changed
+  // inside a shift - otherwise this screen would put the same question in
+  // front of somebody every morning about a number that already has an
+  // answer, which is what «ορίζεται χειροκίνητα από τον διαχειριστή» meant in
+  // practice.
+  //
+  // Deliberately not «unless you are the Owner»: the Owner is who sets it in
+  // the configuration, so asking them again here is the same question twice.
+  const floatIsAsked = floatEditableByEmployee;
+  // Back-dating a shift is the Owner's, separately from the float.
+  const canBackdate = hasPermission('organization.update') || hasPermission('store.update');
   const [openingNotes, setOpeningNotes] = useState<string>('');
 
   const [previousShift, setPreviousShift] = useState<HandoverSnapshot | null>(null);
@@ -386,7 +397,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 </select>
               </div>
 
-              {canSetFloat && (
+              {canBackdate && (
                 <div className="sm:col-span-2">
                   <label htmlFor="opening-when" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
                     {toGreekUpper('Εναρξη Βαρδιας')}
@@ -495,7 +506,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
-                    disabled={(shiftType !== 'MORNING' && isAutoFetched) || (!canSetFloat && !floatEditableByEmployee)}
+                    disabled={!floatIsAsked || (shiftType !== 'MORNING' && isAutoFetched)}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
@@ -525,7 +536,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
-                    disabled={(shiftType !== 'MORNING' && isAutoFetched) || (!canSetFloat && !floatEditableByEmployee)}
+                    disabled={!floatIsAsked || (shiftType !== 'MORNING' && isAutoFetched)}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       shiftType !== 'MORNING' && isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
