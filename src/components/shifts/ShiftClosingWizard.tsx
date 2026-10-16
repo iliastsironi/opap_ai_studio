@@ -2016,7 +2016,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 of the two - several terminals, each with its own figure - so it
                 takes two thirds and Clever Point, a single number, takes one. */}
             {(modules.tora || modules.cleverPoint) && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
               {modules.tora && (
               <div className="lg:col-span-2">
                 <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
@@ -2043,7 +2043,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {toraPosItems.map((item, idx) => (
                       <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 relative group shadow-2xs">
                         <div className="flex items-center justify-between">
@@ -2113,7 +2113,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
             {/* Ιππόδρομος, VLTs και Pame Stoixima από κάτω. */}
             {(modules.ippodromos || modules.vlts || modules.pameStoixima) && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
               {modules.ippodromos && (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                   <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">

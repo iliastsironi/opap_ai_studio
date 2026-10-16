@@ -40,6 +40,36 @@ describe('merging the store catalogue into a shift being counted', () => {
     expect(merged[0].bundleSize).toBe(5);
   });
 
+  it('does not let a 5 € game adopt the 2 € game of the same name', () => {
+    // «7ΑΡΙ», «ΓΑΤΑ» and «24 ΜΗΝΕΣ» each exist at 2 €, 5 € and 10 €. Matching
+    // on name alone gave the 5 € row the 2 € row's ticket numbers - which is
+    // how a 5 € row came to carry a back total of 149 and then warn that 149
+    // is impossible for a 5 € pack, which holds 60.
+    const catalog = [
+      game({ id: 'scr_2_7ari', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2 }),
+      game({ id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5 }),
+    ];
+    const saved = [
+      game({ id: 'scr_2_7ari', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2, startNo: '000', endNo: '020', backEndNo: '149' }),
+    ];
+
+    const merged = mergeScratchCatalogWithSaved(catalog, saved);
+    expect(merged).toHaveLength(2);
+    expect(merged[0].endNo).toBe('020');
+    expect(merged[0].backEndNo).toBe('149');
+    // The 5 € row is untouched by the 2 € row's count.
+    expect(merged[1].endNo).toBe('');
+    expect(merged[1].backEndNo).toBeFalsy();
+  });
+
+  it('still matches a row saved without an id, by name and category together', () => {
+    const merged = mergeScratchCatalogWithSaved(
+      [game({ id: 'scr_5_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 5€', price: 5 })],
+      [game({ id: '', name: 'ΓΑΤΑ', category: 'Σκρατς 5€', price: 5, endNo: '33' })]
+    );
+    expect(merged[0].endNo).toBe('33');
+  });
+
   it('adds a game the shift has not touched yet', () => {
     const merged = mergeScratchCatalogWithSaved(
       [game({ id: 'a', name: 'Α' }), game({ id: 'b', name: 'Β' })],

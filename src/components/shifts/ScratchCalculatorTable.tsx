@@ -311,9 +311,19 @@ export function mergeScratchCatalogWithSaved(
 ): ScratchTicketRow[] {
   if (!Array.isArray(saved) || saved.length === 0) return catalog;
 
+  // Matched on id, falling back to name AND category together.
+  //
+  // Name alone is not unique and never was: «7ΑΡΙ», «ΓΑΤΑ» and «24 ΜΗΝΕΣ» each
+  // exist at 2 €, 5 € and 10 € with their own ids. Matching on name let the
+  // 5 € game adopt the 2 € game's ticket numbers - which is how a 5 € row came
+  // to show a back-side total of 149 and then warn that 149 is impossible for
+  // a 5 € pack, which holds 60. carryOverScratchInventory already qualified
+  // the fallback this way; this did not.
   const merged: ScratchTicketRow[] = [];
   for (const item of catalog) {
-    const match = saved.find((s) => s.id === item.id || s.name === item.name);
+    const match =
+      saved.find((s) => s.id === item.id) ??
+      saved.find((s) => s.name === item.name && (s.category ?? '') === (item.category ?? ''));
     if (!match) {
       merged.push(item);
       continue;
@@ -337,7 +347,10 @@ export function mergeScratchCatalogWithSaved(
   // A game counted on this shift that the catalogue no longer lists stays on
   // the shift. Removing it would silently drop tickets somebody sold.
   for (const row of saved) {
-    if (!merged.some((m) => m.id === row.id || m.name === row.name)) merged.push(row);
+    const alreadyThere = merged.some(
+      (m) => m.id === row.id || (m.name === row.name && (m.category ?? '') === (row.category ?? ''))
+    );
+    if (!alreadyThere) merged.push(row);
   }
   return merged;
 }
@@ -827,6 +840,15 @@ interface ScratchCalculatorTableProps {
   // scr_laiko row's display/input mode. Undefined behaves like
   // 'PIECES_AND_BUNDLES' (today's shipped behavior).
   laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY';
+  // Whether the catalogue itself can be edited from this table: a game's
+  // name, its price, how it is counted, adding one, removing one.
+  //
+  // False in the closing wizard. Those are the Owner's, they live in
+  // «Διαμόρφωση» and in the scratch_catalog table since 0030, and having them
+  // on the counting screen meant the employee counting the till was also the
+  // one maintaining the price list. Opening a new pack stays here - that is a
+  // physical thing that happens during a shift, not a setting.
+  catalogEditable?: boolean;
 }
 
 export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
@@ -836,6 +858,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   sellingMode,
   specialEditionEnabled = false,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
+  catalogEditable = false,
 }) => {
   const { roles, permissions } = useAuth();
   const canManage =
@@ -1184,7 +1207,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <span>Καθαρισμός Τελικών</span>
             </button>
 
-            {sellingMode !== 'FRONT_ONLY' && (
+            {sellingMode !== 'FRONT_ONLY' && catalogEditable && (
               <button
                 type="button"
                 onClick={() => handleToggleAllBackSides(!rows.some((r) => !isLotteryRow(r) && hasBackSide(r, sellingMode)))}
@@ -1200,7 +1223,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               </button>
             )}
 
-            {canManage && (
+            {canManage && catalogEditable && (
               <button
                 type="button"
                 onClick={() => handleAddRow()}
@@ -1402,7 +1425,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     "edit name/price" pencil also happened to reveal it. Same
                                     editingRowId state as the pencil below (both open the same
                                     combined edit row), just a second, clearly-labeled way in. */}
-                                {!readOnly && canEditLockedFields && (
+                                {!readOnly && canEditLockedFields && catalogEditable && (
                                   <button
                                     type="button"
                                     onClick={() => setEditingRowId(row.id)}
@@ -1414,7 +1437,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     <span className="hidden sm:inline">Ρυθμίσεις</span>
                                   </button>
                                 )}
-                                {!readOnly && canManage && (
+                                {!readOnly && canManage && catalogEditable && (
                                   <IconButton
                                     icon={Edit2}
                                     label="Επεξεργασία ονόματος/τιμής"
@@ -1801,13 +1824,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 </button>
                               )}
 
-                              <IconButton
-                                icon={Trash2}
-                                label="Διαγραφή παιχνιδιού"
-                                tone="danger"
-                                size="sm"
-                                onClick={() => setRowToRemove(row.id)}
-                              />
+                              {catalogEditable && (
+                                <IconButton
+                                  icon={Trash2}
+                                  label="Διαγραφή παιχνιδιού"
+                                  tone="danger"
+                                  size="sm"
+                                  onClick={() => setRowToRemove(row.id)}
+                                />
+                              )}
                             </div>
                           </td>
                         )}
