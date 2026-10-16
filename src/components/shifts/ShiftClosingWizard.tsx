@@ -2016,213 +2016,231 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
             )}
 
-            {/* 2b. Tora Direct (Υπηρεσίες Tora) */}
-            {modules.tora && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2">
-                <div>
-                  <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
-                    <span>📱 Tora Direct (Υπηρεσίες Tora)</span>
-                  </h4>
-                  <p className="text-micro font-medium text-slate-500 mt-0.5">
-                    Εισάγετε τα ποσά από τα τερματικά Tora Direct — Κοινά φυσικά μηχανήματα POS με τις πληρωμές καρτών
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2 flex-wrap gap-1.5">
-                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
-                    {toraPosItems.length} Τερματικά POS
-                  </span>
-                  {(canManage || managerUnlockedPos) && (
-                    <button
-                      type="button"
-                      onClick={handleAddTerminal}
-                      className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
-                      title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στις Πληρωμές Καρτών POS)"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Προσθήκη POS</span>
-                    </button>
-                  )}
-                  <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
-                    Σύνολο TORA DIRECT: {formatCurrency(totalToraPos)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {toraPosItems.map((item, idx) => (
-                  <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 relative group shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 min-w-0">
-                        <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
-                          Μηχάνημα #{idx + 1}
-                        </span>
-                        {canManage || managerUnlockedPos ? (
-                          <input
-                            type="text"
-                            maxLength={MAX_LABEL_LENGTH}
-                            value={item.name}
-                            onChange={(e) => handleUpdatePosItem(item.id, 'name', e.target.value)}
-                            className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
-                            placeholder={`TORA DIRECT #${idx + 1}`}
-                          />
-                        ) : (
-                          <span className="text-xs font-bold text-slate-800 truncate">{item.name}</span>
-                        )}
-                      </div>
-
-                      {(canManage || managerUnlockedPos) && toraPosItems.length > 1 && (
+            {/* Tora Direct και Clever Point στην ίδια σειρά. Tora is the wider
+                of the two - several terminals, each with its own figure - so it
+                takes two thirds and Clever Point, a single number, takes one. */}
+            {(modules.tora || modules.cleverPoint) && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {modules.tora && (
+              <div className="lg:col-span-2">
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2">
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+                        <span>📱 Tora Direct (Υπηρεσίες Tora)</span>
+                      </h4>
+                      <p className="text-micro font-medium text-slate-500 mt-0.5">
+                        Εισάγετε τα ποσά από τα τερματικά Tora Direct — Κοινά φυσικά μηχανήματα POS με τις πληρωμές καρτών
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-wrap gap-1.5">
+                      <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
+                        {toraPosItems.length} Τερματικά POS
+                      </span>
+                      {(canManage || managerUnlockedPos) && (
                         <button
                           type="button"
-                          onClick={() => handleRemoveTerminal(idx)}
-                          className="text-slate-300 hover:text-rose-600 p-2.5 transition-colors cursor-pointer shrink-0"
-                          title="Διαγραφή Τερματικού POS (θα αφαιρεθεί και από τις Πληρωμές Καρτών)"
-                          aria-label="Διαγραφή Τερματικού POS"
+                          onClick={handleAddTerminal}
+                          className="transition px-2.5 py-1 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-2xs"
+                          title="Προσθήκη νέου τερματικού POS (θα προστεθεί αυτόματα και στις Πληρωμές Καρτών POS)"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Προσθήκη POS</span>
                         </button>
                       )}
+                      <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
+                        Σύνολο TORA DIRECT: {formatCurrency(totalToraPos)}
+                      </span>
                     </div>
+                  </div>
 
-                    <div className="relative">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {toraPosItems.map((item, idx) => (
+                      <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 relative group shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-1.5 min-w-0">
+                            <span className="text-micro font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shrink-0">
+                              Μηχάνημα #{idx + 1}
+                            </span>
+                            {canManage || managerUnlockedPos ? (
+                              <input
+                                type="text"
+                                maxLength={MAX_LABEL_LENGTH}
+                                value={item.name}
+                                onChange={(e) => handleUpdatePosItem(item.id, 'name', e.target.value)}
+                                className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
+                                placeholder={`TORA DIRECT #${idx + 1}`}
+                              />
+                            ) : (
+                              <span className="text-xs font-bold text-slate-800 truncate">{item.name}</span>
+                            )}
+                          </div>
+
+                          {(canManage || managerUnlockedPos) && toraPosItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTerminal(idx)}
+                              className="text-slate-300 hover:text-rose-600 p-2.5 transition-colors cursor-pointer shrink-0"
+                              title="Διαγραφή Τερματικού POS (θα αφαιρεθεί και από τις Πληρωμές Καρτών)"
+                              aria-label="Διαγραφή Τερματικού POS"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={MAX_CURRENCY_AMOUNT}
+                            value={item.amount}
+                            onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                          />
+                          <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              )}
+              {modules.cleverPoint && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    📍 Clever Point
+                  </label>
+                  <div className="space-y-1">
+                    <span className="text-micro font-semibold text-slate-500">Σύνολο (€)</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={MAX_CURRENCY_AMOUNT}
+                      value={cleverPointTotal}
+                      onChange={(e) => setCleverPointTotal(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
+
+            {/* Ιππόδρομος, VLTs και Pame Stoixima από κάτω. */}
+            {(modules.ippodromos || modules.vlts || modules.pameStoixima) && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {modules.ippodromos && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    🏇 Ιππόδρομος
+                  </label>
+                  <div className="space-y-1">
+                    <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={MAX_CURRENCY_AMOUNT}
+                      value={ippodromosBalance}
+                      onChange={(e) => setIppodromosBalance(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              )}
+              {modules.vlts && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
+                    <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
+                      <span>🎰 PLAY VLTs</span>
+                    </h4>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+                        Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Μετρητά στα VLTs (€)
+                      </label>
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         max={MAX_CURRENCY_AMOUNT}
-                        value={item.amount}
-                        onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
+                        value={vltsIn}
+                        onChange={(e) => setVltsIn(e.target.value)}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                       />
-                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
+                    </div>
+                    <div>
+                      <label htmlFor="vlts-out" className={`block text-xs font-bold mb-1 ${
+                        signedVltsOut < 0 ? 'text-rose-800' : 'text-slate-700'
+                      }`}>
+                        Ροή Μετρητών VLTs (€)
+                      </label>
+                      <input
+                        id="vlts-out"
+                        type="number"
+                        step="0.01"
+                        min={-MAX_CURRENCY_AMOUNT}
+                        max={MAX_CURRENCY_AMOUNT}
+                        value={vltsOut}
+                        onChange={(e) => setVltsOut(e.target.value)}
+                        placeholder="0.00"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono ${
+                          signedVltsOut < 0
+                            ? 'border-rose-300 text-rose-700 bg-white focus:ring-2 focus:ring-rose-500'
+                            : 'border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500'
+                        }`}
+                      />
+                      <p className="text-micro text-slate-500 mt-1">
+                        Με πρόσημο: <span className="font-mono font-bold">-</span> για εκροή/πληρωμή,
+                        χωρίς πρόσημο για είσπραξη.
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-            )}
-
-            {/* 3. Clever Point, 4. Ιππόδρομος & 6. Pame Stoixima | Virtuals */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Clever Point */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  📍 Clever Point
-                </label>
-                <div className="space-y-1">
-                  <span className="text-micro font-semibold text-slate-500">Σύνολο (€)</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    value={cleverPointTotal}
-                    onChange={(e) => setCleverPointTotal(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                  />
                 </div>
-              </div>
-
-              {/* Ιππόδρομος */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  🏇 Ιππόδρομος
-                </label>
-                <div className="space-y-1">
-                  <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    value={ippodromosBalance}
-                    onChange={(e) => setIppodromosBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              {/* Pame Stoixima | Virtuals */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  ⚽ Pame Stoixima | Virtuals
-                </label>
-                <div className="space-y-1">
-                  <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    value={pameStoiximaBalance}
-                    onChange={(e) => setPameStoiximaBalance(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 5. VLTs (PLAY) */}
-            {modules.vlts && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
-                <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
-                  <span>🎰 PLAY VLTs</span>
-                </h4>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                    Καθαρό: {formatCurrency(safeNum(vltsIn) + signedVltsOut)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Μετρητά στα VLTs (€)
+              )}
+              {modules.pameStoixima && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    ⚽ Pame Stoixima | Virtuals
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
-                    value={vltsIn}
-                    onChange={(e) => setVltsIn(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div className="space-y-1">
+                    <label htmlFor="pame-stoixima" className="text-micro font-semibold text-slate-500">
+                      Υπόλοιπο Ταμείου (€)
+                    </label>
+                    {/* Signed, like the VLT flow beside it: a negative balance is
+                        typed with its own minus and simply shows red. */}
+                    <input
+                      id="pame-stoixima"
+                      type="number"
+                      step="0.01"
+                      min={-MAX_CURRENCY_AMOUNT}
+                      max={MAX_CURRENCY_AMOUNT}
+                      value={pameStoiximaBalance}
+                      onChange={(e) => setPameStoiximaBalance(e.target.value)}
+                      placeholder="0.00"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono bg-white ${
+                        safeNum(pameStoiximaBalance) < 0
+                          ? 'border-rose-300 text-rose-700 focus:ring-2 focus:ring-rose-500'
+                          : 'border-slate-300 text-slate-900 focus:ring-2 focus:ring-indigo-500'
+                      }`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="vlts-out" className={`block text-xs font-bold mb-1 ${
-                    signedVltsOut < 0 ? 'text-rose-800' : 'text-slate-700'
-                  }`}>
-                    Ροή Μετρητών VLTs (€)
-                  </label>
-                  <input
-                    id="vlts-out"
-                    type="number"
-                    step="0.01"
-                    min={-MAX_CURRENCY_AMOUNT}
-                    max={MAX_CURRENCY_AMOUNT}
-                    value={vltsOut}
-                    onChange={(e) => setVltsOut(e.target.value)}
-                    placeholder="0.00"
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono ${
-                      signedVltsOut < 0
-                        ? 'border-rose-300 text-rose-700 bg-white focus:ring-2 focus:ring-rose-500'
-                        : 'border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500'
-                    }`}
-                  />
-                  <p className="text-micro text-slate-500 mt-1">
-                    Με πρόσημο: <span className="font-mono font-bold">-</span> για εκροή/πληρωμή,
-                    χωρίς πρόσημο για είσπραξη.
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
             )}
 
