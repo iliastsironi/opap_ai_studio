@@ -60,7 +60,21 @@ export function resolveOpeningFloat(
   }
 
   if (isMorning) {
-    return { notes: configured.notes, coins: num(previous!.coins), carriedOver: false };
+    // Coins carry only when the previous close actually recorded some. A
+    // count of zero coins is not a handover of an empty drawer, it is a
+    // close where nobody counted the ψιλά - the live data has exactly this,
+    // an August close whose denominations hold notes and no coin keys at
+    // all - and starting the morning on zero would mean the configured float
+    // never applies at the one store that has history.
+    //
+    // Somebody does put coins in the drawer each morning. That is what a
+    // float is, and it is why the store configures one.
+    const carriedCoins = num(previous!.coins);
+    return {
+      notes: configured.notes,
+      coins: carriedCoins > 0 ? carriedCoins : configured.coins,
+      carriedOver: false,
+    };
   }
 
   return { notes: num(previous!.notes), coins: num(previous!.coins), carriedOver: true };

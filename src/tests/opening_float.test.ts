@@ -31,6 +31,18 @@ describe('what the drawer starts with', () => {
     });
   });
 
+  it('falls back to the configured coins when the night counted none', () => {
+    // The live data has exactly this: the latest close at 101499 recorded
+    // denominations holding notes and no coin keys, so its counted coins are
+    // genuinely zero. Carrying that zero meant the configured float never
+    // applied at the one store with history - and somebody still has to put
+    // ψιλά in the drawer, which is what a float is for.
+    const noCoins = { countedCash: 11522.11, notes: 11522.11, coins: 0 };
+    expect(resolveOpeningFloat(true, noCoins, configured)).toEqual({
+      notes: 150, coins: 50, carriedOver: false,
+    });
+  });
+
   it('carries everything into an afternoon or evening shift', () => {
     const earlier = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(resolveOpeningFloat(false, earlier, configured)).toEqual({
