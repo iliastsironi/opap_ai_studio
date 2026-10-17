@@ -37,6 +37,7 @@ import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftT
 import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type SafeDrop } from '../../lib/shiftSafeDrops.ts';
 import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
 import { splitDiscrepancy, DiscrepancySettlement } from '../../lib/discrepancySplit.ts';
+import { ownScratchSales, readScratchDayBaseline } from '../../lib/scratchDayBaseline.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -429,14 +430,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     if (tableTotal > 0) {
       return tableTotal.toFixed(2);
     }
-    if (shift.scratch_sales !== undefined && shift.scratch_sales > 0) {
-      return Number(shift.scratch_sales).toFixed(2);
-    }
+    // `shift.scratch_sales` used to be checked first, and `localDraft
+    // .scratch_sales` after - shifts has no such column and never has, so
+    // both were dead. The net is the only stored figure, and the table
+    // rebuilds the gross from its own rows on the next render anyway.
     if (shift.scratch_lotto_sales !== undefined && shift.scratch_lotto_sales > 0) {
       return Number(shift.scratch_lotto_sales).toFixed(2);
-    }
-    if (localDraft?.scratch_sales !== undefined && localDraft.scratch_sales > 0) {
-      return Number(localDraft.scratch_sales).toFixed(2);
     }
     return tableTotal.toFixed(2);
   });
@@ -934,7 +933,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   }, [shift.id]);
 
   // Computed Section Totals
-  const totalScratchNet = safeNum(scratchSales) - safeNum(scratchPayouts) + nationalLotteryShiftContribution;
+  //
+  // The scratch table counts from the DAY's opening, so `scratchSales` is the
+  // day's running figure, not this shift's. The baseline stamped on the shift
+  // when it opened is what the earlier shifts of the day already recorded, so
+  // subtracting it gives this shift's own - which is the meaning
+  // scratch_lotto_sales has to keep, because fn_store_pnl, fn_employee_kpis,
+  // fn_shift_type_kpis and v_daily_register_summary all SUM it.
+  //
+  // The εξαργυρώσεις are typed per shift and are NOT cumulative, which is why
+  // the subtraction happens before they are taken off rather than after.
+  const scratchDayBaseline = readScratchDayBaseline(shift.custom_field_values);
+  const ownScratchGross = ownScratchSales(scratchSales, scratchDayBaseline);
+  const totalScratchNet = ownScratchGross - safeNum(scratchPayouts) + nationalLotteryShiftContribution;
   const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalToraPos = toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalArithmoNet =
@@ -1183,6 +1194,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
       pame_stoixima_balance: safeNum(pameStoiximaBalance),
       scratch_payouts: safeNum(scratchPayouts),
+      scratch_gross_sales: ownScratchGross,
       scratch_lotto_sales: totalScratchNet,
 
       // POS & TORA fields (tora_total is DB-generated from tora_pos_1 + tora_pos_2, not writable)
@@ -2061,10 +2073,28 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center space-x-2">
                   <span>🎫 Ελληνικά Λαχεία | Σκρατς</span>
                 </h4>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   <span className="text-xs font-bold text-slate-500">
-                    Πωλήσεις: <span className="font-mono text-slate-900">{formatCurrency(scratchSales)}</span>
+                    {scratchDayBaseline > 0 ? 'Σύνολο ημέρας' : 'Πωλήσεις'}:{' '}
+                    <span className="font-mono text-slate-900">{formatCurrency(scratchSales)}</span>
                   </span>
+                  {/* Without this line the panel reads «Πωλήσεις 140, Καθαρό
+                      70» and looks broken. The table counts from the day's
+                      opening, so the figure above covers the earlier shifts
+                      too; only the difference belongs to this one. */}
+                  {scratchDayBaseline > 0 && (
+                    <span
+                      className="text-xs font-bold text-slate-500"
+                      title="Οι προηγούμενες βάρδιες της ημέρας μετρούν από την ίδια αρχική θέση"
+                    >
+                      - Προηγ. βάρδιες: <span className="font-mono">{formatCurrency(scratchDayBaseline)}</span>
+                    </span>
+                  )}
+                  {scratchDayBaseline > 0 && (
+                    <span className="text-xs font-bold text-slate-700">
+                      = Βάρδιας: <span className="font-mono">{formatCurrency(ownScratchGross)}</span>
+                    </span>
+                  )}
                   <span className="text-xs font-bold text-rose-600">
                     - Εξαργ.: <span className="font-mono">{formatCurrency(scratchPayouts)}</span>
                   </span>

@@ -112,6 +112,12 @@ export interface DayOpeningSnapshot {
   opening_cash_notes: number | null;
   opening_cash_coins: number | null;
   scratch_ticket_items: any[] | null;
+  /**
+   * What today's shifts have already recorded as gross scratch sales at this
+   * register. The baseline a continuing shift subtracts from the cumulative
+   * figure on its screen, so what it stores is its own.
+   */
+  scratch_gross_today: number | null;
 }
 
 export async function fetchDayOpening(

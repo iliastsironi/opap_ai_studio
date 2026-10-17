@@ -22,8 +22,10 @@ import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import {
   carryOverScratchInventory,
+  continueDayScratchInventory,
   getLatestStoreScratchInventory,
 } from './ScratchCalculatorTable.tsx';
+import { SCRATCH_DAY_BASELINE_KEY } from '../../lib/scratchDayBaseline.ts';
 
 interface ShiftOpeningModalProps {
   isOpen: boolean;
@@ -246,26 +248,42 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
     setLoading(true);
     try {
-      // The opening serials still carry shift to shift, unlike the cash above.
+      // The opening serials, under the same rule as the cash: a shift that
+      // continues a day starts from the figures the DAY started on, and only
+      // across the night does a close become an opening.
       //
-      // Day continuation is written and tested for these too -
-      // continueDayScratchInventory() in ScratchCalculatorTable, covered by
-      // src/tests/day_continuation.test.ts - but it is NOT wired up yet, on
-      // purpose. Cash is safe to continue because the envelope physically
-      // removes it, so each shift's takings are its own and the day's total is
-      // still the sum. The packs do not leave the shelf: if a later shift
-      // counted from the day's opening, its figure would cover the earlier
-      // shifts too, and dailyAggregationService sums every shift of the day
-      // (totalScratchSales += scratchSales), which would report the day at two
-      // or three times what was sold.
+      //   continuing  -> «τη θέση της ημέρας»
+      //   first shift -> last night's close becomes this morning's opening
+      // Gated on the baseline field actually being there, not just on the day
+      // being open. Until 0035 is applied the RPC returns six columns and
+      // scratch_gross_today is undefined - and counting from the day's opening
+      // with a baseline of 0 would store the running total as this shift's
+      // own, reporting the day at two or three times what was sold. With the
+      // guard, running the migration late costs nothing: shifts simply carry
+      // per-shift, exactly as before.
+      const canContinueDay = dayOpening != null
+        && dayOpening.scratch_gross_today !== null
+        && dayOpening.scratch_gross_today !== undefined;
+
+      const initialScratchInventory = canContinueDay
+        ? continueDayScratchInventory(dayOpening!.scratch_ticket_items ?? undefined)
+        : carryOverScratchInventory(
+            previousShift?.scratch_ticket_items ||
+              getLatestStoreScratchInventory(targetStoreId)
+          );
+
+      // Because the table now counts from the day's opening, the figure the
+      // operator will see at closing is the DAY's running total, not this
+      // shift's. The baseline is what lets the close subtract the difference
+      // back out, so scratch_lotto_sales keeps the per-shift meaning every
+      // report in 0003 sums.
       //
-      // Switching the two lines below is the whole change; the day's total has
-      // to become "the last shift of the day" in the same commit. Waiting on
-      // the Owner to confirm which figure each shift should show.
-      const initialScratchInventory = carryOverScratchInventory(
-        previousShift?.scratch_ticket_items ||
-          getLatestStoreScratchInventory(targetStoreId)
-      );
+      // Stamped at opening rather than looked up at closing: a shift reopened
+      // and corrected days later has to subtract what the day held when it was
+      // worked, not what it holds now.
+      const scratchDayBaseline = canContinueDay
+        ? Math.max(0, Number(dayOpening!.scratch_gross_today))
+        : 0;
 
       const fsShift = await createShiftInFirestore({
         organization_id: organization!.id,
@@ -313,6 +331,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         is_unbalanced: false,
         custom_field_values: {
           scratch_ticket_items: initialScratchInventory,
+          [SCRATCH_DAY_BASELINE_KEY]: scratchDayBaseline,
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

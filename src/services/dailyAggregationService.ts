@@ -220,7 +220,7 @@ export function aggregateShiftsForDay(
       const vltsIn = safeNum(s.vlts_cash_in);
       const vltsOut = safeNum(s.vlts_cash_out);
       const vltsNet = resolveVltNet(s);
-      const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
+      const scratchSales = safeNum(s.scratch_lotto_sales);
       const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
       const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
       const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);
@@ -320,7 +320,7 @@ export function aggregateShiftsForDay(
     const vltsIn = safeNum(s.vlts_cash_in);
     const vltsOut = safeNum(s.vlts_cash_out);
     const vltsNet = resolveVltNet(s);
-    const scratchSales = safeNum(s.scratch_lotto_sales) || safeNum(s.scratch_sales);
+    const scratchSales = safeNum(s.scratch_lotto_sales);
     const nationalLotteryPortion = nlPortionByShift.get(s.id) || 0;
     const toraPos = safeNum(s.tora_total) || (safeNum(s.tora_pos1) + safeNum(s.tora_pos2) + safeNum(s.tora_pos_1) + safeNum(s.tora_pos_2)) || safeNum(s.custom_field_values?.tora_pos);
     const cleverPoint = safeNum(s.clever_point_total) || safeNum(s.custom_field_values?.clever_point);

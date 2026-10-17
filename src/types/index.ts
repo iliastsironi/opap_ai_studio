@@ -235,6 +235,11 @@ export interface Shift {
   pame_stoixima_balance?: number;
   scratch_sales?: number;
   scratch_payouts?: number;
+  // This shift's OWN gross scratch sales (0035). The table counts from the
+  // day's opening, so the figure on screen is the day's running total; this is
+  // what is left after the day's baseline comes off, and it is what keeps
+  // scratch_lotto_sales per-shift for everything in 0003 that sums it.
+  scratch_gross_sales?: number;
   tora_pos1?: number;
   tora_pos2?: number;
   tora_total?: number;
