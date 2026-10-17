@@ -87,6 +87,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // What today started on, when this shift is continuing a day rather than
   // starting one. Null means this IS the day's first shift.
   const [dayOpening, setDayOpening] = useState<DayOpeningSnapshot | null>(null);
+  // Set when the day-opening lookup itself failed, as opposed to there being
+  // no shift today. The figures below then came from the previous close, which
+  // is NOT the day rule, so the operator has to be told rather than shown a
+  // number that looks official.
+  const [dayOpeningError, setDayOpeningError] = useState<string | null>(null);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -146,7 +151,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         const carryCoins = (config as any)?.morning_coins_carry_over !== false;
         setMorningCoinsCarryOver(carryCoins);
         setPreviousShift(prev);
-        setDayOpening(today);
+        const todaySnapshot = today.status === 'FOUND' ? today.snapshot : null;
+        setDayOpening(todaySnapshot);
+        setDayOpeningError(today.status === 'FAILED' ? today.message : null);
 
         const configuredFloat = {
           notes: floatNotes,
@@ -154,12 +161,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           morningCoinsCarryOver: carryCoins,
         };
 
-        if (today) {
+        if (todaySnapshot) {
           // A shift is already on record for today, so this one continues the
           // day: same opening figures, not up for renegotiation at 15:00.
           const float = resolveOpeningFloat(null, configuredFloat, {
-            notes: Number(today.opening_cash_notes ?? 0),
-            coins: Number(today.opening_cash_coins ?? 0),
+            notes: Number(todaySnapshot.opening_cash_notes ?? 0),
+            coins: Number(todaySnapshot.opening_cash_coins ?? 0),
           });
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
@@ -498,6 +505,26 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
           </div>
 
+          {/* A failed day-opening lookup is not a fresh day. The figures below
+              came from the previous close instead, which is the rule this
+              screen stopped using - so say so rather than let the operator
+              start a till on the last shift's takings. */}
+          {dayOpeningError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 text-xs flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block">
+                  {toGreekUpper('Δεν Διαβαστηκε το Ταμειο Ημερας')}
+                </span>
+                <span className="text-micro text-rose-800 font-medium block mt-0.5">
+                  Τα παρακάτω ποσά ΔΕΝ είναι το αρχικό ταμείο της ημέρας — προέρχονται από
+                  το προηγούμενο κλείσιμο. Καταμετρήστε το συρτάρι πριν συνεχίσετε.
+                  <span className="block font-mono mt-0.5 opacity-80">{dayOpeningError}</span>
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Where the opening figures come from. Keyed on whether the day is
               already open, not on the shift's label. */}
           {!continuingDay ? (
@@ -505,7 +532,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold block">
-                  ☀️ {toGreekUpper('Πρωτη Βαρδια Ημερας — Αρχικο Ταμειο Διαχειριστη')}
+                  ☀️ {toGreekUpper(dayOpeningError
+                    ? 'Αρχικο Ταμειο — Χειροκινητη Καταμετρηση'
+                    : 'Πρωτη Βαρδια Ημερας — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
                 <span className="text-micro text-amber-800 font-medium">
                   Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος και ισχύουν για

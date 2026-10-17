@@ -120,11 +120,27 @@ export interface DayOpeningSnapshot {
   scratch_gross_today: number | null;
 }
 
+/**
+ * «No shift today» and «the lookup failed» are different answers and must not
+ * look the same.
+ *
+ * This used to return null for both, with a console.warn nobody reads. The
+ * caller then treated a failed lookup as a fresh day and fell back to the
+ * previous shift's counted cash - so a broken RPC showed the operator the last
+ * shift's takings as their float, silently, with the screen claiming it was
+ * the day's figure. The same silent-fallback shape as the DELETE that reported
+ * success and the PGRST204 that cancelled a whole save.
+ */
+export type DayOpeningResult =
+  | { status: 'FOUND'; snapshot: DayOpeningSnapshot }
+  | { status: 'NO_SHIFT_TODAY' }
+  | { status: 'FAILED'; message: string };
+
 export async function fetchDayOpening(
   storeId: string,
   registerId: string = 'Ταμείο 1',
   day?: string
-): Promise<DayOpeningSnapshot | null> {
+): Promise<DayOpeningResult> {
   try {
     const { data, error } = await supabase.rpc('shift_day_opening', {
       p_store_id: storeId,
@@ -133,10 +149,12 @@ export async function fetchDayOpening(
     });
     if (error) throw error;
     const rows = (data ?? []) as DayOpeningSnapshot[];
-    return rows[0] ?? null;
-  } catch (error) {
+    return rows[0]
+      ? { status: 'FOUND', snapshot: rows[0] }
+      : { status: 'NO_SHIFT_TODAY' };
+  } catch (error: any) {
     console.warn('Error fetching day opening:', error);
-    return null;
+    return { status: 'FAILED', message: error?.message || 'Άγνωστο σφάλμα' };
   }
 }
 
