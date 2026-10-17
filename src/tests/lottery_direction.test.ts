@@ -45,6 +45,37 @@ describe('a lottery sale only goes downwards', () => {
     expect(calculateRowQty(lottery({ startNo: '15', endNo: '' }))).toBe(0);
   });
 
+  it('flags a bundle row whose remaining exceeds what it started with', () => {
+    // Λαϊκό in πεντάδες + κομμάτια: 20 tickets in, somebody types five
+    // πεντάδες left. That is 25, which is more than the shift was handed.
+    // It used to be clamped silently to «nothing sold»; a plain lottery row
+    // flags the same mistake, and these two had no business disagreeing.
+    const laiko = {
+      id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 2,
+      bundleSize: 5, startNo: '20', endNo: '25',
+    } as ScratchTicketRow;
+
+    expect(calculateRowQty(laiko)).toBe(0);
+    const issues = validateScratchRow(laiko);
+    expect(issues.isValid).toBe(false);
+    expect(issues.errors[0].message).toContain('25');
+    expect(issues.errors[0].message).toContain('20');
+  });
+
+  it('counts a bundle row down from its opening', () => {
+    const laiko = (endNo: string) =>
+      ({
+        id: 'scr_laiko', name: 'Λαϊκό Λαχείο', category: 'Λαχεία', price: 2,
+        bundleSize: 5, startNo: '20', endNo,
+      }) as ScratchTicketRow;
+
+    // 3 πεντάδες + 4 κομμάτια left out of 20 is one ticket sold.
+    expect(calculateRowQty(laiko('19'))).toBe(1);
+    // 0 | 1 left is nineteen sold, which is the reading that was wrong.
+    expect(calculateRowQty(laiko('1'))).toBe(19);
+    expect(calculateRowQty(laiko('20'))).toBe(0);
+  });
+
   it('leaves scratch cards alone, which do count upwards', () => {
     // A scratch card's figures are positions in a pack: 000 to 010 is ten sold.
     const scratch = {

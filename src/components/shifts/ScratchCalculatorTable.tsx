@@ -998,12 +998,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         return { ...r, saleBundles: '', salePieces: '', endNo: '' };
       }
 
-      const remainingPiecesRaw =
+      // Stored as typed, including more than the shift started with.
+      //
+      // Clamping here silently turned a typo into «nothing sold», which is
+      // the opposite of what a plain lottery row does - that flags the
+      // increase and refuses to count it. validateScratchRow catches this one
+      // the same way, so the operator is told rather than corrected behind
+      // their back.
+      const remainingPieces =
         (parseInt(bundlesRaw, 10) || 0) * bundleSize + (parseInt(piecesRaw, 10) || 0);
-      // Clamped at the opening stock: a lottery count only goes down, so
-      // «more left than we started with» is a typo, not a delivery recorded
-      // in the wrong box.
-      const remainingPieces = Math.min(availablePieces, remainingPiecesRaw);
       const soldPieces = Math.max(0, availablePieces - remainingPieces);
       const { bundles: soldBundles, pieces: soldLoose } = splitPiecesIntoBundles(
         soldPieces,
@@ -1020,34 +1023,6 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     onChangeRows(updated);
   };
 
-  const handleUpdateBundleSale = (id: string, field: 'saleBundles' | 'salePieces', rawValue: string) => {
-    if (readOnly) return;
-    const digitsOnly = rawValue.replace(/[^0-9]/g, '');
-    const updated = rows.map((r) => {
-      if (r.id !== id) return r;
-      const bundleSize = r.bundleSize || 5;
-      const nextRow = { ...r, [field]: digitsOnly };
-      const bundlesParsed = parseNonNegativeInt(nextRow.saleBundles);
-      const piecesParsed = parseNonNegativeInt(nextRow.salePieces);
-      if (!bundlesParsed.isValid || !piecesParsed.isValid) {
-        // Leave endNo untouched while the field holds a transiently
-        // invalid value (e.g. mid-edit) - validateBundleSaleEntry will
-        // surface the real error for display.
-        return nextRow;
-      }
-      const { bundles: normBundles, pieces: normPieces } = normalizeBundleEntry(bundlesParsed.value, piecesParsed.value, bundleSize);
-      const soldPieces = normBundles * bundleSize + normPieces;
-      const available = parseNonNegativeInt(r.startNo).value;
-      const remaining = Math.max(0, available - soldPieces);
-      return {
-        ...nextRow,
-        saleBundles: String(normBundles),
-        salePieces: String(normPieces),
-        endNo: soldPieces > 0 ? String(remaining) : '',
-      };
-    });
-    onChangeRows(updated);
-  };
 
   // Owner/Admin-only config toggles for Λαχεία rows: whether the row uses
   // πεντάδα/κομμάτι dual tracking at all, and whether it also sells from
@@ -1661,7 +1636,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
 
                         {/* Μπροστά - Τελικό: for bundle-tracked rows (Λαϊκό Λαχείο), the User enters
                             the sale as πεντάδες + κομμάτια instead of typing a raw remaining count -
-                            endNo gets computed automatically (handleUpdateBundleSale), keeping its
+                            endNo is what the boxes hold directly now, keeping its
                             existing "remaining after" meaning unchanged. */}
                         <td className="p-2 text-center bg-indigo-50/20">
                           {isManual ? (
