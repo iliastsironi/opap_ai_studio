@@ -266,6 +266,38 @@ export function carryOverScratchInventory(
   return result;
 }
 
+// What a LATER shift of the same day opens on: the day's own opening, not the
+// previous shift's close.
+//
+// «Τη θέση της ημέρας». The packs do not move at a handover the way cash does
+// - nobody re-counts the serials at 15:00 - so every shift of a day works
+// from the figures the day started on, and only across the night does a close
+// become an opening. That overnight step is carryOverScratchInventory above.
+//
+// Expressed by replaying the day's opening as if it were a close, because for
+// a continuing shift that is precisely what it is: the number to start from.
+// Doing it this way keeps one copy of the catalogue merging, the custom-item
+// handling and the back-side mirroring rather than a second near-identical
+// loop that would drift from the first.
+export function continueDayScratchInventory(
+  dayRows?: ScratchTicketRow[] | any[],
+  baseCatalog: ScratchTicketRow[] = getSavedScratchCatalog()
+): ScratchTicketRow[] {
+  if (!dayRows || !Array.isArray(dayRows) || dayRows.length === 0) {
+    return carryOverScratchInventory(undefined, baseCatalog);
+  }
+
+  const asOpening = dayRows.map((r: any) => ({
+    ...r,
+    // Μπροστά counts down from where the day started.
+    endNo: r.startNo,
+    // Πίσω mirrors it: the day's locked baseline.
+    backStartNo: r.backEndNo,
+  }));
+
+  return carryOverScratchInventory(asOpening, baseCatalog);
+}
+
 export function saveLatestStoreScratchInventory(storeId: string, rows: ScratchTicketRow[]): void {
   try {
     if (typeof window === 'undefined' || !storeId) return;

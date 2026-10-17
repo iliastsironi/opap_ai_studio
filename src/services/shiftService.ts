@@ -95,6 +95,45 @@ export async function fetchHandoverSnapshot(
   }
 }
 
+// What today started on, for a shift that is continuing the day rather than
+// starting one.
+//
+// shift_day_opening()'s sibling reason to exist: 0022 makes a closed shift
+// private to whoever worked it, and at 15:00 the morning shift belongs to
+// somebody else, so the client cannot read the day's first shift directly.
+// Where fetchHandoverSnapshot answers «what did the last shift leave», this
+// answers «what did today start on» - and under the agency's rule those are
+// different questions, because everything above the float leaves in an
+// envelope at every close.
+export interface DayOpeningSnapshot {
+  opened_at: string | null;
+  opened_by_user_name: string | null;
+  opening_cash: number | null;
+  opening_cash_notes: number | null;
+  opening_cash_coins: number | null;
+  scratch_ticket_items: any[] | null;
+}
+
+export async function fetchDayOpening(
+  storeId: string,
+  registerId: string = 'Ταμείο 1',
+  day?: string
+): Promise<DayOpeningSnapshot | null> {
+  try {
+    const { data, error } = await supabase.rpc('shift_day_opening', {
+      p_store_id: storeId,
+      p_register_id: registerId,
+      p_day: day ?? null,
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as DayOpeningSnapshot[];
+    return rows[0] ?? null;
+  } catch (error) {
+    console.warn('Error fetching day opening:', error);
+    return null;
+  }
+}
+
 // The DB now enforces "one active shift per store+register" for real, via a
 // partial unique index (ux_shifts_one_active_per_register) - no sentinel
 // doc/transaction needed the way Firestore would have required. A 23505

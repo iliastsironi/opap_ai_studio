@@ -9,7 +9,10 @@ function localDateTimeValue(d: Date): string {
 }
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
-import { createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot } from '../../services/shiftService.ts';
+import {
+  createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot,
+  fetchDayOpening, DayOpeningSnapshot,
+} from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
@@ -79,6 +82,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [floatCoins, setFloatCoins] = useState<number>(50);
   const [configuredThreshold, setConfiguredThreshold] = useState<number>(15);
   const [morningCoinsCarryOver, setMorningCoinsCarryOver] = useState<boolean>(true);
+  // What today started on, when this shift is continuing a day rather than
+  // starting one. Null means this IS the day's first shift.
+  const [dayOpening, setDayOpening] = useState<DayOpeningSnapshot | null>(null);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -119,9 +125,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // Goes through shift_handover_snapshot() rather than reading the
         // previous shift row: since 0022 a closed shift is private to whoever
         // worked it, and at a handover that is someone else.
-        const [prev, config] = await Promise.all([
+        const [prev, config, today] = await Promise.all([
           fetchHandoverSnapshot(selectedStoreId, registerId),
           getShiftTemplateConfig(organization!.id, selectedStoreId).catch(() => null),
+          // The day's opening, so a second or third shift continues it
+          // instead of restarting on the previous shift's takings.
+          fetchDayOpening(selectedStoreId, registerId),
         ]);
 
         if (!isMounted) return;
@@ -135,61 +144,62 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         const carryCoins = (config as any)?.morning_coins_carry_over !== false;
         setMorningCoinsCarryOver(carryCoins);
         setPreviousShift(prev);
+        setDayOpening(today);
 
-        if (prev) {
-          // Calculate physical cash breakdown from previous shift
-          let prevNotes = 0;
-          let prevCoins = 0;
-          const countedCash = Number(prev.counted_cash ?? 0);
-          const openingCash = Number(prev.opening_cash ?? 0);
+        const configuredFloat = {
+          notes: floatNotes,
+          coins: floatCoins,
+          morningCoinsCarryOver: carryCoins,
+        };
 
-          if (prev.counted_denominations && Object.keys(prev.counted_denominations).length > 0) {
-            const parsed = calculateBanknotesAndCoins(prev.counted_denominations);
-            prevNotes = parsed.banknotes;
-            prevCoins = parsed.coins;
-          } else if (countedCash > 0) {
-            prevNotes = Math.floor(countedCash);
-            prevCoins = roundCurrency(countedCash - prevNotes);
-          } else if (openingCash > 0) {
-            prevNotes = Number(prev.opening_cash_notes ?? Math.floor(openingCash));
-            prevCoins = Number(prev.opening_cash_coins ?? roundCurrency(openingCash - prevNotes));
-          }
-
-          const float = resolveOpeningFloat(
-            shiftType === 'MORNING',
-            { countedCash, openingCash, notes: prevNotes, coins: prevCoins },
-            { notes: floatNotes, coins: floatCoins, morningCoinsCarryOver: carryCoins }
-          );
-          setOpeningBanknotes(float.notes.toFixed(2));
-          setOpeningCoins(float.coins.toFixed(2));
-          setIsAutoFetched(float.carriedOver);
-        } else if (shiftType === 'MORNING') {
-          const float = resolveOpeningFloat(true, null, {
-            notes: floatNotes,
-            coins: floatCoins,
-            morningCoinsCarryOver: carryCoins,
+        if (today) {
+          // A shift is already on record for today, so this one continues the
+          // day: same opening figures, not up for renegotiation at 15:00.
+          const float = resolveOpeningFloat(null, configuredFloat, {
+            notes: Number(today.opening_cash_notes ?? 0),
+            coins: Number(today.opening_cash_coins ?? 0),
           });
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
-          setIsAutoFetched(false);
+          setIsAutoFetched(float.carriedOver);
         } else {
-          // Non-morning, and this register has no previous shift to carry from.
+          // The day's first shift. The notes reset to the float - last
+          // night's left in the envelope - and the coins carry over if the
+          // shop keeps its ψιλά in the drawer overnight.
           //
-          // This branch did not exist, and the effect re-runs on registerId -
-          // so picking «Ταμείο 1» (snapshot found: fields filled with 350 and
-          // locked, AUTO lit) and then switching to «Ταμείο 2» left the 350
-          // sitting there, still locked, still badged AUTO, above a line
-          // reading «Δεν βρέθηκε προηγούμενη βάρδια». The operator could not
-          // even correct it - the inputs are disabled while isAutoFetched -
-          // and the shift was written with a note claiming the float had been
-          // carried over from a shift that does not exist, while the till in
-          // front of them was empty.
-          //
-          // Clearing rather than keeping: there is no previous close to carry,
-          // so the only honest float is the one they are about to count.
-          setOpeningBanknotes('');
-          setOpeningCoins('');
-          setIsAutoFetched(false);
+          // This used to be two more branches keyed on shiftType, and one of
+          // them cleared the fields entirely. They have collapsed into this
+          // one because «is this the morning» stopped deciding anything: a
+          // store whose day starts at 15:00 is still starting its day, and it
+          // starts on the float either way. That also retires the bug the
+          // cleared branch existed for - switching from «Ταμείο 1» to
+          // «Ταμείο 2» left the first register's figure sitting there locked
+          // and badged AUTO - because nothing is locked here now.
+          let previousClose = null;
+          if (prev) {
+            let prevNotes = 0;
+            let prevCoins = 0;
+            const countedCash = Number(prev.counted_cash ?? 0);
+            const openingCash = Number(prev.opening_cash ?? 0);
+
+            if (prev.counted_denominations && Object.keys(prev.counted_denominations).length > 0) {
+              const parsed = calculateBanknotesAndCoins(prev.counted_denominations);
+              prevNotes = parsed.banknotes;
+              prevCoins = parsed.coins;
+            } else if (countedCash > 0) {
+              prevNotes = Math.floor(countedCash);
+              prevCoins = roundCurrency(countedCash - prevNotes);
+            } else if (openingCash > 0) {
+              prevNotes = Number(prev.opening_cash_notes ?? Math.floor(openingCash));
+              prevCoins = Number(prev.opening_cash_coins ?? roundCurrency(openingCash - prevNotes));
+            }
+            previousClose = { countedCash, openingCash, notes: prevNotes, coins: prevCoins };
+          }
+
+          const float = resolveOpeningFloat(previousClose, configuredFloat, null);
+          setOpeningBanknotes(float.notes.toFixed(2));
+          setOpeningCoins(float.coins.toFixed(2));
+          setIsAutoFetched(float.carriedOver);
         }
       } catch (e) {
         console.warn('Error loading previous shift:', e);
@@ -203,7 +213,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, selectedStoreId, registerId, shiftType, organization?.id]);
+  }, [isOpen, selectedStoreId, registerId, organization?.id]);
+
+  // The question the screen actually needs to answer. It used to ask «is this
+  // the morning», which decided the wrong thing: a store whose day starts at
+  // 15:00 sets its own opening, and a second morning shift would not.
+  const continuingDay = !!dayOpening;
 
   if (!isOpen) return null;
 
@@ -231,11 +246,26 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
     setLoading(true);
     try {
-      // Calculate carry-over scratch inventory from previous shift
-      const prevScratchItems =
+      // The opening serials still carry shift to shift, unlike the cash above.
+      //
+      // Day continuation is written and tested for these too -
+      // continueDayScratchInventory() in ScratchCalculatorTable, covered by
+      // src/tests/day_continuation.test.ts - but it is NOT wired up yet, on
+      // purpose. Cash is safe to continue because the envelope physically
+      // removes it, so each shift's takings are its own and the day's total is
+      // still the sum. The packs do not leave the shelf: if a later shift
+      // counted from the day's opening, its figure would cover the earlier
+      // shifts too, and dailyAggregationService sums every shift of the day
+      // (totalScratchSales += scratchSales), which would report the day at two
+      // or three times what was sold.
+      //
+      // Switching the two lines below is the whole change; the day's total has
+      // to become "the last shift of the day" in the same commit. Waiting on
+      // the Owner to confirm which figure each shift should show.
+      const initialScratchInventory = carryOverScratchInventory(
         previousShift?.scratch_ticket_items ||
-        getLatestStoreScratchInventory(targetStoreId);
-      const initialScratchInventory = carryOverScratchInventory(prevScratchItems);
+          getLatestStoreScratchInventory(targetStoreId)
+      );
 
       const fsShift = await createShiftInFirestore({
         organization_id: organization!.id,
@@ -253,8 +283,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         opening_cash_coins: coinsNum,
         opening_operational_notes: openingNotes
           ? openingNotes
-          : shiftType !== 'MORNING' && isAutoFetched
-          ? `Αυτόματη μεταφορά από προηγούμενη βάρδια (${formatCurrency(banknotesNum)} χαρτ. + ${formatCurrency(coinsNum)} κέρμ.)`
+          : isAutoFetched
+          ? `Συνέχεια ημέρας — αρχικό ταμείο ημέρας (${formatCurrency(banknotesNum)} χαρτ. + ${formatCurrency(coinsNum)} κέρμ.)`
           : 'Αρχικό ταμείο διαχειριστή',
         opap_gross_sales: 0,
         opap_payouts: 0,
@@ -342,9 +372,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       onClose={onClose}
       title={toGreekUpper('Εναρξη Νεας Βαρδιας')}
       subtitle={
-        shiftType === 'MORNING'
-          ? 'Ορισμός αρχικού ταμείου από διαχειριστή'
-          : 'Αυτόματη μεταφορά ταμείου από προηγούμενη βάρδια'
+        continuingDay
+          ? 'Συνέχεια της ημέρας — ίδιο αρχικό ταμείο'
+          : 'Ορισμός αρχικού ταμείου από διαχειριστή'
       }
       icon={Play}
       size="lg"
@@ -436,25 +466,31 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   onChange={(e) => setShiftType(e.target.value as ShiftType)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="MORNING">☀️ Πρωινή (Ορισμός Ταμείου)</option>
-                  <option value="AFTERNOON">🌤️ Απογευματινή (Αυτόματο)</option>
-                  <option value="NIGHT">🌙 Βραδινή (Αυτόματο)</option>
-                  <option value="CUSTOM">⚡ Ειδική / Έκτακτη (Αυτόματο)</option>
+                  {/* The «(Αυτόματο)» these labels used to carry became a
+                      lie: whether the float is set or inherited depends on
+                      whether the day is already open, not on the label. The
+                      banner below says which applies. */}
+                  <option value="MORNING">☀️ Πρωινή</option>
+                  <option value="AFTERNOON">🌤️ Απογευματινή</option>
+                  <option value="NIGHT">🌙 Βραδινή</option>
+                  <option value="CUSTOM">⚡ Ειδική / Έκτακτη</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Shift Type Notice Banner */}
-          {shiftType === 'MORNING' ? (
+          {/* Where the opening figures come from. Keyed on whether the day is
+              already open, not on the shift's label. */}
+          {!continuingDay ? (
             <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2.5">
               <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold block">
-                  ☀️ {toGreekUpper('Πρωινη Βαρδια — Αρχικο Ταμειο Διαχειριστη')}
+                  ☀️ {toGreekUpper('Πρωτη Βαρδια Ημερας — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
                 <span className="text-micro text-amber-800 font-medium">
-                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος.
+                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος και ισχύουν για
+                  όλη την ημέρα.
                   {morningCoinsCarryOver
                     ? ' Τα κέρματα κρατούν ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ, αν έχει καταμετρηθεί.'
                     : ' Τα κέρματα ξεκινούν από το ορισμένο αρχικό ταμείο.'}
@@ -466,7 +502,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               <RefreshCw className={`w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ${fetchingPrev ? 'animate-spin' : ''}`} />
               <div>
                 <span className="font-bold flex items-center gap-1.5">
-                  🔄 {toGreekUpper('Αυτοματη Μεταφορα απο Προηγουμενη Βαρδια')}
+                  🔄 {toGreekUpper('Συνεχεια Ημερας — Αρχικο Ταμειο Ημερας')}
                   {isAutoFetched && (
                     <span className="px-1.5 py-0.2 text-micro font-black bg-indigo-200 text-indigo-950 rounded-md uppercase">
                       AUTO
@@ -474,9 +510,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   )}
                 </span>
                 <span className="text-micro text-indigo-800 font-medium block mt-0.5">
-                  {previousShift
-                    ? `Τα μετρητά και τα κέρματα υπολογίστηκαν αυτόματα από τη λήξη της προηγούμενης βάρδιας (${previousShift.previous_operator_name || 'Προηγούμενη'}).`
-                    : 'Δεν βρέθηκε προηγούμενη βάρδια σε αυτό το ταμείο — καταμετρήστε και καταχωρήστε το αρχικό ταμείο.'}
+                  {`Ίδια αρχικά ποσά με την πρώτη βάρδια της ημέρας${
+                    dayOpening?.opened_by_user_name ? ` (${dayOpening.opened_by_user_name})` : ''
+                  }. Ο φάκελος κάθε κλεισίματος παραδίδεται και στο συρτάρι μένει το πάγιο κεφάλαιο.`}
                 </span>
               </div>
             </div>
@@ -487,9 +523,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-micro font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <span>{toGreekUpper('2. Αρχικο Ταμειο (Float €)')}</span>
-                {shiftType !== 'MORNING' && (
+                {continuingDay && (
                   <span className="text-micro text-indigo-700 font-bold border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 rounded-md">
-                    {toGreekUpper('Απο Προηγουμενη')}
+                    {toGreekUpper('Ταμειο Ημερας')}
                   </span>
                 )}
               </span>
@@ -502,7 +538,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               <div>
                 <label htmlFor="opening-banknotes" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
-                  {shiftType !== 'MORNING' && (
+                  {continuingDay && (
                     <span className="text-micro text-slate-500 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
@@ -515,9 +551,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingBanknotes}
                     onChange={(e) => setOpeningBanknotes(e.target.value)}
                     placeholder="150.00"
-                    disabled={!floatIsAsked || (shiftType !== 'MORNING' && isAutoFetched)}
+                    disabled={!floatIsAsked || isAutoFetched}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
-                      shiftType !== 'MORNING' && isAutoFetched
+                      isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
                         : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
                     }`}
@@ -532,7 +568,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               <div>
                 <label htmlFor="opening-coins" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>🪙 {toGreekUpper('Κερματα')} (€)</span>
-                  {shiftType !== 'MORNING' && (
+                  {continuingDay && (
                     <span className="text-micro text-slate-500 font-mono">{toGreekUpper('Αυτοματο')}</span>
                   )}
                 </label>
@@ -545,9 +581,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     value={openingCoins}
                     onChange={(e) => setOpeningCoins(e.target.value)}
                     placeholder="50.00"
-                    disabled={!floatIsAsked || (shiftType !== 'MORNING' && isAutoFetched)}
+                    disabled={!floatIsAsked || isAutoFetched}
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
-                      shiftType !== 'MORNING' && isAutoFetched
+                      isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
                         : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
                     }`}
@@ -561,11 +597,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             </div>
 
             <p className="text-micro text-slate-500">
-              {shiftType === 'MORNING'
-                ? morningCoinsCarryOver
-                  ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από το προηγούμενο βράδυ όταν έχουν καταμετρηθεί.'
-                  : 'Προκαθορισμένα από τη Διαμόρφωση.'
-                : 'Τα ποσά χαρτονομισμάτων και κερμάτων προέρχονται αυτόματα από τα υπόλοιπα της προηγούμενης βάρδιας.'}
+              {continuingDay
+                ? 'Τα ποσά είναι αυτά που όρισε η πρώτη βάρδια της ημέρας και δεν αλλάζουν μέσα στην ημέρα.'
+                : morningCoinsCarryOver
+                ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από το προηγούμενο βράδυ όταν έχουν καταμετρηθεί.'
+                : 'Προκαθορισμένα από τη Διαμόρφωση.'}
             </p>
 
             {/* The limit this shift will be judged against, shown where it is
@@ -589,9 +625,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               maxLength={MAX_NOTES_LENGTH}
               onChange={(e) => setOpeningNotes(e.target.value)}
               placeholder={
-                shiftType === 'MORNING'
-                  ? 'Π.χ. Παραδόθηκαν 200€ από τον διαχειριστή, όλα τα τερματικά λειτουργικά...'
-                  : 'Π.χ. Παραλαβή ταμείου από προηγούμενη βάρδια...'
+                continuingDay
+                  ? 'Π.χ. Παραλαβή βάρδιας, όλα τα τερματικά λειτουργικά...'
+                  : 'Π.χ. Παραδόθηκαν 200€ από τον διαχειριστή, όλα τα τερματικά λειτουργικά...'
               }
               rows={2}
               className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

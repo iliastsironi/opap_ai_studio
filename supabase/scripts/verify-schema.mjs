@@ -64,6 +64,8 @@ const functions = [
   // means charges and the ledger disagree about the same shortage.
   ['discrepancy_absorbed', { p_discrepancy: -5, p_tolerance: 2 }],
   ['discrepancy_charge', { p_discrepancy: -5, p_tolerance: 2 }],
+  // 0033 - what today started on, for a shift continuing the day.
+  ['shift_day_opening', { p_store_id: 'nonexistent', p_register_id: 'nonexistent' }],
 ];
 
 // Functions that change data. Existence is checked by calling them with

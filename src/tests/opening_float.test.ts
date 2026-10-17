@@ -1,32 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { previousWasCounted, resolveOpeningFloat } from '../lib/openingFloat.ts';
+import { dayAlreadyOpened, previousWasCounted, resolveOpeningFloat } from '../lib/openingFloat.ts';
 
 const configured = { notes: 150, coins: 50 };
 
-describe('what the drawer starts with', () => {
+describe("the day's first shift", () => {
   it('uses the configured float when the previous shift counted nothing', () => {
     // The bug this is here for: a shift opened and never used closes on zero,
     // and carrying that zero over put «Κέρματα 0,00» in front of an operator
     // at a store configured for 50.
     const empty = { countedCash: 0, openingCash: 0, notes: 0, coins: 0 };
-    expect(resolveOpeningFloat(true, empty, configured)).toEqual({
-      notes: 150, coins: 50, carriedOver: false,
-    });
-    expect(resolveOpeningFloat(false, empty, configured)).toEqual({
+    expect(resolveOpeningFloat(empty, configured)).toEqual({
       notes: 150, coins: 50, carriedOver: false,
     });
   });
 
   it('uses the configured float when there is no previous shift at all', () => {
-    expect(resolveOpeningFloat(true, null, configured)).toEqual({
+    expect(resolveOpeningFloat(null, configured)).toEqual({
       notes: 150, coins: 50, carriedOver: false,
     });
   });
 
-  it('resets the notes each morning but carries the coins', () => {
-    // The night's notes go to the safe; the ψιλά stay in the drawer.
+  it('resets the notes but carries the coins across the night', () => {
+    // The night's notes left in the envelope; the ψιλά stay in the drawer.
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
-    expect(resolveOpeningFloat(true, lastNight, configured)).toEqual({
+    expect(resolveOpeningFloat(lastNight, configured)).toEqual({
       notes: 150, coins: 12.37, carriedOver: false,
     });
   });
@@ -38,46 +35,92 @@ describe('what the drawer starts with', () => {
     // applied at the one store with history - and somebody still has to put
     // ψιλά in the drawer, which is what a float is for.
     const noCoins = { countedCash: 11522.11, notes: 11522.11, coins: 0 };
-    expect(resolveOpeningFloat(true, noCoins, configured)).toEqual({
+    expect(resolveOpeningFloat(noCoins, configured)).toEqual({
       notes: 150, coins: 50, carriedOver: false,
     });
   });
 
-  it('starts the morning on the float when the store does not carry coins', () => {
+  it('starts on the float when the store does not carry coins overnight', () => {
     // A shop that empties the drawer overnight and prepares a float: last
     // night's coins are in the safe, so carrying them would measure the till
     // against money that is not in it.
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(
-      resolveOpeningFloat(true, lastNight, { ...configured, morningCoinsCarryOver: false })
+      resolveOpeningFloat(lastNight, { ...configured, morningCoinsCarryOver: false })
     ).toEqual({ notes: 150, coins: 50, carriedOver: false });
   });
 
   it('carries the coins when the store does, which is the default', () => {
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
-    expect(resolveOpeningFloat(true, lastNight, { ...configured, morningCoinsCarryOver: true }))
+    expect(resolveOpeningFloat(lastNight, { ...configured, morningCoinsCarryOver: true }))
       .toEqual({ notes: 150, coins: 12.37, carriedOver: false });
     // Undefined behaves as the carrying it replaced.
-    expect(resolveOpeningFloat(true, lastNight, configured).coins).toBe(12.37);
+    expect(resolveOpeningFloat(lastNight, configured).coins).toBe(12.37);
   });
 
-  it('leaves afternoon and evening alone whichever way the setting goes', () => {
-    // The setting is about the morning. Later shifts carry everything,
-    // because the drawer has not been emptied between them.
-    const earlier = { countedCash: 500, notes: 480, coins: 20 };
-    for (const carry of [true, false]) {
-      expect(resolveOpeningFloat(false, earlier, { ...configured, morningCoinsCarryOver: carry }))
-        .toEqual({ notes: 480, coins: 20, carriedOver: true });
-    }
+  it('starts a day that opens in the afternoon on the float, not on last night', () => {
+    // A store whose first shift of the day is not the morning one is still
+    // starting its day. The old rule keyed on «is this the morning» and gave
+    // this shift the whole of last night's takings as its opening.
+    const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
+    expect(resolveOpeningFloat(lastNight, configured, null)).toEqual({
+      notes: 150, coins: 12.37, carriedOver: false,
+    });
   });
+});
 
-  it('carries everything into an afternoon or evening shift', () => {
-    const earlier = { countedCash: 812.37, notes: 800, coins: 12.37 };
-    expect(resolveOpeningFloat(false, earlier, configured)).toEqual({
-      notes: 800, coins: 12.37, carriedOver: true,
+describe('every later shift of the same day', () => {
+  // This is the rule that changed. A later shift used to open on the previous
+  // shift's COUNTED cash - the morning's takings - because the old comment
+  // assumed the drawer «has not been emptied between them». It has: everything
+  // above the float left in an envelope.
+  const morningTook = { countedCash: 1842.5, notes: 1830, coins: 12.5 };
+  const dayOpening = { notes: 1000, coins: 47.35 };
+
+  it('opens on the day’s opening, not on what the previous shift counted', () => {
+    expect(resolveOpeningFloat(morningTook, configured, dayOpening)).toEqual({
+      notes: 1000, coins: 47.35, carriedOver: true,
     });
   });
 
+  it('gives the third shift of the day the same figures as the second', () => {
+    const second = resolveOpeningFloat(morningTook, configured, dayOpening);
+    const third = resolveOpeningFloat(
+      { countedCash: 2401.8, notes: 2390, coins: 11.8 }, configured, dayOpening
+    );
+    expect(third).toEqual(second);
+  });
+
+  it('ignores the coins setting, which is only about the night', () => {
+    for (const carry of [true, false]) {
+      expect(
+        resolveOpeningFloat(morningTook, { ...configured, morningCoinsCarryOver: carry }, dayOpening)
+      ).toEqual({ notes: 1000, coins: 47.35, carriedOver: true });
+    }
+  });
+
+  it('falls back to the configured coins when the day’s opening recorded none', () => {
+    // A real row: a 101499 shift opened on 200 notes with a flat 0 for coins.
+    // Continuing that literally hands 0,00 to every later shift of the day,
+    // in front of a tray that does have ψιλά in it.
+    expect(resolveOpeningFloat(morningTook, configured, { notes: 1000, coins: 0 })).toEqual({
+      notes: 1000, coins: 50, carriedOver: true,
+    });
+  });
+
+  it('does not continue a day whose opening is empty', () => {
+    // All-zero is not «the day started on nothing», it is no usable snapshot,
+    // and continuing it would put 0,00 in front of the operator.
+    expect(resolveOpeningFloat(morningTook, configured, { notes: 0, coins: 0 })).toEqual({
+      notes: 150, coins: 12.5, carriedOver: false,
+    });
+    expect(dayAlreadyOpened({ notes: 0, coins: 0 })).toBe(false);
+    expect(dayAlreadyOpened(null)).toBe(false);
+    expect(dayAlreadyOpened({ notes: 1000, coins: 0 })).toBe(true);
+  });
+});
+
+describe('what counts as something to carry', () => {
   it('counts a shift that only ever had an opening float as counted', () => {
     // It was handed a drawer even if it never recorded a close, so there is
     // something real to carry rather than a default to fall back on.
@@ -86,10 +129,11 @@ describe('what the drawer starts with', () => {
     expect(previousWasCounted(null)).toBe(false);
   });
 
-  it('never reports a carried-over float it did not carry', () => {
-    // carriedOver is what locks the fields and lights the AUTO badge, so it
-    // must only be true when the figures really came from a previous count.
-    expect(resolveOpeningFloat(true, null, configured).carriedOver).toBe(false);
-    expect(resolveOpeningFloat(false, { countedCash: 0 }, configured).carriedOver).toBe(false);
+  it('reports carriedOver only for the day’s established opening', () => {
+    // carriedOver is what locks the fields and lights the badge, so it must
+    // never be true for a figure the operator is allowed to set.
+    expect(resolveOpeningFloat(null, configured).carriedOver).toBe(false);
+    expect(resolveOpeningFloat({ countedCash: 0 }, configured).carriedOver).toBe(false);
+    expect(resolveOpeningFloat(null, configured, { notes: 1000, coins: 50 }).carriedOver).toBe(true);
   });
 });
