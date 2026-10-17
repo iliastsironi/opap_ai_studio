@@ -35,6 +35,7 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
 import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type SafeDrop } from '../../lib/shiftSafeDrops.ts';
+import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -1011,6 +1012,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   });
 
   const countedCash = calculateCountedCash(denominations);
+
+  // «Φάκελος = ταμείο»: the drawer keeps its fixed float - the 1000 € that
+  // runs from day to day - and everything above it is counted into an
+  // envelope for the supervisor. It is the figure they check against what is
+  // actually inside, so it goes on the review rather than being worked out in
+  // somebody's head at the end of a long count.
+  const envelope = calculateEnvelope({
+    countedCash,
+    fixedFloat: openingCashTotal,
+    safeDrops: totalSafeDrops(safeDrops),
+  });
   const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
   const reconciliationBreakdown = calculateReconciliationBreakdown({
@@ -2873,6 +2885,44 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <p className="text-micro text-indigo-200/80 mt-1 font-medium">
                 Μετρητά + POS + Έξοδα + Πιστώσεις - Επιστροφές - Αρχικό
               </p>
+            </div>
+
+            <div
+              className={`p-5 rounded-2xl border ${
+                envelope.isShort
+                  ? 'bg-rose-50 border-rose-200'
+                  : 'bg-emerald-50 border-emerald-200'
+              }`}
+            >
+              <span
+                className={`text-xs font-bold uppercase tracking-wider block ${
+                  envelope.isShort ? 'text-rose-900' : 'text-emerald-900'
+                }`}
+              >
+                Φάκελος Παράδοσης
+              </span>
+              <p
+                className={`text-2xl font-black mt-1 font-mono ${
+                  envelope.isShort ? 'text-rose-900' : 'text-emerald-900'
+                }`}
+              >
+                {formatCurrency(envelope.amount)}
+              </p>
+              <p
+                className={`text-micro mt-1 ${
+                  envelope.isShort ? 'text-rose-700' : 'text-emerald-700/90'
+                }`}
+              >
+                {envelope.isShort
+                  ? `Το συρτάρι έχει λιγότερα από το πάγιο κεφάλαιο (${formatCurrency(openingCashTotal)}).`
+                  : `Μένουν ${formatCurrency(envelope.retained)} στο ταμείο ως πάγιο κεφάλαιο.`}
+              </p>
+              {totalSafeDrops(safeDrops) > 0 && !envelope.isShort && (
+                <p className="text-micro text-emerald-700/90 mt-0.5">
+                  + {formatCurrency(totalSafeDrops(safeDrops))} ήδη στο χρηματοκιβώτιο ={' '}
+                  <span className="font-bold font-mono">{formatCurrency(envelope.totalOut)}</span>
+                </p>
+              )}
             </div>
 
             <div className="p-5 rounded-2xl bg-indigo-50/70 border border-indigo-150">
