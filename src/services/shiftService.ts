@@ -85,12 +85,15 @@ export interface HandoverSnapshot {
 
 export async function fetchHandoverSnapshot(
   storeId: string,
-  registerId: string = 'Ταμείο 1'
+  registerId: string = 'Ταμείο 1',
+  /** When the shift being opened starts; only an earlier handover counts. */
+  before?: string
 ): Promise<HandoverSnapshot | null> {
   try {
     const { data, error } = await supabase.rpc('shift_handover_snapshot', {
       p_store_id: storeId,
       p_register_id: registerId,
+      p_before: before ?? null,
     });
     if (error) throw error;
     const rows = (data ?? []) as HandoverSnapshot[];

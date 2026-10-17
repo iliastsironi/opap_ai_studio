@@ -15,6 +15,7 @@ import {
 } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
+import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -139,6 +140,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     if (!isOpen) return;
 
     let isMounted = true;
+
+    // The Athens calendar day this shift will belong to, read off the form's
+    // own date field, so every day-based lookup below agrees with what gets
+    // written. Blank means now, which is what the submit handler does too.
+    const shiftStartIso = (openedAt ? new Date(openedAt) : new Date()).toISOString();
+    const shiftDayKey = athensDateKey(shiftStartIso);
+
     async function loadPrevShift() {
       setFetchingPrev(true);
       try {
@@ -146,11 +154,18 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // previous shift row: since 0022 a closed shift is private to whoever
         // worked it, and at a handover that is someone else.
         const [prev, config, today] = await Promise.all([
-          fetchHandoverSnapshot(selectedStoreId, registerId),
+          fetchHandoverSnapshot(selectedStoreId, registerId, shiftStartIso),
           getShiftTemplateConfig(organization!.id, selectedStoreId).catch(() => null),
-          // The day's opening, so a second or third shift continues it
-          // instead of restarting on the previous shift's takings.
-          fetchDayOpening(selectedStoreId, registerId),
+          // The day's opening, for the day THIS shift will be recorded on -
+          // not for today.
+          //
+          // «opened_at» is a field on this form and the retroactive-entries
+          // feature exists precisely so it can be backdated. Asking for today
+          // while writing a shift dated otherwise made the two disagree: a
+          // shift recorded on 1 September found no opening for «today», fell
+          // back to the previous close, and the operator was shown the coins
+          // that close had counted. Which is exactly what was reported.
+          fetchDayOpening(selectedStoreId, registerId, shiftDayKey),
         ]);
 
         if (!isMounted) return;
@@ -258,7 +273,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, selectedStoreId, registerId, organization?.id]);
+  }, [isOpen, selectedStoreId, registerId, openedAt, organization?.id]);
 
   // The question the screen actually needs to answer. It used to ask «is this
   // the morning», which decided the wrong thing: a store whose day starts at

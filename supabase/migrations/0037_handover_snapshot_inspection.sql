@@ -19,7 +19,21 @@ DROP FUNCTION IF EXISTS shift_handover_snapshot(TEXT, TEXT);
 
 CREATE FUNCTION shift_handover_snapshot(
   p_store_id TEXT,
-  p_register_id TEXT DEFAULT 'Ταμείο 1'
+  p_register_id TEXT DEFAULT 'Ταμείο 1',
+  -- When the shift being opened starts. Only a handover that ENDED by then is
+  -- a handover to it.
+  --
+  -- Without this the function returns «the most recently closed shift», full
+  -- stop - and a shift's date is a field on the opening form, which the
+  -- retroactive-entries feature exists to backdate. A shift entered today but
+  -- dated 1 September closes with the latest closed_at in the table, so it fed
+  -- its counted coins to every shift opened afterwards, including ones dated
+  -- before it. That is how an operator opening an afternoon till was shown the
+  -- coins counted by a shift that, by its own date, had not happened yet.
+  --
+  -- NULL keeps the old behaviour, so a caller that does not know when its
+  -- shift starts is no worse off than before.
+  p_before TIMESTAMPTZ DEFAULT NULL
 )
 RETURNS TABLE (
   previous_operator_name TEXT,
@@ -53,8 +67,37 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
      AND s.store_id = p_store_id
      AND s.register_id = p_register_id
      AND s.status IN ('SUBMITTED', 'APPROVED', 'DRAFT_CLOSING', 'OPEN')
+     AND (p_before IS NULL
+          OR COALESCE(s.closed_at, s.opened_at) <= p_before)
    ORDER BY COALESCE(s.closed_at, s.opened_at) DESC
    LIMIT 1;
+$$;
+GRANT EXECUTE ON FUNCTION shift_handover_snapshot(TEXT, TEXT, TIMESTAMPTZ) TO authenticated;
+
+-- The two-argument form is dropped above, so anything still calling it would
+-- break. Kept as a thin wrapper rather than left to fail, because a stale
+-- browser tab holding the old bundle is a real thing and it should degrade to
+-- the old behaviour, not to an error.
+CREATE OR REPLACE FUNCTION shift_handover_snapshot(
+  p_store_id TEXT,
+  p_register_id TEXT
+)
+RETURNS TABLE (
+  previous_operator_name TEXT,
+  ended_at               TIMESTAMPTZ,
+  counted_cash           NUMERIC,
+  counted_denominations  JSONB,
+  opening_cash           NUMERIC,
+  opening_cash_notes     NUMERIC,
+  opening_cash_coins     NUMERIC,
+  scratch_ticket_items   JSONB,
+  shift_id               UUID,
+  shift_status           TEXT,
+  inspection_status      TEXT,
+  opened_by_user_id      UUID
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT * FROM shift_handover_snapshot(p_store_id, p_register_id, NULL);
 $$;
 GRANT EXECUTE ON FUNCTION shift_handover_snapshot(TEXT, TEXT) TO authenticated;
 
@@ -63,3 +106,8 @@ GRANT EXECUTE ON FUNCTION shift_handover_snapshot(TEXT, TEXT) TO authenticated;
 --
 --   SELECT shift_id, shift_status, inspection_status, previous_operator_name
 --     FROM shift_handover_snapshot('store_101499', 'Ταμείο 1');
+--
+--   -- And the ordering guard: a handover dated after the moment asked for
+--   -- must not come back.
+--   SELECT previous_operator_name, ended_at
+--     FROM shift_handover_snapshot('store_101499', 'Ταμείο 1', '2026-08-29T00:00:00Z');
