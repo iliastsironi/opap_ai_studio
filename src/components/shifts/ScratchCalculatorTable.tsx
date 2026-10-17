@@ -976,7 +976,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
    * the totals and the 0008 trigger work in; only which of them the operator
    * types has changed.
    */
-  const handleUpdateRemainingBundles = (id: string, rawValue: string) => {
+  const handleUpdateRemainingBundles = (
+    id: string,
+    field: 'bundles' | 'pieces',
+    rawValue: string,
+    otherValue: string
+  ) => {
     if (readOnly) return;
     const digitsOnly = rawValue.replace(/[^0-9]/g, '');
     const updated = rows.map((r) => {
@@ -985,21 +990,31 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       const availablePieces = parseNonNegativeInt(r.startNo).value;
       const availableBundles = Math.floor(availablePieces / bundleSize);
 
-      if (digitsOnly === '') {
+      const bundlesRaw = field === 'bundles' ? digitsOnly : otherValue;
+      const piecesRaw = field === 'pieces' ? digitsOnly : otherValue;
+
+      // Both boxes empty means nothing recorded yet, not «nothing left».
+      if (bundlesRaw === '' && piecesRaw === '') {
         return { ...r, saleBundles: '', salePieces: '', endNo: '' };
       }
 
+      const remainingPiecesRaw =
+        (parseInt(bundlesRaw, 10) || 0) * bundleSize + (parseInt(piecesRaw, 10) || 0);
       // Clamped at the opening stock: a lottery count only goes down, so
       // «more left than we started with» is a typo, not a delivery recorded
       // in the wrong box.
-      const remainingBundles = Math.min(availableBundles, parseInt(digitsOnly, 10) || 0);
-      const soldBundles = Math.max(0, availableBundles - remainingBundles);
-      const soldPieces = soldBundles * bundleSize;
+      const remainingPieces = Math.min(availablePieces, remainingPiecesRaw);
+      const soldPieces = Math.max(0, availablePieces - remainingPieces);
+      const { bundles: soldBundles, pieces: soldLoose } = splitPiecesIntoBundles(
+        soldPieces,
+        bundleSize
+      );
+
       return {
         ...r,
         saleBundles: String(soldBundles),
-        salePieces: '0',
-        endNo: String(Math.max(0, availablePieces - soldPieces)),
+        salePieces: String(soldLoose),
+        endNo: String(remainingPieces),
       };
     });
     onChangeRows(updated);
@@ -1676,35 +1691,30 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   A plain 2-column grid guarantees each input a real, equal share of the
                                   width; the ×N relationship is still taught by the label below instead
                                   of fighting for space on the same line. */}
+                              {/* Both boxes hold what is LEFT, not what was sold.
+                                  «ΑΡΧΙΚΟ 20 · ΤΕΛΙΚΟ 0 | 1» has to mean one piece
+                                  left out of twenty, the way every other lottery
+                                  row reads - it used to mean one piece sold. The
+                                  two readings only agree when the stock is nearly
+                                  gone, which is the worst way for a bug to hide. */}
                               <div className={isLaikoBundlesOnly ? 'grid grid-cols-1 gap-1' : 'grid grid-cols-2 gap-1'}>
                                 <input
                                   type="text"
                                   inputMode="numeric"
                                   maxLength={MAX_LABEL_LENGTH}
                                   disabled={readOnly}
-                                  value={
-                                    isLaikoBundlesOnly
-                                      ? row.endNo?.trim()
-                                        ? String(Math.floor((parseInt(row.endNo, 10) || 0) / rowBundleSize))
-                                        : ''
-                                      : row.saleBundles || ''
-                                  }
+                                  value={row.endNo?.trim() ? String(remainingSplit.bundles) : ''}
                                   onFocus={(e) => e.currentTarget.select()}
                                   onChange={(e) =>
-                                    isLaikoBundlesOnly
-                                      ? handleUpdateRemainingBundles(row.id, e.target.value)
-                                      : handleUpdateBundleSale(row.id, 'saleBundles', e.target.value)
+                                    handleUpdateRemainingBundles(
+                                      row.id,
+                                      'bundles',
+                                      e.target.value,
+                                      row.endNo?.trim() ? String(remainingSplit.pieces) : ''
+                                    )
                                   }
-                                  placeholder={
-                                    isLaikoBundlesOnly
-                                      ? String(Math.floor((parseInt(row.startNo, 10) || 0) / rowBundleSize))
-                                      : '0'
-                                  }
-                                  title={
-                                    isLaikoBundlesOnly
-                                      ? `${rowBundleSize}άδες που απομένουν στο τέλος της βάρδιας`
-                                      : 'Πεντάδες που πωλήθηκαν'
-                                  }
+                                  placeholder={String(startPiecesSplit.bundles)}
+                                  title={`${rowBundleSize}άδες που απομένουν στο τέλος της βάρδιας`}
                                   className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                     rowErrors.length > 0
                                       ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
@@ -1720,11 +1730,18 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     inputMode="numeric"
                                     maxLength={MAX_LABEL_LENGTH}
                                     disabled={readOnly}
-                                    value={row.salePieces || ''}
+                                    value={row.endNo?.trim() ? String(remainingSplit.pieces) : ''}
                                     onFocus={(e) => e.currentTarget.select()}
-                                    onChange={(e) => handleUpdateBundleSale(row.id, 'salePieces', e.target.value)}
-                                    placeholder="0"
-                                    title="Μεμονωμένα κομμάτια που πωλήθηκαν"
+                                    onChange={(e) =>
+                                      handleUpdateRemainingBundles(
+                                        row.id,
+                                        'pieces',
+                                        e.target.value,
+                                        row.endNo?.trim() ? String(remainingSplit.bundles) : ''
+                                      )
+                                    }
+                                    placeholder={String(startPiecesSplit.pieces)}
+                                    title="Μεμονωμένα κομμάτια που απομένουν στο τέλος της βάρδιας"
                                     className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                       rowErrors.length > 0
                                         ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
@@ -1745,7 +1762,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               {bundleSaleCheck.soldPieces > 0 && (
                                 <span className="text-micro font-bold text-indigo-600 block">
                                   {isLaikoBundlesOnly
-                                    ? `Πώληση: ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize}άδα`
+                                    ? `= ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize}άδα`
                                     : `= ${bundleSaleCheck.soldPieces} τμχ`}
                                 </span>
                               )}
@@ -1757,8 +1774,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                       hint above, which needed it for the same reason: the full words
                                       ("πεντάδες"/"κομμάτια") wrapped to 3 lines at this column width. */}
                                   {isLaikoBundlesOnly
-                                    ? `Μένουν: ${remainingSplit.bundles} × ${rowBundleSize}άδα`
-                                    : `Μένουν: ${remainingSplit.bundles} πεντ. + ${remainingSplit.pieces} κομ.`}
+                                    ? `Πουλήθηκαν: ${Math.floor(bundleSaleCheck.soldPieces / rowBundleSize)} × ${rowBundleSize}άδα`
+                                    : `Πουλήθηκαν: ${splitPiecesIntoBundles(bundleSaleCheck.soldPieces, rowBundleSize).bundles} πεντ. + ${splitPiecesIntoBundles(bundleSaleCheck.soldPieces, rowBundleSize).pieces} κομ.`}
                                 </span>
                               )}
                             </div>
