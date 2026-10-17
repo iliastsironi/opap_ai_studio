@@ -75,6 +75,12 @@ export interface HandoverSnapshot {
   opening_cash_notes: number | null;
   opening_cash_coins: number | null;
   scratch_ticket_items: any[] | null;
+  // Added in 0037, for the morning inspection: which shift this is, whether
+  // anyone has checked it, and who worked it - nobody inspects their own.
+  shift_id: string | null;
+  shift_status: string | null;
+  inspection_status: 'OK' | 'FLAGGED' | 'SKIPPED' | null;
+  opened_by_user_id: string | null;
 }
 
 export async function fetchHandoverSnapshot(
@@ -257,6 +263,30 @@ export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
     await handleSupabaseError(error, OperationType.DELETE, `${TABLE_NAME}/${shiftId}`);
     throw error;
   }
+}
+
+// Η επιθεώρηση: the morning operator's finding about the previous handover.
+//
+// Goes through an RPC and not an update, because neither write is open to the
+// person doing it: enforce_shift_immutability() lets only an elevated user
+// touch a SUBMITTED shift, and employee_charges has no client write policy at
+// all. record_shift_inspection (0036) runs as definer and does its own checks
+// - not your own shift, not an unclosed one, not one already inspected.
+export type InspectionOutcome = 'OK' | 'FLAGGED' | 'SKIPPED';
+
+export async function recordShiftInspection(
+  shiftId: string,
+  status: InspectionOutcome,
+  shortfall: number,
+  detail: unknown
+): Promise<void> {
+  const { error } = await supabase.rpc('record_shift_inspection', {
+    p_shift_id: shiftId,
+    p_status: status,
+    p_shortfall: Number(shortfall) || 0,
+    p_detail: detail ?? null,
+  });
+  if (error) throw error;
 }
 
 export function subscribeToShifts(

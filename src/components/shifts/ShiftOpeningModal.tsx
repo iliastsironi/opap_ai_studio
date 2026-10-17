@@ -11,7 +11,7 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import {
   createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot,
-  fetchDayOpening, DayOpeningSnapshot,
+  fetchDayOpening, DayOpeningSnapshot, recordShiftInspection,
 } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
@@ -26,6 +26,12 @@ import {
   getLatestStoreScratchInventory,
 } from './ScratchCalculatorTable.tsx';
 import { SCRATCH_DAY_BASELINE_KEY } from '../../lib/scratchDayBaseline.ts';
+import {
+  InspectionLine, summariseInspection, inspectionStatusFor, lineFinding,
+} from '../../lib/shiftInspection.ts';
+import {
+  ShiftInspectionPanel, buildInspectionLines, applyInspectionToScratchRows,
+} from './ShiftInspectionPanel.tsx';
 
 interface ShiftOpeningModalProps {
   isOpen: boolean;
@@ -92,6 +98,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // is NOT the day rule, so the operator has to be told rather than shown a
   // number that looks official.
   const [dayOpeningError, setDayOpeningError] = useState<string | null>(null);
+
+  // Η επιθεώρηση. Built once the previous handover and the resolved float are
+  // known, because «expected» is exactly what this screen is about to write
+  // into the shift - not a figure invented for the inspection.
+  const [inspectionLines, setInspectionLines] = useState<InspectionLine[] | null>(null);
+  const [inspectionSkipped, setInspectionSkipped] = useState(false);
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -161,6 +174,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           morningCoinsCarryOver: carryCoins,
         };
 
+        let resolvedFloat = { notes: floatNotes, coins: floatCoins };
+
         if (todaySnapshot) {
           // A shift is already on record for today, so this one continues the
           // day: same opening figures, not up for renegotiation at 15:00.
@@ -168,6 +183,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             notes: Number(todaySnapshot.opening_cash_notes ?? 0),
             coins: Number(todaySnapshot.opening_cash_coins ?? 0),
           });
+          resolvedFloat = { notes: float.notes, coins: float.coins };
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
@@ -206,10 +222,30 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           }
 
           const float = resolveOpeningFloat(previousClose, configuredFloat, null);
+          resolvedFloat = { notes: float.notes, coins: float.coins };
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
         }
+        // The inspection is offered only for a handover that is finished,
+        // belongs to somebody else, and nobody has checked yet. The RPC
+        // refuses all three cases anyway; offering them would waste the
+        // operator's time and then error.
+        const inspectable = prev
+          && prev.shift_id
+          && (prev.shift_status === 'SUBMITTED' || prev.shift_status === 'APPROVED')
+          && !prev.inspection_status
+          && prev.opened_by_user_id !== user?.id;
+
+        if (inspectable) {
+          setInspectionLines(
+            buildInspectionLines(resolvedFloat, (prev!.scratch_ticket_items ?? []) as any[])
+          );
+        } else {
+          setInspectionLines(null);
+        }
+        setInspectionSkipped(false);
+        setInspectionError(null);
       } catch (e) {
         console.warn('Error loading previous shift:', e);
       } finally {
@@ -272,11 +308,18 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         && dayOpening.scratch_gross_today !== null
         && dayOpening.scratch_gross_today !== undefined;
 
+      // A corrected serial is the true position, so it is what this shift opens
+      // on - the whole point of the morning check. Applied to the declared
+      // rows BEFORE the carry-over turns closings into openings.
+      const declaredRows = applyInspectionToScratchRows(
+        previousShift?.scratch_ticket_items ?? null,
+        inspectionSkipped ? null : inspectionLines
+      );
+
       const initialScratchInventory = canContinueDay
         ? continueDayScratchInventory(dayOpening!.scratch_ticket_items ?? undefined)
         : carryOverScratchInventory(
-            previousShift?.scratch_ticket_items ||
-              getLatestStoreScratchInventory(targetStoreId)
+            declaredRows || getLatestStoreScratchInventory(targetStoreId)
           );
 
       // Because the table now counts from the day's opening, the figure the
@@ -343,6 +386,42 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
+
+      // Recorded after the shift exists, and never allowed to block it. If
+      // the RPC fails the operator still has a till to work - the shop cannot
+      // wait on a bookkeeping write - so the failure is surfaced instead of
+      // thrown, and the handover simply stays uninspected.
+      if (inspectionLines && previousShift?.shift_id) {
+        const summary = summariseInspection(inspectionLines);
+        const outcome = inspectionSkipped ? 'SKIPPED' : inspectionStatusFor(summary);
+        try {
+          await recordShiftInspection(
+            previousShift.shift_id,
+            outcome,
+            outcome === 'FLAGGED' ? summary.shortfall : 0,
+            inspectionSkipped
+              ? { skipped: true }
+              : {
+                  lines: inspectionLines.map((l) => ({
+                    key: l.key,
+                    label: l.label,
+                    kind: l.kind,
+                    expected: l.expected,
+                    found: l.found ?? l.expected,
+                    unit_price: l.unitPrice ?? null,
+                    shortfall: lineFinding(l).shortfall,
+                  })),
+                }
+          );
+        } catch (inspErr: any) {
+          console.warn('Inspection could not be recorded:', inspErr);
+          setInspectionError(
+            `Η βάρδια ξεκίνησε, αλλά η επιθεώρηση δεν καταγράφηκε: ${
+              inspErr?.message || 'άγνωστο σφάλμα'
+            }`
+          );
+        }
+      }
 
       onSuccess(fsShift.id);
       onClose();
@@ -563,6 +642,37 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   }. Ο φάκελος κάθε κλεισίματος παραδίδεται και στο συρτάρι μένει το πάγιο κεφάλαιο.`}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Η επιθεώρηση sits ABOVE the float, because its whole point is
+              that the operator checks the drawer before accepting the figure
+              the screen is offering them. */}
+          {inspectionLines && (
+            <ShiftInspectionPanel
+              previousOperatorName={previousShift?.previous_operator_name || 'την προηγούμενη βάρδια'}
+              lines={inspectionLines}
+              skipped={inspectionSkipped}
+              disabled={loading}
+              onChangeFound={(key, found) => {
+                setInspectionLines((current) =>
+                  (current ?? []).map((l) => (l.key === key ? { ...l, found } : l))
+                );
+                // A correction IS the new shift's opening. Leaving the float
+                // at the declared figure while the drawer holds something
+                // else would measure this operator against money that is not
+                // there - and hand them a shortage on their own close for
+                // the previous shift's gap.
+                if (key === 'cash') setOpeningBanknotes(found.toFixed(2));
+                if (key === 'coins') setOpeningCoins(found.toFixed(2));
+              }}
+              onSkip={() => setInspectionSkipped(true)}
+            />
+          )}
+
+          {inspectionError && (
+            <div className="p-3 rounded-xl bg-rose-100 border border-rose-300 text-xs font-semibold text-rose-900">
+              {inspectionError}
             </div>
           )}
 
