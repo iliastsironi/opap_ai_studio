@@ -27,7 +27,38 @@ async function signInAs(email, password) {
   return client;
 }
 
+// The cleanup at the end of main() is skipped whenever a case throws - the
+// catch below exits the process - so a failed run used to leave a whole test
+// tenant behind: orgs, users, stores, shifts, charges and incidents. That is
+// noise in every table the next person looks at, and the leftover charges in
+// particular look like real money owed.
+//
+// So each run sweeps first. Scoped to organization_id, and only ids matching
+// test_org_%, which nothing but this script creates.
+async function sweepTestTenants() {
+  const { data: orgs, error } = await admin.from('organizations').select('id').like('id', 'test_org_%');
+  if (error) throw error;
+  const orgIds = (orgs ?? []).map((o) => o.id);
+  if (!orgIds.length) return;
+
+  console.log(`Sweeping ${orgIds.length} leftover test tenant(s) from an earlier run.`);
+  // Children before parents: most have ON DELETE CASCADE, but not all, and a
+  // half-deleted tenant is worse than none deleted.
+  for (const t of ['employee_charges', 'notifications', 'incidents', 'shift_expenses',
+                   'customer_credit_transactions', 'customers', 'scratch_catalog',
+                   'shift_templates', 'shifts']) {
+    await admin.from(t).delete().in('organization_id', orgIds);
+  }
+  const { data: users } = await admin.from('users').select('id').in('organization_id', orgIds);
+  await admin.from('users').delete().in('organization_id', orgIds);
+  for (const u of users ?? []) await admin.auth.admin.deleteUser(u.id).catch(() => {});
+  await admin.from('stores').delete().in('organization_id', orgIds);
+  await admin.from('organizations').delete().in('id', orgIds);
+}
+
 async function main() {
+  await sweepTestTenants();
+
   const suffix = Date.now();
   const orgA = `test_org_a_${suffix}`;
   const orgB = `test_org_b_${suffix}`;
@@ -509,6 +540,127 @@ async function main() {
     await admin.from('shifts').delete().eq('store_id', storeId);
   }
 
+  // --- 41-47: the discrepancy split (0034) --------------------------------
+  // The configured tolerance used to colour a banner and nothing more: the
+  // trigger charged the operator the WHOLE shortage, down to the cent. These
+  // check the split the Owner actually works to - tolerance absorbed, excess
+  // charged - against the live trigger rather than against the TypeScript
+  // twin, because the TypeScript is not what writes the charge.
+  {
+    const storeId = `test_store_disc_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'DSC', name: 'Test Store Discrepancy', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    // u4 is an EMPLOYEE, so the charge is not waived by role.
+    const mkShift = async (discrepancy, threshold, settlement = null) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId,
+        register_id: `REG-DSC-${Math.random().toString(36).slice(2, 7)}`,
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        closed_by_user_id: u4.user.id,
+        status: 'SUBMITTED', closed_at: new Date().toISOString(),
+        discrepancy, discrepancy_threshold: threshold, discrepancy_settlement: settlement,
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const chargeFor = async (shiftId) => {
+      const { data } = await admin.from('employee_charges')
+        .select('amount, status, resolution_note').eq('shift_id', shiftId).maybeSingle();
+      return data;
+    };
+
+    // 41: inside the tolerance - the ledger absorbs it, nobody is charged.
+    const within = await mkShift(-1.5, 2);
+    const withinCharge = await chargeFor(within.id);
+    record('41: a shortage inside the tolerance charges nobody',
+      !withinCharge,
+      withinCharge ? `CHARGED ${withinCharge.amount} - the tolerance did nothing` : 'no charge');
+
+    // 42: past it - only the excess reaches the operator.
+    const beyond = await mkShift(-5, 2);
+    const beyondCharge = await chargeFor(beyond.id);
+    record('42: a shortage past the tolerance charges only the excess',
+      beyondCharge && Number(beyondCharge.amount) === 3 && beyondCharge.status === 'OPEN',
+      beyondCharge ? `${beyondCharge.amount} / ${beyondCharge.status}` : 'NO CHARGE AT ALL');
+
+    // 43: a surplus is never charged and never credited.
+    const over = await mkShift(4, 2);
+    const overCharge = await chargeFor(over.id);
+    record('43: a surplus charges nobody',
+      !overCharge,
+      overCharge ? `CHARGED ${overCharge.amount} on a SURPLUS` : 'no charge');
+
+    // 44: «άμεση εξόφληση» - the money went in at the till, so the charge is
+    // recorded settled rather than left open against their name.
+    const paid = await mkShift(-5, 2, 'PAID_CASH');
+    const paidCharge = await chargeFor(paid.id);
+    record('44: an immediate payment is recorded settled, not left owing',
+      paidCharge && Number(paidCharge.amount) === 3 && paidCharge.status === 'SETTLED'
+        && (paidCharge.resolution_note || '').includes('Άμεση εξόφληση'),
+      paidCharge ? `${paidCharge.amount} / ${paidCharge.status}` : 'NO CHARGE');
+
+    // 45: raising the tolerance on a submitted shift has to release the
+    // charge. Before 0034 the trigger did not even re-run - it only watched
+    // status and discrepancy - so the old figure stood. Done as the manager,
+    // because enforce_shift_immutability() lets only an elevated user touch a
+    // SUBMITTED shift, and the service role is not one (auth.uid() is NULL).
+    await client6.from('shifts').update({ discrepancy_threshold: 10 }).eq('id', beyond.id).throwOnError();
+    const releasedCharge = await chargeFor(beyond.id);
+    record('45: raising the tolerance cancels a charge it now covers',
+      releasedCharge && releasedCharge.status === 'CANCELLED',
+      releasedCharge ? releasedCharge.status : 'charge vanished');
+
+    // 46: choosing to pay after it was already saved as a debt.
+    const switched = await mkShift(-8, 2);
+    const beforeSwitch = await chargeFor(switched.id);
+    await client6.from('shifts').update({ discrepancy_settlement: 'PAID_CASH' })
+      .eq('id', switched.id).throwOnError();
+    const afterSwitch = await chargeFor(switched.id);
+    record('46: paying an already-saved shortage settles the same charge',
+      beforeSwitch && beforeSwitch.status === 'OPEN'
+        && afterSwitch && afterSwitch.status === 'SETTLED' && Number(afterSwitch.amount) === 6,
+      `${beforeSwitch ? beforeSwitch.status : 'none'} -> ${afterSwitch ? afterSwitch.status + ' ' + afterSwitch.amount : 'none'}`);
+
+    // 47: the rollup has to report the split, not just the raw difference.
+    // Read as the manager: an employee only ever sees their own row.
+    const { data: summary, error: sumErr } = await client6.rpc('monthly_discrepancy_summary', {
+      p_month: new Date().toISOString().slice(0, 8) + '01',
+      p_store_id: storeId,
+    });
+    const row = (summary ?? []).find((r) => r.employee_user_id === u4.user.id);
+    // -1,50 absorbed whole, -5,00 now under a 10 tolerance so absorbed whole,
+    // +4,00 absorbed, -5,00 split 2/3, -8,00 split 2/6 => -1.5 -5 +4 -2 -2.
+    record('47: the rollup reports what the ledger carries and what was charged',
+      row && Math.abs(Number(row.absorbed_total) - -6.5) < 0.01
+          && Math.abs(Number(row.charged_total) - 9) < 0.01
+          && Math.abs(Number(row.paid_cash_total) - 9) < 0.01,
+      sumErr ? sumErr.message
+        : row ? `absorbed ${row.absorbed_total}, charged ${row.charged_total}, paid ${row.paid_cash_total}`
+        : 'no row for the operator');
+
+    // 48: the CHECK has to refuse anything that is not one of the two
+    // choices. Probed on a throwaway shift because trying it on a real one
+    // answers 42501 from a guard trigger before the constraint is reached,
+    // which looks like a pass and proves nothing.
+    const { data: probe } = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId,
+      register_id: `REG-DSC-${Math.random().toString(36).slice(2, 7)}`,
+      opened_by_user_id: u4.user.id, status: 'DRAFT_CLOSING',
+    }).select().maybeSingle();
+    const { error: checkErr } = await admin.from('shifts')
+      .update({ discrepancy_settlement: 'WHATEVER' }).eq('id', probe.id);
+    record('48: discrepancy_settlement refuses a value outside CHARGE/PAID_CASH',
+      !!checkErr && checkErr.code === '23514',
+      checkErr ? `rejected (${checkErr.code})` : 'ACCEPTED - the CHECK is not there');
+
+    await admin.from('employee_charges').delete().eq('store_id', storeId);
+    await admin.from('notifications').delete().eq('store_id', storeId);
+    await admin.from('incidents').delete().eq('store_id', storeId);
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -643,6 +795,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_scr_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_cred_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_del_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_disc_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);

@@ -36,6 +36,7 @@ import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
 import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type SafeDrop } from '../../lib/shiftSafeDrops.ts';
 import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
+import { splitDiscrepancy, DiscrepancySettlement } from '../../lib/discrepancySplit.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -763,6 +764,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     String(shift.discrepancy_threshold || localDraft?.discrepancy_threshold || 10.0)
   );
 
+  // What the operator decided about the part of a shortage the tolerance does
+  // not cover. Asked at submission, not before: the figure moves while they
+  // are still counting, and being asked to commit to paying 3 € that becomes
+  // 0 € two entries later is how people stop reading dialogs.
+  const [discrepancySettlement, setDiscrepancySettlement] =
+    useState<DiscrepancySettlement | null>(
+      (shift.discrepancy_settlement as DiscrepancySettlement | null) ?? null
+    );
+
   // Denominations State
   const [denominations, setDenominations] = useState<Record<string, number>>(
     shift.counted_denominations || localDraft?.counted_denominations || {}
@@ -1013,16 +1023,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const countedCash = calculateCountedCash(denominations);
 
-  // «Φάκελος = ταμείο»: the drawer keeps its fixed float - the 1000 € that
-  // runs from day to day - and everything above it is counted into an
-  // envelope for the supervisor. It is the figure they check against what is
-  // actually inside, so it goes on the review rather than being worked out in
-  // somebody's head at the end of a long count.
-  const envelope = calculateEnvelope({
-    countedCash,
-    fixedFloat: openingCashTotal,
-    safeDrops: totalSafeDrops(safeDrops),
-  });
   const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
   const reconciliationBreakdown = calculateReconciliationBreakdown({
@@ -1042,6 +1042,36 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     expectedCash,
     safeNum(discrepancyThreshold)
   );
+
+  // The tolerance used to be decoration: the trigger charged the operator the
+  // whole shortage however small it was. 0034 splits it - the tolerance is
+  // absorbed by the discrepancy ledger, only the excess reaches the person.
+  // The same arithmetic runs in the database, so this is what will happen,
+  // not a preview of it.
+  const split = splitDiscrepancy(discResult.discrepancy, safeNum(discrepancyThreshold));
+
+  // Owners are never charged for their own till (0018, kept in 0034).
+  const operatorIsExempt =
+    shift.opened_by_user_id === user?.id &&
+    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code));
+  const chargeReachesOperator = split.charged > 0 && !operatorIsExempt;
+
+  // «Φάκελος = ταμείο»: the drawer keeps its fixed float - the 1000 € that
+  // runs from day to day - and everything above it is counted into an
+  // envelope for the supervisor. It is the figure they check against what is
+  // actually inside, so it goes on the review rather than being worked out in
+  // somebody's head at the end of a long count.
+  //
+  // Computed after the split because an immediate settlement travels inside
+  // the same envelope and the person receiving it has to see that too.
+  const settlementCash =
+    chargeReachesOperator && discrepancySettlement === 'PAID_CASH' ? split.charged : 0;
+  const envelope = calculateEnvelope({
+    countedCash,
+    fixedFloat: openingCashTotal,
+    safeDrops: totalSafeDrops(safeDrops),
+    discrepancySettlement: settlementCash,
+  });
 
   const receiptData: ShiftReceiptData = {
     shift: {
@@ -1190,6 +1220,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       discrepancy_percentage: discResult.discrepancyPercentage,
       discrepancy_threshold: safeNum(discrepancyThreshold),
       is_unbalanced: discResult.isUnbalanced,
+      // Only meaningful when something actually reached the operator. Sent as
+      // null otherwise so a choice made before a correction cannot linger and
+      // mark a balanced shift as "paid in cash".
+      discrepancy_settlement: chargeReachesOperator ? discrepancySettlement : null,
 
       employee_notes: employeeNotes,
       handover_message: handoverMessage,
@@ -1273,6 +1307,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fnbCard,
     bankDeposits,
     discrepancyThreshold,
+    discrepancySettlement,
     denominations,
     expenses,
     customerCredits,
@@ -1648,7 +1683,83 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <p className="text-micro font-bold text-slate-500 tracking-wider">
               {shift.store_name} • {shift.register_id}
             </p>
-            {discResult.isExceedingThreshold ? (
+            {chargeReachesOperator ? (
+              /* The shortage got past the accepted tolerance, so part of it
+                 reaches the operator and they choose how to deal with it
+                 here, before the shift is submitted. The split itself is
+                 shown line by line - being told "you owe 3 €" without seeing
+                 where the 3 came from is how a figure gets argued about
+                 instead of paid. */
+              <div className="space-y-3">
+                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
+                  <p className="font-bold flex items-center space-x-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>Έλλειμμα πάνω από την αποδεκτή απόκλιση</span>
+                  </p>
+                  <dl className="space-y-1 font-mono tabular-nums">
+                    <div className="flex justify-between">
+                      <dt className="font-sans">Διαφορά ταμείου</dt>
+                      <dd className="font-bold">
+                        {formatCurrency(discResult.discrepancy, { showSign: true })}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="font-sans">
+                        Αποδεκτή απόκλιση ({formatCurrency(safeNum(discrepancyThreshold))})
+                      </dt>
+                      <dd>{formatCurrency(split.absorbed, { showSign: true })}</dd>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-rose-300/70">
+                      <dt className="font-sans font-bold">Σε βάρος σας</dt>
+                      <dd className="font-black">{formatCurrency(split.charged)}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <p className="text-xs font-bold text-slate-700">Πώς θα τακτοποιηθεί;</p>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscrepancySettlement('PAID_CASH')}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-colors cursor-pointer ${
+                      discrepancySettlement === 'PAID_CASH'
+                        ? 'border-emerald-500 bg-emerald-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold text-slate-900">
+                      Άμεση εξόφληση ({formatCurrency(split.charged)})
+                    </span>
+                    <span className="block text-xs text-slate-600 mt-0.5">
+                      Βάζετε τα χρήματα στο ταμείο τώρα. Παραδίδονται μαζί με τον φάκελο
+                      ως εξόφληση απόκλισης — δεν προσμετρώνται στις εισπράξεις.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDiscrepancySettlement('CHARGE')}
+                    className={`w-full text-left p-3 rounded-xl border-2 transition-colors cursor-pointer ${
+                      discrepancySettlement === 'CHARGE'
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold text-slate-900">
+                      Αποθήκευση ελλείμματος
+                    </span>
+                    <span className="block text-xs text-slate-600 mt-0.5">
+                      Καταγράφεται ως χρέωση στο όνομά σας και παραμένει ενεργή στο
+                      ιστορικό σας μέχρι να εξοφληθεί.
+                    </span>
+                  </button>
+                </div>
+                {!discrepancySettlement && (
+                  <p className="text-xs text-slate-500">
+                    Επιλέξτε έναν από τους δύο τρόπους για να συνεχίσετε.
+                  </p>
+                )}
+              </div>
+            ) : discResult.isExceedingThreshold ? (
               <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 space-y-1.5 text-xs text-rose-950">
                 <p className="font-bold flex items-center space-x-1.5">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -1674,6 +1785,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         confirmLabel="Ναι, Υποβολή"
         isLoading={isSubmitting}
         loadingLabel="Υποβολή..."
+        confirmDisabled={chargeReachesOperator && !discrepancySettlement}
         onConfirm={handleSubmitShift}
         onCancel={() => setShowSubmitConfirm(false)}
       />
@@ -2923,6 +3035,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <span className="font-bold font-mono">{formatCurrency(envelope.totalOut)}</span>
                 </p>
               )}
+              {/* Settlement cash rides along with the envelope, so the person
+                  receiving it sees it, but it is listed apart: it is the
+                  operator's own money clearing a shortage, not a taking. */}
+              {envelope.settlement > 0 && (
+                <p className="text-micro mt-1 pt-1 border-t border-emerald-300/60 text-emerald-800">
+                  + {formatCurrency(envelope.settlement)} εξόφληση απόκλισης (εκτός εισπράξεων)
+                  ={' '}
+                  <span className="font-bold font-mono">
+                    {formatCurrency(envelope.handedOver)}
+                  </span>{' '}
+                  στον φάκελο
+                </p>
+              )}
             </div>
 
             <div className="p-5 rounded-2xl bg-indigo-50/70 border border-indigo-150">
@@ -3372,18 +3497,37 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               decide whether the till balances. Removed at the Owner's
               request; nothing was computed only here. */}
 
-          {/* Owners are never charged for their own till (see 0018 trigger). */}
-          {discResult.discrepancy < 0 &&
-            !(shift.opened_by_user_id === user?.id &&
-              roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code))) && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-sm text-rose-800">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          {/* This used to announce that the WHOLE shortage would be charged,
+              which stopped being true in 0034: the accepted tolerance is
+              absorbed and only the excess reaches the operator. A banner that
+              overstates what someone owes is worse than no banner. */}
+          {discResult.discrepancy < 0 && !operatorIsExempt && (
+            <div
+              className={`flex items-start gap-2 p-3 rounded-xl border text-sm ${
+                chargeReachesOperator
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              {chargeReachesOperator ? (
                 <span>
-                  Με την υποβολή, το έλλειμμα <strong>{formatCurrency(Math.abs(discResult.discrepancy))}</strong> θα
-                  χρεωθεί στον χειριστή της βάρδιας ({shift.opened_by_user_name || 'Υπάλληλος'}).
+                  Από το έλλειμμα {formatCurrency(Math.abs(discResult.discrepancy))}, τα{' '}
+                  <strong>{formatCurrency(Math.abs(split.absorbed))}</strong> καλύπτονται από
+                  την αποδεκτή απόκλιση και τα{' '}
+                  <strong>{formatCurrency(split.charged)}</strong> χρεώνονται στον χειριστή
+                  ({shift.opened_by_user_name || 'Υπάλληλος'}). Στην υποβολή θα επιλέξετε
+                  άμεση εξόφληση ή αποθήκευση του ελλείμματος.
                 </span>
-              </div>
-            )}
+              ) : (
+                <span>
+                  Το έλλειμμα {formatCurrency(Math.abs(discResult.discrepancy))} καλύπτεται
+                  από την αποδεκτή απόκλιση ({formatCurrency(safeNum(discrepancyThreshold))}).
+                  Καταγράφεται στο ιστορικό αποκλίσεων και δεν χρεώνεται σε κανέναν.
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Employee Closing Notes */}
           <div>

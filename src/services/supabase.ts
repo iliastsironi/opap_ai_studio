@@ -14,6 +14,18 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+// PostgREST refuses the WHOLE statement when a payload names a column the
+// table does not have (PGRST204) - it does not ignore the field, it writes
+// nothing. This has cost a users update, the configuration screen and a shift
+// close in this project, so the recovery is shared: callers that can afford
+// to lose the field drop it and retry.
+const UNKNOWN_COLUMN = /Could not find the '([^']+)' column/i;
+
+/** The column PostgREST is complaining about, or null if it is not that. */
+export function unknownColumnFrom(message: string | null | undefined): string | null {
+  return UNKNOWN_COLUMN.exec(message ?? '')?.[1] ?? null;
+}
+
 // Same role cleanFirestoreData() played: services build objects that may
 // contain `undefined` (an omitted optional field) - strip those before
 // sending, so a PostgREST upsert doesn't try to write literal "undefined".

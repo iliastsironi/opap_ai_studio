@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { unknownColumnFrom } from '../services/shiftTemplateService.ts';
+import { unknownColumnFrom } from '../services/supabase.ts';
 
 // PostgREST refuses the whole statement when the payload names something that
 // is not a column, so one new field loses every setting on the screen. That

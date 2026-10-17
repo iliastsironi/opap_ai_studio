@@ -60,6 +60,10 @@ const functions = [
   ['monthly_discrepancy_summary', { p_month: '2026-01-01' }],
   ['mark_notification_read', { p_notification_id: NOWHERE }],
   ['national_lottery_draw_price', { p_type: 'nonexistent' }],
+  // 0034 - the split the trigger and the rollup both call, so a drift here
+  // means charges and the ledger disagree about the same shortage.
+  ['discrepancy_absorbed', { p_discrepancy: -5, p_tolerance: 2 }],
+  ['discrepancy_charge', { p_discrepancy: -5, p_tolerance: 2 }],
 ];
 
 // Functions that change data. Existence is checked by calling them with

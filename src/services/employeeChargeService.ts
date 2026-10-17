@@ -38,6 +38,12 @@ export interface MonthlyDiscrepancyRow {
   discrepancy_total: number;
   shortage_total: number;
   surplus_total: number;
+  /** The ledger's own share, signed: absorbed shortages net against surpluses. */
+  absorbed_total: number;
+  /** What reached the operator after the tolerance (0034). */
+  charged_total: number;
+  /** Of that, what they paid in cash at the till on the spot. */
+  paid_cash_total: number;
   open_charges: number;
   settled_charges: number;
   waived_charges: number;
@@ -60,6 +66,9 @@ export async function fetchMonthlyDiscrepancySummary(
       discrepancy_total: Number(r.discrepancy_total) || 0,
       shortage_total: Number(r.shortage_total) || 0,
       surplus_total: Number(r.surplus_total) || 0,
+      absorbed_total: Number(r.absorbed_total) || 0,
+      charged_total: Number(r.charged_total) || 0,
+      paid_cash_total: Number(r.paid_cash_total) || 0,
       open_charges: Number(r.open_charges) || 0,
       settled_charges: Number(r.settled_charges) || 0,
       waived_charges: Number(r.waived_charges) || 0,

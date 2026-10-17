@@ -274,6 +274,12 @@ export interface Shift {
   discrepancy_percentage: number;
   discrepancy_threshold: number;
   is_unbalanced: boolean;
+  // How the operator chose to deal with the part of a shortage that got past
+  // the tolerance (0034). NULL when nothing was chargeable.
+  //   CHARGE    - keep it as a debt in their history.
+  //   PAID_CASH - paid at the till on the spot; the cash travels with the
+  //               envelope and is not a taking.
+  discrepancy_settlement?: 'CHARGE' | 'PAID_CASH' | null;
 
   // Notes & Workflow
   employee_notes?: string;

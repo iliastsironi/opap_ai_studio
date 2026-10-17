@@ -44,7 +44,36 @@ describe('what goes in the envelope', () => {
 
   it('survives empty figures rather than reporting NaN', () => {
     expect(calculateEnvelope({ countedCash: null, fixedFloat: undefined })).toEqual({
-      amount: 0, retained: 0, totalOut: 0, isShort: false,
+      amount: 0, retained: 0, totalOut: 0, settlement: 0, handedOver: 0, isShort: false,
     });
+  });
+
+  // «Άμεση εξόφληση»: the operator clears a shortage from their own pocket.
+  // The cash rides along with the envelope but is not a taking - counting it
+  // in totalOut would restore exactly what the shortage already removed.
+  it('carries settlement cash alongside the envelope without inflating takings', () => {
+    const e = calculateEnvelope({
+      countedCash: 1842.5,
+      fixedFloat: 1000,
+      discrepancySettlement: 3,
+    });
+    expect(e.amount).toBe(842.5);
+    expect(e.settlement).toBe(3);
+    expect(e.handedOver).toBe(845.5);
+    expect(e.totalOut).toBe(842.5);
+  });
+
+  it('ignores a negative settlement rather than paying the operator out', () => {
+    const e = calculateEnvelope({ countedCash: 1200, fixedFloat: 1000, discrepancySettlement: -50 });
+    expect(e.settlement).toBe(0);
+    expect(e.handedOver).toBe(200);
+  });
+
+  it('adds settlement to the envelope and safe drops to the till total', () => {
+    const e = calculateEnvelope({
+      countedCash: 1500, fixedFloat: 1000, safeDrops: 300, discrepancySettlement: 7.5,
+    });
+    expect(e.totalOut).toBe(800);
+    expect(e.handedOver).toBe(507.5);
   });
 });

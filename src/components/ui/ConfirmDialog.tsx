@@ -17,6 +17,8 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   isLoading?: boolean;
   loadingLabel?: string;
+  /** For a dialog that asks something before it can be confirmed. */
+  confirmDisabled?: boolean;
   closeOnBackdropClick?: boolean;
   layer?: ModalLayer;
 }
@@ -56,6 +58,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmLabel,
   cancelLabel = 'Ακύρωση',
   isLoading = false,
+  confirmDisabled = false,
   loadingLabel,
   closeOnBackdropClick = true,
   layer,
@@ -83,7 +86,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isLoading || confirmDisabled}
             className={`px-5 py-2 text-white rounded-xl font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center gap-2 ${TONE_BUTTON[tone]}`}
           >
             {isLoading && (

@@ -92,7 +92,14 @@ export const DiscrepancyLedger: React.FC = () => {
     const surplus = summary.reduce((a, r) => a + r.surplus_total, 0);
     const owedThisMonth = summary.reduce((a, r) => a + r.open_charges, 0);
     const shifts = summary.reduce((a, r) => a + r.shift_count, 0);
-    return { net, shortage, surplus, owedThisMonth, shifts };
+    // The split 0034 introduced. `absorbed` is what the business carries once
+    // the accepted tolerance has done its work - the figure the periodic
+    // settlement from tips has to cover - and `charged` is what reached the
+    // operators. absorbed + charged is the net above, by construction.
+    const absorbed = summary.reduce((a, r) => a + r.absorbed_total, 0);
+    const charged = summary.reduce((a, r) => a + r.charged_total, 0);
+    const paidCash = summary.reduce((a, r) => a + r.paid_cash_total, 0);
+    return { net, shortage, surplus, owedThisMonth, shifts, absorbed, charged, paidCash };
   }, [summary]);
 
   // Deliberately NOT month-scoped. A shortage nobody has paid is still owed in
@@ -212,6 +219,11 @@ export const DiscrepancyLedger: React.FC = () => {
               {formatCurrency(totals.net, { showSign: true })}
             </span>
             <span className="text-micro text-slate-500">{totals.shifts} βάρδιες</span>
+            {Math.abs(totals.absorbed) > 0.005 && (
+              <span className="text-micro text-slate-500 block">
+                Στο ταμείο αποκλίσεων: {formatCurrency(totals.absorbed, { showSign: true })}
+              </span>
+            )}
           </div>
           <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-200/70">
             <span className="text-micro font-bold text-rose-800 uppercase tracking-wider block">
@@ -219,6 +231,11 @@ export const DiscrepancyLedger: React.FC = () => {
             </span>
             <span className="text-lg sm:text-xl font-black font-mono tabular-nums text-rose-700 block mt-1">
               {formatCurrency(totals.shortage)}
+            </span>
+            <span className="text-micro text-rose-800/80">
+              {totals.charged > 0.005
+                ? `Χρεώθηκε στους υπαλλήλους: ${formatCurrency(totals.charged)}`
+                : 'Εντός αποδεκτής απόκλισης'}
             </span>
           </div>
           <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
@@ -287,6 +304,8 @@ export const DiscrepancyLedger: React.FC = () => {
                   <th className="px-4 py-3 text-right">{toGreekUpper('Ελλειμμα')}</th>
                   <th className="px-4 py-3 text-right">{toGreekUpper('Πλεονασμα')}</th>
                   <th className="px-4 py-3 text-right">{toGreekUpper('Καθαρο')}</th>
+                  <th className="px-4 py-3 text-right">{toGreekUpper('Καλυφθηκε')}</th>
+                  <th className="px-4 py-3 text-right">{toGreekUpper('Χρεωθηκε')}</th>
                   <th className="px-4 py-3 text-right">{toGreekUpper('Ανεξοφλητα')}</th>
                 </tr>
               </thead>
@@ -311,6 +330,27 @@ export const DiscrepancyLedger: React.FC = () => {
                       }`}
                     >
                       {formatCurrency(r.discrepancy_total, { showSign: true })}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-600">
+                      {Math.abs(r.absorbed_total) > 0.005
+                        ? formatCurrency(r.absorbed_total, { showSign: true })
+                        : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-rose-700">
+                      {r.charged_total > 0.005 ? (
+                        <>
+                          {formatCurrency(r.charged_total)}
+                          {/* Paid on the spot: the money is already in, so the
+                              figure is history rather than a balance. */}
+                          {r.paid_cash_total > 0.005 && (
+                            <span className="block text-micro font-normal text-emerald-700">
+                              εξοφλήθηκε {formatCurrency(r.paid_cash_total)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums font-black text-indigo-950">
                       {r.open_charges > 0 ? formatCurrency(r.open_charges) : '—'}

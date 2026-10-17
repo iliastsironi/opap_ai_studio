@@ -1,4 +1,4 @@
-import { supabase } from './supabase.ts';
+import { supabase, unknownColumnFrom } from './supabase.ts';
 import { ShiftTemplateConfig } from '../types/index.ts';
 
 export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
@@ -234,13 +234,6 @@ export async function getShiftTemplateConfig(
  * that could not be stored simply has no column yet, and the other twenty
  * have no reason to go down with it.
  */
-const UNKNOWN_COLUMN = /Could not find the '([^']+)' column/i;
-
-/** The column PostgREST is complaining about, or null if it is not that. */
-export function unknownColumnFrom(message: string | null | undefined): string | null {
-  return UNKNOWN_COLUMN.exec(message ?? '')?.[1] ?? null;
-}
-
 export async function saveShiftTemplateConfig(
   templateConfig: ShiftTemplateConfig
 ): Promise<void> {

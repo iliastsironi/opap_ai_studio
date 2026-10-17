@@ -1,4 +1,6 @@
-import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
+import {
+  supabase, handleSupabaseError, OperationType, cleanData, unknownColumnFrom,
+} from './supabase.ts';
 import { Shift } from '../types/index.ts';
 
 const TABLE_NAME = 'shifts';
@@ -119,16 +121,48 @@ export async function createShiftInFirestore(shiftData: Omit<Shift, 'id'>): Prom
   }
 }
 
+// A column the database does not have yet costs the WHOLE save, not just
+// that field: PostgREST answers PGRST204 and writes nothing. This has already
+// cost the configuration screen once and a users update before that, and a
+// shift is the worst place for it - the operator has counted a till for
+// twenty minutes and the save fails with «Could not find the column».
+//
+// So an unknown column is dropped and the save retried, exactly as
+// saveShiftTemplateConfig does. The field is lost until the migration runs,
+// which is logged; the count is not.
 export async function updateShiftInFirestore(
   shiftId: string,
   updateData: Partial<Shift>
 ): Promise<void> {
+  let payload: Record<string, any> = cleanData({
+    ...updateData,
+    updated_at: new Date().toISOString(),
+  });
+  const dropped: string[] = [];
+
   try {
-    const { error } = await supabase.from(TABLE_NAME).update(cleanData({
-      ...updateData,
-      updated_at: new Date().toISOString(),
-    })).eq('id', shiftId);
-    if (error) throw error;
+    // Bounded: each attempt removes one key, and the payload is finite.
+    for (let attempt = 0; attempt <= Object.keys(payload).length; attempt += 1) {
+      const { error } = await supabase.from(TABLE_NAME).update(payload).eq('id', shiftId);
+      if (!error) {
+        if (dropped.length > 0) {
+          console.warn(
+            `[shift] saved without ${dropped.join(', ')} - no such column yet. ` +
+              'Run the pending migration to store these.'
+          );
+        }
+        return;
+      }
+
+      const missing = unknownColumnFrom(error.message);
+      if (!missing || !(missing in payload)) throw error;
+
+      const { [missing]: _removed, ...remaining } = payload;
+      payload = remaining;
+      dropped.push(missing);
+    }
+
+    throw new Error('Η αποθήκευση της βάρδιας απέτυχε.');
   } catch (error) {
     await handleSupabaseError(error, OperationType.UPDATE, `${TABLE_NAME}/${shiftId}`);
     throw error;

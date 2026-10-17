@@ -28,6 +28,13 @@ export interface EnvelopeInput {
   fixedFloat: number | string | null | undefined;
   /** Cash already moved to the safe during the shift, if any. */
   safeDrops?: number | string | null | undefined;
+  /**
+   * Money the operator put in out of their own pocket to clear a shortage on
+   * the spot («άμεση εξόφληση»). It travels with the envelope, so whoever
+   * receives it has to see it, but it is NOT a taking: it must never reach
+   * the cash sales or the POS receipts.
+   */
+  discrepancySettlement?: number | string | null | undefined;
 }
 
 export interface Envelope {
@@ -37,6 +44,10 @@ export interface Envelope {
   retained: number;
   /** Everything that left the till this shift, safe drops included. */
   totalOut: number;
+  /** The settlement cash riding along with the envelope, if any. */
+  settlement: number;
+  /** What the supervisor physically receives: the envelope plus settlement. */
+  handedOver: number;
   /** True when the drawer holds less than the float it is meant to keep. */
   isShort: boolean;
 }
@@ -45,6 +56,8 @@ export function calculateEnvelope(input: EnvelopeInput): Envelope {
   const counted = num(input.countedCash);
   const float = num(input.fixedFloat);
   const drops = num(input.safeDrops);
+  // Unsigned: the operator pays in, they are never paid out from here.
+  const settlement = round2(Math.max(0, num(input.discrepancySettlement)));
 
   // Never negative: a drawer below its float is a shortage, not an envelope
   // owed back to the till, and the discrepancy is where that gets reported.
@@ -53,7 +66,12 @@ export function calculateEnvelope(input: EnvelopeInput): Envelope {
   return {
     amount,
     retained: round2(Math.min(counted, float)),
+    // The settlement is deliberately OUT of totalOut, which answers "what
+    // did this till produce". Counting it there would inflate the takings by
+    // the exact amount the shortage already removed from them.
     totalOut: round2(amount + drops),
+    settlement,
+    handedOver: round2(amount + settlement),
     isShort: counted < float,
   };
 }
