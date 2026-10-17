@@ -469,6 +469,46 @@ async function main() {
     }
   }
 
+  // --- 39-40: deleting a shift -------------------------------------------
+  // «Διαγραφή βάρδιας» closes its dialog and leaves the shift open. The client
+  // calls delete and treats a missing error as success - but a DELETE the
+  // policy refuses matches zero rows and reports no error at all, so nothing
+  // distinguishes «deleted» from «not allowed to see it».
+  {
+    const storeId = `test_store_del_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'DEL', name: 'Test Store Delete', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const mkDraft = async () => {
+      const { data } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId, register_id: `REG-DEL-${Math.random().toString(36).slice(2, 7)}`,
+        opened_by_user_id: u4.user.id, status: 'DRAFT_CLOSING',
+      }).select().maybeSingle();
+      return data;
+    };
+
+    // 39: a STORE_MANAGER is elevated, so the policy should let them.
+    const mgrShift = await mkDraft();
+    const { error: mgrErr } = await client6.from('shifts').delete().eq('id', mgrShift.id);
+    const { data: mgrAfter } = await admin.from('shifts').select('id').eq('id', mgrShift.id).maybeSingle();
+    record('39: an elevated user can delete a draft shift',
+      !mgrErr && !mgrAfter,
+      mgrErr ? mgrErr.message : mgrAfter ? 'STILL THERE - delete matched no rows and reported no error' : 'deleted');
+
+    // 40: an employee cannot, and the client cannot tell that from success.
+    const empShift = await mkDraft();
+    const { error: empErr } = await client4.from('shifts').delete().eq('id', empShift.id);
+    const { data: empAfter } = await admin.from('shifts').select('id').eq('id', empShift.id).maybeSingle();
+    record('40: an employee cannot delete a shift, and gets no error saying so',
+      !!empAfter,
+      empAfter
+        ? `still there, error was ${empErr ? empErr.code : 'none - silent'}`
+        : 'DELETED - an employee removed a shift');
+
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -602,6 +642,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_0023_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_scr_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_cred_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_del_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);

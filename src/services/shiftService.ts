@@ -137,8 +137,25 @@ export async function updateShiftInFirestore(
 
 export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
   try {
-    const { error } = await supabase.from(TABLE_NAME).delete().eq('id', shiftId);
+    // `.select()` so the statement reports which rows it actually removed.
+    //
+    // Without it a DELETE the policy refuses is indistinguishable from one
+    // that worked: it matches zero rows and returns no error, so the caller
+    // closed its dialog and the shift stayed exactly where it was. Deleting a
+    // shift needs auth_is_elevated(), and an employee pressing «Διαγραφή
+    // βάρδιας» got silence.
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .delete()
+      .eq('id', shiftId)
+      .select('id');
     if (error) throw error;
+
+    if (!data || data.length === 0) {
+      throw new Error(
+        'Η βάρδια δεν διαγράφηκε. Η διαγραφή βάρδιας επιτρέπεται μόνο σε υπεύθυνο ή ιδιοκτήτη.'
+      );
+    }
   } catch (error) {
     await handleSupabaseError(error, OperationType.DELETE, `${TABLE_NAME}/${shiftId}`);
     throw error;
