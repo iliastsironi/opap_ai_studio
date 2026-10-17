@@ -661,6 +661,92 @@ async function main() {
     await admin.from('shifts').delete().eq('store_id', storeId);
   }
 
+  // --- 49-52: the day's opening (0033/0035) --------------------------------
+  // Checked through a signed-in client rather than the service role: the
+  // function filters on auth_org_id(), which is NULL for the service role, so
+  // as admin it returns no rows no matter what it does. That also means a
+  // service-role probe cannot see whether scratch_gross_today exists at all.
+  {
+    const storeId = `test_store_day_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'DAY', name: 'Test Store Day', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const mkShift = async (minutesAgo, fields) => {
+      const openedAt = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId,
+        register_id: 'Ταμείο 1',
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        status: 'SUBMITTED', opened_at: openedAt, closed_at: new Date().toISOString(),
+        ...fields,
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+
+    // The day's first shift: 1000 + 47,35, scratch opening at 040, and 70 €
+    // of its own gross once closed.
+    await mkShift(240, {
+      opening_cash: 1047.35, opening_cash_notes: 1000, opening_cash_coins: 47.35,
+      scratch_gross_sales: 70,
+      custom_field_values: {
+        scratch_ticket_items: [{ id: 'scr_a', name: 'Σκρατς 2€', category: 'Σκρατς', price: 2, startNo: '040', endNo: '075' }],
+      },
+    });
+
+    const callDay = async (client, register = 'Ταμείο 1') => {
+      const { data, error } = await client.rpc('shift_day_opening', {
+        p_store_id: storeId, p_register_id: register, p_day: null,
+      });
+      if (error) return { error };
+      return { row: (data ?? [])[0] ?? null };
+    };
+
+    const first = await callDay(client6);
+    record('49: the day opening returns the first shift’s cash figures',
+      !first.error && first.row
+        && Number(first.row.opening_cash_notes) === 1000
+        && Number(first.row.opening_cash_coins) === 47.35,
+      first.error ? first.error.message
+        : first.row ? `${first.row.opening_cash_notes}+${first.row.opening_cash_coins}` : 'no row');
+
+    record('50: it carries the day’s scratch baseline, not just the opening',
+      !first.error && first.row
+        && first.row.scratch_gross_today !== undefined
+        && Number(first.row.scratch_gross_today) === 70,
+      first.error ? first.error.message
+        : first.row?.scratch_gross_today === undefined
+          ? 'FIELD ABSENT - 0035 did not replace the function'
+          : `baseline ${first.row.scratch_gross_today}`);
+
+    // A second shift of the same day: the baseline accumulates, the opening
+    // figures stay the FIRST shift's.
+    await mkShift(60, {
+      opening_cash: 1047.35, opening_cash_notes: 1000, opening_cash_coins: 47.35,
+      scratch_gross_sales: 70,
+    });
+    const second = await callDay(client6);
+    record('51: a second shift adds to the baseline without moving the opening',
+      !second.error && second.row
+        && Number(second.row.scratch_gross_today) === 140
+        && Number(second.row.opening_cash_notes) === 1000,
+      second.error ? second.error.message
+        : second.row ? `baseline ${second.row.scratch_gross_today}, opening ${second.row.opening_cash_notes}` : 'no row');
+
+    // 52: a register with no shift today has no day to continue, so the next
+    // shift there sets its own float rather than inheriting another till's.
+    const other = await callDay(client6, 'Ταμείο 2');
+    record('52: another register reports no day opening of its own',
+      !other.error && !other.row,
+      other.error ? other.error.message : other.row ? 'RETURNED Ταμείο 1’s row' : 'none');
+
+    await admin.from('employee_charges').delete().eq('store_id', storeId);
+    await admin.from('notifications').delete().eq('store_id', storeId);
+    await admin.from('incidents').delete().eq('store_id', storeId);
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -796,6 +882,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_cred_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_del_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_disc_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_day_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
