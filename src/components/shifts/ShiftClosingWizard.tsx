@@ -179,6 +179,7 @@ import {
 import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { CarriedOverSummary } from './CarriedOverSummary.tsx';
 import { isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { duplicateGroups } from '../../lib/duplicateExpense.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 
@@ -1034,6 +1035,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // Entries from earlier shifts of the same day collapse into one summary;
   // only what this shift recorded stays editable. Both still count towards
   // the totals, because the day reconciles against all of them.
+  // The same supplier for the same amount twice in a day is usually a double
+  // entry, and the till then comes up short by exactly one of them. Checked
+  // across the whole day's list - this shift's and what it inherited - because
+  // the second entry is as likely to come from the other shift as from this
+  // one. A question, never a block: a shop really can buy ice twice.
+  const duplicateExpenseWarnings = duplicateGroups(expenses as any[]);
+  const [acknowledgedDuplicates, setAcknowledgedDuplicates] = useState(false);
+
   const carriedExpenses = expenses.filter((e: any) => !!e.carried_from_shift_id);
   const ownExpenses = expenses.filter((e: any) => !e.carried_from_shift_id);
 
@@ -1875,6 +1884,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Η βάρδια θα υποβληθεί προς έγκριση. Μετά την υποβολή, δεν μπορείτε να την επεξεργαστείτε χωρίς αίτημα διόρθωσης από τον υπεύθυνο.
               </div>
             )}
+            {duplicateExpenseWarnings.length > 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950">
+                <span className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  Διπλοκαταχωρημένα έξοδα
+                </span>
+                <ul className="mt-1 space-y-0.5">
+                  {duplicateExpenseWarnings.map((d) => (
+                    <li key={d.id}>
+                      {d.recipient} — {formatCurrency(d.amount)} × {d.matches}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {error && (
               <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
                 {error}
@@ -2717,6 +2742,36 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-rose-400 hover:text-rose-700 hover:bg-rose-50 ml-2 cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {duplicateExpenseWarnings.length > 0 && !acknowledgedDuplicates && (
+              <div className="mb-3 p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-2">
+                <span className="text-xs font-black flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {toGreekUpper('Πιθανη Διπλοκαταχωρηση')}
+                </span>
+                <ul className="space-y-1">
+                  {duplicateExpenseWarnings.map((d) => (
+                    <li key={d.id} className="text-xs">
+                      <strong>{d.recipient}</strong> για{' '}
+                      <strong className="font-mono">{formatCurrency(d.amount)}</strong>{' '}
+                      καταχωρήθηκε <strong>{d.matches} φορές</strong> σήμερα
+                      {d.acrossShifts ? ' — και σε προηγούμενη βάρδια' : ' σε αυτή τη βάρδια'}.
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-micro">
+                  Αν είναι σωστό, συνεχίστε. Αν όχι, διαγράψτε το διπλό — αλλιώς το ταμείο θα
+                  βγει λιγότερο κατά το ποσό του.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAcknowledgedDuplicates(true)}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-micro font-black cursor-pointer"
+                >
+                  Ναι, είναι σωστό
                 </button>
               </div>
             )}
