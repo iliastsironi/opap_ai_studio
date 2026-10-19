@@ -1492,7 +1492,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       category: exp.category,
       amount: Number(exp.amount) || 0,
       recipient: exp.description || '',
-    }).catch((err) => console.warn('Could not sync expense edit:', err));
+    })
+      .then(() => setExpenseActionError(null))
+      .catch((err) => {
+        // Said out loud, not written to a console nobody has open.
+        //
+        // A failed edit here leaves the figure on screen and the old one in
+        // the database - usually the 0 the row was created with. The
+        // operator's own till still reconciles, because the total comes from
+        // what they can see, but the next shift inherits nothing and the P&L
+        // reads the stored rows. The books and the screen disagree, and the
+        // only clue was a console warning.
+        console.warn('Could not sync expense edit:', err);
+        setExpenseActionError(
+          `Το έξοδο ΔΕΝ αποθηκεύτηκε στη βάση (${
+            err?.message || 'άγνωστο σφάλμα'
+          }). Δοκιμάστε ξανά — αλλιώς δεν θα περάσει στην επόμενη βάρδια ούτε στα κέρδη.`
+        );
+      });
   };
 
   const handleRemoveExpense = async (index: number) => {
