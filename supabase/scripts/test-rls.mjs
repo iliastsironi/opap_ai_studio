@@ -689,7 +689,7 @@ async function main() {
     // of its own gross once closed.
     await mkShift(240, {
       opening_cash: 1047.35, opening_cash_notes: 1000, opening_cash_coins: 47.35,
-      scratch_gross_sales: 70,
+      scratch_gross_sales: 70, scratch_payouts: 25,
       custom_field_values: {
         scratch_ticket_items: [{ id: 'scr_a', name: 'Σκρατς 2€', category: 'Σκρατς', price: 2, startNo: '040', endNo: '075' }],
       },
@@ -724,7 +724,7 @@ async function main() {
     // figures stay the FIRST shift's.
     await mkShift(60, {
       opening_cash: 1047.35, opening_cash_notes: 1000, opening_cash_coins: 47.35,
-      scratch_gross_sales: 70,
+      scratch_gross_sales: 70, scratch_payouts: 25,
     });
     const second = await callDay(client6);
     record('51: a second shift adds to the baseline without moving the opening',
@@ -737,6 +737,19 @@ async function main() {
     // 52: a register with no shift today has no day to continue, so the next
     // shift there sets its own float rather than inheriting another till's.
     const other = await callDay(client6, 'Ταμείο 2');
+    // 52a: the redemptions accumulate alongside the sales. Both are entered
+    // cumulatively on screen, so a baseline for one and not the other puts
+    // the net on two scales - the -46 vs 83 confusion in the live tenant.
+    record('52a: the redemptions carry their own baseline, in step with sales',
+      !second.error && second.row
+        && second.row.scratch_payouts_today !== undefined
+        && Number(second.row.scratch_payouts_today) === 50
+        && Number(second.row.scratch_gross_today) === 140,
+      second.error ? second.error.message
+        : second.row?.scratch_payouts_today === undefined
+          ? 'FIELD ABSENT - 0039 did not replace the function'
+          : `gross ${second.row.scratch_gross_today}, payouts ${second.row.scratch_payouts_today}`);
+
     record('52: another register reports no day opening of its own',
       !other.error && !other.row,
       other.error ? other.error.message : other.row ? 'RETURNED Ταμείο 1’s row' : 'none');
