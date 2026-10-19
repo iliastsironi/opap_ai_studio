@@ -28,7 +28,7 @@ import {
   continueDayScratchInventory,
   getLatestStoreScratchInventory,
 } from './ScratchCalculatorTable.tsx';
-import { SCRATCH_DAY_BASELINE_KEY } from '../../lib/scratchDayBaseline.ts';
+import { SCRATCH_DAY_BASELINE_KEY, SCRATCH_PAYOUTS_BASELINE_KEY } from '../../lib/scratchDayBaseline.ts';
 import {
   InspectionLine, summariseInspection, inspectionStatusFor, lineFinding,
 } from '../../lib/shiftInspection.ts';
@@ -403,6 +403,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       const scratchDayBaseline = canContinueDay
         ? Math.max(0, Number(dayOpening!.scratch_gross_today))
         : 0;
+      // The redemptions are entered cumulatively too, so they need the same
+      // baseline. Without it the closing screen subtracts a day figure from a
+      // shift figure and the net is on two scales at once.
+      const scratchPayoutsBaseline = canContinueDay
+        ? Math.max(0, Number(dayOpening!.scratch_payouts_today ?? 0))
+        : 0;
 
       const fsShift = await createShiftInFirestore({
         organization_id: organization!.id,
@@ -451,6 +457,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         custom_field_values: {
           scratch_ticket_items: initialScratchInventory,
           [SCRATCH_DAY_BASELINE_KEY]: scratchDayBaseline,
+          [SCRATCH_PAYOUTS_BASELINE_KEY]: scratchPayoutsBaseline,
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

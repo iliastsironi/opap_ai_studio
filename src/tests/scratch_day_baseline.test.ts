@@ -37,3 +37,32 @@ describe('the day’s running scratch figure versus one shift’s own', () => {
     expect(ownScratchSales(0.3, 0.1)).toBe(0.2);
   });
 });
+
+// The live case that exposed it: a morning on 129 sales / 57 redemptions, then
+// a night whose screen reads 560 and 477 because BOTH run from the start of
+// the day. The panel has to show 83 and the row has to store 11.
+describe('sales and redemptions on the same scale', () => {
+  const morning = { gross: 129, payouts: 57 };
+  const nightOnScreen = { sales: 560, payouts: 477 };
+
+  it('turns both cumulative figures into the shift’s own', () => {
+    expect(ownScratchSales(nightOnScreen.sales, morning.gross)).toBe(431);
+    expect(ownScratchSales(nightOnScreen.payouts, morning.payouts)).toBe(420);
+  });
+
+  it('stores 11 for the night and shows 83 for the day', () => {
+    const ownNet = ownScratchSales(nightOnScreen.sales, morning.gross)
+      - ownScratchSales(nightOnScreen.payouts, morning.payouts);
+    expect(ownNet).toBe(11);
+    expect(nightOnScreen.sales - nightOnScreen.payouts).toBe(83);
+    // And the day still adds up from the stored per-shift figures.
+    expect((morning.gross - morning.payouts) + ownNet).toBe(83);
+  });
+
+  it('is wrong on either mixed scale, which is the bug this prevents', () => {
+    // A day's redemptions against a shift's sales:
+    expect(ownScratchSales(nightOnScreen.sales, morning.gross) - nightOnScreen.payouts).toBe(-46);
+    // A shift's redemptions against a day's sales double-counts the morning.
+    expect(nightOnScreen.sales - ownScratchSales(nightOnScreen.payouts, morning.payouts)).toBe(140);
+  });
+});

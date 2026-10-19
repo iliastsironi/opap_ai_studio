@@ -35,6 +35,8 @@ const num = (v: unknown): number => {
 const round2 = (n: number): number => Math.round(n * 100) / 100 + 0;
 
 export const SCRATCH_DAY_BASELINE_KEY = 'scratch_day_baseline';
+/** The same idea for the redemptions, which are entered cumulatively too. */
+export const SCRATCH_PAYOUTS_BASELINE_KEY = 'scratch_payouts_baseline';
 
 /** What the day had already sold before this shift. 0 for the day's first. */
 export function readScratchDayBaseline(
@@ -43,9 +45,17 @@ export function readScratchDayBaseline(
   return Math.max(0, round2(num(customFieldValues?.[SCRATCH_DAY_BASELINE_KEY])));
 }
 
+/** What the day had already paid out in winnings before this shift. */
+export function readScratchPayoutsBaseline(
+  customFieldValues: Record<string, any> | null | undefined
+): number {
+  return Math.max(0, round2(num(customFieldValues?.[SCRATCH_PAYOUTS_BASELINE_KEY])));
+}
+
 /**
- * This shift's own gross scratch sales, from the cumulative figure the
- * operator is looking at.
+ * This shift's own, from the cumulative figure the operator is looking at.
+ * Used for both the sales and the redemptions - the arithmetic is the same
+ * and the two must stay symmetric, or the net mixes two different scales.
  *
  * Never negative: a cumulative below the baseline means somebody mistyped a
  * serial, and a negative sale would silently reduce the day's takings. The

@@ -145,6 +145,8 @@ export interface DayOpeningSnapshot {
    * figure on its screen, so what it stores is its own.
    */
   scratch_gross_today: number | null;
+  /** And what it had already paid out, the same way (0039). */
+  scratch_payouts_today: number | null;
 }
 
 /**
