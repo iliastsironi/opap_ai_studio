@@ -23,6 +23,7 @@ import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
+import { piecesLeftInPack, isValidPackCode, normalizePackCode } from '../../lib/scratchPack.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -36,6 +37,14 @@ export interface ScratchTicketRow {
   manualQty?: string;
   isNewPack?: boolean;
   packCode?: string;
+  /**
+   * Tickets already sold this shift from packs that were finished and
+   * replaced. Opening a new pack used to reset the row and lose them; they
+   * are kept here and added to whatever the current pack has sold since.
+   */
+  closedPackQty?: number;
+  /** The codes of the packs closed this shift, oldest first. */
+  closedPackCodes?: string[];
   // Dual-unit (πεντάδες/κομμάτια) tracking, e.g. Λαϊκό Λαχείο. Presence of
   // bundleSize (pieces per bundle, e.g. 5) activates this mode for the row.
   // startNo/endNo keep their exact existing meaning (remaining piece count
@@ -685,6 +694,14 @@ export function formatTicketNumber(raw: string | number | undefined): string {
 // clamped to 0 if invalid/reversed). Empty Τελικό = no sale recorded yet,
 // never a fabricated 0-turns-negative or phantom sale.
 export function calculateRowQty(row: ScratchTicketRow): number {
+  // Whatever finished packs sold this shift, plus the current pack's
+  // progress below. Kept separate because the current pack's figures restart
+  // at its own first ticket, and adding them would otherwise be impossible.
+  const fromClosedPacks = Math.max(0, Number(row.closedPackQty) || 0);
+  return fromClosedPacks + currentPackQty(row);
+}
+
+function currentPackQty(row: ScratchTicketRow): number {
   if (getCountingMode(row) === 'manual') {
     if (row.manualQty === undefined || row.manualQty === '') return 0;
     const q = parseInt(row.manualQty, 10);
@@ -944,6 +961,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const [managerOverrideEnabled, setManagerOverrideEnabled] = useState(false);
   const [showRulesInfo, setShowRulesInfo] = useState(false);
   const [newPackModalRowId, setNewPackModalRowId] = useState<string | null>(null);
+  // The warehouse code of the pack being opened. Mandatory: a mistyped code
+  // recorded today is a pack nobody can trace tomorrow, and its shape is the
+  // only thing checkable until the stock list exists.
+  const [newPackCode, setNewPackCode] = useState<string>('');
+  // Only asked for when the price does not divide 300 and the pack size
+  // cannot be derived.
+  const [newPackRemainder, setNewPackRemainder] = useState<string>('');
   const [newPackStartNo, setNewPackStartNo] = useState<string>('0');
   const [newPackBackEndNo, setNewPackBackEndNo] = useState<string>('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -1116,23 +1140,43 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   };
 
   const handleApplyNewPack = (rowId: string) => {
+    const target = rows.find((r) => r.id === rowId);
+    if (!target) return;
+    if (!isValidPackCode(newPackCode)) return;
+
+    // Opening a new pack means the old one is finished, so everything from
+    // where this shift found it to its last ticket was sold. That used to be
+    // thrown away with the reset below - a 2 € pack picked up at 6 and run
+    // out lost 144 tickets, 288 €, from the day.
+    //
+    // Null when the price does not divide 300: no defined pack size, so the
+    // operator typed the figure instead and we take theirs.
+    const automatic = piecesLeftInPack(target.price, target.startNo);
+    const soldOut = automatic === null
+      ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
+      : automatic;
+
     const updated = rows.map((r) => {
-      if (r.id === rowId) {
-        return {
-          ...r,
-          startNo: newPackStartNo,
-          endNo: '',
-          backEndNo: newPackBackEndNo,
-          backStartNo: '',
-          saleBundles: '',
-          salePieces: '',
-          isNewPack: true,
-        };
-      }
-      return r;
+      if (r.id !== rowId) return r;
+      return {
+        ...r,
+        closedPackQty: Math.max(0, Number(r.closedPackQty) || 0) + soldOut,
+        closedPackCodes: [...(r.closedPackCodes ?? []), String(r.packCode ?? '').trim()]
+          .filter((c) => c !== ''),
+        packCode: newPackCode.trim(),
+        startNo: newPackStartNo,
+        endNo: '',
+        backEndNo: newPackBackEndNo,
+        backStartNo: '',
+        saleBundles: '',
+        salePieces: '',
+        isNewPack: true,
+      };
     });
     onChangeRows(updated);
     setNewPackModalRowId(null);
+    setNewPackCode('');
+    setNewPackRemainder('');
   };
 
   const handleAddRow = (categoryName = 'Σκρατς 5€') => {
@@ -1969,6 +2013,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   className="bg-slate-100"
                                   onClick={() => {
                                     setNewPackModalRowId(row.id);
+                                    setNewPackCode('');
+                                    setNewPackRemainder('');
                                     setNewPackStartNo('0');
                                     const maxNo = getPackageMaxNumber(row.price);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
@@ -2103,6 +2149,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow, sellingMode) : false;
+        const autoRemainder = targetRow ? piecesLeftInPack(targetRow.price, targetRow.startNo) : null;
+        const remainderPieces = autoRemainder === null
+          ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
+          : autoRemainder;
+        const codeOk = isValidPackCode(newPackCode);
+        const canApply = codeOk && (autoRemainder !== null || newPackRemainder.trim() !== '');
         return (
         <Modal
           isOpen
@@ -2124,7 +2176,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <button
                 type="button"
                 onClick={() => handleApplyNewPack(newPackModalRowId)}
-                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1"
+                disabled={!canApply}
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Εφαρμογή Νέου Πακέτου</span>
@@ -2133,6 +2186,65 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           }
         >
           <div className="space-y-4">
+            {/* The code first: it is the only thing that ties this pack to the
+                stock list, and it is asked for before anything is changed. */}
+            <div>
+              <label htmlFor="new-pack-code" className="block text-xs font-bold text-slate-700 mb-1">
+                Κωδικός πακέτου <span className="text-rose-600">*</span>
+              </label>
+              <input
+                id="new-pack-code"
+                type="text"
+                inputMode="numeric"
+                autoFocus
+                value={newPackCode}
+                onChange={(e) => setNewPackCode(normalizePackCode(e.target.value))}
+                placeholder="7 ψηφία"
+                className={`w-full px-3 py-2 rounded-xl border-2 bg-white text-sm font-black font-mono tracking-widest text-center ${
+                  newPackCode === ''
+                    ? 'border-slate-200 text-slate-900'
+                    : codeOk
+                    ? 'border-emerald-400 text-emerald-900'
+                    : 'border-rose-300 text-rose-700'
+                }`}
+              />
+              <p className="text-micro text-slate-500 mt-1">
+                {newPackCode === '' || codeOk
+                  ? 'Ο κωδικός του πακέτου που ανοίγετε, όπως είναι καταχωρημένος στην αποθήκη.'
+                  : `Χρειάζονται 7 ψηφία — έχετε ${newPackCode.length}.`}
+              </p>
+            </div>
+
+            {/* What closing the old pack costs, stated before it happens. */}
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-2">
+              <span className="font-bold block">Το προηγούμενο πακέτο κλείνει</span>
+              {autoRemainder === null ? (
+                <>
+                  <p className="text-micro">
+                    Η τιμή {formatCurrency(targetRow?.price ?? 0)} δεν δίνει τυπικό μέγεθος
+                    πακέτου (300 € / τιμή), οπότε πείτε μου πόσα λαχεία έμειναν και
+                    πουλήθηκαν.
+                  </p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={newPackRemainder}
+                    onChange={(e) => setNewPackRemainder(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Τεμάχια"
+                    className="w-28 px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-xs font-bold text-center font-mono"
+                  />
+                </>
+              ) : (
+                <p className="text-micro">
+                  Από το {String(targetRow?.startNo ?? '0')} μέχρι το τέλος του πακέτου.
+                </p>
+              )}
+              <p className="font-black font-mono">
+                {remainderPieces} τεμ. ={' '}
+                {formatCurrency(remainderPieces * (Number(targetRow?.price) || 0))} στις
+                πωλήσεις
+              </p>
+            </div>
             <p className="text-xs text-slate-600">
               {targetIsBundleTracked
                 ? 'Το προηγούμενο απόθεμα ολοκληρώθηκε. Ορίστε το αρχικό σύνολο του νέου αποθέματος:'
