@@ -16,6 +16,7 @@ import {
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
+import { shiftTypeOptions, resolveShiftType } from '../../lib/shiftTypeOptions.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -77,7 +78,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     }
   }, [isOpen, effectiveStores, selectedStoreId]);
 
-  const [registerId, setRegisterId] = useState<string>('Ταμείο 1');
+  // One till per store, so this is no longer a choice - but it is still
+  // written to the shift and used for the handover and day-opening lookups,
+  // and the database's one-active-shift index is keyed on it.
+  const registerId = 'Ταμείο 1';
   // When the shift actually started. Defaults to now; an Owner can set it in
   // the past, which is how the 27 August workbooks that were never imported
   // get entered after the fact.
@@ -93,6 +97,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [morningCoinsCarryOver, setMorningCoinsCarryOver] = useState<boolean>(true);
   // What today started on, when this shift is continuing a day rather than
   // starting one. Null means this IS the day's first shift.
+  // How many shifts this store runs, so the type dropdown offers its shifts
+  // and not somebody else's.
+  const [shiftsPerDay, setShiftsPerDay] = useState<number>(3);
   const [dayOpening, setDayOpening] = useState<DayOpeningSnapshot | null>(null);
   // Set when the day-opening lookup itself failed, as opposed to there being
   // no shift today. The figures below then came from the previous close, which
@@ -178,6 +185,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setConfiguredThreshold(Number(config?.discrepancy_threshold ?? 15));
         const carryCoins = (config as any)?.morning_coins_carry_over !== false;
         setMorningCoinsCarryOver(carryCoins);
+
+        const perDay = Number(config?.shifts_per_day) === 2 ? 2 : 3;
+        setShiftsPerDay(perDay);
+        // A store on two shifts has no afternoon, so a selection carried over
+        // from the previous store has to come back to something it offers -
+        // otherwise the select renders blank and writes a type the store does
+        // not run.
+        setShiftType((current) => resolveShiftType(current, perDay));
         setPreviousShift(prev);
         const todaySnapshot = today.status === 'FOUND' ? today.snapshot : null;
         setDayOpening(todaySnapshot);
@@ -273,7 +288,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, selectedStoreId, registerId, openedAt, organization?.id]);
+  }, [isOpen, selectedStoreId, openedAt, organization?.id]);
 
   // The question the screen actually needs to answer. It used to ask «is this
   // the morning», which decided the wrong thing: a store whose day starts at
@@ -536,23 +551,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </select>
             </div>
 
+            {/* The register picker is gone: every store runs one till, so it
+                was three options with one right answer, asked every time.
+                registerId stays «Ταμείο 1» and still travels with the shift,
+                because the database keys the one-active-shift index and the
+                handover lookups on it. Bringing the control back means adding
+                a register count to Διαμόρφωση first - a hardcoded list of
+                three was never the right place for it. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Cash Register */}
-              <div>
-                <label htmlFor="opening-register" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  {toGreekUpper('Ταμειο / Register')}
-                </label>
-                <select
-                  id="opening-register"
-                  value={registerId}
-                  onChange={(e) => setRegisterId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="Ταμείο 1">Ταμείο 1</option>
-                  <option value="Ταμείο 2">Ταμείο 2</option>
-                  <option value="Ταμείο 3">Ταμείο 3</option>
-                </select>
-              </div>
 
               {canBackdate && (
                 <div className="sm:col-span-2">
@@ -586,14 +592,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   onChange={(e) => setShiftType(e.target.value as ShiftType)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  {/* The «(Αυτόματο)» these labels used to carry became a
-                      lie: whether the float is set or inherited depends on
-                      whether the day is already open, not on the label. The
-                      banner below says which applies. */}
-                  <option value="MORNING">☀️ Πρωινή</option>
-                  <option value="AFTERNOON">🌤️ Απογευματινή</option>
-                  <option value="NIGHT">🌙 Βραδινή</option>
-                  <option value="CUSTOM">⚡ Ειδική / Έκτακτη</option>
+                  {/* From the store's own shifts_per_day. The «(Αυτόματο)»
+                      these labels used to carry became a lie too: whether the
+                      float is set or inherited depends on whether the day is
+                      already open, not on the label. */}
+                  {shiftTypeOptions(shiftsPerDay).map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
               </div>
             </div>

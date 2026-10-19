@@ -90,11 +90,26 @@ export async function fetchHandoverSnapshot(
   before?: string
 ): Promise<HandoverSnapshot | null> {
   try {
-    const { data, error } = await supabase.rpc('shift_handover_snapshot', {
+    let { data, error } = await supabase.rpc('shift_handover_snapshot', {
       p_store_id: storeId,
       p_register_id: registerId,
       p_before: before ?? null,
     });
+
+    // p_before only exists once 0037 is applied. Until then PostgREST cannot
+    // resolve the three-argument form and answers PGRST202 - and because this
+    // function swallows failures into null, the caller read that as «no
+    // previous shift» and started every till on the configured float instead
+    // of the coins left overnight. Silently, in every organisation.
+    //
+    // So the newer form is attempted and the older one is the fallback, which
+    // makes the code work whichever side of the migration the database is on.
+    if (error?.code === 'PGRST202') {
+      ({ data, error } = await supabase.rpc('shift_handover_snapshot', {
+        p_store_id: storeId,
+        p_register_id: registerId,
+      }));
+    }
     if (error) throw error;
     const rows = (data ?? []) as HandoverSnapshot[];
     return rows[0] ?? null;
