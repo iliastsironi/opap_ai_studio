@@ -871,6 +871,81 @@ async function main() {
     await admin.from('shifts').delete().eq('store_id', storeId);
   }
 
+  // --- 59-62: the day's expenses and the coin cup (0042) -------------------
+  {
+    const storeId = `test_store_exp_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'EXP', name: 'Test Store Expenses', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const day = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+
+    const mk = async (minutesAgo) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId,
+        register_id: `REG-EXP-${Math.random().toString(36).slice(2, 7)}`,
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        status: 'SUBMITTED', opened_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+        closed_at: new Date().toISOString(),
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const morning = await mk(300);
+    const evening = await mk(60);
+
+    // One expense tied to the morning, one untied from today, one from
+    // yesterday that must stay out of today's reconciliation.
+    await admin.from('shift_expenses').insert([
+      { organization_id: orgA, store_id: storeId, shift_id: morning.id, category: 'EXPENSES_GP',
+        amount: 14, payment_method: 'CASH', created_by_user_id: u4.user.id, date: day },
+      { organization_id: orgA, store_id: storeId, shift_id: null, category: 'EXPENSES_FNB',
+        amount: 229.17, payment_method: 'CASH', created_by_user_id: u4.user.id, date: day },
+      { organization_id: orgA, store_id: storeId, shift_id: null, category: 'EXPENSES_GP',
+        amount: 999, payment_method: 'CASH', created_by_user_id: u4.user.id, date: yesterday },
+    ]).throwOnError();
+
+    const seen = async (client, shiftId) => {
+      const { data, error } = await client.rpc('shift_reconciliation_expenses', { p_shift_id: shiftId });
+      if (error) return { error };
+      return { total: (data ?? []).reduce((a, e) => a + Number(e.amount), 0), count: (data ?? []).length };
+    };
+
+    // 59: the evening sees what the morning spent. Before 0042 the window was
+    // «tied to this shift, or untied within an hour of it opening», so the
+    // morning's expenses dropped out and the evening's till read over.
+    const ev = await seen(client6, evening.id);
+    record('59: a later shift sees the whole day’s expenses',
+      !ev.error && ev.count === 2 && Math.abs(ev.total - 243.17) < 0.01,
+      ev.error ? ev.error.message : `${ev.count} έξοδα, σύνολο ${ev.total}`);
+
+    // 60: and the morning sees the same set, so both reconcile against one
+    // figure - which is what the agency's own spreadsheets show.
+    const mo = await seen(client6, morning.id);
+    record('60: both shifts of a day reconcile against the same expenses',
+      !mo.error && Math.abs((mo.total ?? -1) - (ev.total ?? -2)) < 0.01,
+      mo.error ? mo.error.message : `πρωί ${mo.total} / βράδυ ${ev.total}`);
+
+    // 61: yesterday's 999 must not follow today's shifts around.
+    record('61: another day’s expense stays out of this day',
+      !ev.error && ev.total < 998,
+      `σύνολο ${ev.total}`);
+
+    // 62: the coin cup is a column of its own, defaulting to nothing.
+    const { data: coinRow, error: coinErr } = await admin.from('shifts')
+      .select('coin_handover').eq('id', evening.id).maybeSingle();
+    record('62: a shift carries its coin handover, 0 until one is recorded',
+      !coinErr && coinRow && Number(coinRow.coin_handover) === 0,
+      coinErr ? coinErr.message : `coin_handover ${coinRow?.coin_handover}`);
+
+    await admin.from('shift_expenses').delete().eq('store_id', storeId);
+    await admin.from('employee_charges').delete().eq('store_id', storeId);
+    await admin.from('notifications').delete().eq('store_id', storeId);
+    await admin.from('incidents').delete().eq('store_id', storeId);
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -1008,6 +1083,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_disc_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_day_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_insp_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_exp_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
