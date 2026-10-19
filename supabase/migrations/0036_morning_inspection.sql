@@ -52,7 +52,10 @@ BEGIN
     FROM pg_constraint c
    WHERE c.conrelid = 'employee_charges'::regclass
      AND c.contype = 'u'
-     AND (SELECT array_agg(a.attname ORDER BY a.attname)
+     -- ::text on attname is load-bearing. pg_attribute.attname is `name`,
+     -- so array_agg gives name[], and Postgres has no name[] = text[]
+     -- operator - the block fails with 42883 rather than simply not matching.
+     AND (SELECT array_agg(a.attname::text ORDER BY a.attname::text)
             FROM unnest(c.conkey) k
             JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k)
          = ARRAY['shift_id'];
