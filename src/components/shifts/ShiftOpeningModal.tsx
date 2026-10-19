@@ -133,6 +133,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [inspectionLines, setInspectionLines] = useState<InspectionLine[] | null>(null);
   const [inspectionSkipped, setInspectionSkipped] = useState(false);
   const [inspectionError, setInspectionError] = useState<string | null>(null);
+  /** Why no inspection is on offer, when there is a handover but it cannot be checked. */
+  const [inspectionUnavailable, setInspectionUnavailable] = useState<string | null>(null);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
@@ -307,8 +309,28 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           setInspectionLines(
             buildInspectionLines(resolvedFloat, (prev!.scratch_ticket_items ?? []) as any[])
           );
+          setInspectionUnavailable(null);
         } else {
           setInspectionLines(null);
+          // Say WHY there is no inspection, rather than just not drawing one.
+          //
+          // The common case is a previous shift still open: somebody starts
+          // the morning before last night's till has been submitted, there is
+          // nothing declared to check against, and the panel simply was not
+          // there. Nobody could tell that from an absence.
+          setInspectionUnavailable(
+            !prev || !prev.shift_id
+              ? null
+              : prev.shift_status === 'OPEN' || prev.shift_status === 'DRAFT_CLOSING'
+              ? `Η προηγούμενη βάρδια (${prev.previous_operator_name || 'προηγούμενος'}) δεν έχει κλείσει ακόμα, οπότε δεν υπάρχουν δηλωμένα νούμερα για επιθεώρηση. Κλείστε την πρώτα και η επιθεώρηση θα εμφανιστεί.`
+              : prev.inspection_status
+              ? `Η προηγούμενη βάρδια έχει ήδη επιθεωρηθεί (${
+                  prev.inspection_status === 'SKIPPED' ? 'προσπεράστηκε' : 'ελέγχθηκε'
+                }).`
+              : prev.opened_by_user_id === user?.id
+              ? 'Δεν επιθεωρείτε τη δική σας παράδοση.'
+              : null
+          );
         }
         setInspectionSkipped(false);
         setInspectionError(null);
@@ -822,6 +844,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               }}
               onSkip={() => setInspectionSkipped(true)}
             />
+          )}
+
+          {!inspectionLines && inspectionUnavailable && (
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+              <span>{inspectionUnavailable}</span>
+            </div>
           )}
 
           {inspectionError && (
