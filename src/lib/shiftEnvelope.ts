@@ -35,6 +35,15 @@ export interface EnvelopeInput {
    * the cash sales or the POS receipts.
    */
   discrepancySettlement?: number | string | null | undefined;
+  /**
+   * Surplus coins handed over with the envelope («παράδοση κερμάτων»).
+   *
+   * Coins the till took in that would not fit the tray. They were part of the
+   * day's money, so they are inside `countedCash` already - leaving them out
+   * would read as a shortage - but unlike the float's coins they do NOT stay
+   * in the drawer for tomorrow, so the envelope has to carry them.
+   */
+  coinHandover?: number | string | null | undefined;
 }
 
 export interface Envelope {
@@ -46,6 +55,8 @@ export interface Envelope {
   totalOut: number;
   /** The settlement cash riding along with the envelope, if any. */
   settlement: number;
+  /** Surplus coins leaving with the envelope rather than staying. */
+  coinHandover: number;
   /** What the supervisor physically receives: the envelope plus settlement. */
   handedOver: number;
   /** True when the drawer holds less than the float it is meant to keep. */
@@ -58,20 +69,25 @@ export function calculateEnvelope(input: EnvelopeInput): Envelope {
   const drops = num(input.safeDrops);
   // Unsigned: the operator pays in, they are never paid out from here.
   const settlement = round2(Math.max(0, num(input.discrepancySettlement)));
+  const coinHandover = round2(Math.max(0, num(input.coinHandover)));
 
   // Never negative: a drawer below its float is a shortage, not an envelope
   // owed back to the till, and the discrepancy is where that gets reported.
-  const amount = round2(Math.max(0, counted - float));
+  // The cup is inside `counted` but is not part of what stays behind, so the
+  // drawer that has to cover the float is what is left after it leaves.
+  const stays = round2(counted - coinHandover);
+  const amount = round2(Math.max(0, stays - float));
 
   return {
     amount,
-    retained: round2(Math.min(counted, float)),
+    retained: round2(Math.min(stays, float)),
     // The settlement is deliberately OUT of totalOut, which answers "what
     // did this till produce". Counting it there would inflate the takings by
     // the exact amount the shortage already removed from them.
-    totalOut: round2(amount + drops),
+    totalOut: round2(amount + drops + coinHandover),
     settlement,
-    handedOver: round2(amount + settlement),
-    isShort: counted < float,
+    coinHandover,
+    handedOver: round2(amount + settlement + coinHandover),
+    isShort: stays < float,
   };
 }

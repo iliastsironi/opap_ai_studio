@@ -44,7 +44,8 @@ describe('what goes in the envelope', () => {
 
   it('survives empty figures rather than reporting NaN', () => {
     expect(calculateEnvelope({ countedCash: null, fixedFloat: undefined })).toEqual({
-      amount: 0, retained: 0, totalOut: 0, settlement: 0, handedOver: 0, isShort: false,
+      amount: 0, retained: 0, totalOut: 0, settlement: 0, coinHandover: 0,
+      handedOver: 0, isShort: false,
     });
   });
 
@@ -75,5 +76,49 @@ describe('what goes in the envelope', () => {
     });
     expect(e.totalOut).toBe(800);
     expect(e.handedOver).toBe(507.5);
+  });
+});
+
+// «Παράδοση κερμάτων»: coins the till took in that would not fit the tray go
+// into a cup and leave with the envelope. The shop used to record this as an
+// expense and delete it later - for as long as it stood it cut the day's
+// profit, and once deleted the money left no trace.
+describe('surplus coins handed over', () => {
+  it('leaves with the envelope instead of staying for tomorrow', () => {
+    // 1.500 counted, of which 50 is the cup. The drawer keeps its 1.000
+    // float out of the 1.450 that stays, so 450 goes in the envelope, and
+    // the 50 travels with it.
+    const e = calculateEnvelope({ countedCash: 1500, fixedFloat: 1000, coinHandover: 50 });
+    expect(e.amount).toBe(450);
+    expect(e.retained).toBe(1000);
+    expect(e.coinHandover).toBe(50);
+    expect(e.handedOver).toBe(500);
+  });
+
+  it('is already inside the counted total, never added on top', () => {
+    // Counting it twice would invent 50 € the till never took.
+    const withCup = calculateEnvelope({ countedCash: 1500, fixedFloat: 1000, coinHandover: 50 });
+    const without = calculateEnvelope({ countedCash: 1500, fixedFloat: 1000 });
+    expect(withCup.amount + withCup.coinHandover).toBe(without.amount);
+  });
+
+  it('reports a short drawer when the cup empties it below the float', () => {
+    // 1.020 counted with 50 in the cup leaves 970 behind, under the 1.000
+    // float - so the envelope is nothing and the drawer is short.
+    const e = calculateEnvelope({ countedCash: 1020, fixedFloat: 1000, coinHandover: 50 });
+    expect(e.isShort).toBe(true);
+    expect(e.amount).toBe(0);
+    expect(e.handedOver).toBe(50);
+  });
+
+  it('counts it in what left the till, alongside safe drops', () => {
+    const e = calculateEnvelope({
+      countedCash: 1500, fixedFloat: 1000, safeDrops: 300, coinHandover: 50,
+    });
+    expect(e.totalOut).toBe(800);
+  });
+
+  it('ignores a negative cup', () => {
+    expect(calculateEnvelope({ countedCash: 1200, fixedFloat: 1000, coinHandover: -20 }).coinHandover).toBe(0);
   });
 });

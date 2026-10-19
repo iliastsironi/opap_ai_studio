@@ -285,6 +285,9 @@ export interface Shift {
   //   PAID_CASH - paid at the till on the spot; the cash travels with the
   //               envelope and is not a taking.
   discrepancy_settlement?: 'CHARGE' | 'PAID_CASH' | null;
+  // Surplus coins handed over with the envelope (0042). Part of the counted
+  // till, never an expense, and not left in the drawer for the next day.
+  coin_handover?: number;
 
   // Notes & Workflow
   employee_notes?: string;

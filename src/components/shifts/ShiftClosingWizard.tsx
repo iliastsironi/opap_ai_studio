@@ -766,6 +766,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // not cover. Asked at submission, not before: the figure moves while they
   // are still counting, and being asked to commit to paying 3 € that becomes
   // 0 € two entries later is how people stop reading dialogs.
+  // «Παράδοση κερμάτων»: coins that would not fit the tray, collected in a
+  // cup and handed over with the envelope once it fills. Recorded as an
+  // expense until now and deleted again later - which cut the day's profit
+  // while it stood and left no trace once it was gone.
+  const [coinHandover, setCoinHandover] = useState<string>(
+    shift.coin_handover !== undefined && shift.coin_handover !== null
+      ? String(shift.coin_handover)
+      : ''
+  );
+
   const [discrepancySettlement, setDiscrepancySettlement] =
     useState<DiscrepancySettlement | null>(
       (shift.discrepancy_settlement as DiscrepancySettlement | null) ?? null
@@ -1045,7 +1055,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fnb_card: safeNum(fnbCard),
   });
 
-  const countedCash = calculateCountedCash(denominations);
+  // The cup is counted apart from the drawer, but the money was still taken
+  // in by this till - leaving it out would read as a shortage of exactly its
+  // amount. It goes into the counted total and then leaves with the envelope
+  // instead of staying behind as float.
+  const countedCash = roundCurrency(
+    calculateCountedCash(denominations) + Math.max(0, safeNum(coinHandover))
+  );
 
   const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
@@ -1095,6 +1111,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fixedFloat: openingCashTotal,
     safeDrops: totalSafeDrops(safeDrops),
     discrepancySettlement: settlementCash,
+    coinHandover: safeNum(coinHandover),
   });
 
   const receiptData: ShiftReceiptData = {
@@ -1249,6 +1266,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       // null otherwise so a choice made before a correction cannot linger and
       // mark a balanced shift as "paid in cash".
       discrepancy_settlement: chargeReachesOperator ? discrepancySettlement : null,
+      coin_handover: safeNum(coinHandover),
 
       employee_notes: employeeNotes,
       handover_message: handoverMessage,
@@ -2817,6 +2835,51 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             theme="light"
           />
 
+          {/* Παράδοση κερμάτων, straight after the count because that is when
+              the cup is in front of the operator. Its own field and not an
+              expense: the shop used to book it as one and delete it later,
+              which cut the day's profit while it stood and erased the money
+              once it was gone. */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/60 border border-amber-200 space-y-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <span className="text-sm font-black text-amber-950 flex items-center gap-1.5">
+                  🪙 {toGreekUpper('Παραδοση Κερματων')}
+                </span>
+                <p className="text-micro text-amber-900/80 mt-0.5 max-w-xl">
+                  Τα κέρματα που δεν χωρούν στην κερματοθήκη και μπαίνουν στο ποτηράκι.
+                  Παραδίδονται μαζί με τον φάκελο και <strong>δεν μένουν</strong> για
+                  την επόμενη μέρα. Δεν είναι έξοδο — μετρώνται κανονικά στο ταμείο.
+                </p>
+              </div>
+              <div className="w-40 shrink-0">
+                <label htmlFor="coin-handover" className="block text-micro font-bold text-amber-900 mb-1">
+                  Ποσό (€)
+                </label>
+                <div className="relative">
+                  <input
+                    id="coin-handover"
+                    type="text"
+                    inputMode="decimal"
+                    value={coinHandover}
+                    onChange={(e) => setCoinHandover(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 pr-7 rounded-xl border border-amber-300 bg-white text-sm font-black text-amber-950 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-700 text-sm font-bold">
+                    €
+                  </span>
+                </div>
+              </div>
+            </div>
+            {safeNum(coinHandover) > 0 && (
+              <p className="text-micro font-bold text-amber-900 border-t border-amber-200 pt-2">
+                Στο συρτάρι μένουν {formatCurrency(banknotesAndCoins.coins)} κέρματα ·
+                παραδίδονται {formatCurrency(safeNum(coinHandover))} επιπλέον με τον φάκελο.
+              </p>
+            )}
+          </div>
+
           {/* Πωλήσεις POS Καταστήματος (POS Καταμέτρησης) */}
           <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/50 border border-indigo-200/80 space-y-4">
             <div className="flex items-center justify-between border-b border-indigo-150 pb-3 flex-wrap gap-2">
@@ -3027,110 +3090,26 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             </div>
           </div>
 
-          {/* Main Reconciliation KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Primary Highlight: Σύνολο Καταμέτρησης */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white border border-indigo-800 shadow-md">
-              <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider block">
-                Σύνολο Καταμέτρησης
-              </span>
-              <p className="text-3xl font-black text-emerald-400 mt-1 font-mono">
-                {formatCurrency(reconciliationNetTotal)}
-              </p>
-              <p className="text-micro text-indigo-200/80 mt-1 font-medium">
-                Μετρητά + POS + Έξοδα + Πιστώσεις - Επιστροφές - Αρχικό
-              </p>
-            </div>
-
+          {/* The four figures that close a shift, in the order the Owner reads
+              them: the difference first and loudest, the envelope beside it
+              because that is what physically changes hands, and underneath
+              the two numbers the difference comes from. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* 1. Διαφορά Ταμείου - the answer, so it leads. */}
             <div
-              className={`p-5 rounded-2xl border ${
-                envelope.isShort
-                  ? 'bg-rose-50 border-rose-200'
-                  : 'bg-emerald-50 border-emerald-200'
-              }`}
-            >
-              <span
-                className={`text-xs font-bold uppercase tracking-wider block ${
-                  envelope.isShort ? 'text-rose-900' : 'text-emerald-900'
-                }`}
-              >
-                Φάκελος Παράδοσης
-              </span>
-              <p
-                className={`text-2xl font-black mt-1 font-mono ${
-                  envelope.isShort ? 'text-rose-900' : 'text-emerald-900'
-                }`}
-              >
-                {formatCurrency(envelope.amount)}
-              </p>
-              <p
-                className={`text-micro mt-1 ${
-                  envelope.isShort ? 'text-rose-700' : 'text-emerald-700/90'
-                }`}
-              >
-                {envelope.isShort
-                  ? `Το συρτάρι έχει λιγότερα από το πάγιο κεφάλαιο (${formatCurrency(openingCashTotal)}).`
-                  : `Μένουν ${formatCurrency(envelope.retained)} στο ταμείο ως πάγιο κεφάλαιο.`}
-              </p>
-              {totalSafeDrops(safeDrops) > 0 && !envelope.isShort && (
-                <p className="text-micro text-emerald-700/90 mt-0.5">
-                  + {formatCurrency(totalSafeDrops(safeDrops))} ήδη στο χρηματοκιβώτιο ={' '}
-                  <span className="font-bold font-mono">{formatCurrency(envelope.totalOut)}</span>
-                </p>
-              )}
-              {/* Settlement cash rides along with the envelope, so the person
-                  receiving it sees it, but it is listed apart: it is the
-                  operator's own money clearing a shortage, not a taking. */}
-              {envelope.settlement > 0 && (
-                <p className="text-micro mt-1 pt-1 border-t border-emerald-300/60 text-emerald-800">
-                  + {formatCurrency(envelope.settlement)} εξόφληση απόκλισης (εκτός εισπράξεων)
-                  ={' '}
-                  <span className="font-bold font-mono">
-                    {formatCurrency(envelope.handedOver)}
-                  </span>{' '}
-                  στον φάκελο
-                </p>
-              )}
-            </div>
-
-            <div className="p-5 rounded-2xl bg-indigo-50/70 border border-indigo-150">
-              <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider block">
-                Μετρημένα στο Συρτάρι
-              </span>
-              <p className="text-2xl font-black text-indigo-950 mt-1">
-                {formatCurrency(countedCash)}
-              </p>
-              <p className="text-micro text-indigo-700/80 mt-1">
-                Από καταμέτρηση χαρτονομισμάτων.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Αναμενόμενο Ταμείο
-              </span>
-              <p className="text-2xl font-black text-slate-900 mt-1">
-                {formatCurrency(expectedCash)}
-              </p>
-              <p className="text-micro text-slate-500 mt-1">
-                Βάσει εισροών/εκροών συστήματος.
-              </p>
-            </div>
-
-            <div
-              className={`p-5 rounded-2xl border ${
+              className={`p-5 rounded-2xl border-2 shadow-md ${
                 discResult.isExceedingThreshold
-                  ? 'bg-rose-50 border-rose-300'
+                  ? 'bg-rose-50 border-rose-400'
                   : discResult.isUnbalanced
                   ? 'bg-amber-50 border-amber-300'
                   : 'bg-emerald-50 border-emerald-300'
               }`}
             >
-              <span className="text-xs font-bold uppercase tracking-wider block text-slate-700">
+              <span className="text-xs font-black uppercase tracking-wider block text-slate-700">
                 Διαφορά Ταμείου
               </span>
               <p
-                className={`text-2xl font-black mt-1 ${
+                className={`text-3xl font-black mt-1 font-mono ${
                   discResult.discrepancy < 0
                     ? 'text-rose-700'
                     : discResult.discrepancy > 0
@@ -3151,6 +3130,81 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 ) : (
                   <span className="text-emerald-700">✓ Απόλυτα ισοσκελισμένο</span>
                 )}
+              </p>
+            </div>
+
+            {/* 2. Φάκελος Παράδοσης - what actually leaves the shop. */}
+            <div
+              className={`p-5 rounded-2xl border-2 shadow-md ${
+                envelope.isShort ? 'bg-rose-50 border-rose-300' : 'bg-indigo-50 border-indigo-300'
+              }`}
+            >
+              <span className="text-xs font-black uppercase tracking-wider block text-slate-700">
+                Φάκελος Παράδοσης
+              </span>
+              <p
+                className={`text-3xl font-black mt-1 font-mono ${
+                  envelope.isShort ? 'text-rose-800' : 'text-indigo-900'
+                }`}
+              >
+                {formatCurrency(envelope.handedOver)}
+              </p>
+              <div className="text-micro mt-1 space-y-0.5 text-slate-600">
+                {envelope.isShort ? (
+                  <p className="text-rose-700 font-semibold">
+                    Το συρτάρι έχει λιγότερα από το πάγιο κεφάλαιο
+                    ({formatCurrency(openingCashTotal)}).
+                  </p>
+                ) : (
+                  <p>
+                    Μένουν {formatCurrency(envelope.retained)} στο συρτάρι ως πάγιο
+                    κεφάλαιο για αύριο.
+                  </p>
+                )}
+                {envelope.coinHandover > 0 && (
+                  <p>
+                    Περιλαμβάνει {formatCurrency(envelope.coinHandover)} παράδοση
+                    κερμάτων.
+                  </p>
+                )}
+                {envelope.settlement > 0 && (
+                  <p className="text-emerald-700">
+                    Περιλαμβάνει {formatCurrency(envelope.settlement)} εξόφληση
+                    απόκλισης — εκτός εισπράξεων.
+                  </p>
+                )}
+                {totalSafeDrops(safeDrops) > 0 && (
+                  <p>
+                    Επιπλέον {formatCurrency(totalSafeDrops(safeDrops))} ήδη στο
+                    χρηματοκιβώτιο.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 3 + 4. The two figures the difference is the gap between. */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                Αναμενόμενο Ταμείο
+              </span>
+              <p className="text-2xl font-black text-slate-900 mt-1 font-mono">
+                {formatCurrency(expectedCash)}
+              </p>
+              <p className="text-micro text-slate-500 mt-1">
+                Βάσει εισροών/εκροών συστήματος.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-900 text-white border border-slate-800">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                Σύνολο Καταμέτρησης
+              </span>
+              <p className="text-2xl font-black text-emerald-400 mt-1 font-mono">
+                {formatCurrency(reconciliationNetTotal)}
+              </p>
+              <p className="text-micro text-slate-400 mt-1 font-medium">
+                Μετρητά {formatCurrency(countedCash)} + POS + Έξοδα + Πιστώσεις -
+                Επιστροφές - Αρχικό
               </p>
             </div>
           </div>
