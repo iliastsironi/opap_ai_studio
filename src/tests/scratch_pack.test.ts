@@ -106,3 +106,51 @@ describe('a row that changed packs during the shift', () => {
     expect(calculateRowQty({ ...base, closedPackQty: NaN, startNo: '0', endNo: '10' })).toBe(10);
   });
 });
+
+import { mergeScratchCatalogWithSaved } from '../components/shifts/ScratchCalculatorTable.tsx';
+
+// A game dropped from the catalogue must not drag its sales down with it -
+// and must not outlive the catalogue when it never sold anything either.
+describe('a shift row whose game left the catalogue', () => {
+  const catalog = [
+    { id: 'scr_a', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2 },
+    { id: 'scr_b', name: 'ΓΑΤΑ', category: 'Σκρατς 2€', price: 2 },
+  ] as any[];
+
+  it('keeps one that sold tickets, so nobody’s sales vanish', () => {
+    const saved = [
+      { id: 'scr_gone', name: 'Παλιό Παιχνίδι', category: 'Σκρατς 5€', price: 5,
+        startNo: '10', endNo: '14' },
+    ] as any[];
+    const merged = mergeScratchCatalogWithSaved(catalog, saved);
+    expect(merged.map((r) => r.id)).toContain('scr_gone');
+  });
+
+  it('keeps one whose sales came from a finished pack', () => {
+    const saved = [
+      { id: 'scr_gone', name: 'Παλιό', category: 'Σκρατς 5€', price: 5,
+        startNo: '0', endNo: '', closedPackQty: 60 },
+    ] as any[];
+    expect(mergeScratchCatalogWithSaved(catalog, saved).map((r) => r.id)).toContain('scr_gone');
+  });
+
+  it('drops one that counted nothing, which is how strays became permanent', () => {
+    // Two test entries sat in the closing screen with nothing counted, were
+    // absent from the catalogue, and could be removed from neither place.
+    const saved = [
+      { id: 'scr_junk', name: 'Νέο Παιχνίδι Σκρατς', category: 'Σκρατς 5€', price: 5,
+        startNo: '', endNo: '' },
+      { id: 'scr_junk2', name: 'New 50 euro', category: 'Σκρατς 5€', price: 50,
+        startNo: '000', endNo: '000' },
+    ] as any[];
+    const merged = mergeScratchCatalogWithSaved(catalog, saved);
+    expect(merged.map((r) => r.id)).toEqual(['scr_a', 'scr_b']);
+  });
+
+  it('still carries the figures of games the catalogue does list', () => {
+    const saved = [{ id: 'scr_a', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2,
+      startNo: '6', endNo: '11' }] as any[];
+    const merged = mergeScratchCatalogWithSaved(catalog, saved);
+    expect(merged.find((r) => r.id === 'scr_a')?.endNo).toBe('11');
+  });
+});

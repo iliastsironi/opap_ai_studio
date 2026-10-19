@@ -385,13 +385,24 @@ export function mergeScratchCatalogWithSaved(
       countingMode: match.countingMode !== undefined ? match.countingMode : item.countingMode,
     });
   }
-  // A game counted on this shift that the catalogue no longer lists stays on
-  // the shift. Removing it would silently drop tickets somebody sold.
+  // A game the catalogue no longer lists stays on the shift ONLY if tickets
+  // were actually sold on it. Removing one that was would silently drop
+  // somebody's sales, which is why this rule exists.
+  //
+  // Keeping every unlisted row, though, made stray games permanent: two test
+  // entries sat in the closing screen with nothing counted, were not in the
+  // catalogue, and could not be removed from either place - the till does not
+  // edit the catalogue, and the catalogue had never heard of them. For a row
+  // that sold nothing the catalogue is simply the authority.
   for (const row of saved) {
     const alreadyThere = merged.some(
       (m) => m.id === row.id || (m.name === row.name && (m.category ?? '') === (row.category ?? ''))
     );
-    if (!alreadyThere) merged.push(row);
+    if (alreadyThere) continue;
+
+    const soldSomething =
+      calculateRowQty(row) > 0 || Math.max(0, Number(row.closedPackQty) || 0) > 0;
+    if (soldSomething) merged.push(row);
   }
   return merged;
 }
