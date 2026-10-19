@@ -299,9 +299,29 @@ export function aggregateShiftsForDay(
   let totalCreditGranted = 0;
   let totalCreditCollected = 0;
   let totalBankDeposits = 0;
-  let totalShiftDiscrepancies = 0;
 
   const allShiftContributions: ShiftContributionSummary[] = [];
+
+  // A day is its LAST shift, not the sum of its shifts.
+  //
+  // Every figure on a shift's report is the day to that point: the terminal
+  // prints running totals, the scratch serials are counted from where the DAY
+  // started, and the drawer is not emptied between shifts - the envelope
+  // leaves at the end of the day. The agency's own spreadsheets show it
+  // directly: 1/9 shift A reads 129 in scratch and 1.920 in cash, shift B
+  // reads 560 and 3.865, and B's serials start where A's did.
+  //
+  // Adding them was counting the morning twice. Per register, because two
+  // tills are two independent running totals.
+  const lastShiftPerRegister = new Map<string, string>();
+  for (const s of dayShifts) {
+    const register = s.register_id || 'Ταμείο 1';
+    const current = dayShifts.find((x) => x.id === lastShiftPerRegister.get(register));
+    if (!current || new Date(s.opened_at).getTime() >= new Date(current.opened_at).getTime()) {
+      lastShiftPerRegister.set(register, s.id);
+    }
+  }
+  const isDayTotal = (s: any) => lastShiftPerRegister.get(s.register_id || 'Ταμείο 1') === s.id;
 
   let allApproved = dayShifts.length > 0;
   let hasPendingApproval = false;
@@ -334,25 +354,39 @@ export function aggregateShiftsForDay(
     const bankDeposits = safeNum(s.bank_deposits);
     const discrepancy = safeNum(s.discrepancy);
 
-    totalOpapGross += opapGross;
-    totalOpapPayouts += opapPayouts;
-    totalOpapNet += opapNet;
-    totalVltsCashIn += vltsIn;
-    totalVltsCashOut += vltsOut;
-    totalVltsNet += vltsNet;
-    totalScratchSales += scratchSales;
+    if (isDayTotal(s)) {
+      totalOpapGross += opapGross;
+      totalOpapPayouts += opapPayouts;
+      totalOpapNet += opapNet;
+      totalVltsCashIn += vltsIn;
+      totalVltsCashOut += vltsOut;
+      totalVltsNet += vltsNet;
+      totalScratchSales += scratchSales;
+      totalToraPos += toraPos;
+      totalCleverPoint += cleverPoint;
+      totalFnbSales += fnbSales;
+      totalFnbCash += fnbCash;
+      totalFnbCard += fnbCard;
+      totalCardPayments += cardPayments;
+      totalExpensesPaidCash += expenses;
+      totalCreditGranted += creditGranted;
+      totalCreditCollected += creditCollected;
+    }
+
+    // Two exceptions, both for the same reason: these are discrete events
+    // recorded during a shift, not running totals on a terminal's report, so
+    // they really do add up across the day. Εθνικό Λαχείο portions come from
+    // per-shift delivery and return rows, and a safe drop is money physically
+    // moved, one at a time.
     totalNationalLotteryPortion += nationalLotteryPortion;
-    totalToraPos += toraPos;
-    totalCleverPoint += cleverPoint;
-    totalFnbSales += fnbSales;
-    totalFnbCash += fnbCash;
-    totalFnbCard += fnbCard;
-    totalCardPayments += cardPayments;
-    totalExpensesPaidCash += expenses;
-    totalCreditGranted += creditGranted;
-    totalCreditCollected += creditCollected;
     totalBankDeposits += bankDeposits;
-    totalShiftDiscrepancies += discrepancy;
+
+    // The discrepancy is NOT totalled here. `dailyDiscrepancy` below is the
+    // day's own figure - final counted cash against the expected closing
+    // drawer - and each shift's own stays in allShiftContributions, which is
+    // where the Owner's «every shift answers for its own report» rule reads
+    // from. A `totalShiftDiscrepancies` accumulator used to sit here, summed
+    // on every shift and returned by nothing.
 
     allShiftContributions.push({
       shiftId: s.id,

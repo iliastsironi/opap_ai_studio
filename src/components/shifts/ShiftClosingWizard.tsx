@@ -38,9 +38,6 @@ import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type
 import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
 import { splitDiscrepancy, DiscrepancySettlement } from '../../lib/discrepancySplit.ts';
 import {
-  ownScratchSales, readScratchDayBaseline, readScratchPayoutsBaseline,
-} from '../../lib/scratchDayBaseline.ts';
-import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
   DEFAULT_SCRATCH_PRESETS,
@@ -945,19 +942,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   //
   // The εξαργυρώσεις are typed per shift and are NOT cumulative, which is why
   // the subtraction happens before they are taken off rather than after.
-  const scratchDayBaseline = readScratchDayBaseline(shift.custom_field_values);
-  const scratchPayoutsBaseline = readScratchPayoutsBaseline(shift.custom_field_values);
-
-  // Both figures on screen run from the start of the day, so both come back
-  // to this shift's own the same way. Subtracting a day's redemptions from a
-  // shift's sales - or the reverse - puts the net on two scales at once,
-  // which is what made a -46 € shift look like an 83 € day.
-  const ownScratchGross = ownScratchSales(scratchSales, scratchDayBaseline);
-  const ownScratchPayouts = ownScratchSales(scratchPayouts, scratchPayoutsBaseline);
-  const totalScratchNet = ownScratchGross - ownScratchPayouts + nationalLotteryShiftContribution;
-
-  // What the Owner reads off the panel: the day so far, both sides cumulative.
-  const dayScratchNet = roundCurrency(safeNum(scratchSales) - safeNum(scratchPayouts));
+  // Everything on a shift's report is the DAY so far, not that shift alone.
+  //
+  // The agency's own spreadsheets settled this. Shift B's scratch serials
+  // start where the DAY started, its Tora, number games, VLT and cash figures
+  // are all larger than shift A's, its opening float is identical to A's, and
+  // its «Σύνολο: 83» - the day's scratch net - goes straight into the till
+  // total that produces the shift's result. The drawer is not emptied between
+  // shifts; the envelope leaves at the end of the day.
+  //
+  // So the figure on screen IS the figure stored. An earlier version
+  // subtracted what previous shifts had recorded, to keep the per-shift sums
+  // in 0003 working - but that made shift B store 11 € where its own report
+  // says 83 €, and moved its result by 72 €. The aggregation is what had to
+  // change instead: a day is its LAST shift, never the sum (0040).
+  const totalScratchNet =
+    roundCurrency(safeNum(scratchSales) - safeNum(scratchPayouts))
+    + nationalLotteryShiftContribution;
   const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalToraPos = toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalArithmoNet =
@@ -1205,10 +1206,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       number_games_vouchers: safeNum(arithmoVouchers),
 
       pame_stoixima_balance: safeNum(pameStoiximaBalance),
-      // This shift's own, like the sales beside it - everything that sums
-      // scratch_payouts keeps working.
-      scratch_payouts: ownScratchPayouts,
-      scratch_gross_sales: ownScratchGross,
+      scratch_payouts: safeNum(scratchPayouts),
+      scratch_gross_sales: safeNum(scratchSales),
       scratch_lotto_sales: totalScratchNet,
 
       // POS & TORA fields (tora_total is DB-generated from tora_pos_1 + tora_pos_2, not writable)
@@ -2089,7 +2088,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </h4>
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   <span className="text-xs font-bold text-slate-500">
-                    {scratchDayBaseline > 0 ? 'Σύνολο ημέρας' : 'Πωλήσεις'}:{' '}
+                    Πωλήσεις ημέρας:{' '}
                     <span className="font-mono text-slate-900">{formatCurrency(scratchSales)}</span>
                   </span>
                   {/* Without this line the panel reads «Πωλήσεις 140, Καθαρό
@@ -2109,23 +2108,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       that is what gets stored and what the reports sum. */}
                   <span
                     className={`text-xs font-black px-2.5 py-1 rounded-lg border font-mono ${
-                      (scratchDayBaseline > 0 ? dayScratchNet : totalScratchNet) < 0
+                      totalScratchNet < 0
                         ? 'text-rose-700 bg-rose-50 border-rose-200'
                         : 'text-emerald-700 bg-emerald-50 border-emerald-100'
                     }`}
                   >
-                    {scratchDayBaseline > 0 ? 'Καθαρό ημέρας: ' : 'Καθαρό: '}
-                    {formatCurrency(scratchDayBaseline > 0 ? dayScratchNet : totalScratchNet)}
+                    Καθαρό: {formatCurrency(totalScratchNet)}
                   </span>
-                  {scratchDayBaseline > 0 && (
-                    <span
-                      className="text-micro font-bold text-slate-600 font-mono"
-                      title="Πωλήσεις και εξαργυρώσεις αυτής της βάρδιας, αφού αφαιρεθούν οι προηγούμενες της ημέρας"
-                    >
-                      ({formatCurrency(ownScratchGross)} − {formatCurrency(ownScratchPayouts)} ={' '}
-                      {formatCurrency(totalScratchNet)} βάρδιας)
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -2144,9 +2133,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
                     <span className="flex items-center space-x-1.5">
                       <span>
-                        {scratchDayBaseline > 0
-                          ? 'Πωλήσεις Σκρατς & Λαχείων — ΑΠΟ ΤΗΝ ΑΡΧΗ ΤΗΣ ΗΜΕΡΑΣ (€)'
-                          : 'Σύνολο Πωλήσεων Σκρατς & Λαχείων (€)'}
+                        Πωλήσεις Σκρατς & Λαχείων — ΑΠΟ ΤΗΝ ΑΡΧΗ ΤΗΣ ΗΜΕΡΑΣ (€)
                       </span>
                     </span>
                     <span className="text-micro text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center space-x-1">
@@ -2199,9 +2186,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-rose-800 mb-1 flex items-center justify-between">
                     <span>
-                      {scratchDayBaseline > 0
-                        ? 'Εξαργυρώσεις Σκρατς — ΑΠΟ ΤΗΝ ΑΡΧΗ ΤΗΣ ΗΜΕΡΑΣ (€)'
-                        : 'Εξαργυρώσεις Σκρατς (€)'}
+                      Εξαργυρώσεις Σκρατς — ΑΠΟ ΤΗΝ ΑΡΧΗ ΤΗΣ ΗΜΕΡΑΣ (€)
                     </span>
                     <span className="text-micro text-rose-600 font-normal">Πληρωμές κερδών</span>
                   </label>
