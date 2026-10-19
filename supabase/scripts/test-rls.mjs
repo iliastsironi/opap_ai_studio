@@ -932,6 +932,43 @@ async function main() {
       !ev.error && ev.total < 998,
       `σύνολο ${ev.total}`);
 
+    // 72: the live failure. A shift worked on one day and entered on another
+    // carries expenses dated the day they were TYPED, because `date` defaults
+    // to CURRENT_DATE - so the day match never fired and a later shift of the
+    // same business day reconciled without them.
+    // Fixed hours, not «now minus 40 days plus six»: run late enough in the
+    // evening and the +6 crosses midnight in Athens, putting the two shifts
+    // on different days and testing nothing. 06:00 and 13:00 UTC are the same
+    // Athens day all year.
+    const backDay = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10);
+    const backdated = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId, register_id: 'REG-BACKDATED',
+      opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+      status: 'SUBMITTED',
+      opened_at: `${backDay}T06:00:00Z`,
+      closed_at: new Date().toISOString(),
+    }).select().maybeSingle();
+    const laterSameDay = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId, register_id: 'REG-BACKDATED',
+      opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+      status: 'SUBMITTED',
+      opened_at: `${backDay}T13:00:00Z`,
+      closed_at: new Date().toISOString(),
+    }).select().maybeSingle();
+
+    await admin.from('shift_expenses').insert({
+      organization_id: orgA, store_id: storeId, shift_id: backdated.data.id,
+      category: 'EXPENSES_GP', amount: 144.25, payment_method: 'CASH',
+      created_by_user_id: u4.user.id,
+      // Dated TODAY while its shift was worked forty days ago.
+      date: day,
+    }).throwOnError();
+
+    const back = await seen(client6, laterSameDay.data.id);
+    record('72: an expense follows its shift’s day, not the day it was typed',
+      !back.error && back.count === 1 && Math.abs(back.total - 144.25) < 0.01,
+      back.error ? back.error.message : `${back.count} έξοδα, σύνολο ${back.total}`);
+
     // 62: the coin cup is a column of its own, defaulting to nothing.
     const { data: coinRow, error: coinErr } = await admin.from('shifts')
       .select('coin_handover').eq('id', evening.id).maybeSingle();
