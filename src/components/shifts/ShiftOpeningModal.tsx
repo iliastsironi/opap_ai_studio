@@ -17,6 +17,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType } from '../../lib/shiftTypeOptions.ts';
+import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -100,6 +101,16 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // How many shifts this store runs, so the type dropdown offers its shifts
   // and not somebody else's.
   const [shiftsPerDay, setShiftsPerDay] = useState<number>(3);
+
+  // Who actually works this shift.
+  //
+  // It used to be whoever was signed in, full stop - so an Owner opening the
+  // till on an employee's behalf became the operator of record. That is not
+  // just a wrong name on a row: sync_shift_close_effects exempts Owners from
+  // shortage charges, so every shift opened that way could never produce one,
+  // and the whole discrepancy ledger stayed empty no matter what the till did.
+  const [staff, setStaff] = useState<any[]>([]);
+  const [operatorId, setOperatorId] = useState<string>('');
   const [dayOpening, setDayOpening] = useState<DayOpeningSnapshot | null>(null);
   // Set when the day-opening lookup itself failed, as opposed to there being
   // no shift today. The figures below then came from the previous close, which
@@ -129,6 +140,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const floatIsAsked = floatEditableByEmployee;
   // Back-dating a shift is the Owner's, separately from the float.
   const canBackdate = hasPermission('organization.update') || hasPermission('store.update');
+  const canAssignOperator = canBackdate;
   const [openingNotes, setOpeningNotes] = useState<string>('');
 
   const [previousShift, setPreviousShift] = useState<HandoverSnapshot | null>(null);
@@ -153,6 +165,21 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     // written. Blank means now, which is what the submit handler does too.
     const shiftStartIso = (openedAt ? new Date(openedAt) : new Date()).toISOString();
     const shiftDayKey = athensDateKey(shiftStartIso);
+
+    // Only someone who can act for the store may put a shift in another
+    // person's name. An employee opening their own till stays themselves.
+    if (canAssignOperator) {
+      fetchUsersFromFirestore(organization!.id)
+        .then((rows) => {
+          if (!isMounted) return;
+          setStaff(
+            (rows ?? []).filter(
+              (u: any) => u.status === 'ACTIVE' && u.role_code !== 'PLATFORM_ADMIN'
+            )
+          );
+        })
+        .catch((err) => console.warn('Could not load staff:', err));
+    }
 
     async function loadPrevShift() {
       setFetchingPrev(true);
@@ -295,6 +322,18 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // 15:00 sets its own opening, and a second morning shift would not.
   const continuingDay = !!dayOpening;
 
+  // Defaults to whoever is signed in, which is the common case and the old
+  // behaviour. Resolved here rather than in state so it cannot go stale when
+  // the staff list arrives after the modal has opened.
+  const effectiveOperatorId = operatorId || user?.id || '';
+  const effectiveOperator = staff.find((u) => u.id === effectiveOperatorId);
+  const effectiveOperatorName = effectiveOperator
+    ? `${effectiveOperator.first_name ?? ''} ${effectiveOperator.last_name ?? ''}`.trim()
+      || effectiveOperator.email
+    : user
+    ? `${user.first_name} ${user.last_name}`
+    : 'Χρήστης';
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -373,8 +412,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         register_id: registerId,
         shift_type: shiftType,
         status: 'OPEN' as ShiftStatus,
-        opened_by_user_id: user?.id || 'usr_anonymous',
-        opened_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Χρήστης',
+        opened_by_user_id: effectiveOperatorId || 'usr_anonymous',
+        opened_by_user_name: effectiveOperatorName,
         opened_at: (openedAt ? new Date(openedAt) : new Date()).toISOString(),
         opening_cash: cashNum,
         opening_cash_notes: banknotesNum,
@@ -559,6 +598,44 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 a register count to Διαμόρφωση first - a hardcoded list of
                 three was never the right place for it. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Who works it. Sits where the register picker used to, because
+                  it is the question that actually has more than one answer. */}
+              {canAssignOperator && (
+                <div className="sm:col-span-2">
+                  <label htmlFor="opening-operator" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    {toGreekUpper('Υπαλληλος Βαρδιας')}
+                  </label>
+                  <select
+                    id="opening-operator"
+                    value={effectiveOperatorId}
+                    onChange={(e) => setOperatorId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    {staff.length === 0 && user && (
+                      <option value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </option>
+                    )}
+                    {staff.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {`${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.email}
+                        {u.id === user?.id ? ' (εσείς)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-micro text-slate-500 mt-1 leading-relaxed">
+                    Η βάρδια και η καταμέτρησή της χρεώνονται σε αυτό το άτομο. Τυχόν
+                    έλλειμμα πάνω από την αποδεκτή απόκλιση πάει στην καρτέλα του.
+                    {effectiveOperatorId === user?.id && (
+                      <span className="block text-amber-700 font-semibold mt-0.5">
+                        Οι ιδιοκτήτες δεν χρεώνονται ποτέ για το δικό τους ταμείο — αν
+                        τη δουλεύει υπάλληλος, επιλέξτε τον.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
+
 
               {canBackdate && (
                 <div className="sm:col-span-2">
