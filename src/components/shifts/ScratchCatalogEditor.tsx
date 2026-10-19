@@ -5,7 +5,7 @@ import {
   isLotteryRow,
   type ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
-import { fetchScratchCatalog, saveScratchCatalog } from '../../services/scratchCatalogService.ts';
+import { fetchScratchCatalogForEditing, saveScratchCatalog } from '../../services/scratchCatalogService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 
@@ -27,13 +27,18 @@ export const ScratchCatalogEditor: React.FC<{
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // False while the catalogue exists only in this browser, which is what the
+  // tills are counting with until somebody saves it here.
+  const [fromDatabase, setFromDatabase] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchScratchCatalog(orgId, storeId ?? undefined)
-      .then((catalog) => {
-        if (!cancelled) setRows(catalog);
+    fetchScratchCatalogForEditing(orgId, storeId ?? undefined)
+      .then(({ rows: catalog, fromDatabase: stored }) => {
+        if (cancelled) return;
+        setRows(catalog);
+        setFromDatabase(stored);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -156,6 +161,17 @@ export const ScratchCatalogEditor: React.FC<{
           </div>
         )}
       </div>
+
+      {!fromDatabase && (
+        <div className="text-xs text-amber-900 bg-amber-50 border border-amber-300 rounded-xl p-3 space-y-1">
+          <span className="font-black block">Ο κατάλογος δεν έχει αποθηκευτεί ακόμα</span>
+          <span className="block">
+            Αυτά είναι όσα μετράει <strong>αυτός ο browser</strong> — κάθε μηχάνημα μπορεί να
+            έχει διαφορετική λίστα και διαφορετικές τιμές. Πατήστε <strong>Αποθήκευση</strong>
+            μία φορά και θα ισχύει για όλους.
+          </span>
+        </div>
+      )}
 
       {!canEdit && (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">

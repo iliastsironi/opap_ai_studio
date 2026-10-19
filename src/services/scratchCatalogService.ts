@@ -1,6 +1,7 @@
 import { supabase } from './supabase.ts';
 import {
   DEFAULT_SCRATCH_PRESETS,
+  getSavedScratchCatalog,
   isLotteryRow,
   type ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
@@ -87,6 +88,41 @@ export async function fetchScratchCatalog(
  * Owner-only at the database level (0030), so a manager or an employee calling
  * this is refused by the policy rather than by the button being hidden.
  */
+/**
+ * The catalogue to EDIT, which is not always the catalogue to read.
+ *
+ * fetchScratchCatalog falls back to the shipped presets when the database
+ * holds nothing, which is right for counting - a till has to show something.
+ * It was wrong for the editor: the closing screen reads the browser's own
+ * saved list, so a game added there existed in the till and was invisible in
+ * Διαμόρφωση, where it could have been corrected or removed. Two sources for
+ * one list, and the only screen that can fix it was looking at the other one.
+ *
+ * So while nothing is stored, the editor is shown what the tills are actually
+ * using. Saving then captures reality instead of overwriting it with presets.
+ */
+export async function fetchScratchCatalogForEditing(
+  orgId: string,
+  storeId?: string
+): Promise<{ rows: ScratchTicketRow[]; fromDatabase: boolean }> {
+  try {
+    let q = supabase.from(TABLE).select('code').eq('organization_id', orgId).eq('is_active', true);
+    q = storeId ? q.or(`store_id.eq.${storeId},store_id.is.null`) : q.is('store_id', null);
+    const { data, error } = await q.limit(1);
+    if (error) throw error;
+
+    if ((data ?? []).length > 0) {
+      return { rows: await fetchScratchCatalog(orgId, storeId), fromDatabase: true };
+    }
+  } catch (err) {
+    console.warn('[scratchCatalog] could not tell whether a catalogue is stored:', err);
+  }
+
+  // Nothing stored: whatever this browser has been counting with, which is
+  // the presets plus anything added locally.
+  return { rows: getSavedScratchCatalog(), fromDatabase: false };
+}
+
 export async function saveScratchCatalog(
   orgId: string,
   storeId: string | null,
