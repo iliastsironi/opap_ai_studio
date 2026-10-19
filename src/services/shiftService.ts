@@ -261,13 +261,18 @@ export async function updateShiftInFirestore(
 
 export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
   try {
-    // `.select()` so the statement reports which rows it actually removed.
+    // Two different failures look identical from here, and each needs the
+    // opposite message.
     //
-    // Without it a DELETE the policy refuses is indistinguishable from one
-    // that worked: it matches zero rows and returns no error, so the caller
-    // closed its dialog and the shift stayed exactly where it was. Deleting a
-    // shift needs auth_is_elevated(), and an employee pressing «Διαγραφή
-    // βάρδιας» got silence.
+    // A DELETE the policy refuses matches zero rows and returns no error, so
+    // `.select('id')` coming back empty used to mean «refused» - which is why
+    // this check exists at all. But the rows RETURNING hands back are filtered
+    // by the SELECT policy, not the DELETE one, so a delete that WORKED can
+    // also come back empty. Reporting that as a refusal told an Owner their
+    // shift was still there while it was already gone.
+    //
+    // So empty is not an answer: the row is read back, and whether it is still
+    // there decides which of the two happened.
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .delete()
@@ -275,11 +280,21 @@ export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {
       .select('id');
     if (error) throw error;
 
-    if (!data || data.length === 0) {
+    if (data && data.length > 0) return;
+
+    const { data: survivor, error: readError } = await supabase
+      .from(TABLE_NAME)
+      .select('id')
+      .eq('id', shiftId)
+      .maybeSingle();
+    if (readError) throw readError;
+
+    if (survivor) {
       throw new Error(
         'Η βάρδια δεν διαγράφηκε. Η διαγραφή βάρδιας επιτρέπεται μόνο σε υπεύθυνο ή ιδιοκτήτη.'
       );
     }
+    // Gone. The empty RETURNING was the SELECT policy, not a refusal.
   } catch (error) {
     await handleSupabaseError(error, OperationType.DELETE, `${TABLE_NAME}/${shiftId}`);
     throw error;
