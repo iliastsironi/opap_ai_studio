@@ -180,6 +180,7 @@ import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { CarriedOverSummary } from './CarriedOverSummary.tsx';
 import { isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { duplicateGroups } from '../../lib/duplicateExpense.ts';
+import { creditTotals } from '../../lib/creditTotals.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 
@@ -1065,15 +1066,17 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     0
   );
 
-  const creditGrantedTotal = customerCredits.reduce(
-    (acc, cred) => acc + (cred.type === 'GRANTED' ? safeNum(cred.amount) : 0),
-    0
-  );
-
-  const creditCollectedTotal = customerCredits.reduce(
-    (acc, cred) => acc + (cred.type === 'COLLECTED' ? safeNum(cred.amount) : 0),
-    0
-  );
+  // This shift's entries AND what it inherited from earlier shifts of the
+  // day, exactly as the expenses above work.
+  //
+  // The two lists are separate so the screen can show one editable and the
+  // other as a locked summary - and that asymmetry is what broke this: the
+  // carried credits were displayed and then left out of the arithmetic, so a
+  // second till showed the morning's credits on screen while reconciling as
+  // though they had never happened. They cannot overlap, because the RPC
+  // excludes this shift's own rows by id.
+  const { granted: creditGrantedTotal, collected: creditCollectedTotal } =
+    creditTotals(customerCredits as any[], carriedCredits as any[]);
 
   const signedVltsOut = safeNum(vltsOut);
 
