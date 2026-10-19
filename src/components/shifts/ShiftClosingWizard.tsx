@@ -178,6 +178,7 @@ import {
 } from '../../services/financialCalculator.ts';
 import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { CarriedOverSummary } from './CarriedOverSummary.tsx';
+import { isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 
@@ -870,15 +871,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       // feeds expected_cash -> discrepancy -> their charge.
       const storeExpenses = await fetchShiftReconciliationExpenses(shift.id);
 
-      const shiftOpenTime = new Date(shift.opened_at).getTime();
-      const relevant = storeExpenses.filter((e) => {
-        if (e.shift_id && e.shift_id === shift.id) return true;
-        if (!e.shift_id) {
-          const expTime = new Date(e.created_at).getTime();
-          if (expTime >= shiftOpenTime - 3600 * 1000) return true;
-        }
-        return false;
-      });
+      // Everything the RPC returns, which since 0042 is this shift's own plus
+      // the rest of its business day at this store.
+      //
+      // There used to be a second gate here - «tied to THIS shift, or untied
+      // and created within an hour of it opening» - and widening the server
+      // without removing it changed nothing: the morning's expenses arrived
+      // and were thrown away again, because they are tied to the morning's
+      // shift id. The evening then reconciled without them and its till came
+      // out over by exactly their amount.
+      //
+      // The server already scopes this to the right store and day, and it is
+      // the side that can be trusted to; a second opinion here can only
+      // disagree with it.
+      const relevant = storeExpenses;
 
       if (relevant.length > 0) {
         setExpenses((prevExpenses) => {
@@ -896,8 +902,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 // what an earlier shift of the same day already recorded.
                 // Without it every pulled expense looked like this
                 // operator's, and they could edit a closed shift's figures.
-                carried_from_shift_id: item.shift_id && item.shift_id !== shift.id
-                  ? item.shift_id
+                carried_from_shift_id: isCarriedExpense(item, shift.id, shift.opened_at)
+                  ? (item.shift_id || 'earlier')
                   : undefined,
                 organization_id: orgId,
                 store_id: shift.store_id,
