@@ -83,7 +83,7 @@ const writeFunctions = [
   ['resolve_employee_charge', { p_charge_id: NOWHERE, p_status: 'SETTLED' }],
   // 0036. Probed with a shift id that matches nothing, so it raises P0002
   // before it can write anything.
-  ['record_shift_inspection', { p_shift_id: NOWHERE, p_status: 'OK', p_shortfall: 0, p_detail: null }],
+  ['record_shift_inspection', { p_shift_id: NOWHERE, p_status: 'OK', p_shortfall: 0, p_detail: null, p_by_shift_id: null }],
   ['send_lottery_cancel_reminders', { p_lead_hours: 0 }],
   ['rollover_national_lottery_edition', {
     p_org_id: 'nonexistent', p_store_id: 'nonexistent',

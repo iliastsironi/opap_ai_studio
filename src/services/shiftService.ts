@@ -316,13 +316,22 @@ export async function recordShiftInspection(
   shiftId: string,
   status: InspectionOutcome,
   shortfall: number,
-  detail: unknown
+  detail: unknown,
+  /**
+   * The shift doing the inspecting. Its operator is who counted the drawer,
+   * which is not the signed-in user whenever an Owner opens a till on an
+   * employee's behalf. The id of a shift rather than of a person, so the
+   * claim is checkable: 0045 verifies it sits at the same till and started
+   * after the one being inspected.
+   */
+  byShiftId?: string
 ): Promise<void> {
   const { error } = await supabase.rpc('record_shift_inspection', {
     p_shift_id: shiftId,
     p_status: status,
     p_shortfall: Number(shortfall) || 0,
     p_detail: detail ?? null,
+    p_by_shift_id: byShiftId ?? null,
   });
   if (error) throw error;
 }

@@ -799,6 +799,7 @@ async function main() {
     const { error: flagErr } = await client6.rpc('record_shift_inspection', {
       p_shift_id: flagged.id, p_status: 'FLAGGED', p_shortfall: 5,
       p_detail: { lines: [{ key: 'cash', expected: 1000, found: 995 }] },
+      p_by_shift_id: null,
     });
     const flagCharges = await chargesFor(flagged.id);
     const inspection = flagCharges.find((c) => c.cause === 'INSPECTION');
@@ -832,7 +833,7 @@ async function main() {
     // 56: skipping records the choice and charges nobody.
     const skipped = await mkNightShift();
     const { error: skipErr } = await client6.rpc('record_shift_inspection', {
-      p_shift_id: skipped.id, p_status: 'SKIPPED', p_shortfall: 0, p_detail: { skipped: true },
+      p_shift_id: skipped.id, p_status: 'SKIPPED', p_shortfall: 0, p_detail: { skipped: true }, p_by_shift_id: null,
     });
     const skipCharges = await chargesFor(skipped.id);
     const { data: skipAfter } = await admin.from('shifts')
@@ -844,7 +845,7 @@ async function main() {
     // 57: nobody inspects their own handover. u4 worked it, so u4 is refused.
     const own = await mkNightShift();
     const { error: ownErr } = await client4.rpc('record_shift_inspection', {
-      p_shift_id: own.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null,
+      p_shift_id: own.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null, p_by_shift_id: null,
     });
     record('57: you cannot inspect your own shift',
       !!ownErr && ownErr.code === '42501',
@@ -858,7 +859,7 @@ async function main() {
       opened_by_user_id: u4.user.id, status: 'DRAFT_CLOSING',
     }).select().maybeSingle();
     const { error: openErr } = await client6.rpc('record_shift_inspection', {
-      p_shift_id: openShift.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null,
+      p_shift_id: openShift.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null, p_by_shift_id: null,
     });
     record('58: an unclosed shift cannot be inspected',
       !!openErr && openErr.code === '22023',

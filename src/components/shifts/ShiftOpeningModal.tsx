@@ -303,7 +303,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           && prev.shift_id
           && (prev.shift_status === 'SUBMITTED' || prev.shift_status === 'APPROVED')
           && !prev.inspection_status
-          && prev.opened_by_user_id !== user?.id;
+          // Against the operator of the shift being opened, not whoever is
+          // signed in. An Owner opening a till for an employee is not the
+          // one counting it, and comparing with the keyboard made the
+          // morning unable to inspect a night the Owner had worked.
+          && prev.opened_by_user_id !== (operatorId || user?.id);
 
         if (inspectable) {
           setInspectionLines(
@@ -327,7 +331,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               ? `Η προηγούμενη βάρδια έχει ήδη επιθεωρηθεί (${
                   prev.inspection_status === 'SKIPPED' ? 'προσπεράστηκε' : 'ελέγχθηκε'
                 }).`
-              : prev.opened_by_user_id === user?.id
+              : prev.opened_by_user_id === (operatorId || user?.id)
               ? 'Δεν επιθεωρείτε τη δική σας παράδοση.'
               : null
           );
@@ -518,7 +522,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     unit_price: l.unitPrice ?? null,
                     shortfall: lineFinding(l).shortfall,
                   })),
-                }
+                },
+            // The shift just created: its operator is who did the counting.
+            fsShift.id
           );
         } catch (inspErr: any) {
           console.warn('Inspection could not be recorded:', inspErr);
