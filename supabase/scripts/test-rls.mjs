@@ -865,6 +865,65 @@ async function main() {
       !!openErr && openErr.code === '22023',
       openErr ? `refused (${openErr.code})` : 'ALLOWED');
 
+    // 73-75: the inspector is the OPERATOR of the inspecting shift, not the
+    // caller. An Owner types on an employee's behalf, so comparing with
+    // auth.uid() made a morning unable to inspect a night the Owner worked.
+    const register = `REG-OWN-${Math.random().toString(36).slice(2, 7)}`;
+    const mkOn = async (minutesAgo, operator) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId, register_id: register,
+        opened_by_user_id: operator, opened_by_user_name: 'Χειριστής',
+        status: 'SUBMITTED', opened_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+        closed_at: new Date().toISOString(), discrepancy: -1, discrepancy_threshold: 15,
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    // The night was worked by u6 - who is also the one signed in and typing.
+    const ownNight = await mkOn(300, u6.user.id);
+    // The morning is worked by u4, on whose behalf u6 is entering it.
+    const nextMorning = await mkOn(60, u4.user.id);
+
+    const { error: withoutBy } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: ownNight.id, p_status: 'OK', p_shortfall: 0, p_detail: null,
+      p_by_shift_id: null,
+    });
+    record('73: without the inspecting shift, the caller still cannot grade their own',
+      !!withoutBy && withoutBy.code === '42501',
+      withoutBy ? `refused (${withoutBy.code})` : 'ALLOWED - the rule stopped working');
+
+    const { error: withBy } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: ownNight.id, p_status: 'OK', p_shortfall: 0, p_detail: null,
+      p_by_shift_id: nextMorning.id,
+    });
+    const { data: inspected } = await admin.from('shifts')
+      .select('inspection_status, inspected_by_user_id').eq('id', ownNight.id).maybeSingle();
+    record('74: with it, the employee working the next shift does the inspecting',
+      !withBy && inspected?.inspection_status === 'OK'
+        && inspected?.inspected_by_user_id === u4.user.id,
+      withBy ? withBy.message
+        : `${inspected?.inspection_status}, inspector=${inspected?.inspected_by_user_id === u4.user.id ? 'u4 ✓' : inspected?.inspected_by_user_id}`);
+
+    // 75: the claim is checked, not taken. A shift at another till - or one
+    // that ran BEFORE the shift being inspected - cannot lend its operator.
+    const elsewhere = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId, register_id: `${register}-X`,
+      opened_by_user_id: u4.user.id, opened_by_user_name: 'Χειριστής',
+      status: 'SUBMITTED', opened_at: new Date().toISOString(), closed_at: new Date().toISOString(),
+    }).select().maybeSingle();
+    const ownNight2 = await mkOn(240, u6.user.id);
+    const { error: wrongTill } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: ownNight2.id, p_status: 'OK', p_shortfall: 0, p_detail: null,
+      p_by_shift_id: elsewhere.data.id,
+    });
+    const { error: earlier } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: ownNight2.id, p_status: 'OK', p_shortfall: 0, p_detail: null,
+      p_by_shift_id: ownNight.id,
+    });
+    record('75: a shift at another till, or an earlier one, cannot lend its operator',
+      !!wrongTill && wrongTill.code === '22023' && !!earlier && earlier.code === '22023',
+      `άλλο ταμείο: ${wrongTill ? wrongTill.code : 'ΕΠΙΤΡΑΠΗΚΕ'} · προγενέστερη: ${earlier ? earlier.code : 'ΕΠΙΤΡΑΠΗΚΕ'}`);
+
     await admin.from('employee_charges').delete().eq('store_id', storeId);
     await admin.from('notifications').delete().eq('store_id', storeId);
     await admin.from('incidents').delete().eq('store_id', storeId);
