@@ -104,7 +104,10 @@ export async function fetchHandoverSnapshot(
     //
     // So the newer form is attempted and the older one is the fallback, which
     // makes the code work whichever side of the migration the database is on.
-    if (error?.code === 'PGRST202') {
+    // PGRST203 is in here too: a database carrying both a two-argument
+    // function and a three-argument one with a default cannot tell which a
+    // two-argument call means, and answers «ambiguous» rather than «missing».
+    if (error?.code === 'PGRST202' || error?.code === 'PGRST203') {
       ({ data, error } = await supabase.rpc('shift_handover_snapshot', {
         p_store_id: storeId,
         p_register_id: registerId,

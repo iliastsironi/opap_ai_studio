@@ -74,32 +74,17 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 GRANT EXECUTE ON FUNCTION shift_handover_snapshot(TEXT, TEXT, TIMESTAMPTZ) TO authenticated;
 
--- The two-argument form is dropped above, so anything still calling it would
--- break. Kept as a thin wrapper rather than left to fail, because a stale
--- browser tab holding the old bundle is a real thing and it should degrade to
--- the old behaviour, not to an error.
-CREATE OR REPLACE FUNCTION shift_handover_snapshot(
-  p_store_id TEXT,
-  p_register_id TEXT
-)
-RETURNS TABLE (
-  previous_operator_name TEXT,
-  ended_at               TIMESTAMPTZ,
-  counted_cash           NUMERIC,
-  counted_denominations  JSONB,
-  opening_cash           NUMERIC,
-  opening_cash_notes     NUMERIC,
-  opening_cash_coins     NUMERIC,
-  scratch_ticket_items   JSONB,
-  shift_id               UUID,
-  shift_status           TEXT,
-  inspection_status      TEXT,
-  opened_by_user_id      UUID
-)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT * FROM shift_handover_snapshot(p_store_id, p_register_id, NULL);
-$$;
-GRANT EXECUTE ON FUNCTION shift_handover_snapshot(TEXT, TEXT) TO authenticated;
+-- NO two-argument wrapper.
+--
+-- One was written here to protect a stale browser tab still calling the old
+-- signature, and it did the opposite: p_before has a DEFAULT, so the
+-- three-argument function already answers a two-argument call, and adding a
+-- real two-argument function made that call AMBIGUOUS. PostgREST refused it
+-- with PGRST203 - so the wrapper meant to keep old callers working was the
+-- thing that broke them.
+--
+-- The default alone is the compatibility layer. Nothing else is needed.
+DROP FUNCTION IF EXISTS shift_handover_snapshot(TEXT, TEXT);
 
 -- Verify. shift_id and inspection_status must both be in the output, and the
 -- status tells the screen whether the handover is finished enough to inspect:
