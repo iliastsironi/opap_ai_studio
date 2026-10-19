@@ -137,3 +137,18 @@ describe('what counts as something to carry', () => {
     expect(resolveOpeningFloat(null, configured, { notes: 1000, coins: 50 }).carriedOver).toBe(true);
   });
 });
+
+describe('coins carried across the night', () => {
+  // The real figures from the live tenant: a close counting 86×1€, 32×2€,
+  // 18×0,10, 36×0,20 and 29×0,50 - which is 173,50 in coins, not banknotes.
+  // 1 € and 2 € are coins, and treating anything under 5 as a coin is what
+  // makes that true.
+  const lastNight = { countedCash: 4038.5, notes: 3865, coins: 173.5 };
+  const configured = { notes: 1000, coins: 183.7 };
+
+  it('starts the morning on the night’s counted coins, not the float', () => {
+    expect(resolveOpeningFloat(lastNight, configured, null)).toEqual({
+      notes: 1000, coins: 173.5, carriedOver: false,
+    });
+  });
+});
