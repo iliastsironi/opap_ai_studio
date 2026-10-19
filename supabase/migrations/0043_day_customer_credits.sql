@@ -27,6 +27,12 @@ RETURNS TABLE (
   source        TEXT
 )
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+-- The OUT parameters are called id, customer_id and shift_id, which are also
+-- column names in the query below. PL/pgSQL resolves such a collision in
+-- favour of the VARIABLE by default, and the planner then reports «column
+-- reference "id" is ambiguous» rather than quietly doing the wrong thing.
+-- This says the column wins, which is what every reference here means.
+#variable_conflict use_column
 DECLARE
   v_shift shifts%ROWTYPE;
   v_day DATE;
@@ -63,10 +69,16 @@ BEGIN
        -- day. A LEFT JOIN on purpose: shift_id is nullable since 0005, and
        -- an inner one would silently drop every credit taken outside a shift.
        AND (
+         -- Tied to an EARLIER shift of the same day. «Same day» alone is not
+         -- enough: without the time comparison the day's FIRST shift saw the
+         -- evening's entries, which had not happened yet from where it sits.
          (s.id IS NOT NULL
-           AND (s.opened_at AT TIME ZONE 'Europe/Athens')::date = v_day)
+           AND (s.opened_at AT TIME ZONE 'Europe/Athens')::date = v_day
+           AND s.opened_at < v_shift.opened_at)
+         -- Or untied and entered before this shift started.
          OR (t.shift_id IS NULL
-           AND (t.created_at AT TIME ZONE 'Europe/Athens')::date = v_day)
+           AND (t.created_at AT TIME ZONE 'Europe/Athens')::date = v_day
+           AND t.created_at < v_shift.opened_at)
        )
        -- This shift's own are already on screen and editable; only what came
        -- before belongs in the carried-over summary.

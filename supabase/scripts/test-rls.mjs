@@ -946,6 +946,84 @@ async function main() {
     await admin.from('shifts').delete().eq('store_id', storeId);
   }
 
+  // --- 68-71: the day's customer credits (0043) ----------------------------
+  {
+    const storeId = `test_store_cred2_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'CR2', name: 'Test Store Credits Day', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    const mk = async (minutesAgo) => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId, register_id: 'Ταμείο 1',
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        status: 'SUBMITTED', opened_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+        closed_at: new Date().toISOString(),
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    // Same register, same day, so the second continues the first.
+    const first = await mk(300);
+    const second = await mk(60);
+
+    const { data: cust } = await admin.from('customers').insert({
+      organization_id: orgA, store_id: storeId, name: 'Πελάτης Δοκιμής', tier: 'B',
+    }).select().maybeSingle();
+
+    await admin.from('customer_credit_transactions').insert([
+      { organization_id: orgA, store_id: storeId, shift_id: first.id, customer_id: cust.id,
+        customer_name_snapshot: 'Πελάτης Δοκιμής', type: 'GRANTED', amount: 48,
+        created_by_user_id: u4.user.id },
+      { organization_id: orgA, store_id: storeId, shift_id: first.id, customer_id: cust.id,
+        customer_name_snapshot: 'Πελάτης Δοκιμής', type: 'COLLECTED', amount: 18,
+        created_by_user_id: u4.user.id },
+      { organization_id: orgA, store_id: storeId, shift_id: second.id, customer_id: cust.id,
+        customer_name_snapshot: 'Πελάτης Δοκιμής', type: 'GRANTED', amount: 5,
+        created_by_user_id: u4.user.id },
+    ]).throwOnError();
+
+    const day = async (client, shiftId) => {
+      const { data, error } = await client.rpc('shift_day_customer_credits', { p_shift_id: shiftId });
+      if (error) return { error };
+      return { rows: data ?? [] };
+    };
+
+    // 68: the later shift sees what came before it - both directions.
+    const later = await day(client6, second.id);
+    const total = (later.rows ?? []).reduce((a, r) => a + Number(r.amount), 0);
+    record('68: a later shift sees the day’s earlier credits and returns',
+      !later.error && later.rows.length === 2 && Math.abs(total - 66) < 0.01,
+      later.error ? later.error.message : `${later.rows?.length} εγγραφές, σύνολο ${total}`);
+
+    // 69: and never its own, which are on screen and editable already.
+    record('69: its own entries stay out of the carried-over summary',
+      !later.error && !(later.rows ?? []).some((r) => r.shift_id === second.id),
+      later.error ? later.error.message : 'μόνο προηγούμενες');
+
+    // 70: the day's FIRST shift has nothing before it.
+    const firstDay = await day(client6, first.id);
+    record('70: the day’s first shift carries nothing',
+      !firstDay.error && (firstDay.rows ?? []).length === 0,
+      firstDay.error ? firstDay.error.message : `${firstDay.rows?.length} εγγραφές`);
+
+    // 71: the name travels as it stood when the credit was given, so a
+    // customer renamed later does not rewrite a closed shift's record.
+    await admin.from('customers').update({ name: 'Μετονομασμένος' }).eq('id', cust.id).throwOnError();
+    const renamed = await day(client6, second.id);
+    record('71: the snapshot name survives a later rename',
+      !renamed.error && (renamed.rows ?? []).every((r) => r.customer_name === 'Πελάτης Δοκιμής'),
+      renamed.error ? renamed.error.message
+        : (renamed.rows ?? []).map((r) => r.customer_name).join(', '));
+
+    await admin.from('customer_credit_transactions').delete().eq('store_id', storeId);
+    await admin.from('customers').delete().eq('store_id', storeId);
+    await admin.from('employee_charges').delete().eq('store_id', storeId);
+    await admin.from('notifications').delete().eq('store_id', storeId);
+    await admin.from('incidents').delete().eq('store_id', storeId);
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -1084,6 +1162,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_day_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_insp_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_exp_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_cred2_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
