@@ -17,6 +17,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType } from '../../lib/shiftTypeOptions.ts';
+import { splitLocalDateTime, joinLocalDateTime, normalizeTime24 } from '../../lib/shiftDateTime.ts';
 import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
@@ -66,7 +67,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   useEffect(() => {
     // Re-seeded each time the dialog opens, so it never shows a time from
     // whenever the screen last rendered.
-    if (isOpen) setOpenedAt(localDateTimeValue(new Date()));
+    if (isOpen) {
+      const now = localDateTimeValue(new Date());
+      setOpenedAt(now);
+      setOpenedAtTime(splitLocalDateTime(now).time);
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -87,6 +92,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // the past, which is how the 27 August workbooks that were never imported
   // get entered after the fact.
   const [openedAt, setOpenedAt] = useState<string>('');
+  // What the time box shows while it is being typed. openedAt only moves on
+  // a time that parses, so a half-finished «9:» cannot file the shift at
+  // midnight behind the operator's back.
+  const [openedAtTime, setOpenedAtTime] = useState<string>('');
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
   const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
@@ -649,14 +658,55 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   <label htmlFor="opening-when" className="block text-micro font-bold text-slate-700 uppercase tracking-wider mb-1">
                     {toGreekUpper('Εναρξη Βαρδιας')}
                   </label>
-                  <input
-                    id="opening-when"
-                    type="datetime-local"
-                    value={openedAt}
-                    max={localDateTimeValue(new Date())}
-                    onChange={(e) => setOpenedAt(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
+                  {/* Date and time apart, because a single datetime-local
+                      renders «01:43 PM» on an en-US browser and nothing on
+                      the page can change that - not the lang attribute, not
+                      CSS. The date keeps its native picker; the time is ours
+                      and is always 24-hour. */}
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <input
+                      id="opening-when"
+                      type="date"
+                      value={splitLocalDateTime(openedAt).date}
+                      max={localDateTimeValue(new Date()).slice(0, 10)}
+                      onChange={(e) =>
+                        setOpenedAt(
+                          joinLocalDateTime(
+                            e.target.value,
+                            splitLocalDateTime(openedAt).time || '00:00'
+                          )
+                        )
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <input
+                      aria-label="Ώρα έναρξης, 24ωρη μορφή"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="ΩΩ:ΛΛ"
+                      maxLength={5}
+                      value={openedAtTime}
+                      onChange={(e) => setOpenedAtTime(e.target.value)}
+                      onBlur={() => {
+                        // Normalised when they leave the field, not as they
+                        // type: rewriting «9» to «09:00» mid-keystroke makes
+                        // «9:30» impossible to enter.
+                        const t = normalizeTime24(openedAtTime);
+                        const date = splitLocalDateTime(openedAt).date;
+                        if (t) {
+                          setOpenedAtTime(t);
+                          setOpenedAt(joinLocalDateTime(date, t));
+                        } else {
+                          setOpenedAtTime(splitLocalDateTime(openedAt).time);
+                        }
+                      }}
+                      className={`w-24 px-3 py-2 rounded-xl border bg-white text-xs font-bold text-center font-mono focus:ring-2 focus:ring-indigo-500 ${
+                        normalizeTime24(openedAtTime) === null && openedAtTime !== ''
+                          ? 'border-rose-300 text-rose-700'
+                          : 'border-slate-200 text-slate-900'
+                      }`}
+                    />
+                  </div>
                   <p className="text-micro text-slate-500 mt-1 leading-relaxed">
                     Αφήστε το ως έχει για τώρα. Βάλτε περασμένη ημερομηνία για να καταχωρήσετε
                     βάρδια που έγινε ήδη — το ταμείο θα μετρηθεί κανονικά, απλώς θα ανήκει σε
