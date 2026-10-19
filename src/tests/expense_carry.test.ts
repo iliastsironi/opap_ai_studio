@@ -40,3 +40,26 @@ describe('which of the day’s expenses this shift inherited', () => {
     expect(isCarriedExpense({ shift_id: null, created_at: OPENED }, SHIFT, null)).toBe(false);
   });
 });
+
+// The live failure: a shift worked on 2 September, entered on 19 October, and
+// its expenses dated 19 October by CURRENT_DATE. Every day-scoped lookup then
+// missed them, so a later shift of 2 September reconciled without them.
+describe('which day an expense is filed under', () => {
+  const expenseDate = (
+    explicit: string | undefined,
+    shiftOpenedAt: string | undefined,
+    today: string
+  ) => explicit || (shiftOpenedAt ? shiftOpenedAt.slice(0, 10) : undefined) || today;
+
+  it('files it under the shift’s day, not the day it was typed', () => {
+    expect(expenseDate(undefined, '2026-09-02T13:26:00Z', '2026-10-19')).toBe('2026-09-02');
+  });
+
+  it('lets an explicit date win, because somebody chose it', () => {
+    expect(expenseDate('2026-08-30', '2026-09-02T13:26:00Z', '2026-10-19')).toBe('2026-08-30');
+  });
+
+  it('falls back to today when no shift is open', () => {
+    expect(expenseDate(undefined, undefined, '2026-10-19')).toBe('2026-10-19');
+  });
+});

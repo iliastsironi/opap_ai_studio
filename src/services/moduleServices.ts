@@ -2,6 +2,7 @@ import { supabase, handleSupabaseError, OperationType, cleanData } from './supab
 import { Shift } from '../types/index.ts';
 import { updateShiftInFirestore } from './shiftService.ts';
 import { createSupplierInFirestore, fetchSuppliersFromFirestore } from './supplierService.ts';
+import { athensDateKey } from '../lib/pnlEngine.ts';
 
 // ----------------------------------------------------
 // EXPENSES SERVICE (backed by the shift_expenses table - absorbs what used
@@ -198,7 +199,19 @@ export async function createAndSyncShiftExpense(
     amount: input.amount,
     payment_method: input.payment_method,
     recipient: input.recipient,
-    date: input.date || new Date().toISOString().split('T')[0],
+    // The day the SHIFT was worked, not the day somebody typed this in.
+    //
+    // CURRENT_DATE is what the column defaults to and what this used to send,
+    // which is right only when the two coincide. A shift entered
+    // retroactively does not: in the live tenant a 2 September shift carried
+    // expenses dated 19 October, so every day-scoped lookup missed them and a
+    // later shift of 2 September reconciled without them.
+    //
+    // An explicit date still wins - the expenses screen offers one, and the
+    // person choosing it knows better than this fallback does.
+    date: input.date
+      || (activeShift?.opened_at ? athensDateKey(activeShift.opened_at) : undefined)
+      || new Date().toISOString().split('T')[0],
     ...(activeShift?.id ? { shift_id: activeShift.id } : {}),
     ...(input.created_by_user_id ? { created_by_user_id: input.created_by_user_id } : {}),
     ...(input.created_by_user_name ? { created_by_user_name: input.created_by_user_name } : {}),
