@@ -25,7 +25,18 @@
 -- number, and day_discrepancy is the day's real gap. Nothing is lost and the
 -- choice stays visible.
 
-CREATE OR REPLACE VIEW v_daily_register_summary AS
+-- Dropped and rebuilt, not replaced. CREATE OR REPLACE VIEW can only APPEND
+-- columns, and day_discrepancy belongs next to the sum it qualifies, not at
+-- the far end - trying to insert it in place fails with 42P16, «cannot change
+-- name of view column».
+--
+-- Three views, in dependency order: v_daily_aggregated_report reads
+-- v_daily_store_summary, which reads v_daily_register_summary.
+DROP VIEW IF EXISTS v_daily_aggregated_report;
+DROP VIEW IF EXISTS v_daily_store_summary;
+DROP VIEW IF EXISTS v_daily_register_summary;
+
+CREATE VIEW v_daily_register_summary AS
 SELECT
   organization_id, store_id, register_id, shift_date,
   COUNT(*) AS shifts_count,
@@ -71,7 +82,7 @@ GROUP BY organization_id, store_id, register_id, shift_date;
 -- The monthly view sums DAYS, which is still right - a month really is the
 -- sum of its days. It only needed the day underneath it to stop double
 -- counting. Recreated so it picks up the new column list.
-CREATE OR REPLACE VIEW v_daily_store_summary AS
+CREATE VIEW v_daily_store_summary AS
 SELECT
   organization_id, store_id, shift_date,
   SUM(shifts_count) AS total_shifts_count,
@@ -95,6 +106,30 @@ SELECT
   BOOL_AND(all_approved) AS all_approved
 FROM v_daily_register_summary
 GROUP BY organization_id, store_id, shift_date;
+
+-- Rebuilt unchanged; it reads the store summary with SELECT *, so the new
+-- total_day_discrepancy flows through on its own.
+CREATE VIEW v_daily_aggregated_report AS
+WITH base AS (
+  SELECT *,
+    (total_opap_net + total_vlts_net + total_scratch_sales + total_tora_pos + total_clever_point
+      + total_fnb_cash + total_credit_collected - total_credit_granted - total_expenses_paid_cash) AS net_cash_activity
+  FROM v_daily_store_summary
+)
+SELECT *,
+  ROUND(total_opap_gross + total_vlts_net + total_scratch_sales + total_tora_pos + total_clever_point + total_fnb_sales, 2)
+    AS total_gross_turnover,
+  ROUND(net_cash_activity, 2) AS total_net_cash_activity,
+  ROUND(initial_opening_cash + net_cash_activity - total_bank_deposits, 2) AS daily_expected_closing_drawer,
+  ROUND(final_counted_cash - (initial_opening_cash + net_cash_activity - total_bank_deposits), 2) AS daily_discrepancy
+FROM base;
+
+-- Explicit, because a view created now does not inherit the one-off GRANT in
+-- 0004 - and a missing table-level GRANT is invisible to RLS and shows up as
+-- an empty report rather than an error. verify-schema.mjs exists because that
+-- already happened once.
+GRANT SELECT ON v_daily_register_summary, v_daily_store_summary, v_daily_aggregated_report
+  TO anon, authenticated, service_role;
 
 -- ============================================================
 -- The three KPI functions read day-to-date figures too

@@ -39,6 +39,8 @@ const tables = [
 const views = [
   'v_daily_aggregated_report', 'v_daily_register_summary',
   'v_daily_store_summary', 'v_shift_register_day',
+  // 0040 - per-shift contributions, for the questions about people
+  'v_shift_own_contribution',
 ];
 
 // Called with harmless arguments. A function that does not exist, or whose
