@@ -415,6 +415,15 @@ export interface ShiftExpense {
   receipt_url?: string;
   created_by_user_id: string;
   created_at: string;
+  /**
+   * Set when this row came from an EARLIER shift of the same day.
+   *
+   * Expenses carry through a day, so a later shift reconciles against the
+   * first shift's too - but they are not this operator's to edit, and the
+   * closing screen collapses them into a summary instead of listing them
+   * among their own. Client-side only; the database keeps the real shift_id.
+   */
+  carried_from_shift_id?: string;
 }
 
 export type CreditScoreTier = 'A+' | 'A' | 'B' | 'C';

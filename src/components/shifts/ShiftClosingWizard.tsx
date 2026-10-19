@@ -29,7 +29,9 @@ import {
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
-import { deleteShiftFromFirestore } from '../../services/shiftService.ts';
+import {
+  deleteShiftFromFirestore, fetchDayCustomerCredits, DayCustomerCredit,
+} from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -175,6 +177,7 @@ import {
   roundCurrency,
 } from '../../services/financialCalculator.ts';
 import { CashDenominationCounter } from './CashDenominationCounter.tsx';
+import { CarriedOverSummary } from './CarriedOverSummary.tsx';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 
@@ -354,6 +357,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // browser. Merged over whatever is on screen, so a row already being counted
   // keeps its figures and only the definitions - name, price, bundle, order -
   // come from the catalogue.
+  useEffect(() => {
+    let cancelled = false;
+    fetchDayCustomerCredits(shift.id)
+      .then((rows) => {
+        if (!cancelled) setCarriedCredits(rows);
+      })
+      .catch((err) => console.warn('[ShiftClosingWizard] day credits:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.id]);
+
   useEffect(() => {
     let cancelled = false;
     fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id)
@@ -770,6 +785,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // cup and handed over with the envelope once it fills. Recorded as an
   // expense until now and deleted again later - which cut the day's profit
   // while it stood and left no trace once it was gone.
+  // Credits and returns from earlier shifts of the same day. Read-only here:
+  // they belong to a shift that is already closed. Shown as one summary that
+  // opens into the individual entries, rather than a list of other people's
+  // customers burying this operator's own.
+  const [carriedCredits, setCarriedCredits] = useState<DayCustomerCredit[]>([]);
+
   const [coinHandover, setCoinHandover] = useState<string>(
     shift.coin_handover !== undefined && shift.coin_handover !== null
       ? String(shift.coin_handover)
@@ -871,6 +892,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               updated.push({
                 id: item.id,
                 shift_id: shift.id,
+                // Kept so the screen can tell this shift's own entries from
+                // what an earlier shift of the same day already recorded.
+                // Without it every pulled expense looked like this
+                // operator's, and they could edit a closed shift's figures.
+                carried_from_shift_id: item.shift_id && item.shift_id !== shift.id
+                  ? item.shift_id
+                  : undefined,
                 organization_id: orgId,
                 store_id: shift.store_id,
                 category: item.category || 'EXPENSES_GP',
@@ -997,6 +1025,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   };
 
   // Calculated figures using isolated Financial Calculator service
+  // Entries from earlier shifts of the same day collapse into one summary;
+  // only what this shift recorded stays editable. Both still count towards
+  // the totals, because the day reconciles against all of them.
+  const carriedExpenses = expenses.filter((e: any) => !!e.carried_from_shift_id);
+  const ownExpenses = expenses.filter((e: any) => !e.carried_from_shift_id);
+
   const expensesGpCashTotal = expenses.reduce(
     (acc, exp) =>
       acc + (exp.payment_method !== 'CARD' && !isFnbExpense(exp.category) ? safeNum(exp.amount) : 0),
@@ -2664,14 +2698,30 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
             )}
 
-            {expenses.length === 0 ? (
+            {carriedExpenses.length > 0 && (
+              <div className="mb-3">
+                <CarriedOverSummary
+                  title="Έξοδα από προηγούμενες βάρδιες της ημέρας"
+                  rows={carriedExpenses.map((e: any) => ({
+                    id: String(e.id),
+                    label: e.description || e.category || 'Έξοδο',
+                    amount: Number(e.amount) || 0,
+                    detail: e.category === 'EXPENSES_FNB' ? 'Έξοδα FnB' : 'Έξοδα ΓΠ',
+                  }))}
+                />
+              </div>
+            )}
+
+            {ownExpenses.length === 0 ? (
               <div className="p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500 font-medium space-y-1.5">
                 <Receipt className="w-6 h-6 mx-auto text-slate-300" />
-                <p>Δεν έχουν καταχωρηθεί έξοδα για αυτή τη βάρδια.</p>
+                <p>Δεν έχουν καταχωρηθεί έξοδα σε αυτή τη βάρδια.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {expenses.map((exp, idx) => (
+                {ownExpenses.map((exp) => {
+                  const idx = expenses.indexOf(exp);
+                  return (
                   <div
                     key={exp.id || idx}
                     className="p-4 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
@@ -2756,7 +2806,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -2776,7 +2827,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           </div>
 
           {/* Customer Credit Feature */}
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            {carriedCredits.length > 0 && (
+              <CarriedOverSummary
+                title="Χρεώσεις & εισπράξεις από προηγούμενες βάρδιες της ημέρας"
+                tone="amber"
+                rows={carriedCredits.map((c) => ({
+                  id: c.id,
+                  label: c.customer_name,
+                  amount: Number(c.amount) || 0,
+                  detail: c.type === 'COLLECTED' ? 'Είσπραξη' : 'Χορήγηση πίστωσης',
+                  negative: c.type === 'COLLECTED',
+                }))}
+              />
+            )}
             <CustomerCreditSection
               customerCredits={customerCredits}
               onChangeCredits={setCustomerCredits}

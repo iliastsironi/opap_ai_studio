@@ -68,6 +68,8 @@ const functions = [
   ['discrepancy_charge', { p_discrepancy: -5, p_tolerance: 2 }],
   // 0033 - what today started on, for a shift continuing the day.
   ['shift_day_opening', { p_store_id: 'nonexistent', p_register_id: 'nonexistent' }],
+  // 0043 - what earlier shifts of the day recorded against customers.
+  ['shift_day_customer_credits', { p_shift_id: NOWHERE }],
 ];
 
 // Functions that change data. Existence is checked by calling them with

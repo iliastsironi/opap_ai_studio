@@ -327,6 +327,37 @@ export async function recordShiftInspection(
   if (error) throw error;
 }
 
+// What earlier shifts of the same day already recorded against customers.
+//
+// Through an RPC because 0022 makes a closed shift private to whoever worked
+// it, and these transactions hang off those shifts - at 15:00 the morning's
+// belong to somebody else. Raw rows rather than a total, because the closing
+// screen collapses them into one summary that opens into the individual
+// entries on request.
+export interface DayCustomerCredit {
+  id: string;
+  customer_id: string | null;
+  customer_name: string;
+  type: string;
+  amount: number;
+  shift_id: string | null;
+  created_at: string;
+  source: string | null;
+}
+
+export async function fetchDayCustomerCredits(shiftId: string): Promise<DayCustomerCredit[]> {
+  try {
+    const { data, error } = await supabase.rpc('shift_day_customer_credits', {
+      p_shift_id: shiftId,
+    });
+    if (error) throw error;
+    return (data ?? []) as DayCustomerCredit[];
+  } catch (error) {
+    console.warn('Error fetching the day\'s customer credits:', error);
+    return [];
+  }
+}
+
 export function subscribeToShifts(
   orgId: string,
   storeId: string,
