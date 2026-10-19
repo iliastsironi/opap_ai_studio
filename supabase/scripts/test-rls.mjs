@@ -747,6 +747,117 @@ async function main() {
     await admin.from('shifts').delete().eq('store_id', storeId);
   }
 
+  // --- 53-58: the morning inspection (0036) --------------------------------
+  // The newest RPC and the one with the most refusal paths. It is also the
+  // only place a charge is raised OUTSIDE sync_shift_close_effects, so the
+  // «charged in full, no tolerance» rule and the two-causes-per-shift key are
+  // both checked here against the live function rather than assumed.
+  {
+    const storeId = `test_store_insp_${suffix}`;
+    await admin.from('stores').insert({
+      id: storeId, organization_id: orgA, code: 'INS', name: 'Test Store Inspection', store_type: 'OPAP_AGENCY',
+    }).throwOnError();
+
+    // Worked by u4 (EMPLOYEE), so the charge is not waived by role. Closed
+    // with a shortage INSIDE the tolerance, so the close trigger charges
+    // nothing - anything the inspection charges is the inspection's doing.
+    const mkNightShift = async () => {
+      const { data, error } = await admin.from('shifts').insert({
+        organization_id: orgA, store_id: storeId,
+        register_id: `REG-INS-${Math.random().toString(36).slice(2, 7)}`,
+        opened_by_user_id: u4.user.id, opened_by_user_name: 'Test Four',
+        status: 'SUBMITTED', opened_at: new Date(Date.now() - 36e5).toISOString(),
+        closed_at: new Date().toISOString(),
+        discrepancy: -1, discrepancy_threshold: 15,
+      }).select().maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const chargesFor = async (shiftId) => {
+      const { data } = await admin.from('employee_charges')
+        .select('cause, amount, status').eq('shift_id', shiftId).order('cause');
+      return data ?? [];
+    };
+
+    // 53: a finding is charged in full - 5 € stands even under a 15 € limit,
+    // because the tolerance covers a miscount at closing, not what the next
+    // person found missing.
+    const flagged = await mkNightShift();
+    const { error: flagErr } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: flagged.id, p_status: 'FLAGGED', p_shortfall: 5,
+      p_detail: { lines: [{ key: 'cash', expected: 1000, found: 995 }] },
+    });
+    const flagCharges = await chargesFor(flagged.id);
+    const inspection = flagCharges.find((c) => c.cause === 'INSPECTION');
+    record('53: a finding is charged in full, past the tolerance',
+      !flagErr && inspection && Number(inspection.amount) === 5 && inspection.status === 'OPEN',
+      flagErr ? flagErr.message
+        : inspection ? `${inspection.amount} / ${inspection.status}`
+        : `no INSPECTION charge (${flagCharges.length} charge(s))`);
+
+    // 54: and it lands on the shift, where a manager reviewing it will see it.
+    const { data: flaggedAfter } = await admin.from('shifts')
+      .select('inspection_status, inspection_shortfall, inspected_by_user_id')
+      .eq('id', flagged.id).maybeSingle();
+    record('54: the finding is recorded on the shift that was inspected',
+      flaggedAfter?.inspection_status === 'FLAGGED'
+        && Number(flaggedAfter.inspection_shortfall) === 5
+        && flaggedAfter.inspected_by_user_id === u6.user.id,
+      flaggedAfter ? `${flaggedAfter.inspection_status} ${flaggedAfter.inspection_shortfall}` : 'no row');
+
+    // 55: both causes coexist. This is what dropping UNIQUE(shift_id) bought,
+    // and the close trigger must not have cancelled the inspection charge
+    // when it re-ran.
+    await client6.from('shifts').update({ discrepancy: -20 }).eq('id', flagged.id).throwOnError();
+    const bothCharges = await chargesFor(flagged.id);
+    record('55: a till shortage and an inspection charge sit side by side',
+      bothCharges.length === 2
+        && bothCharges.some((c) => c.cause === 'TILL_SHORTAGE' && Number(c.amount) === 5)
+        && bothCharges.some((c) => c.cause === 'INSPECTION' && Number(c.amount) === 5 && c.status === 'OPEN'),
+      bothCharges.map((c) => `${c.cause}:${c.amount}/${c.status}`).join(' ') || 'none');
+
+    // 56: skipping records the choice and charges nobody.
+    const skipped = await mkNightShift();
+    const { error: skipErr } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: skipped.id, p_status: 'SKIPPED', p_shortfall: 0, p_detail: { skipped: true },
+    });
+    const skipCharges = await chargesFor(skipped.id);
+    const { data: skipAfter } = await admin.from('shifts')
+      .select('inspection_status').eq('id', skipped.id).maybeSingle();
+    record('56: skipping is recorded and charges nobody',
+      !skipErr && skipAfter?.inspection_status === 'SKIPPED' && skipCharges.length === 0,
+      skipErr ? skipErr.message : `${skipAfter?.inspection_status}, ${skipCharges.length} charge(s)`);
+
+    // 57: nobody inspects their own handover. u4 worked it, so u4 is refused.
+    const own = await mkNightShift();
+    const { error: ownErr } = await client4.rpc('record_shift_inspection', {
+      p_shift_id: own.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null,
+    });
+    record('57: you cannot inspect your own shift',
+      !!ownErr && ownErr.code === '42501',
+      ownErr ? `refused (${ownErr.code})` : 'ALLOWED - the operator graded themselves');
+
+    // 58: a shift still being worked has nothing to inspect - charging for a
+    // till its operator has not finished counting would be nonsense.
+    const { data: openShift } = await admin.from('shifts').insert({
+      organization_id: orgA, store_id: storeId,
+      register_id: `REG-INS-${Math.random().toString(36).slice(2, 7)}`,
+      opened_by_user_id: u4.user.id, status: 'DRAFT_CLOSING',
+    }).select().maybeSingle();
+    const { error: openErr } = await client6.rpc('record_shift_inspection', {
+      p_shift_id: openShift.id, p_status: 'FLAGGED', p_shortfall: 5, p_detail: null,
+    });
+    record('58: an unclosed shift cannot be inspected',
+      !!openErr && openErr.code === '22023',
+      openErr ? `refused (${openErr.code})` : 'ALLOWED');
+
+    await admin.from('employee_charges').delete().eq('store_id', storeId);
+    await admin.from('notifications').delete().eq('store_id', storeId);
+    await admin.from('incidents').delete().eq('store_id', storeId);
+    await admin.from('audit_logs').delete().eq('organization_id', orgA).eq('action', 'SHIFT_INSPECTION');
+    await admin.from('shifts').delete().eq('store_id', storeId);
+  }
+
   // --- 36-38: the scratch catalogue ----------------------------------------
   // 0030 moved it out of localStorage, where the Owner's laptop and the till
   // computer each held their own list of games at their own prices. The point
@@ -883,6 +994,7 @@ async function main() {
   await admin.from('stores').delete().like('id', `test_store_del_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_disc_${suffix}`);
   await admin.from('stores').delete().like('id', `test_store_day_${suffix}`);
+  await admin.from('stores').delete().like('id', `test_store_insp_${suffix}`);
   await admin.from('users').delete().in('id', [u1.user.id, u2.user.id, u3.user.id, u4.user.id, u5.user.id, u6.user.id]);
   await admin.auth.admin.deleteUser(u1.user.id);
   await admin.auth.admin.deleteUser(u2.user.id);
