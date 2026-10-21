@@ -1,5 +1,6 @@
 import { supabase } from './supabase.ts';
 import { Customer, CreditScoreTier, CreditTierConfig, CustomerCredit } from '../types/index.ts';
+import { sortByGreekName } from '../lib/greekSort.ts';
 
 export const DEFAULT_CREDIT_TIER_CONFIGS: Record<CreditScoreTier, CreditTierConfig> = {
   'A+': {
@@ -100,7 +101,13 @@ export async function getCustomers(orgId: string, storeId?: string): Promise<Cus
     if (storeId) q = q.eq('store_id', storeId);
     const { data, error } = await q;
     if (error) throw error;
-    return (data ?? []) as Customer[];
+    // Alphabetically, here rather than in each list: the charge dropdown, the
+    // directory and everything else that shows customers all came back in
+    // the database's own order, which is creation order.
+    //
+    // Sorted in the client on purpose - the ordering has to be Greek, and the
+    // column's collation is whatever the database was created with.
+    return sortByGreekName((data ?? []) as Customer[]);
   } catch (e) {
     console.warn('Failed to load customers', e);
     return [];
