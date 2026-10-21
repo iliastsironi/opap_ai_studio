@@ -14,6 +14,7 @@ import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTE
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
+import { presetsForCategory, suppliersForCategory } from '../../lib/expenseSuppliers.ts';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -796,9 +797,11 @@ export const ExpensesManager: React.FC = () => {
                 >
                   <option value="">-- Επιλέξτε Προμηθευτή από τη Λίστα --</option>
                   
-                  {/* Database Registered Suppliers */}
+                  {/* Database Registered Suppliers, for the category chosen
+                      above - the list used to ignore it and offer every
+                      supplier and every preset for every kind of expense. */}
                   <optgroup label="Εγγεγραμμένοι Προμηθευτές (Μητρώο)">
-                    {suppliers.map((s) => (
+                    {suppliersForCategory(category, suppliers).map((s) => (
                       <option key={s.id} value={s.id}>
                         {/* The parenthetical is only worth showing when it says
                             something. Falling back to the literal «Προμηθευτής»
@@ -809,21 +812,13 @@ export const ExpensesManager: React.FC = () => {
                     ))}
                   </optgroup>
 
-                  {/* Standard Agency & Public Utilities */}
-                  <optgroup label="Κοινόχρηστα & Λογαριασμοί / Utilities">
-                    <option value="ΔΕΗ / Ηλεκτρικό Ρεύμα">ΔΕΗ / Ενέργεια (Ηλεκτρικό Ρεύμα)</option>
-                    <option value="ΕΥΔΑΠ / Ύδρευση">ΕΥΔΑΠ (Ύδρευση / Αποχέτευση)</option>
-                    <option value="Cosmote / ΟΤΕ (Τηλεπικοινωνίες)">Cosmote / OTE (Internet & Τηλεφωνία)</option>
-                    <option value="Nova / Wind (Τηλεπικοινωνίες & TV)">Nova / Wind (Τηλεπικοινωνίες & TV)</option>
-                  </optgroup>
-
-                  {/* Operational & Consumables */}
-                  <optgroup label="Αναλώσιμα, Καθαριότητα & FnB">
-                    <option value="Καθαριστικά & Είδη Υγιεινής">Καθαριστικά & Είδη Υγιεινής (Super Market)</option>
-                    <option value="Χαρτικά, Ρολά POS & Τερματικών">Χαρτικά, Ρολά POS & Τερματικών (Βιβλιοπωλείο)</option>
-                    <option value="Προμηθευτής Καφέ & Ροφημάτων">Προμηθευτής Καφέ & Ροφημάτων (FnB)</option>
-                    <option value="Snacks & Είδη Κυλικείου">Snacks & Είδη Κυλικείου (FnB)</option>
-                    <option value="Τεχνικός Συντήρησης / Βλάβες">Τεχνικός Συντήρησης / Ηλεκτρολόγος / Ψυκτικός</option>
+                  {/* The built-in recipients for this category. The nine of
+                      them used to be listed in full under two fixed group
+                      headings, whatever was being entered. */}
+                  <optgroup label="Συνήθεις Παραλήπτες">
+                    {presetsForCategory(category).map((preset) => (
+                      <option key={preset.value} value={preset.value}>{preset.label}</option>
+                    ))}
                   </optgroup>
 
                   {/* Custom Option */}
