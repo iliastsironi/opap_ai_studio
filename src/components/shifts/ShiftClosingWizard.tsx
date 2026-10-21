@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import {
   deleteShiftFromFirestore, fetchDayCustomerCredits, DayCustomerCredit,
+  fetchDayCoinHandover,
 } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -183,6 +184,7 @@ import { duplicateGroups } from '../../lib/duplicateExpense.ts';
 import { creditTotals } from '../../lib/creditTotals.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
+import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -367,6 +369,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         if (!cancelled) setCarriedCredits(rows);
       })
       .catch((err) => console.warn('[ShiftClosingWizard] day credits:', err));
+    fetchDayCoinHandover(shift.id)
+      .then((amount) => {
+        if (!cancelled) setCarriedCoinHandover(amount);
+      })
+      .catch((err) => console.warn('[ShiftClosingWizard] day coin handovers:', err));
     return () => {
       cancelled = true;
     };
@@ -794,6 +801,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // customers burying this operator's own.
   const [carriedCredits, setCarriedCredits] = useState<DayCustomerCredit[]>([]);
 
+  /**
+   * Coins an earlier shift of the same day already sent out.
+   *
+   * Read from the server, never typed: the operator closing now did not make
+   * that handover and should not have to write it down again. See
+   * lib/coinHandoverCarry.ts for what it does to the count and the envelope.
+   */
+  const [carriedCoinHandover, setCarriedCoinHandover] = useState(0);
   const [coinHandover, setCoinHandover] = useState<string>(
     shift.coin_handover !== undefined && shift.coin_handover !== null
       ? String(shift.coin_handover)
@@ -1111,9 +1126,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // in by this till - leaving it out would read as a shortage of exactly its
   // amount. It goes into the counted total and then leaves with the envelope
   // instead of staying behind as float.
-  const countedCash = roundCurrency(
-    calculateCountedCash(denominations) + Math.max(0, safeNum(coinHandover))
-  );
+  //
+  // And the same for a cup an earlier shift of the day sent out: that money
+  // is gone from the drawer while the day's opening still counts it, so the
+  // count has to carry it. Previously the evening operator typed the
+  // morning's figure into their own handover field to make the till balance,
+  // which told the screen they were sending out a second cup.
+  const coinTotals = coinHandoverTotals({
+    drawerCash: calculateCountedCash(denominations),
+    ownHandover: coinHandover,
+    carriedToday: carriedCoinHandover,
+  });
+  const countedCash = roundCurrency(coinTotals.countedForReconciliation);
 
   const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
@@ -1163,7 +1187,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fixedFloat: openingCashTotal,
     safeDrops: totalSafeDrops(safeDrops),
     discrepancySettlement: settlementCash,
-    coinHandover: safeNum(coinHandover),
+    coinHandover: coinTotals.ownHandover,
+    carriedCoinHandover: coinTotals.carriedToday,
   });
 
   const receiptData: ShiftReceiptData = {
@@ -3017,6 +3042,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </div>
               </div>
             </div>
+            {/* Read-only, and above the operator's own figure: the point is
+                that they do NOT type this one. Without it the only way to
+                make the till balance was to re-enter the morning's cup as
+                their own, which then asked them to hand it over twice. */}
+            {carriedCoinHandover > 0 && (
+              <p className="text-micro font-bold text-amber-900 bg-amber-100/70 border border-amber-200 rounded-xl px-3 py-2 flex items-start gap-1.5">
+                <span aria-hidden="true">↪</span>
+                <span>{carriedCoinNote(carriedCoinHandover)}</span>
+              </p>
+            )}
             {safeNum(coinHandover) > 0 && (
               <p className="text-micro font-bold text-amber-900 border-t border-amber-200 pt-2">
                 Στο συρτάρι μένουν {formatCurrency(banknotesAndCoins.coins)} κέρματα ·
@@ -3298,7 +3333,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 {envelope.isShort ? (
                   <p className="text-rose-700 font-semibold">
                     Το συρτάρι έχει λιγότερα από το πάγιο κεφάλαιο
-                    ({formatCurrency(openingCashTotal)}).
+                    ({formatCurrency(openingCashTotal - envelope.carriedCoinHandover)}).
                   </p>
                 ) : (
                   <p>
@@ -3310,6 +3345,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <p>
                     Περιλαμβάνει {formatCurrency(envelope.coinHandover)} παράδοση
                     κερμάτων.
+                  </p>
+                )}
+                {/* Said out loud, because it is the reason the drawer is
+                    allowed to hold less than the full πάγιο κεφάλαιο. */}
+                {envelope.carriedCoinHandover > 0 && (
+                  <p>
+                    Το πάγιο είναι μειωμένο κατά{' '}
+                    {formatCurrency(envelope.carriedCoinHandover)} — κέρματα που
+                    παραδόθηκαν νωρίτερα σήμερα.
                   </p>
                 )}
                 {envelope.settlement > 0 && (

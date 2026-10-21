@@ -367,6 +367,28 @@ export async function fetchDayCustomerCredits(shiftId: string): Promise<DayCusto
   }
 }
 
+/**
+ * What the day's earlier shifts already sent out in coins (0046).
+ *
+ * Returns 0 rather than throwing on any failure, including the RPC not
+ * existing yet: a close must not be blocked by this, and 0 is exactly the
+ * behaviour that was running before - the operator re-enters the figure, as
+ * they have been doing.
+ */
+export async function fetchDayCoinHandover(shiftId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('shift_day_coin_handover', {
+      p_shift_id: shiftId,
+    });
+    if (error) throw error;
+    const amount = Number(data ?? 0);
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+  } catch (error) {
+    console.warn('Error fetching the day\'s coin handovers:', error);
+    return 0;
+  }
+}
+
 export function subscribeToShifts(
   orgId: string,
   storeId: string,
