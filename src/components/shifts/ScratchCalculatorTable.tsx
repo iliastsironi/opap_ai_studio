@@ -24,6 +24,13 @@ import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode } from '../../lib/scratchPack.ts';
+import {
+  canUndoPack,
+  lastPackOpened,
+  openPack,
+  undoLastPack,
+  type PackHistoryEntry,
+} from '../../lib/scratchPackHistory.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -45,6 +52,11 @@ export interface ScratchTicketRow {
   closedPackQty?: number;
   /** The codes of the packs closed this shift, oldest first. */
   closedPackCodes?: string[];
+  /**
+   * What each pack opening overwrote, so a wrong code or a mis-click can be
+   * taken back exactly. See lib/scratchPackHistory.ts.
+   */
+  packHistory?: PackHistoryEntry[];
   // Dual-unit (πεντάδες/κομμάτια) tracking, e.g. Λαϊκό Λαχείο. Presence of
   // bundleSize (pieces per bundle, e.g. 5) activates this mode for the row.
   // startNo/endNo keep their exact existing meaning (remaining piece count
@@ -224,7 +236,10 @@ export function carryOverScratchInventory(
         ? String(prev.backEndNo).trim()
         : suggestedBackEnd(Number(prev.price) || base.price);
 
-      result.push({
+        // The pack carries over; what was sold off it does not. A new shift
+        // starts its own count, and its own undo history - the morning must
+        // not be able to take back a pack the night opened.
+        result.push({
         ...base,
         price: Number(prev.price) || base.price,
         startNo: nextStart,
@@ -234,6 +249,10 @@ export function carryOverScratchInventory(
         manualQty: '',
         saleBundles: '',
         salePieces: '',
+        packCode: prev.packCode,
+        closedPackQty: 0,
+        closedPackCodes: [],
+        packHistory: [],
       });
     } else {
       result.push({ ...base, endNo: '', backEndNo: base.backEndNo || suggestedBackEnd(base.price), backStartNo: '', saleBundles: '', salePieces: '' });
@@ -268,6 +287,13 @@ export function carryOverScratchInventory(
         countingMode: prev.countingMode,
         saleBundles: '',
         salePieces: '',
+        // The pack carries over; what was sold off it does not. A new shift
+        // starts its own count, and its own undo history - the morning must
+        // not be able to take back a pack the night opened.
+        packCode: prev.packCode,
+        closedPackQty: 0,
+        closedPackCodes: [],
+        packHistory: [],
       });
     }
   }
@@ -377,6 +403,14 @@ export function mergeScratchCatalogWithSaved(
       backEndNo: match.backEndNo || '',
       manualQty: match.manualQty !== undefined ? match.manualQty : '',
       isNewPack: match.isNewPack || false,
+      // The pack a till is actually counting with, and what the packs before
+      // it sold. These live on the shift, not in the catalogue, so they have
+      // to come from the saved row - taking them from the catalogue instead
+      // lost a finished pack's tickets on every reload.
+      packCode: match.packCode !== undefined ? match.packCode : item.packCode,
+      closedPackQty: Math.max(0, Number(match.closedPackQty) || 0),
+      closedPackCodes: [...(match.closedPackCodes ?? [])],
+      packHistory: [...(match.packHistory ?? [])],
       saleBundles: match.saleBundles || '',
       salePieces: match.salePieces || '',
       bundleSize: match.bundleSize !== undefined ? match.bundleSize : item.bundleSize,
@@ -1167,27 +1201,43 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
       : automatic;
 
-    const updated = rows.map((r) => {
-      if (r.id !== rowId) return r;
-      return {
-        ...r,
-        closedPackQty: Math.max(0, Number(r.closedPackQty) || 0) + soldOut,
-        closedPackCodes: [...(r.closedPackCodes ?? []), String(r.packCode ?? '').trim()]
-          .filter((c) => c !== ''),
-        packCode: newPackCode.trim(),
-        startNo: newPackStartNo,
-        endNo: '',
-        backEndNo: newPackBackEndNo,
-        backStartNo: '',
-        saleBundles: '',
-        salePieces: '',
-        isNewPack: true,
-      };
-    });
+    const updated = rows.map((r) =>
+      r.id === rowId
+        ? openPack(r, {
+            code: newPackCode,
+            soldOut,
+            startNo: newPackStartNo,
+            backEndNo: newPackBackEndNo,
+          })
+        : r
+    );
     onChangeRows(updated);
     setNewPackModalRowId(null);
     setNewPackCode('');
     setNewPackRemainder('');
+  };
+
+  /**
+   * Takes back the last pack opened on a row - the wrong code typed, or the
+   * button pressed on the wrong game. Asks first, because it puts the ticket
+   * numbers back to where they were and removes the sale the finished pack
+   * had booked.
+   */
+  const handleUndoPack = (rowId: string) => {
+    if (readOnly) return;
+    const target = rows.find((r) => r.id === rowId);
+    if (!target) return;
+    const last = lastPackOpened(target);
+    if (!last) return;
+
+    const message =
+      `Αναίρεση του πακέτου ${last.code} στο «${target.name}»;\n\n` +
+      `Θα αφαιρεθούν ${last.addedQty} δελτία από την πώληση και οι αριθμοί ` +
+      `θα επιστρέψουν όπως ήταν (αρχικό ${last.previous.startNo || '-'}` +
+      `, τελικό ${last.previous.endNo || '-'}).`;
+    if (!window.confirm(message)) return;
+
+    onChangeRows(rows.map((r) => (r.id === rowId ? undoLastPack(r) : r)));
   };
 
   const handleAddRow = (categoryName = 'Σκρατς 5€') => {
@@ -1569,6 +1619,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   <span className="bg-emerald-100 text-emerald-800 text-micro font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
                                     Νέο Πακέτο
                                   </span>
+                                )}
+                                {!readOnly && canUndoPack(row) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUndoPack(row.id)}
+                                    title={`Αναίρεση του πακέτου ${lastPackOpened(row)?.code ?? ''}`}
+                                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors cursor-pointer text-micro font-bold"
+                                  >
+                                    <span aria-hidden="true">↩</span>
+                                    Αναίρεση
+                                  </button>
                                 )}
                               </div>
                               <div className="flex items-center space-x-1 shrink-0">
