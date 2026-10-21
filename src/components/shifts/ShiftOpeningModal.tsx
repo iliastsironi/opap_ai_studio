@@ -33,6 +33,8 @@ import { SCRATCH_DAY_BASELINE_KEY, SCRATCH_PAYOUTS_BASELINE_KEY } from '../../li
 import {
   InspectionLine, summariseInspection, inspectionStatusFor, lineFinding,
 } from '../../lib/shiftInspection.ts';
+import { shouldOfferInspection } from '../../lib/inspectionPolicy.ts';
+import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
 import {
   ShiftInspectionPanel, buildInspectionLines, applyInspectionToScratchRows,
 } from './ShiftInspectionPanel.tsx';
@@ -126,6 +128,16 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // is NOT the day rule, so the operator has to be told rather than shown a
   // number that looks official.
   const [dayOpeningError, setDayOpeningError] = useState<string | null>(null);
+  /**
+   * The store's own catalogue, as stored.
+   *
+   * The opening screen used to build its rows from whatever THIS browser had
+   * in localStorage. A game the Owner registered in Διαμόρφωση therefore
+   * reached a till only if that till's browser happened to know it already -
+   * and on the shop computer it did not. The closing screen has read the
+   * stored catalogue since it moved to the database; this is the other half.
+   */
+  const [storeCatalog, setStoreCatalog] = useState<any[] | null>(null);
 
   // Η επιθεώρηση. Built once the previous handover and the resolved float are
   // known, because «expected» is exactly what this screen is about to write
@@ -198,7 +210,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // Goes through shift_handover_snapshot() rather than reading the
         // previous shift row: since 0022 a closed shift is private to whoever
         // worked it, and at a handover that is someone else.
-        const [prev, config, today] = await Promise.all([
+        const [prev, config, today, catalog] = await Promise.all([
           fetchHandoverSnapshot(selectedStoreId, registerId, shiftStartIso),
           getShiftTemplateConfig(organization!.id, selectedStoreId).catch(() => null),
           // The day's opening, for the day THIS shift will be recorded on -
@@ -211,9 +223,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // back to the previous close, and the operator was shown the coins
           // that close had counted. Which is exactly what was reported.
           fetchDayOpening(selectedStoreId, registerId, shiftDayKey),
+          // Falls back to the presets on its own if nothing is stored, which
+          // is the same list localStorage would have started from.
+          fetchScratchCatalog(organization!.id, selectedStoreId).catch(() => null),
         ]);
 
         if (!isMounted) return;
+        setStoreCatalog(catalog && catalog.length > 0 ? catalog : null);
 
         const floatNotes = Number(config?.opening_float_notes ?? 150);
         const floatCoins = Number(config?.opening_float_coins ?? 50);
@@ -299,7 +315,16 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // belongs to somebody else, and nobody has checked yet. The RPC
         // refuses all three cases anyway; offering them would waste the
         // operator's time and then error.
-        const inspectable = prev
+        // Whether this store asks this shift at all, before asking whether
+        // there is anything to check. A mid-day handover cannot be counted
+        // against a declaration - see lib/inspectionPolicy.ts.
+        const offered = shouldOfferInspection({
+          mode: (config as any)?.inspection_mode,
+          isFirstOfDay: !todaySnapshot,
+        });
+
+        const inspectable = offered
+          && prev
           && prev.shift_id
           && (prev.shift_status === 'SUBMITTED' || prev.shift_status === 'APPROVED')
           && !prev.inspection_status
@@ -323,7 +348,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // nothing declared to check against, and the panel simply was not
           // there. Nobody could tell that from an absence.
           setInspectionUnavailable(
-            !prev || !prev.shift_id
+            !offered
+              ? null
+              : !prev || !prev.shift_id
               ? null
               : prev.shift_status === 'OPEN' || prev.shift_status === 'DRAFT_CLOSING'
               ? `Η προηγούμενη βάρδια (${prev.previous_operator_name || 'προηγούμενος'}) δεν έχει κλείσει ακόμα, οπότε δεν υπάρχουν δηλωμένα νούμερα για επιθεώρηση. Κλείστε την πρώτα και η επιθεώρηση θα εμφανιστεί.`
@@ -420,10 +447,19 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         inspectionSkipped ? null : inspectionLines
       );
 
+      // The store's stored catalogue decides which games the till shows, with
+      // this browser's own list as the fallback for an org that has never
+      // saved one. Passing undefined would silently mean localStorage.
+      const baseCatalog = storeCatalog ?? undefined;
+
       const initialScratchInventory = canContinueDay
-        ? continueDayScratchInventory(dayOpening!.scratch_ticket_items ?? undefined)
+        ? continueDayScratchInventory(
+            dayOpening!.scratch_ticket_items ?? undefined,
+            baseCatalog as any
+          )
         : carryOverScratchInventory(
-            declaredRows || getLatestStoreScratchInventory(targetStoreId)
+            declaredRows || getLatestStoreScratchInventory(targetStoreId),
+            baseCatalog as any
           );
 
       // Because the table now counts from the day's opening, the figure the

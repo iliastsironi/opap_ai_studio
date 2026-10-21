@@ -22,6 +22,9 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   opening_float_coins: 50,
   opening_float_employee_editable: false,
   shifts_per_day: 3,
+  // The way the agency runs: the morning checks what the night left, and
+  // nobody is asked to count a till in the middle of trade.
+  inspection_mode: 'FIRST_SHIFT_ONLY',
   topup_employee_allowed: false,
   safedrop_employee_allowed: false,
   morning_coins_carry_over: true,

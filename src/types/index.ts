@@ -368,6 +368,10 @@ export interface ShiftTemplateConfig {
   opening_float_coins: number;
   opening_float_employee_editable: boolean;
   shifts_per_day: 2 | 3;
+  // Who is asked for the επιθεώρηση. The morning can count a drawer against
+  // the night's declaration because the shop was shut; a mid-day handover
+  // cannot, so this is the store's own call. See lib/inspectionPolicy.ts.
+  inspection_mode: 'FIRST_SHIFT_ONLY' | 'EVERY_SHIFT' | 'OFF';
   topup_employee_allowed: boolean;
   safedrop_employee_allowed: boolean;
   morning_coins_carry_over: boolean;

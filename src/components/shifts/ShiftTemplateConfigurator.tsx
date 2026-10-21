@@ -42,6 +42,7 @@ import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { ScratchModeChangeModal } from './ScratchModeChangeModal.tsx';
 import { ScratchSellingMode } from './ScratchCalculatorTable.tsx';
+import { INSPECTION_MODE_OPTIONS, normalizeInspectionMode } from '../../lib/inspectionPolicy.ts';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
@@ -1026,6 +1027,33 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <option value={2}>2 βάρδιες (Πρωινή, Βραδινή)</option>
                 <option value={3}>3 βάρδιες (Πρωινή, Απογευματινή, Βραδινή)</option>
               </select>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-inspection" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Επιθεώρηση ταμείου
+              </label>
+              <select
+                id="cfg-inspection"
+                disabled={!canManageScratchMode}
+                value={normalizeInspectionMode(template.inspection_mode)}
+                onChange={(e) =>
+                  setTemplate((prev) => ({
+                    ...prev,
+                    inspection_mode: normalizeInspectionMode(e.target.value),
+                  }))
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 bg-white disabled:bg-slate-50 cursor-pointer"
+              >
+                {INSPECTION_MODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="text-micro text-slate-500 mt-1">
+                {INSPECTION_MODE_OPTIONS.find(
+                  (o) => o.value === normalizeInspectionMode(template.inspection_mode)
+                )?.hint}
+              </p>
             </div>
 
             <div>
