@@ -10,13 +10,13 @@ describe("the day's first shift", () => {
     // at a store configured for 50.
     const empty = { countedCash: 0, openingCash: 0, notes: 0, coins: 0 };
     expect(resolveOpeningFloat(empty, configured)).toEqual({
-      notes: 150, coins: 50, carriedOver: false,
+      notes: 150, coins: 50, carriedOver: false, topUpsInherited: 0,
     });
   });
 
   it('uses the configured float when there is no previous shift at all', () => {
     expect(resolveOpeningFloat(null, configured)).toEqual({
-      notes: 150, coins: 50, carriedOver: false,
+      notes: 150, coins: 50, carriedOver: false, topUpsInherited: 0,
     });
   });
 
@@ -24,7 +24,7 @@ describe("the day's first shift", () => {
     // The night's notes left in the envelope; the ψιλά stay in the drawer.
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(resolveOpeningFloat(lastNight, configured)).toEqual({
-      notes: 150, coins: 12.37, carriedOver: false,
+      notes: 150, coins: 12.37, carriedOver: false, topUpsInherited: 0,
     });
   });
 
@@ -36,7 +36,7 @@ describe("the day's first shift", () => {
     // ψιλά in the drawer, which is what a float is for.
     const noCoins = { countedCash: 11522.11, notes: 11522.11, coins: 0 };
     expect(resolveOpeningFloat(noCoins, configured)).toEqual({
-      notes: 150, coins: 50, carriedOver: false,
+      notes: 150, coins: 50, carriedOver: false, topUpsInherited: 0,
     });
   });
 
@@ -47,13 +47,13 @@ describe("the day's first shift", () => {
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(
       resolveOpeningFloat(lastNight, { ...configured, morningCoinsCarryOver: false })
-    ).toEqual({ notes: 150, coins: 50, carriedOver: false });
+    ).toEqual({ notes: 150, coins: 50, carriedOver: false, topUpsInherited: 0 });
   });
 
   it('carries the coins when the store does, which is the default', () => {
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(resolveOpeningFloat(lastNight, { ...configured, morningCoinsCarryOver: true }))
-      .toEqual({ notes: 150, coins: 12.37, carriedOver: false });
+      .toEqual({ notes: 150, coins: 12.37, carriedOver: false, topUpsInherited: 0 });
     // Undefined behaves as the carrying it replaced.
     expect(resolveOpeningFloat(lastNight, configured).coins).toBe(12.37);
   });
@@ -64,7 +64,7 @@ describe("the day's first shift", () => {
     // this shift the whole of last night's takings as its opening.
     const lastNight = { countedCash: 812.37, notes: 800, coins: 12.37 };
     expect(resolveOpeningFloat(lastNight, configured, null)).toEqual({
-      notes: 150, coins: 12.37, carriedOver: false,
+      notes: 150, coins: 12.37, carriedOver: false, topUpsInherited: 0,
     });
   });
 });
@@ -79,7 +79,7 @@ describe('every later shift of the same day', () => {
 
   it('opens on the day’s opening, not on what the previous shift counted', () => {
     expect(resolveOpeningFloat(morningTook, configured, dayOpening)).toEqual({
-      notes: 1000, coins: 47.35, carriedOver: true,
+      notes: 1000, coins: 47.35, carriedOver: true, topUpsInherited: 0,
     });
   });
 
@@ -95,7 +95,7 @@ describe('every later shift of the same day', () => {
     for (const carry of [true, false]) {
       expect(
         resolveOpeningFloat(morningTook, { ...configured, morningCoinsCarryOver: carry }, dayOpening)
-      ).toEqual({ notes: 1000, coins: 47.35, carriedOver: true });
+      ).toEqual({ notes: 1000, coins: 47.35, carriedOver: true, topUpsInherited: 0 });
     }
   });
 
@@ -104,7 +104,7 @@ describe('every later shift of the same day', () => {
     // Continuing that literally hands 0,00 to every later shift of the day,
     // in front of a tray that does have ψιλά in it.
     expect(resolveOpeningFloat(morningTook, configured, { notes: 1000, coins: 0 })).toEqual({
-      notes: 1000, coins: 50, carriedOver: true,
+      notes: 1000, coins: 50, carriedOver: true, topUpsInherited: 0,
     });
   });
 
@@ -112,7 +112,7 @@ describe('every later shift of the same day', () => {
     // All-zero is not «the day started on nothing», it is no usable snapshot,
     // and continuing it would put 0,00 in front of the operator.
     expect(resolveOpeningFloat(morningTook, configured, { notes: 0, coins: 0 })).toEqual({
-      notes: 150, coins: 12.5, carriedOver: false,
+      notes: 150, coins: 12.5, carriedOver: false, topUpsInherited: 0,
     });
     expect(dayAlreadyOpened({ notes: 0, coins: 0 })).toBe(false);
     expect(dayAlreadyOpened(null)).toBe(false);
@@ -148,7 +148,60 @@ describe('coins carried across the night', () => {
 
   it('starts the morning on the night’s counted coins, not the float', () => {
     expect(resolveOpeningFloat(lastNight, configured, null)).toEqual({
-      notes: 1000, coins: 173.5, carriedOver: false,
+      notes: 1000, coins: 173.5, carriedOver: false, topUpsInherited: 0,
     });
+  });
+});
+
+describe('a προσαύξηση made earlier the same day', () => {
+  const configured = { notes: 1000, coins: 50 };
+
+  it('is in the drawer, so the next shift opens on it', () => {
+    // 1/9 at GameHall: the morning opened on 1000 + 183,70 and fetched 700
+    // from the safe. The envelope takes only what is above the float, and a
+    // top-up IS float, so the evening's drawer holds it.
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000, coins: 183.7, topUpsToday: 700,
+    });
+    expect(float.notes).toBe(1700);
+    expect(float.coins).toBe(183.7);
+    expect(float.notes + float.coins).toBe(1883.7);
+  });
+
+  it('says how much of the float it is', () => {
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000, coins: 183.7, topUpsToday: 700,
+    });
+    expect(float.topUpsInherited).toBe(700);
+  });
+
+  it('changes nothing on a day that had none', () => {
+    const float = resolveOpeningFloat(null, configured, { notes: 1000, coins: 95.2 });
+    expect(float.notes).toBe(1000);
+    expect(float.topUpsInherited).toBe(0);
+  });
+
+  it('does not cross the night', () => {
+    // Yesterday's top-ups left in yesterday's last envelope.
+    const float = resolveOpeningFloat(
+      { countedCash: 1800, coins: 47.35 }, configured, null
+    );
+    expect(float.notes).toBe(1000);
+    expect(float.topUpsInherited).toBe(0);
+  });
+
+  it('ignores a negative, which is not a top-up', () => {
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000, coins: 50, topUpsToday: -200,
+    });
+    expect(float.notes).toBe(1000);
+    expect(float.topUpsInherited).toBe(0);
+  });
+
+  it('keeps the cents honest', () => {
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000.1, coins: 50, topUpsToday: 0.2,
+    });
+    expect(float.notes).toBe(1000.3);
   });
 });

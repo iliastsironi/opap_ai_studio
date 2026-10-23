@@ -43,6 +43,27 @@ export interface PreviousClose {
 export interface DayOpening {
   notes?: number | null;
   coins?: number | null;
+  /**
+   * Προσαυξήσεις already made today, by any shift of this day.
+   *
+   * Money added to the drawer part-way through a shift stays there: the
+   * envelope takes what is above the float, and a top-up raises the float.
+   * So a later shift of the same day opens on a drawer holding it, and
+   * offering that shift the day's original figures leaves it short by the
+   * whole amount.
+   *
+   * It is folded into the NOTES rather than the coins: the Owner confirmed a
+   * προσαύξηση is banknotes, which the live figures bear out - 630, 700,
+   * 1300, money fetched from the safe rather than ψιλά. That also keeps the
+   * coins line meaning ψιλά, which is what carries overnight.
+   *
+   * Inherited, never re-declared: the shift does not record a top-up of its
+   * own, so the monthly P&L - which sums the day's shifts - counts each one
+   * once. Operators had been retyping the figure on the evening shift to
+   * make the till balance, which is why every day in the live data that has
+   * a top-up shows it twice.
+   */
+  topUpsToday?: number | null;
 }
 
 export interface ConfiguredFloat {
@@ -71,12 +92,20 @@ export interface OpeningFloat {
    * operator's to set, so the UI may lock them and say where they came from.
    */
   carriedOver: boolean;
+  /**
+   * How much of `notes` is a προσαύξηση inherited from earlier today, so the
+   * screen can say so rather than show a float that grew for no visible
+   * reason.
+   */
+  topUpsInherited: number;
 }
 
 const num = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+const round2 = (n: number): number => Math.round(n * 100) / 100 + 0;
 
 /** Whether the previous shift left anything behind worth carrying. */
 export function previousWasCounted(previous: PreviousClose | null | undefined): boolean {
@@ -107,10 +136,16 @@ export function resolveOpeningFloat(
     // operator at a store configured for 50 in front of a tray that does have
     // ψιλά in it.
     const dayCoins = num(dayOpening!.coins);
+    // The day's top-ups ride with the notes. They are in the drawer: the
+    // envelope only ever takes what is above the float, and a top-up is
+    // float. Leaving them out is what made the evening open short by the
+    // whole amount and pushed operators into retyping the figure.
+    const topUps = Math.max(0, num(dayOpening!.topUpsToday));
     return {
-      notes: num(dayOpening!.notes),
+      notes: round2(num(dayOpening!.notes) + topUps),
       coins: dayCoins > 0 ? dayCoins : configured.coins,
       carriedOver: true,
+      topUpsInherited: topUps,
     };
   }
 
@@ -119,11 +154,11 @@ export function resolveOpeningFloat(
   if (!previousWasCounted(previous)) {
     // Nothing to carry. The configured float beats a zero that only means
     // «the last shift never did anything».
-    return { notes: configured.notes, coins: configured.coins, carriedOver: false };
+    return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0 };
   }
 
   if (configured.morningCoinsCarryOver === false) {
-    return { notes: configured.notes, coins: configured.coins, carriedOver: false };
+    return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0 };
   }
 
   // Carrying, but only what was actually counted. A close recording zero
@@ -137,5 +172,7 @@ export function resolveOpeningFloat(
     notes: configured.notes,
     coins: carriedCoins > 0 ? carriedCoins : configured.coins,
     carriedOver: false,
+    // Overnight. Yesterday's top-ups left in yesterday's last envelope.
+    topUpsInherited: 0,
   };
 }

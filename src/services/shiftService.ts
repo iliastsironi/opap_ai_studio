@@ -147,6 +147,14 @@ export interface DayOpeningSnapshot {
   scratch_gross_today: number | null;
   /** And what it had already paid out, the same way (0039). */
   scratch_payouts_today: number | null;
+  /**
+   * Προσαυξήσεις already made today at this register (0047).
+   *
+   * Folded into the float a later shift opens on, rather than retyped by
+   * that shift - see lib/openingFloat.ts. Undefined until 0047 runs, which
+   * reads as none and leaves the old behaviour in place.
+   */
+  topups_today?: number | null;
 }
 
 /**

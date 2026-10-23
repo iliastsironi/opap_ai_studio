@@ -139,6 +139,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
    * stored catalogue since it moved to the database; this is the other half.
    */
   const [storeCatalog, setStoreCatalog] = useState<any[] | null>(null);
+  /** How much of the day's float is a προσαύξηση made earlier today (0047). */
+  const [inheritedTopUps, setInheritedTopUps] = useState(0);
 
   // Η επιθεώρηση. Built once the previous handover and the resolved float are
   // known, because «expected» is exactly what this screen is about to write
@@ -267,11 +269,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           const float = resolveOpeningFloat(null, configuredFloat, {
             notes: Number(todaySnapshot.opening_cash_notes ?? 0),
             coins: Number(todaySnapshot.opening_cash_coins ?? 0),
+            // What the day has already fetched from the safe. It is in the
+            // drawer - the envelope only takes what is above the float - so
+            // this shift opens on it instead of being handed the day's
+            // original figures and coming up short by the whole amount.
+            topUpsToday: Number((todaySnapshot as any).topups_today ?? 0),
           });
           resolvedFloat = { notes: float.notes, coins: float.coins };
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
+          setInheritedTopUps(float.topUpsInherited);
         } else {
           // The day's first shift. The notes reset to the float - last
           // night's left in the envelope - and the coins carry over if the
@@ -311,6 +319,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
+          setInheritedTopUps(0);
         }
         // The inspection is offered only for a handover that is finished,
         // belongs to somebody else, and nobody has checked yet. The RPC
@@ -545,6 +554,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           scratch_ticket_items: initialScratchInventory,
           [SCRATCH_DAY_BASELINE_KEY]: scratchDayBaseline,
           [SCRATCH_PAYOUTS_BASELINE_KEY]: scratchPayoutsBaseline,
+          // How much of this shift's float is a προσαύξηση made earlier
+          // today. Not a top-up of its own - that would count it twice in
+          // the P&L - just a note so the closing screen can say the money
+          // is already in the figure and stop it being typed again.
+          inherited_topups: inheritedTopUps,
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -875,6 +889,15 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     dayOpening?.opened_by_user_name ? ` (${dayOpening.opened_by_user_name})` : ''
                   }. Ο φάκελος κάθε κλεισίματος παραδίδεται και στο συρτάρι μένει το πάγιο κεφάλαιο.`}
                 </span>
+                {/* Said out loud, or the float looks as though it grew for no
+                    reason. The money is in the drawer - a προσαύξηση raises
+                    the float, and the envelope only takes what is above it. */}
+                {inheritedTopUps > 0 && (
+                  <span className="text-micro text-indigo-900 font-bold block mt-1">
+                    Περιλαμβάνεται προσαύξηση {inheritedTopUps.toFixed(2).replace('.', ',')} € που
+                    έγινε νωρίτερα σήμερα — μην την ξαναγράψετε.
+                  </span>
+                )}
               </div>
             </div>
           )}

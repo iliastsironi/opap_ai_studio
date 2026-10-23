@@ -260,6 +260,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const topUpTotal = totalTopUps(topUps);
 
+  /**
+   * A προσαύξηση made earlier today, already inside this shift's float (0047).
+   *
+   * Shown, not editable: it belongs to the shift that made it. Before this,
+   * the evening operator retyped the morning's figure to make the till
+   * balance, which is why every day in the live data that has a top-up shows
+   * it on both shifts - and the P&L, which sums them, reported double.
+   */
+  const inheritedTopUps = Math.max(
+    0,
+    safeNum((shift.custom_field_values as any)?.inherited_topups)
+  );
+
   const openingCashTotal =
     safeNum(openingNotesAmount) +
     safeNum(openingCoinsAmount) +
@@ -2113,6 +2126,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
+
+                {/* Already inside the figures above. Said here because this
+                    is where the habit lives: the evening operator used to
+                    retype the morning's προσαύξηση to make the till balance,
+                    and the P&L counted it twice. */}
+                {inheritedTopUps > 0 && (
+                  <div className="sm:col-span-2 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-micro font-bold text-indigo-900">
+                    ↪ Το αρχικό ταμείο περιλαμβάνει ήδη προσαύξηση{' '}
+                    {formatCurrency(inheritedTopUps)} από προηγούμενη βάρδια της ημέρας.
+                    Μην την ξαναγράψετε εδώ — εδώ μπαίνει μόνο ό,τι προσθέσατε εσείς.
+                  </div>
+                )}
 
                 {topUps.map((value, idx) => (
                   <div key={idx}>
