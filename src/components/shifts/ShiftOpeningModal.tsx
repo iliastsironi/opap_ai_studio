@@ -35,6 +35,7 @@ import {
 } from '../../lib/shiftInspection.ts';
 import { shouldOfferInspection } from '../../lib/inspectionPolicy.ts';
 import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
+import { applyEthnikoShape } from '../../lib/ethnikoLottery.ts';
 import {
   ShiftInspectionPanel, buildInspectionLines, applyInspectionToScratchRows,
 } from './ShiftInspectionPanel.tsx';
@@ -452,15 +453,20 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       // saved one. Passing undefined would silently mean localStorage.
       const baseCatalog = storeCatalog ?? undefined;
 
-      const initialScratchInventory = canContinueDay
-        ? continueDayScratchInventory(
-            dayOpening!.scratch_ticket_items ?? undefined,
-            baseCatalog as any
-          )
-        : carryOverScratchInventory(
-            declaredRows || getLatestStoreScratchInventory(targetStoreId),
-            baseCatalog as any
-          );
+      // Pinned here too, not only on the closing screen: these rows are what
+      // gets stored on the shift, and a row saved with the wrong shape is
+      // what the next shift inherits. Εθνικό Λαχείο counts πεντάδες.
+      const initialScratchInventory = applyEthnikoShape(
+        canContinueDay
+          ? continueDayScratchInventory(
+              dayOpening!.scratch_ticket_items ?? undefined,
+              baseCatalog as any
+            )
+          : carryOverScratchInventory(
+              declaredRows || getLatestStoreScratchInventory(targetStoreId),
+              baseCatalog as any
+            )
+      );
 
       // Because the table now counts from the day's opening, the figure the
       // operator will see at closing is the DAY's running total, not this

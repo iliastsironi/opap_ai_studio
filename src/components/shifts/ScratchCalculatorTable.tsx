@@ -25,6 +25,13 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode } from '../../lib/scratchPack.ts';
 import {
+  applyEthnikoShape,
+  canToggleBundleTracking,
+  ETHNIKO_BUNDLE_PRICE,
+  lotteryUnitLabel,
+  lotteryUnitLabelPlural,
+} from '../../lib/ethnikoLottery.ts';
+import {
   canUndoPack,
   lastPackOpened,
   openPack,
@@ -123,7 +130,12 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
   { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
   { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
-  { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: 20, startNo: '', endNo: '' },
+  // One πεντάδα at 20 EUR, and no dual tracking: bundleSize is spelled out
+  // rather than left undefined, which is what let lottery_bundle_default
+  // decide and made the row flip between counting πεντάδες and κομμάτια.
+  // Pinned again at load time by applyEthnikoShape, for catalogues already
+  // saved without it.
+  { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: ETHNIKO_BUNDLE_PRICE, bundleSize: 0, startNo: '', endNo: '' },
 ];
 
 export const SCRATCH_CATALOG_STORAGE_KEY = 'shiftledger_scratch_catalog_v2';
@@ -587,6 +599,14 @@ export function applyCountingDefaults(
 // LAIKO_ROW_ID usage in the render below).
 export function applyLaikoDefaults(rows: ScratchTicketRow[]): ScratchTicketRow[] {
   return rows.map((row) => (row.id === LAIKO_ROW_ID ? { ...row, price: 2, bundleSize: 5 } : row));
+}
+
+// The same treatment for Εθνικό Λαχείο, whose unit is the πεντάδα itself.
+// Applied after applyCountingDefaults, because it exists precisely to
+// override the store-wide lottery default that was flipping it. See
+// lib/ethnikoLottery.ts for why it is 20 EUR x one unit and not 4 EUR x five.
+export function applyLotteryProductShapes(rows: ScratchTicketRow[]): ScratchTicketRow[] {
+  return applyEthnikoShape(applyLaikoDefaults(rows));
 }
 
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
@@ -1558,6 +1578,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isBundleTracked = isBundleTrackedRow(row);
                     const isManual = getCountingMode(row) === 'manual';
                     const isLaikoBundlesOnly = row.id === LAIKO_ROW_ID && laikoSellingMode === 'BUNDLES_ONLY';
+                    const rowUnitLabel = lotteryUnitLabel(row);
+                    const rowUnitPlural = lotteryUnitLabelPlural(row);
                     const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
@@ -1688,11 +1710,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                           ) : (
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
                               {isLaikoBundlesOnly ? formatCurrency((Number(row.price) || 0) * rowBundleSize) : formatCurrency(row.price)}
-                              {isBundleTracked && (
+                              {/* A row that names its own unit says so even
+                                  without dual tracking - Εθνικό counts
+                                  πεντάδες and used to show a bare 20,00 € with
+                                  nothing to say what for. */}
+                              {rowUnitLabel ? (
+                                <span className="block text-micro font-semibold text-slate-500">
+                                  /{rowUnitLabel}
+                                </span>
+                              ) : isBundleTracked ? (
                                 <span className="block text-micro font-semibold text-slate-500">
                                   {isLaikoBundlesOnly ? `/${rowBundleSize}άδα` : '/κομμάτιο'}
                                 </span>
-                              )}
+                              ) : null}
                             </span>
                           )}
                         </td>
@@ -2125,7 +2155,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 Ρυθμίσεις Καταμέτρησης
                               </p>
                               <div className="flex flex-wrap items-center gap-4">
-                                {isLottery && (
+                                {isLottery && canToggleBundleTracking(row) && (
                                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
                                     <input
                                       type="checkbox"
@@ -2135,6 +2165,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     />
                                     <span>Πώληση σε πεντάδες + κομμάτια</span>
                                   </label>
+                                )}
+                                {/* Not a choice: there is no unit below the
+                                    πεντάδα to sell. Leaving the toggle on
+                                    screen is how the row drifted. */}
+                                {isLottery && !canToggleBundleTracking(row) && (
+                                  <span className="text-micro font-semibold text-slate-500">
+                                    Πωλείται μόνο σε {rowUnitPlural} — {formatCurrency(row.price)} η καθεμία.
+                                  </span>
                                 )}
                                 {isLottery && isBundleTracked && (
                                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">

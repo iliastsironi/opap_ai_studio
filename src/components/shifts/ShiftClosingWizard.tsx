@@ -52,7 +52,7 @@ import {
   getLatestStoreScratchInventory,
   saveLatestStoreScratchInventory,
   applyCountingDefaults,
-  applyLaikoDefaults,
+  applyLotteryProductShapes,
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -399,7 +399,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       .then((config) => {
         if (cancelled) return;
         setScratchRows((prev) =>
-          applyLaikoDefaults(
+          applyLotteryProductShapes(
             applyCountingDefaults(prev, {
               scratch_backside_default: config.scratch_backside_default,
               lottery_bundle_default: config.lottery_bundle_default,
