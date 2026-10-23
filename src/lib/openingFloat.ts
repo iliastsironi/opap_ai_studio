@@ -52,10 +52,12 @@ export interface DayOpening {
    * offering that shift the day's original figures leaves it short by the
    * whole amount.
    *
-   * It is folded into the NOTES rather than the coins: the Owner confirmed a
-   * προσαύξηση is banknotes, which the live figures bear out - 630, 700,
-   * 1300, money fetched from the safe rather than ψιλά. That also keeps the
-   * coins line meaning ψιλά, which is what carries overnight.
+   * It is folded into the NOTES, and which side it lands on does not matter:
+   * a προσαύξηση may be notes or coins, and only the TOTAL does any work.
+   * The expected cash is measured against notes + coins, and the overnight
+   * coin carry reads the previous shift's counted_denominations - what was
+   * actually in the drawer - never this split. So the two boxes are a
+   * presentation of one figure, not a claim about what was fetched.
    *
    * Inherited, never re-declared: the shift does not record a top-up of its
    * own, so the monthly P&L - which sums the day's shifts - counts each one

@@ -205,3 +205,25 @@ describe('a προσαύξηση made earlier the same day', () => {
     expect(float.notes).toBe(1000.3);
   });
 });
+
+describe('which box the προσαύξηση shows in', () => {
+  const configured = { notes: 1000, coins: 50 };
+
+  it('changes the total by the same amount either way', () => {
+    // It may be notes or coins. Only the total is measured against the till,
+    // so the split is presentation - see the note in openingFloat.ts.
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000, coins: 95.2, topUpsToday: 700,
+    });
+    expect(float.notes + float.coins).toBe(1795.2);
+  });
+
+  it('leaves the coins line meaning ψιλά', () => {
+    // Whatever is in that box is what a later overnight carry falls back to
+    // when no denominations were counted, so it must not absorb a top-up.
+    const float = resolveOpeningFloat(null, configured, {
+      notes: 1000, coins: 95.2, topUpsToday: 700,
+    });
+    expect(float.coins).toBe(95.2);
+  });
+});

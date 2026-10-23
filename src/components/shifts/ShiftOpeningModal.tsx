@@ -273,6 +273,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             // drawer - the envelope only takes what is above the float - so
             // this shift opens on it instead of being handed the day's
             // original figures and coming up short by the whole amount.
+            //
+            // It shows under the notes box. A προσαύξηση can be either, and
+            // the box it sits in changes nothing: the total is what the
+            // till is measured against.
             topUpsToday: Number((todaySnapshot as any).topups_today ?? 0),
           });
           resolvedFloat = { notes: float.notes, coins: float.coins };
