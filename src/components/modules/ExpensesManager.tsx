@@ -15,6 +15,7 @@ import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { presetsForCategory, suppliersForCategory } from '../../lib/expenseSuppliers.ts';
+import { MoneyField } from '../ui/MoneyField.tsx';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -162,7 +163,16 @@ export const ExpensesManager: React.FC = () => {
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountCheck = parseNonNegativeAmount(amount, MAX_CURRENCY_AMOUNT);
-    if (!amountCheck.isValid || amountCheck.value <= 0) return;
+    if (!amountCheck.isValid || amountCheck.value <= 0) {
+      // Said out loud. This used to return in silence: the button did
+      // nothing, nothing was saved, and nothing on screen explained it.
+      setCreateError(
+        amountCheck.value <= 0 && amountCheck.isValid
+          ? 'Συμπληρώστε ποσό μεγαλύτερο από 0.'
+          : 'Το ποσό δεν είναι έγκυρο. Γράψτε έναν αριθμό, π.χ. 12,50.'
+      );
+      return;
+    }
     const finalRecipient = selectedSupplierId === 'CUSTOM' ? (customRecipient.trim() || 'Προμηθευτής') : (recipient.trim() || 'Προμηθευτής');
     setSubmitting(true);
     setCreateError(null);
@@ -720,16 +730,11 @@ export const ExpensesManager: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="expense-amount" className="block text-slate-700 font-semibold mb-1">Ποσό (€)</label>
-                  <input
+                  <MoneyField
                     id="expense-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
                     placeholder="0.00"
-                    required
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={setAmount}
                     className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-slate-900 bg-white"
                   />
                 </div>

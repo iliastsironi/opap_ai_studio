@@ -14,8 +14,10 @@
  *     shown everywhere. We do not know that it does not belong, and a
  *     supplier that cannot be reached from any category would be worse than
  *     a slightly long list;
- *   - if narrowing leaves nothing at all, the full list comes back. An empty
- *     dropdown is a dead end, not a filter.
+ *   - the built-in recipients fall back to the full set for a category that
+ *     has none of its own - «Έξοδα ΓΠ» is the general bucket, so everything
+ *     is plausible there. The register does NOT fall back: that turned the
+ *     filter back into «show them all» precisely where it mattered.
  */
 
 export type ExpenseCategory =
@@ -26,6 +28,11 @@ export type ExpenseCategory =
   | 'MAINTENANCE'
   | 'UTILITIES'
   | 'OTHER';
+
+/** Every category an expense can be filed under, in the order the forms list them. */
+export const EXPENSE_CATEGORY_KEYS: ExpenseCategory[] = [
+  'EXPENSES_GP', 'EXPENSES_FNB', 'SUPPLIES', 'UTILITIES', 'CLEANING', 'MAINTENANCE', 'OTHER',
+];
 
 export interface PresetSupplier {
   /** The value stored as the expense's recipient. */
@@ -86,11 +93,14 @@ export function suppliersForCategory<T extends RegisteredSupplier>(
   category: string,
   suppliers: T[]
 ): T[] {
-  const matching = suppliers.filter((s) => {
+  // Strictly. An earlier version fell back to the whole register when
+  // nothing matched, so «δείξε μόνο αυτούς της κατηγορίας» quietly became
+  // «δείξε τους όλους» on exactly the categories that needed narrowing most.
+  // Nothing is left stranded: a supplier with no meaningful category is
+  // still shown everywhere by the rule above, the built-in recipients are
+  // always offered, and both fields accept anything typed by hand.
+  return suppliers.filter((s) => {
     const own = expenseCategoryOfSupplier(s.category);
     return own === null || own === category;
   });
-  // Every supplier is categorised and none of them this way: show them all
-  // rather than an empty register.
-  return matching.length > 0 ? matching : suppliers;
 }

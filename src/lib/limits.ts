@@ -31,7 +31,11 @@ export function parseNonNegativeAmount(
   if (raw === undefined || raw === null || String(raw).trim() === '') {
     return { value: 0, isValid: true };
   }
-  const str = String(raw).trim();
+  // The comma is the decimal separator on a Greek keyboard, so it is the
+  // first key pressed after the whole euros. Rejecting it meant «12,50» was
+  // not a number at all: the expense screen then returned without saving and
+  // without saying why, and 12,50 EUR quietly never reached the books.
+  const str = String(raw).trim().replace(',', '.');
   if (!/^\d+(\.\d+)?$/.test(str)) {
     return { value: 0, isValid: false };
   }

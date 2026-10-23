@@ -42,14 +42,50 @@ describe('the registered suppliers', () => {
     expect(suppliersForCategory('EXPENSES_FNB', register).map((s) => s.id)).toEqual(['a', 'c', 'd']);
   });
 
-  it('shows the whole register rather than nothing', () => {
+  it('narrows strictly, even down to nothing', () => {
+    // Falling back to the whole register turned «only this category» into
+    // «all of them» on the categories that needed narrowing most. Nothing is
+    // stranded: the built-in recipients are always offered and the field
+    // takes anything typed by hand.
     const allFnb = [{ id: 'x', category: 'BEVERAGES_FNB' }];
-    expect(suppliersForCategory('UTILITIES', allFnb)).toEqual(allFnb);
+    expect(suppliersForCategory('UTILITIES', allFnb)).toEqual([]);
   });
 
   it('translates only the categories that mean something', () => {
     expect(expenseCategoryOfSupplier('BEVERAGES_FNB')).toBe('EXPENSES_FNB');
     expect(expenseCategoryOfSupplier('OTHER')).toBeNull();
     expect(expenseCategoryOfSupplier(undefined)).toBeNull();
+  });
+});
+
+import { EXPENSE_CATEGORY_KEYS } from '../lib/expenseSuppliers.ts';
+
+describe('the categories the forms offer', () => {
+  it('covers every one the expense rows list', () => {
+    // The closing screen renders one suggestion list per key, so a category
+    // missing here is a row whose list does not exist.
+    expect(EXPENSE_CATEGORY_KEYS).toEqual([
+      'EXPENSES_GP', 'EXPENSES_FNB', 'SUPPLIES', 'UTILITIES', 'CLEANING', 'MAINTENANCE', 'OTHER',
+    ]);
+  });
+
+  it('gives each one something to suggest', () => {
+    for (const key of EXPENSE_CATEGORY_KEYS) {
+      expect(presetsForCategory(key).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps an electricity bill away from the coffee supplier', () => {
+    const register = [
+      { id: 'coffee', name: 'Καφές ΑΕ', category: 'BEVERAGES_FNB' },
+      { id: 'tech', name: 'Τερματικά ΟΠΑΠ', category: 'OPAP_SERVICES' },
+    ];
+    const forBill = [
+      ...presetsForCategory('UTILITIES').map((p) => p.value),
+      ...suppliersForCategory('UTILITIES', register).map((s) => s.name),
+    ];
+    expect(forBill).toContain('ΔΕΗ / Ηλεκτρικό Ρεύμα');
+    expect(forBill).not.toContain('Καφές ΑΕ');
+    expect(forBill).not.toContain('Τερματικά ΟΠΑΠ');
   });
 });

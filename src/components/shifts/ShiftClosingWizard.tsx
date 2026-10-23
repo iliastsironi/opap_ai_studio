@@ -186,6 +186,9 @@ import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
 import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
+import { MoneyField } from '../ui/MoneyField.tsx';
+import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
+import { compareGreek } from '../../lib/greekSort.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -316,7 +319,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // number in this browser's localStorage, which meant the till computer and
   // the Owner's laptop could disagree about how many machines the shop owns.
   const [configuredPosCount, setConfiguredPosCount] = useState<number | null>(null);
-  const [supplierNames, setSupplierNames] = useState<string[]>([]);
+  /**
+   * The suppliers with their own categories, not just their names.
+   *
+   * The list was flattened to names on arrival, so the expense rows could
+   * only ever offer every supplier for every kind of expense - the coffee
+   * supplier under an electricity bill. The category is what narrows it.
+   */
+  const [suppliers, setSuppliers] = useState<Array<{ name: string; category?: unknown }>>([]);
   const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
   const [safeDropAllowedForEmployee, setSafeDropAllowedForEmployee] = useState(false);
   const [newSafeDropAmount, setNewSafeDropAmount] = useState('');
@@ -346,11 +356,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fetchSuppliersFromFirestore(shift.organization_id || organization!.id)
       .then((list) => {
         if (cancelled) return;
-        setSupplierNames(
+        setSuppliers(
           list
-            .map((sup) => (sup.trade_name || sup.company_name || '').trim())
-            .filter((name) => name.length > 0)
-            .sort((a, b) => a.localeCompare(b, 'el'))
+            .map((sup) => ({
+              name: (sup.trade_name || sup.company_name || '').trim(),
+              category: (sup as any).category,
+            }))
+            .filter((sup) => sup.name.length > 0)
+            .sort((a, b) => compareGreek(a.name, b.name))
         );
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load suppliers:', err));
@@ -2081,14 +2094,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Χαρτονομίσματα (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={openingNotesAmount}
                     disabled={!floatEditableByEmployee}
-                    onChange={(e) => setOpeningNotesAmount(e.target.value)}
+                    onChange={(next) => setOpeningNotesAmount(next)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -2097,14 +2106,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Κέρματα / Ψιλά (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={openingCoinsAmount}
                     disabled={!floatEditableByEmployee}
-                    onChange={(e) => setOpeningCoinsAmount(e.target.value)}
+                    onChange={(next) => setOpeningCoinsAmount(next)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -2124,17 +2129,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         </button>
                       )}
                     </label>
-                    <input
+                    <MoneyField
                       id={`topup-${idx}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
                       placeholder="0.00"
                       value={value}
                       disabled={!canManage && !topUpAllowedForEmployee}
-                      onChange={(e) =>
-                        setTopUps((prev) => prev.map((v, i) => (i === idx ? e.target.value : v)))
+                      onChange={(next) =>
+                        setTopUps((prev) => prev.map((v, i) => (i === idx ? next : v)))
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                     />
@@ -2292,14 +2293,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </span>
                   </label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
+                    <MoneyField
                       readOnly={!scratchSalesManualOverride}
                       value={scratchSales}
-                      onChange={(e) => setScratchSales(e.target.value)}
+                      onChange={(next) => setScratchSales(next)}
                       placeholder="0.00"
                       className={`w-full pl-3.5 pr-8 py-2.5 rounded-xl border text-base font-black font-mono shadow-2xs transition-colors ${
                         scratchSalesManualOverride
@@ -2341,13 +2338,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <span className="text-micro text-rose-600 font-normal">Πληρωμές κερδών</span>
                   </label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
+                    <MoneyField
                       value={scratchPayouts}
-                      onChange={(e) => setScratchPayouts(e.target.value)}
+                      onChange={(next) => setScratchPayouts(next)}
                       placeholder="0.00"
                       className="w-full pl-3.5 pr-8 py-2.5 rounded-xl border border-rose-200 text-base font-bold text-rose-700 bg-white focus:ring-2 focus:ring-rose-500 font-mono shadow-2xs transition-colors"
                     />
@@ -2418,13 +2411,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         </div>
 
                         <div className="relative">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max={MAX_CURRENCY_AMOUNT}
+                          <MoneyField
                             value={item.amount}
-                            onChange={(e) => handleUpdatePosItem(item.id, 'amount', e.target.value)}
+                            onChange={(next) => handleUpdatePosItem(item.id, 'amount', next)}
                             placeholder="0.00"
                             className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                           />
@@ -2443,13 +2432,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   </label>
                   <div className="space-y-1">
                     <span className="text-micro font-semibold text-slate-500">Σύνολο (€)</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
+                    <MoneyField
                       value={cleverPointTotal}
-                      onChange={(e) => setCleverPointTotal(e.target.value)}
+                      onChange={(next) => setCleverPointTotal(next)}
                       placeholder="0.00"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                     />
@@ -2469,13 +2454,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   </label>
                   <div className="space-y-1">
                     <span className="text-micro font-semibold text-slate-500">Υπόλοιπο Ταμείου (€)</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
+                    <MoneyField
                       value={ippodromosBalance}
-                      onChange={(e) => setIppodromosBalance(e.target.value)}
+                      onChange={(next) => setIppodromosBalance(next)}
                       placeholder="0.00"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                     />
@@ -2500,13 +2481,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Μετρητά στα VLTs (€)
                       </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={MAX_CURRENCY_AMOUNT}
+                      <MoneyField
                         value={vltsIn}
-                        onChange={(e) => setVltsIn(e.target.value)}
+                        onChange={(next) => setVltsIn(next)}
                         placeholder="0.00"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                       />
@@ -2517,14 +2494,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       }`}>
                         Ροή Μετρητών VLTs (€)
                       </label>
-                      <input
+                      <MoneyField
                         id="vlts-out"
-                        type="number"
-                        step="0.01"
-                        min={-MAX_CURRENCY_AMOUNT}
-                        max={MAX_CURRENCY_AMOUNT}
                         value={vltsOut}
-                        onChange={(e) => setVltsOut(e.target.value)}
+                        onChange={(next) => setVltsOut(next)}
                         placeholder="0.00"
                         className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono ${
                           signedVltsOut < 0
@@ -2551,14 +2524,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </label>
                     {/* Signed, like the VLT flow beside it: a negative balance is
                         typed with its own minus and simply shows red. */}
-                    <input
+                    <MoneyField
                       id="pame-stoixima"
-                      type="number"
-                      step="0.01"
-                      min={-MAX_CURRENCY_AMOUNT}
-                      max={MAX_CURRENCY_AMOUNT}
                       value={pameStoiximaBalance}
-                      onChange={(e) => setPameStoiximaBalance(e.target.value)}
+                      onChange={(next) => setPameStoiximaBalance(next)}
                       placeholder="0.00"
                       className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono bg-white ${
                         safeNum(pameStoiximaBalance) < 0
@@ -2589,13 +2558,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Πωλήσεις (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={arithmoGross}
-                    onChange={(e) => setArithmoGross(e.target.value)}
+                    onChange={(next) => setArithmoGross(next)}
                     placeholder="0.00"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                   />
@@ -2605,13 +2570,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-amber-800 mb-1">
                     Ακυρώσεις (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={arithmoCancels}
-                    onChange={(e) => setArithmoCancels(e.target.value)}
+                    onChange={(next) => setArithmoCancels(next)}
                     placeholder="0.00"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-amber-200 text-base font-bold font-mono text-amber-800 bg-white focus:ring-2 focus:ring-amber-500"
                   />
@@ -2621,13 +2582,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-rose-800 mb-1">
                     Εξαργυρώσεις (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={arithmoPayouts}
-                    onChange={(e) => setArithmoPayouts(e.target.value)}
+                    onChange={(next) => setArithmoPayouts(next)}
                     placeholder="0.00"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 text-base font-bold font-mono text-rose-700 bg-white focus:ring-2 focus:ring-rose-500"
                   />
@@ -2637,13 +2594,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Vouchers (€)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
+                  <MoneyField
                     value={arithmoVouchers}
-                    onChange={(e) => setArithmoVouchers(e.target.value)}
+                    onChange={(next) => setArithmoVouchers(next)}
                     placeholder="0.00"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                   />
@@ -2673,13 +2626,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Συνολικές Πωλήσεις FnB (€)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={MAX_CURRENCY_AMOUNT}
+                <MoneyField
                   value={fnbSales}
-                  onChange={(e) => setFnbSales(e.target.value)}
+                  onChange={(next) => setFnbSales(next)}
                   placeholder="0.00"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-lg font-extrabold font-mono text-slate-900 bg-white"
                 />
@@ -2689,13 +2638,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider mb-1">
                   Μετρητά FnB (€)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={MAX_CURRENCY_AMOUNT}
+                <MoneyField
                   value={fnbCash}
-                  onChange={(e) => setFnbCash(e.target.value)}
+                  onChange={(next) => setFnbCash(next)}
                   placeholder="0.00"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-emerald-200 text-lg font-extrabold font-mono text-emerald-800 bg-white"
                 />
@@ -2705,13 +2650,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1">
                   Κάρτες FnB (€)
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={MAX_CURRENCY_AMOUNT}
+                <MoneyField
                   value={fnbCard}
-                  onChange={(e) => setFnbCard(e.target.value)}
+                  onChange={(next) => setFnbCard(next)}
                   placeholder="0.00"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-indigo-200 text-lg font-extrabold font-mono text-indigo-800 bg-white"
                 />
@@ -2878,7 +2819,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <div className="sm:col-span-4">
                       <input
                         type="text"
-                        list="shift-suppliers-list"
+                        list={`shift-suppliers-${exp.category || 'EXPENSES_GP'}`}
                         maxLength={MAX_NOTES_LENGTH}
                         placeholder="Προμηθευτής / Περιγραφή εξόδου..."
                         value={exp.description || ''}
@@ -2893,16 +2834,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
 
                     <div className="sm:col-span-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={MAX_CURRENCY_AMOUNT}
+                      <MoneyField
                         placeholder="Ποσό €"
-                        value={exp.amount || ''}
-                        onChange={(e) => {
+                        value={String(exp.amount || '')}
+                        onChange={(next) => {
                           const updated = [...expenses];
-                          updated[idx].amount = parseNonNegativeAmount(e.target.value, MAX_CURRENCY_AMOUNT).value;
+                          updated[idx].amount = parseNonNegativeAmount(next, MAX_CURRENCY_AMOUNT).value;
                           setExpenses(updated);
                         }}
                         onBlur={() => handleExpenseFieldBlur(idx)}
@@ -2947,11 +2884,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 Έξοδα screen next door already offered the real ones. An
                 expense typed against a suggested name that is not in the
                 registry is a supplier the books will never match up. */}
-            <datalist id="shift-suppliers-list">
-              {supplierNames.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
+            {/* One list per category rather than one holding everything, so
+                the suggestions under a row follow the category chosen on it.
+                Seven small lists with stable ids, not one per row. */}
+            {EXPENSE_CATEGORY_KEYS.map((key) => (
+              <datalist key={key} id={`shift-suppliers-${key}`}>
+                {[
+                  ...presetsForCategory(key).map((p) => p.value),
+                  ...suppliersForCategory(key, suppliers.map((s, i) => ({ ...s, id: String(i) })))
+                    .map((s) => s.name),
+                ]
+                  .filter((name, i, all) => all.indexOf(name) === i)
+                  .map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+              </datalist>
+            ))}
           </div>
 
           {/* Customer Credit Feature */}
@@ -3049,12 +2997,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   Ποσό (€)
                 </label>
                 <div className="relative">
-                  <input
+                  <MoneyField
                     id="coin-handover"
-                    type="text"
-                    inputMode="decimal"
                     value={coinHandover}
-                    onChange={(e) => setCoinHandover(e.target.value)}
+                    onChange={(next) => setCoinHandover(next)}
                     placeholder="0.00"
                     className="w-full px-3 py-2 pr-7 rounded-xl border border-amber-300 bg-white text-sm font-black text-amber-950 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   />
@@ -3131,13 +3077,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   </div>
 
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={MAX_CURRENCY_AMOUNT}
+                    <MoneyField
                       value={item.amount}
-                      onChange={(e) => handleUpdateStorePosItem(item.id, 'amount', e.target.value)}
+                      onChange={(next) => handleUpdateStorePosItem(item.id, 'amount', next)}
                       placeholder="0.00"
                       className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
                     />
@@ -3205,14 +3147,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   <label htmlFor="safe-drop-amount" className="block text-micro font-bold text-slate-600 mb-1">
                     Ποσό (€)
                   </label>
-                  <input
+                  <MoneyField
                     id="safe-drop-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={MAX_CURRENCY_AMOUNT}
                     value={newSafeDropAmount}
-                    onChange={(e) => setNewSafeDropAmount(e.target.value)}
+                    onChange={(next) => setNewSafeDropAmount(next)}
                     placeholder="0.00"
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
                   />
