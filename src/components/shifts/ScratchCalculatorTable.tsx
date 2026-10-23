@@ -384,11 +384,53 @@ export function getLatestStoreScratchInventory(storeId: string): ScratchTicketRo
  * again when the store's catalogue arrives from the database, without the
  * second run discarding anything typed in between.
  */
+/** Empty, not merely falsy: a position of «0» is a pack at its first ticket. */
+function isBlankPosition(value: unknown): boolean {
+  return value === undefined || value === null || String(value).trim() === '';
+}
+
 export function mergeScratchCatalogWithSaved(
   catalog: ScratchTicketRow[],
-  saved: ScratchTicketRow[] | undefined | null
+  saved: ScratchTicketRow[] | undefined | null,
+  /**
+   * What the previous shift declared, when it can be had.
+   *
+   * For a game the catalogue lists and this shift has no row for. That used
+   * to produce the bare catalogue row - no numbers at all - and the game
+   * appeared on the closing screen starting from nothing, however many
+   * tickets the last shift had left in it. It is how «Σκρατς League» came to
+   * show an empty αρχικό the morning after a night that ended at 29.
+   *
+   * A game nobody has counted yet still opens blank: there is no position to
+   * inherit, and inventing one would be worse.
+   */
+  previousDeclared?: ScratchTicketRow[] | null
 ): ScratchTicketRow[] {
-  if (!Array.isArray(saved) || saved.length === 0) return catalog;
+  // Nothing to seed from: the catalogue is returned exactly as it came,
+  // same array and all, which callers rely on to avoid a pointless re-render.
+  const hasPrevious = Array.isArray(previousDeclared) && previousDeclared.length > 0;
+
+  const seedFromPrevious = (item: ScratchTicketRow): ScratchTicketRow => {
+    if (!hasPrevious) return item;
+    const prev = (previousDeclared ?? []).find(
+      (p) =>
+        p.id === item.id ||
+        (p.name === item.name && (p.category ?? '') === (item.category ?? ''))
+    );
+    if (!prev) return item;
+    // Where the previous shift left it: its closing figure, or its opening
+    // when it never touched the pack - the same rule the overnight carry uses.
+    const handover = !isBlankPosition(prev.endNo)
+      ? String(prev.endNo).trim()
+      : !isBlankPosition(prev.startNo)
+      ? String(prev.startNo).trim()
+      : '';
+    return handover === '' ? item : { ...item, startNo: handover };
+  };
+
+  if (!Array.isArray(saved) || saved.length === 0) {
+    return hasPrevious ? catalog.map(seedFromPrevious) : catalog;
+  }
 
   // Matched on id, falling back to name AND category together.
   //
@@ -404,12 +446,20 @@ export function mergeScratchCatalogWithSaved(
       saved.find((s) => s.id === item.id) ??
       saved.find((s) => s.name === item.name && (s.category ?? '') === (item.category ?? ''));
     if (!match) {
-      merged.push(item);
+      merged.push(seedFromPrevious(item));
       continue;
     }
     merged.push({
       ...item,
-      startNo: match.startNo || '',
+      // A blank αρχικό when the previous shift declared a position is never
+      // right - the carry would have filled it - so it is filled here too.
+      // This is what heals a shift that was already created missing a game:
+      // its row exists by now, with nothing in it.
+      //
+      // Tested for emptiness rather than falsiness: a position of 0 is a
+      // real one, a pack opened at its first ticket, and `||` would read it
+      // as missing and overwrite it with the previous shift's figure.
+      startNo: isBlankPosition(match.startNo) ? seedFromPrevious(item).startNo ?? '' : match.startNo,
       endNo: match.endNo || '',
       backStartNo: match.backStartNo || '',
       backEndNo: match.backEndNo || '',

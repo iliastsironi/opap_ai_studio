@@ -31,7 +31,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import {
   deleteShiftFromFirestore, fetchDayCustomerCredits, DayCustomerCredit,
-  fetchDayCoinHandover,
+  fetchDayCoinHandover, fetchHandoverSnapshot,
 } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -381,10 +381,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id)
-      .then((catalog) => {
+    // The previous shift's declaration comes along for the ride, for a game
+    // the catalogue lists that this shift has no row for. Without it such a
+    // game lands here with an empty αρχικό however many tickets were left in
+    // it - which is exactly what «Σκρατς League» did the morning after a
+    // night that ended at 29.
+    Promise.all([
+      fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id),
+      fetchHandoverSnapshot(shift.store_id, shift.register_id || 'Ταμείο 1', shift.opened_at)
+        .catch(() => null),
+    ])
+      .then(([catalog, handover]) => {
         if (cancelled) return;
-        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current));
+        const declared = (handover?.scratch_ticket_items ?? null) as any[] | null;
+        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current, declared));
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
     return () => {

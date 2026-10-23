@@ -451,7 +451,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       // The store's stored catalogue decides which games the till shows, with
       // this browser's own list as the fallback for an org that has never
       // saved one. Passing undefined would silently mean localStorage.
-      const baseCatalog = storeCatalog ?? undefined;
+      //
+      // Fetched again here if the state has none. The loader runs on an
+      // effect keyed on the store and the start time, so a catalogue that
+      // failed or had not finished left this holding nothing - and the shift
+      // was then created from whatever that browser knew, missing any game
+      // the Owner had registered since. A shift created without a game's row
+      // is the hard case: the closing screen can only add it back blank.
+      const baseCatalog =
+        storeCatalog
+        ?? (await fetchScratchCatalog(organization!.id, targetStoreId).catch(() => null))
+        ?? undefined;
 
       // Pinned here too, not only on the closing screen: these rows are what
       // gets stored on the shift, and a row saved with the wrong shape is
