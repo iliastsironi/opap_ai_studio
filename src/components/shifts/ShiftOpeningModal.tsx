@@ -175,7 +175,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
   const banknotesNum = parseFloat(openingBanknotes.replace(',', '.')) || 0;
   const coinsNum = parseFloat(openingCoins.replace(',', '.')) || 0;
-  const totalOpeningCash = banknotesNum + coinsNum;
+  // Three figures, not two. A προσαύξηση made earlier today is in the drawer
+  // - the envelope only takes what is above the float - but nobody records
+  // whether it was notes or coins, so it is shown on its own rather than
+  // folded into a box and claiming something unknown.
+  const totalOpeningCash = roundCurrency(banknotesNum + coinsNum + inheritedTopUps);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,9 +278,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             // this shift opens on it instead of being handed the day's
             // original figures and coming up short by the whole amount.
             //
-            // It shows under the notes box. A προσαύξηση can be either, and
-            // the box it sits in changes nothing: the total is what the
-            // till is measured against.
+            // Shown on its own line, because it may be notes or coins and
+            // nothing records which.
             topUpsToday: Number((todaySnapshot as any).topups_today ?? 0),
           });
           resolvedFloat = { notes: float.notes, coins: float.coins };
@@ -893,13 +896,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     dayOpening?.opened_by_user_name ? ` (${dayOpening.opened_by_user_name})` : ''
                   }. Ο φάκελος κάθε κλεισίματος παραδίδεται και στο συρτάρι μένει το πάγιο κεφάλαιο.`}
                 </span>
-                {/* Said out loud, or the float looks as though it grew for no
-                    reason. The money is in the drawer - a προσαύξηση raises
-                    the float, and the envelope only takes what is above it. */}
+                {/* Said out loud, or the extra line below looks arbitrary.
+                    The money is in the drawer - a προσαύξηση raises the
+                    float, and the envelope only takes what is above it. */}
                 {inheritedTopUps > 0 && (
                   <span className="text-micro text-indigo-900 font-bold block mt-1">
-                    Περιλαμβάνεται προσαύξηση {inheritedTopUps.toFixed(2).replace('.', ',')} € που
-                    έγινε νωρίτερα σήμερα — μην την ξαναγράψετε.
+                    Έχει γίνει προσαύξηση νωρίτερα σήμερα· φαίνεται χωριστά πιο κάτω και
+                    μετράει στο σύνολο — μην την ξαναγράψετε.
                   </span>
                 )}
               </div>
@@ -1021,6 +1024,20 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Its own line, beneath the two boxes. Read-only: it belongs to
+                the shift that fetched it, and this one is only opening on
+                top of it. */}
+            {inheritedTopUps > 0 && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200">
+                <span className="text-micro font-bold text-indigo-900">
+                  ➕ {toGreekUpper('Προσαυξηση Ημερας')} (€)
+                </span>
+                <span className="text-sm font-black font-mono text-indigo-900">
+                  {inheritedTopUps.toFixed(2)}
+                </span>
+              </div>
+            )}
 
             <p className="text-micro text-slate-500">
               {continuingDay

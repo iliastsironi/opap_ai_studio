@@ -52,12 +52,11 @@ export interface DayOpening {
    * offering that shift the day's original figures leaves it short by the
    * whole amount.
    *
-   * It is folded into the NOTES, and which side it lands on does not matter:
-   * a προσαύξηση may be notes or coins, and only the TOTAL does any work.
-   * The expected cash is measured against notes + coins, and the overnight
-   * coin carry reads the previous shift's counted_denominations - what was
-   * actually in the drawer - never this split. So the two boxes are a
-   * presentation of one figure, not a claim about what was fetched.
+   * It is reported on its own rather than folded into either box. A
+   * προσαύξηση may be notes or coins and nobody records which, so putting it
+   * in one of them states something nobody knows. It is a third figure in
+   * the float, which is exactly how the closing screen has always modelled
+   * it: notes + coins + top-ups.
    *
    * Inherited, never re-declared: the shift does not record a top-up of its
    * own, so the monthly P&L - which sums the day's shifts - counts each one
@@ -144,9 +143,13 @@ export function resolveOpeningFloat(
     // whole amount and pushed operators into retyping the figure.
     const topUps = Math.max(0, num(dayOpening!.topUpsToday));
     return {
-      notes: round2(num(dayOpening!.notes) + topUps),
+      notes: num(dayOpening!.notes),
       coins: dayCoins > 0 ? dayCoins : configured.coins,
       carriedOver: true,
+      // Beside the other two, not inside them. It still has to be in the
+      // float the shift opens on - the money is in the drawer, because the
+      // envelope only ever takes what is above the float - so every caller
+      // adds the three together.
       topUpsInherited: topUps,
     };
   }

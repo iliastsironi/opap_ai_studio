@@ -273,10 +273,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     safeNum((shift.custom_field_values as any)?.inherited_topups)
   );
 
-  const openingCashTotal =
+  // Notes, coins, this shift's own top-ups, and any προσαύξηση the day made
+  // before it. The last one is in the drawer but in neither box - nobody
+  // records whether a προσαύξηση was notes or coins - so it has to be added
+  // here or the till reads short by its whole amount.
+  const openingCashTotal = roundCurrency(
     safeNum(openingNotesAmount) +
     safeNum(openingCoinsAmount) +
-    topUpTotal;
+    topUpTotal +
+    inheritedTopUps
+  );
 
   // Step 2 - Granular OPAP Reports State
   // 1. Ελληνικά Λαχεία | Σκρατς
@@ -2127,15 +2133,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   />
                 </div>
 
-                {/* Already inside the figures above. Said here because this
-                    is where the habit lives: the evening operator used to
-                    retype the morning's προσαύξηση to make the till balance,
-                    and the P&L counted it twice. */}
+                {/* Its own figure, counted in the float above but not typed
+                    here. This is where the habit lives: the evening operator
+                    used to retype the morning's προσαύξηση to make the till
+                    balance, and the P&L, which sums them, counted it twice. */}
                 {inheritedTopUps > 0 && (
-                  <div className="sm:col-span-2 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-micro font-bold text-indigo-900">
-                    ↪ Το αρχικό ταμείο περιλαμβάνει ήδη προσαύξηση{' '}
-                    {formatCurrency(inheritedTopUps)} από προηγούμενη βάρδια της ημέρας.
-                    Μην την ξαναγράψετε εδώ — εδώ μπαίνει μόνο ό,τι προσθέσατε εσείς.
+                  <div className="sm:col-span-2 p-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-micro font-bold text-indigo-900">
+                        ➕ Προσαύξηση προηγούμενης βάρδιας της ημέρας
+                      </span>
+                      <span className="text-sm font-black font-mono text-indigo-900">
+                        {inheritedTopUps.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="text-micro text-indigo-800 mt-1">
+                      Μετράει ήδη στο αρχικό ταμείο. Μην την ξαναγράψετε — εδώ κάτω
+                      μπαίνει μόνο ό,τι προσθέσατε εσείς.
+                    </p>
                   </div>
                 )}
 

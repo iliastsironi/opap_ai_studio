@@ -163,9 +163,11 @@ describe('a προσαύξηση made earlier the same day', () => {
     const float = resolveOpeningFloat(null, configured, {
       notes: 1000, coins: 183.7, topUpsToday: 700,
     });
-    expect(float.notes).toBe(1700);
+    // Reported on its own: nobody records whether a προσαύξηση was notes or
+    // coins, so it goes in neither box - it is the third figure.
+    expect(float.notes).toBe(1000);
     expect(float.coins).toBe(183.7);
-    expect(float.notes + float.coins).toBe(1883.7);
+    expect(float.notes + float.coins + float.topUpsInherited).toBe(1883.7);
   });
 
   it('says how much of the float it is', () => {
@@ -202,28 +204,26 @@ describe('a προσαύξηση made earlier the same day', () => {
     const float = resolveOpeningFloat(null, configured, {
       notes: 1000.1, coins: 50, topUpsToday: 0.2,
     });
-    expect(float.notes).toBe(1000.3);
+    expect(float.notes + float.coins + float.topUpsInherited).toBe(1050.3);
   });
 });
 
 describe('which box the προσαύξηση shows in', () => {
   const configured = { notes: 1000, coins: 50 };
 
-  it('changes the total by the same amount either way', () => {
-    // It may be notes or coins. Only the total is measured against the till,
-    // so the split is presentation - see the note in openingFloat.ts.
+  it('is neither, and leaves both boxes alone', () => {
     const float = resolveOpeningFloat(null, configured, {
       notes: 1000, coins: 95.2, topUpsToday: 700,
     });
-    expect(float.notes + float.coins).toBe(1795.2);
+    expect(float.notes).toBe(1000);
+    expect(float.coins).toBe(95.2);
+    expect(float.topUpsInherited).toBe(700);
   });
 
-  it('leaves the coins line meaning ψιλά', () => {
-    // Whatever is in that box is what a later overnight carry falls back to
-    // when no denominations were counted, so it must not absorb a top-up.
+  it('is still part of the float the shift opens on', () => {
     const float = resolveOpeningFloat(null, configured, {
       notes: 1000, coins: 95.2, topUpsToday: 700,
     });
-    expect(float.coins).toBe(95.2);
+    expect(float.notes + float.coins + float.topUpsInherited).toBe(1795.2);
   });
 });
