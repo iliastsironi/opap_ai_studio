@@ -86,19 +86,22 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
     refreshCustomers();
   }, [refreshCustomers]);
 
+  const blankCredit = (): Partial<CustomerCredit> => ({
+    id: `cred_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    customer_id: '',
+    customer_name: '',
+    customer_tier: 'B',
+    type: 'GRANTED',
+    // Opening a row is not a charge. The amount stays at zero until somebody
+    // types one, which is what «δεν τον χρεώνει» means.
+    amount: 0,
+    notes: '',
+    created_at: new Date().toISOString(),
+  });
+
   const handleAddCredit = () => {
     if (readOnly) return;
-    const newCredit: Partial<CustomerCredit> = {
-      id: `cred_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      customer_id: '',
-      customer_name: '',
-      customer_tier: 'B',
-      type: 'GRANTED',
-      amount: 0,
-      notes: '',
-      created_at: new Date().toISOString(),
-    };
-    onChangeCredits([...customerCredits, newCredit]);
+    onChangeCredits([...customerCredits, blankCredit()]);
   };
 
   const handleRemoveCredit = (index: number) => {
@@ -603,13 +606,25 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
         storeId={storeId}
         isOwnerOrManager={isOwnerOrManager}
         onCustomerSelected={(selected) => {
-          handleAddCredit();
-          setTimeout(() => {
-            const lastIdx = customerCredits.length;
-            handleUpdateCredit(lastIdx, 'customer_id', selected.id);
-            handleUpdateCredit(lastIdx, 'customer_name', selected.name);
-            handleUpdateCredit(lastIdx, 'customer_tier', selected.tier);
-          }, 50);
+          if (readOnly) return;
+          // One append, with the customer already in the row.
+          //
+          // This used to add a blank row and then, 50ms later, call the
+          // update handler three times. All three read `customerCredits`
+          // from the closure captured BEFORE the add, so each one rebuilt
+          // the list from the stale array and overwrote the last: the row
+          // ended up holding only the tier, with no id and no name. Picking
+          // somebody from the directory opened a row that did not show who
+          // it was for.
+          onChangeCredits([
+            ...customerCredits,
+            {
+              ...blankCredit(),
+              customer_id: selected.id,
+              customer_name: selected.name,
+              customer_tier: selected.tier,
+            },
+          ]);
         }}
       />
     </div>

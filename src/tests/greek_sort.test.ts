@@ -42,3 +42,43 @@ describe('customers in alphabetical order', () => {
     expect(names(rows)).toEqual(['Ωμέγα', 'Αλέξης']);
   });
 });
+
+import { sortableName } from '../lib/greekSort.ts';
+
+describe('names recorded with a tag', () => {
+  it('files a tagged name under its own letter', () => {
+    // The live list: four «[Staff] …» customers sorted ahead of everybody,
+    // because «[» comes before every letter. Both halves were alphabetical,
+    // which is why it looked almost right.
+    const rows = [
+      { name: '[Staff] Γιώργος Κουτρομάνος' },
+      { name: 'Βαγγέλης Μπαρτζώκας' },
+      { name: '[Staff] Βάσω Ταραρά' },
+      { name: 'Γιάννης Καυκιάς' },
+    ];
+    expect(names(sortByGreekName(rows))).toEqual([
+      'Βαγγέλης Μπαρτζώκας',
+      '[Staff] Βάσω Ταραρά',
+      // Γιάννης before Γιώργος: with accents folded, α precedes ω.
+      'Γιάννης Καυκιάς',
+      '[Staff] Γιώργος Κουτρομάνος',
+    ]);
+  });
+
+  it('strips only a leading tag', () => {
+    expect(sortableName('[Staff] Βάσω')).toBe('Βάσω');
+    expect(sortableName('[VIP]Κώστας')).toBe('Κώστας');
+    expect(sortableName('Κώστας [VIP]')).toBe('Κώστας [VIP]');
+    expect(sortableName('Βαγγέλης')).toBe('Βαγγέλης');
+  });
+
+  it('keeps the tag in what is shown', () => {
+    const rows = [{ name: '[Staff] Βάσω Ταραρά' }];
+    expect(sortByGreekName(rows)[0].name).toBe('[Staff] Βάσω Ταραρά');
+  });
+
+  it('orders two people whose names differ only by the tag', () => {
+    const rows = [{ name: 'Κώστας' }, { name: '[Staff] Κώστας' }];
+    expect(names(sortByGreekName(rows))).toEqual(['[Staff] Κώστας', 'Κώστας']);
+  });
+});
