@@ -185,6 +185,7 @@ import { creditTotals } from '../../lib/creditTotals.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
+import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -388,12 +389,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     // night that ended at 29.
     Promise.all([
       fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id),
-      fetchHandoverSnapshot(shift.store_id, shift.register_id || 'Ταμείο 1', shift.opened_at)
-        .catch(() => null),
+      // Just BEFORE this shift's own start. The RPC compares with <=, so
+      // passing shift.opened_at returned this very shift - which then
+      // «handed over» its own blank figures to itself, and the game went on
+      // showing an empty αρχικό. See lib/handoverCutoff.ts.
+      fetchHandoverSnapshot(
+        shift.store_id,
+        shift.register_id || 'Ταμείο 1',
+        handoverCutoffBefore(shift.opened_at)
+      ).catch(() => null),
     ])
       .then(([catalog, handover]) => {
         if (cancelled) return;
-        const declared = (handover?.scratch_ticket_items ?? null) as any[] | null;
+        // Belt and braces: a cutoff cannot express «not this one», and two
+        // shifts could in principle share a start time.
+        const declared = (isOwnShift(handover?.shift_id, shift.id)
+          ? null
+          : handover?.scratch_ticket_items ?? null) as any[] | null;
         setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current, declared));
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
