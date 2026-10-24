@@ -80,6 +80,7 @@ import {
   subscribeToShifts,
   deleteShiftFromFirestore,
 } from '../../services/shiftService.ts';
+import { discrepancyClasses } from '../../lib/discrepancyTone.ts';
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, assignedStores } = useAuth();
@@ -882,13 +883,14 @@ export const ShiftsManager: React.FC = () => {
                             (Καταμέτρηση - Αναμενόμενο)
                           </span>
                         </div>
+                        {/* The shift's OWN tolerance, stamped when it was
+                            opened. This list used to paint every shortage
+                            red whatever the store allowed, and every surplus
+                            orange - so the same figure was a different
+                            colour here and on the closing screen. */}
                         <span
-                          className={`font-black text-sm font-mono px-2 py-0.5 rounded-lg ${
-                            s.discrepancy < -0.01
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : s.discrepancy > 0.01
-                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          className={`font-black text-sm font-mono px-2 py-0.5 rounded-lg border ${
+                            discrepancyClasses(s.discrepancy, s.discrepancy_threshold).badge
                           }`}
                         >
                           {formatCurrency(Number(s.discrepancy || 0), { showSign: true })}
@@ -1047,11 +1049,7 @@ export const ShiftsManager: React.FC = () => {
                         <td className="px-3.5 py-3 text-right whitespace-nowrap">
                           <span
                             className={`inline-block font-mono text-xs font-black px-2 py-0.5 rounded-lg border ${
-                              s.discrepancy < -0.01
-                                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : s.discrepancy > 0.01
-                                ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              discrepancyClasses(s.discrepancy, s.discrepancy_threshold).badge
                             }`}
                           >
                             {formatCurrency(Number(s.discrepancy || 0), { showSign: true })}

@@ -191,6 +191,7 @@ import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, EXPENSE_C
 import { compareGreek } from '../../lib/greekSort.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
+import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -1231,6 +1232,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     expectedCash,
     safeNum(discrepancyThreshold)
   );
+
+  // What colour the difference is, from one rule shared with every other
+  // screen that shows it. See lib/discrepancyTone.ts.
+  const discToneName = discrepancyTone(discResult.discrepancy, discrepancyThreshold);
+  const discTone = discrepancyClasses(discResult.discrepancy, discrepancyThreshold);
 
   // The tolerance used to be decoration: the trigger charged the operator the
   // whole shortage however small it was. 0034 splits it - the tolerance is
@@ -3298,39 +3304,30 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               the two numbers the difference comes from. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* 1. Διαφορά Ταμείου - the answer, so it leads. */}
-            <div
-              className={`p-5 rounded-2xl border-2 shadow-md ${
-                discResult.isExceedingThreshold
-                  ? 'bg-rose-50 border-rose-400'
-                  : discResult.isUnbalanced
-                  ? 'bg-amber-50 border-amber-300'
-                  : 'bg-emerald-50 border-emerald-300'
-              }`}
-            >
+            {/* One rule for the colour, in lib/discrepancyTone.ts: a surplus
+                is green because it is never charged to anybody, a shortage
+                inside the store's tolerance is orange, and one past it is
+                red. A surplus used to come out orange, which read as a
+                warning about money the shop had MORE of. */}
+            <div className={`p-5 rounded-2xl border-2 shadow-md ${discTone.panel}`}>
               <span className="text-xs font-black uppercase tracking-wider block text-slate-700">
                 Διαφορά Ταμείου
               </span>
-              <p
-                className={`text-3xl font-black mt-1 font-mono ${
-                  discResult.discrepancy < 0
-                    ? 'text-rose-700'
-                    : discResult.discrepancy > 0
-                    ? 'text-amber-700'
-                    : 'text-emerald-700'
-                }`}
-              >
+              <p className={`text-3xl font-black mt-1 font-mono ${discTone.text}`}>
                 {formatCurrency(discResult.discrepancy, { showSign: true })}
               </p>
               <p className="text-xs font-bold mt-1">
-                {discResult.isExceedingThreshold ? (
-                  <span className="text-rose-700 flex items-center space-x-1">
+                {discToneName === 'over' ? (
+                  <span className={`${discTone.text} flex items-center space-x-1`}>
                     <AlertTriangle className="w-4 h-4 inline shrink-0" />
                     <span>Υπέρβαση ορίου ({formatCurrency(discrepancyThreshold)})</span>
                   </span>
-                ) : discResult.isUnbalanced ? (
-                  <span className="text-amber-700">Μικρή απόκλιση εντός ορίου</span>
+                ) : discToneName === 'within' ? (
+                  <span className={discTone.text}>Έλλειμμα εντός ορίου</span>
+                ) : discResult.discrepancy > 0 ? (
+                  <span className={discTone.text}>Πλεόνασμα ταμείου</span>
                 ) : (
-                  <span className="text-emerald-700">✓ Απόλυτα ισοσκελισμένο</span>
+                  <span className={discTone.text}>✓ Απόλυτα ισοσκελισμένο</span>
                 )}
               </p>
             </div>
