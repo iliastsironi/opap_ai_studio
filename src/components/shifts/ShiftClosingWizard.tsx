@@ -31,7 +31,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import {
   deleteShiftFromFirestore, fetchDayCustomerCredits, DayCustomerCredit,
-  fetchDayCoinHandover, fetchHandoverSnapshot,
+  fetchDayCoinHandover, fetchHandoverSnapshot, fetchDayOpening,
 } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -189,6 +189,8 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
+import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
+import { athensDateKey } from '../../lib/pnlEngine.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -414,11 +416,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    // The previous shift's declaration comes along for the ride, for a game
-    // the catalogue lists that this shift has no row for. Without it such a
-    // game lands here with an empty αρχικό however many tickets were left in
-    // it - which is exactly what «Σκρατς League» did the morning after a
-    // night that ended at 29.
+    // A handover position comes along for the ride, for a game the catalogue
+    // lists that this shift has no row for. Without it such a game lands
+    // here with an empty αρχικό however many tickets were left in it - which
+    // is what «Σκρατς League» did the morning after a night that ended at 29.
+    //
+    // WHICH position depends on where this shift sits in its day: the day's
+    // first continues the night, a later one continues the day. Both are
+    // fetched and lib/scratchSeedSource.ts picks. Seeding a continuing shift
+    // from the previous one instead put the evening at the morning's closing
+    // serial and reported a ticket fewer than the day had sold.
     Promise.all([
       fetchScratchCatalog(shift.organization_id || organization!.id, shift.store_id),
       // Just BEFORE this shift's own start. The RPC compares with <=, so
@@ -430,15 +437,27 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         shift.register_id || 'Ταμείο 1',
         handoverCutoffBefore(shift.opened_at)
       ).catch(() => null),
+      fetchDayOpening(
+        shift.store_id,
+        shift.register_id || 'Ταμείο 1',
+        athensDateKey(shift.opened_at)
+      ).catch(() => null),
     ])
-      .then(([catalog, handover]) => {
+      .then(([catalog, handover, day]) => {
         if (cancelled) return;
         // Belt and braces: a cutoff cannot express «not this one», and two
         // shifts could in principle share a start time.
         const declared = (isOwnShift(handover?.shift_id, shift.id)
           ? null
           : handover?.scratch_ticket_items ?? null) as any[] | null;
-        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current, declared));
+        const daySnapshot = day && (day as any).status === 'FOUND' ? (day as any).snapshot : null;
+        const seed = seedRowsFor({
+          dayOpeningRows: daySnapshot?.scratch_ticket_items ?? null,
+          dayFirstOpenedAt: daySnapshot?.opened_at ?? null,
+          previousRows: declared,
+          openedAt: shift.opened_at,
+        }) as any[];
+        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current, seed));
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
     return () => {
