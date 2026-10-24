@@ -1360,7 +1360,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }))}
             role="switch"
             aria-checked={template.special_edition_enabled}
-            aria-label="Ειδικές Εκδόσεις Λαχείων (χ5/χ10)"
+            aria-label="Εποχικές Εκδόσεις Λαχείων"
             tabIndex={canManageScratchMode ? 0 : -1}
             onKeyDown={(e) => {
               if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
@@ -1373,8 +1373,12 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             } ${template.special_edition_enabled ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
           >
             <div>
-              <h4 className="text-xs font-bold text-slate-900">Ειδικές Εκδόσεις Λαχείων (χ5 / χ10)</h4>
-              <p className="text-micro text-slate-500 mt-0.5">Ανενεργό από προεπιλογή. Ενεργοποιήστε μόνο όσο διάστημα υπάρχει πραγματική διαθέσιμη ειδική έκδοση προς πώληση.</p>
+              <h4 className="text-xs font-bold text-slate-900">Εποχικές Εκδόσεις Λαχείων</h4>
+              <p className="text-micro text-slate-500 mt-0.5">
+                Ειδική Έκδοση χ5, Ειδική Έκδοση χ10 και Πρωτοχρονιάτικο. Ανενεργό από
+                προεπιλογή — ενεργοποιήστε το όσο διάστημα υπάρχουν πραγματικά προς
+                πώληση, ώστε να μην κάθονται στη λίστα του ταμείου τον υπόλοιπο χρόνο.
+              </p>
             </div>
             {template.special_edition_enabled ? (
               <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />

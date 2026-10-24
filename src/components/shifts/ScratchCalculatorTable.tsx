@@ -1007,10 +1007,22 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
   return { errors, isValid: !errors.some((e) => e.severity === 'error') };
 }
 
-// The two IDs DEFAULT_SCRATCH_PRESETS hardcodes for "Ειδική Έκδοση" - hidden
-// from the table unless the store's special_edition_enabled is true. See
-// SPECIAL_EDITION_ROW_IDS usage below and 0017_scratch_layout_settings.sql.
-export const SPECIAL_EDITION_ROW_IDS = ['scr_eidiki_x10', 'scr_eidiki_x5'];
+// The seasonal rows DEFAULT_SCRATCH_PRESETS hardcodes - hidden from the table
+// unless the store's special_edition_enabled is true. See the usage below and
+// 0017_scratch_layout_settings.sql.
+//
+// Πρωτοχρονιάτικο belongs here for the same reason the «Ειδική Έκδοση» pair
+// does: it is on sale for a few weeks a year and sat in every till's list for
+// the other eleven months. The Owner turns the group on while there is
+// actually something to sell.
+//
+// Hiding is only ever visual - the row stays in `rows` and in the totals - so
+// a sale already recorded survives the switch being turned back off.
+export const SPECIAL_EDITION_ROW_IDS = [
+  'scr_eidiki_x10',
+  'scr_eidiki_x5',
+  'scr_protochroniatiko',
+];
 export const LAIKO_ROW_ID = 'scr_laiko';
 
 interface ScratchCalculatorTableProps {
