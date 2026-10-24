@@ -23,7 +23,8 @@ import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
-import { piecesLeftInPack, isValidPackCode, normalizePackCode } from '../../lib/scratchPack.ts';
+import { piecesLeftInPack, isValidPackCode, normalizePackCode, packPieceCount } from '../../lib/scratchPack.ts';
+import { packWarning, packWarningText } from '../../lib/scratchPackWarning.ts';
 import {
   applyEthnikoShape,
   canToggleBundleTracking,
@@ -1630,6 +1631,10 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isLaikoBundlesOnly = row.id === LAIKO_ROW_ID && laikoSellingMode === 'BUNDLES_ONLY';
                     const rowUnitLabel = lotteryUnitLabel(row);
                     const rowUnitPlural = lotteryUnitLabelPlural(row);
+                    // Σκρατς only: a λαχείο's figure IS its remaining stock,
+                    // with no pack behind it, so «how far through» means
+                    // nothing there.
+                    const rowPackWarning = isLottery ? null : packWarning(row as any);
                     const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
@@ -1690,6 +1695,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 {row.isNewPack && (
                                   <span className="bg-emerald-100 text-emerald-800 text-micro font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
                                     Νέο Πακέτο
+                                  </span>
+                                )}
+                                {/* While there is still time to fetch the next
+                                    one. The count is shown, so the threshold
+                                    never has to be guessed at. */}
+                                {rowPackWarning && !isLottery && (
+                                  <span
+                                    title={`Το πακέτο κρατάει ${packPieceCount(row.price) ?? '—'} δελτία· προειδοποίηση στα ${rowPackWarning.threshold}.`}
+                                    className={`text-micro font-black px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
+                                      rowPackWarning.state === 'finished'
+                                        ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                        : 'bg-amber-100 text-amber-900 border-amber-300'
+                                    }`}
+                                  >
+                                    {rowPackWarning.state === 'finished' ? '⛔' : '⚠️'}{' '}
+                                    {packWarningText(rowPackWarning)}
                                   </span>
                                 )}
                                 {!readOnly && canUndoPack(row) && (
