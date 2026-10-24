@@ -14,10 +14,10 @@
  *     shown everywhere. We do not know that it does not belong, and a
  *     supplier that cannot be reached from any category would be worse than
  *     a slightly long list;
- *   - the built-in recipients fall back to the full set for a category that
- *     has none of its own - «Έξοδα ΓΠ» is the general bucket, so everything
- *     is plausible there. The register does NOT fall back: that turned the
- *     filter back into «show them all» precisely where it mattered.
+ *   - neither list falls back to «show them all» when a category has
+ *     nothing of its own. That is what turned the filter back into the
+ *     behaviour it was meant to replace, and on «Έξοδα ΓΠ» - the default on
+ *     every fresh row - it meant the common case never filtered at all.
  */
 
 export type ExpenseCategory =
@@ -29,10 +29,29 @@ export type ExpenseCategory =
   | 'UTILITIES'
   | 'OTHER';
 
-/** Every category an expense can be filed under, in the order the forms list them. */
-export const EXPENSE_CATEGORY_KEYS: ExpenseCategory[] = [
-  'EXPENSES_GP', 'EXPENSES_FNB', 'SUPPLIES', 'UTILITIES', 'CLEANING', 'MAINTENANCE', 'OTHER',
+/**
+ * The categories an expense can be filed under - one list, for every screen.
+ *
+ * There were three. The Έξοδα screen, the till's expense rows and the P&L
+ * modal each had their own, with different labels for the same key («Χαρτί»
+ * against «Χαρτί (ΓΠ)»), different order, and the P&L missing FnB
+ * altogether. The same expense therefore read differently depending on where
+ * you were standing.
+ *
+ * The «(ΓΠ)» suffix is kept because it says something true: those five are
+ * sub-kinds of Γενικά Πληρωμών, which is why ΓΠ itself is the general bucket.
+ */
+export const EXPENSE_CATEGORIES: Array<{ value: ExpenseCategory; label: string }> = [
+  { value: 'EXPENSES_GP', label: 'Έξοδα ΓΠ (Γενικά Πληρωμών)' },
+  { value: 'EXPENSES_FNB', label: 'Έξοδα FnB (Κυλικείο)' },
+  { value: 'SUPPLIES', label: 'Αναλώσιμα / Χαρτί (ΓΠ)' },
+  { value: 'UTILITIES', label: 'Λογαριασμοί / ΔΕΗ (ΓΠ)' },
+  { value: 'CLEANING', label: 'Καθαριότητα (ΓΠ)' },
+  { value: 'MAINTENANCE', label: 'Συντήρηση / Βλάβες (ΓΠ)' },
+  { value: 'OTHER', label: 'Λοιπά Έξοδα (ΓΠ)' },
 ];
+
+export const EXPENSE_CATEGORY_KEYS: ExpenseCategory[] = EXPENSE_CATEGORIES.map((c) => c.value);
 
 export interface PresetSupplier {
   /** The value stored as the expense's recipient. */
@@ -79,9 +98,18 @@ export function expenseCategoryOfSupplier(supplierCategory: unknown): ExpenseCat
   }
 }
 
+/**
+ * Strictly the category's own, with no fallback.
+ *
+ * «Έξοδα ΓΠ» is the default on a fresh row and nothing built in is filed
+ * under it, so falling back to the whole list meant the common case showed
+ * every recipient there is - which is the behaviour being complained about,
+ * reappearing through the back door. An empty suggestion list is not a dead
+ * end here: the registered suppliers are offered beside these, and the field
+ * takes anything typed by hand.
+ */
 export function presetsForCategory(category: string): PresetSupplier[] {
-  const matching = PRESET_SUPPLIERS.filter((p) => p.category === category);
-  return matching.length > 0 ? matching : PRESET_SUPPLIERS;
+  return PRESET_SUPPLIERS.filter((p) => p.category === category);
 }
 
 export interface RegisteredSupplier {

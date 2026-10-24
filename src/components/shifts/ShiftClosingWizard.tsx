@@ -187,7 +187,7 @@ import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
 import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
-import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
+import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
@@ -1327,6 +1327,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     })),
 
     safeDrop: safeNum(bankDeposits),
+    // Reported under the safe, as its own figure. This shift's cup only:
+    // a παράδοση κερμάτων belongs to whoever made it and does not carry.
+    coinHandover: coinTotals.ownHandover,
     storePos1: safeNum(storePosItems[0]?.amount),
     storePos2: safeNum(storePosItems[1]?.amount),
     totalStorePos: totalStorePos,
@@ -2865,13 +2868,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         onBlur={() => handleExpenseFieldBlur(idx)}
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white"
                       >
-                        <option value="EXPENSES_GP">Έξοδα ΓΠ (Γενικά Πληρωμών)</option>
-                        <option value="EXPENSES_FNB">Έξοδα FnB (Κυλικείο)</option>
-                        <option value="SUPPLIES">Αναλώσιμα / Χαρτί (ΓΠ)</option>
-                        <option value="UTILITIES">Λογαριασμοί / ΔΕΗ (ΓΠ)</option>
-                        <option value="CLEANING">Καθαριότητα (ΓΠ)</option>
-                        <option value="MAINTENANCE">Συντήρηση (ΓΠ)</option>
-                        <option value="OTHER">Άλλα Έξοδα (ΓΠ)</option>
+                        {/* One list for every screen - see lib/expenseSuppliers.ts.
+                            These used to be written out here, in the Έξοδα screen
+                            and in the P&L modal, with different labels and a
+                            different order in each. */}
+                        {EXPENSE_CATEGORIES.map((c) => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
                       </select>
                     </div>
 

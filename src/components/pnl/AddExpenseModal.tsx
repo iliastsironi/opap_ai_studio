@@ -6,15 +6,13 @@ import { FNB_EXPENSE_CATEGORY } from '../../lib/pnlEngine.ts';
 import { createExpenseInFirestore } from '../../services/moduleServices.ts';
 import { MoneyInput, parseMoney } from './moneyInput.tsx';
 import { defaultEntryDate, monthBounds } from './pnlDisplay.tsx';
+import { EXPENSE_CATEGORIES } from '../../lib/expenseSuppliers.ts';
 
-const STORE_CATEGORIES: Array<[string, string]> = [
-  ['EXPENSES_GP', 'Έξοδα ΓΠ (Γενικά Πληρωμών)'],
-  ['SUPPLIES', 'Αναλώσιμα / Χαρτί'],
-  ['CLEANING', 'Καθαριότητα'],
-  ['MAINTENANCE', 'Συντήρηση / Βλάβες'],
-  ['UTILITIES', 'Λογαριασμοί / Utilities'],
-  ['OTHER', 'Λοιπά Έξοδα'],
-];
+// The shared list, less FnB: this modal files an FnB expense through its own
+// `kind` instead, so offering the category here would be a second way to do
+// the same thing. Labels and order come from lib/expenseSuppliers.ts, which
+// is the point - the three screens had three different lists.
+const STORE_CATEGORIES = EXPENSE_CATEGORIES.filter((c) => c.value !== 'EXPENSES_FNB');
 
 interface AddExpenseModalProps {
   month: string;
@@ -151,9 +149,9 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
             >
-              {STORE_CATEGORIES.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {STORE_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>

@@ -617,6 +617,18 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Χρηματοκιβώτιο:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(bankDeposits)}</span>
                         </div>
+                        {/* Straight under it, this shift's own. A παράδοση
+                            κερμάτων belongs to whoever made it and does not
+                            carry, so the morning's and the evening's each
+                            show against their own operator. */}
+                        {safeNum(shift.coin_handover) > 0 && (
+                          <div className="flex justify-between text-slate-300 py-0.5">
+                            <span>Παράδοση Κερμάτων:</span>
+                            <span className="font-mono font-bold text-white">
+                              {formatCurrency(safeNum(shift.coin_handover))}
+                            </span>
+                          </div>
+                        )}
                         {storePosItems.length > 0 ? (
                           storePosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
@@ -1224,6 +1236,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             notes: e.description,
           })) : [],
           safeDrop: safeNum(shift.bank_deposits ?? shift.safe_drop),
+          coinHandover: safeNum(shift.coin_handover),
           storePos1: safeNum(shift.register_pos_1),
           storePos2: safeNum(shift.register_pos_2),
           totalStorePos: safeNum(shift.card_payments),

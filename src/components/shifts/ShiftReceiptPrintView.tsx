@@ -56,6 +56,8 @@ export interface ShiftReceiptData {
 
   // Outflows & Cards
   safeDrop?: number;
+  /** This shift's own cup of coins, handed over with the envelope. */
+  coinHandover?: number;
   storePos1?: number;
   storePos2?: number;
   totalStorePos?: number;
@@ -427,6 +429,16 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
             <div className="flex justify-between items-center">
               <span>Χρηματοκιβώτιο (Safe Drop):</span>
               <span className="font-bold">{formatCurrency(safeNum(data.safeDrop ?? shift.bank_deposits ?? shift.safe_drop))}</span>
+            </div>
+          )}
+          {/* Under the safe, as a figure of its own. It is this shift's cup
+              only - a παράδοση κερμάτων does not carry to the next shift, so
+              the morning's and the evening's each stand on their own and the
+              day is their sum. */}
+          {(safeNum(data.coinHandover ?? shift.coin_handover) > 0) && (
+            <div className="flex justify-between items-center">
+              <span>Παράδοση Κερμάτων:</span>
+              <span className="font-bold">{formatCurrency(safeNum(data.coinHandover ?? shift.coin_handover))}</span>
             </div>
           )}
           {(safeNum(data.totalStorePos ?? shift.card_payments) > 0) && (

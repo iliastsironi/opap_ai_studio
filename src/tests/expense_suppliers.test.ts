@@ -16,10 +16,15 @@ describe('the supplier list follows the category', () => {
     expect(values).toEqual(['Προμηθευτής Καφέ & Ροφημάτων', 'Snacks & Είδη Κυλικείου']);
   });
 
-  it('falls back to everything rather than an empty list', () => {
-    // Nothing built in is filed under ΓΠ, and an empty dropdown is a dead end.
-    expect(presetsForCategory('EXPENSES_GP')).toEqual(PRESET_SUPPLIERS);
-    expect(presetsForCategory('ΑΓΝΩΣΤΟ')).toEqual(PRESET_SUPPLIERS);
+  it('offers nothing built in for a category that has none', () => {
+    // It used to fall back to the whole list. That read as a sensible guard
+    // against an empty dropdown, and it meant «Έξοδα ΓΠ» - the default on
+    // every fresh row - showed every recipient there is. The registered
+    // suppliers sit beside these and the field takes free text, so an empty
+    // built-in list is not a dead end.
+    expect(presetsForCategory('EXPENSES_GP')).toEqual([]);
+    expect(presetsForCategory('ΑΓΝΩΣΤΟ')).toEqual([]);
+    expect(PRESET_SUPPLIERS.length).toBeGreaterThan(0);
   });
 });
 
@@ -69,9 +74,11 @@ describe('the categories the forms offer', () => {
     ]);
   });
 
-  it('gives each one something to suggest', () => {
-    for (const key of EXPENSE_CATEGORY_KEYS) {
-      expect(presetsForCategory(key).length).toBeGreaterThan(0);
+  it('files every built-in recipient under a category that exists', () => {
+    // Not «every category has one» - ΓΠ and Λοιπά deliberately have none -
+    // but no preset may hide under a key no form offers.
+    for (const preset of PRESET_SUPPLIERS) {
+      expect(EXPENSE_CATEGORY_KEYS).toContain(preset.category);
     }
   });
 
@@ -87,5 +94,45 @@ describe('the categories the forms offer', () => {
     expect(forBill).toContain('ΔΕΗ / Ηλεκτρικό Ρεύμα');
     expect(forBill).not.toContain('Καφές ΑΕ');
     expect(forBill).not.toContain('Τερματικά ΟΠΑΠ');
+  });
+});
+
+import { EXPENSE_CATEGORIES } from '../lib/expenseSuppliers.ts';
+
+describe('one list of categories, for every screen', () => {
+  it('is what the keys are derived from, so they cannot drift', () => {
+    expect(EXPENSE_CATEGORIES.map((c) => c.value)).toEqual(EXPENSE_CATEGORY_KEYS);
+  });
+
+  it('labels every one of them', () => {
+    for (const c of EXPENSE_CATEGORIES) {
+      expect(c.label.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has no duplicate keys or labels', () => {
+    const values = EXPENSE_CATEGORIES.map((c) => c.value);
+    const labels = EXPENSE_CATEGORIES.map((c) => c.label);
+    expect(new Set(values).size).toBe(values.length);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('includes the kiosk category the P&L modal used to be missing', () => {
+    expect(EXPENSE_CATEGORIES.map((c) => c.value)).toContain('EXPENSES_FNB');
+  });
+});
+
+describe('the default category on a fresh row', () => {
+  it('does not quietly offer every recipient there is', () => {
+    // «Έξοδα ΓΠ» is the general bucket and nothing built in is filed under
+    // it. Falling back to the whole list meant the commonest case never
+    // filtered - which is what was reported as «δεν το έφτιαξες».
+    expect(presetsForCategory('EXPENSES_GP')).toEqual([]);
+  });
+
+  it('still narrows the categories that have their own', () => {
+    expect(presetsForCategory('EXPENSES_FNB').map((p) => p.value)).toEqual([
+      'Προμηθευτής Καφέ & Ροφημάτων', 'Snacks & Είδη Κυλικείου',
+    ]);
   });
 });

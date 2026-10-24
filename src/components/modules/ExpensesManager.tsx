@@ -14,7 +14,7 @@ import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTE
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
-import { presetsForCategory, suppliersForCategory } from '../../lib/expenseSuppliers.ts';
+import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES } from '../../lib/expenseSuppliers.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 
 export const ExpensesManager: React.FC = () => {
@@ -719,13 +719,9 @@ export const ExpensesManager: React.FC = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                   >
-                    <option value="EXPENSES_GP">Έξοδα ΓΠ (Γενικά Πληρωμών)</option>
-                    <option value="EXPENSES_FNB">Έξοδα FnB (Κυλικείο)</option>
-                    <option value="SUPPLIES">Αναλώσιμα / Χαρτί</option>
-                    <option value="CLEANING">Καθαριότητα</option>
-                    <option value="MAINTENANCE">Συντήρηση / Βλάβες</option>
-                    <option value="UTILITIES">Λογαριασμοί / Utilities</option>
-                    <option value="OTHER">Λοιπά Έξοδα</option>
+                    {EXPENSE_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
