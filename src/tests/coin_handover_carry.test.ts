@@ -7,14 +7,16 @@ describe('the morning sends coins out', () => {
     const t = coinHandoverTotals({ drawerCash: 1000, ownHandover: 50 });
     expect(t.countedForReconciliation).toBe(1050);
 
+    // The envelope is measured on NOTES, so it is the drawer's notes that
+    // go in - not the reconciliation total above, which is a different
+    // question (what the till is judged against).
     const env = calculateEnvelope({
-      countedCash: t.countedForReconciliation,
-      fixedFloat: 1000,
+      countedNotes: 1000, countedCoins: 0, floatNotes: 1000,
       coinHandover: t.ownHandover,
     });
     expect(env.coinHandover).toBe(50);
-    expect(env.amount).toBe(0);     // the drawer is exactly on its float
-    expect(env.handedOver).toBe(50); // the cup goes with the envelope
+    expect(env.amount).toBe(0);     // the notes are exactly on their float
+    expect(env.handedOver).toBe(50); // the cup rides along beside it
     expect(env.isShort).toBe(false);
   });
 });
@@ -29,8 +31,8 @@ describe('the evening, after the morning sent 50 out', () => {
 
   it('is not asked to hand the same 50 over again', () => {
     const env = calculateEnvelope({
-      countedCash: t.countedForReconciliation,
-      fixedFloat: 1000,
+      countedNotes: t.countedForReconciliation,
+      floatNotes: 1000,
       coinHandover: t.ownHandover,          // nothing of its own
       carriedCoinHandover: t.carriedToday,
     });
@@ -43,8 +45,8 @@ describe('the evening, after the morning sent 50 out', () => {
   it('still hands over its own takings above the float', () => {
     const takings = coinHandoverTotals({ drawerCash: 1350, carriedToday: 50 });
     const env = calculateEnvelope({
-      countedCash: takings.countedForReconciliation,
-      fixedFloat: 1000,
+      countedNotes: takings.countedForReconciliation,
+      floatNotes: 1000,
       carriedCoinHandover: takings.carriedToday,
     });
     // 1350 in the drawer. 950 has to stay - the float less the 50 that left
@@ -56,17 +58,21 @@ describe('the evening, after the morning sent 50 out', () => {
 
   it('sends out a cup of its own as well, without confusing the two', () => {
     const both = coinHandoverTotals({ drawerCash: 1020, ownHandover: 20, carriedToday: 50 });
+    // The reconciliation still carries all three: the drawer, its own cup,
+    // and what the day sent out before it.
     expect(both.countedForReconciliation).toBe(1090);
+
+    // The envelope sees none of that - 1000 in notes against a 1000 float
+    // is an empty envelope, and the 20 in the cup goes over separately.
     const env = calculateEnvelope({
-      countedCash: both.countedForReconciliation,
-      fixedFloat: 1000,
+      countedNotes: 1000, countedCoins: 20, floatNotes: 1000,
       coinHandover: both.ownHandover,
       carriedCoinHandover: both.carriedToday,
     });
     expect(env.coinHandover).toBe(20);
-    // The drawer holds 1020, its own cup of 20 sits beside it, 950 stays.
-    expect(env.amount).toBe(70);
-    expect(env.handedOver).toBe(90);  // its own cup rides along, the carried one does not
+    expect(env.amount).toBe(0);
+    expect(env.handedOver).toBe(20);
+    expect(env.carriedCoinHandover).toBe(50);
   });
 
   it('reports a real shortage as a shortage', () => {
@@ -74,8 +80,8 @@ describe('the evening, after the morning sent 50 out', () => {
     const short = coinHandoverTotals({ drawerCash: 930, carriedToday: 50 });
     expect(short.countedForReconciliation).toBe(980);
     const env = calculateEnvelope({
-      countedCash: short.countedForReconciliation,
-      fixedFloat: 1000,
+      countedNotes: short.countedForReconciliation,
+      floatNotes: 1000,
       carriedCoinHandover: short.carriedToday,
     });
     expect(env.isShort).toBe(true);

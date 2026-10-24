@@ -1262,8 +1262,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const settlementCash =
     chargeReachesOperator && discrepancySettlement === 'PAID_CASH' ? split.charged : 0;
   const envelope = calculateEnvelope({
-    countedCash,
-    fixedFloat: openingCashTotal,
+    // Notes against notes. The coins stay in the drawer as the next shift's
+    // change, and leave only in a cup of their own.
+    countedNotes: banknotesAndCoins.banknotes,
+    countedCoins: banknotesAndCoins.coins,
+    // Προσαυξήσεις count as notes here - see the note on floatNotes. Nobody
+    // records which they were, and this is the side that can only leave
+    // money in the shop rather than ask for money that is not there.
+    floatNotes: safeNum(openingNotesAmount) + topUpTotal + inheritedTopUps,
     safeDrops: totalSafeDrops(safeDrops),
     discrepancySettlement: settlementCash,
     coinHandover: coinTotals.ownHandover,
@@ -3341,50 +3347,68 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <span className="text-xs font-black uppercase tracking-wider block text-slate-700">
                 Φάκελος Παράδοσης
               </span>
+              {/* The envelope alone: the notes above the float. Whatever
+                  else travels with it is listed underneath as its own
+                  figure, because the person receiving them counts them
+                  separately - a cup of coins is not banknotes. */}
               <p
                 className={`text-3xl font-black mt-1 font-mono ${
                   envelope.isShort ? 'text-rose-800' : 'text-indigo-900'
                 }`}
               >
-                {formatCurrency(envelope.handedOver)}
+                {formatCurrency(envelope.amount)}
               </p>
-              <div className="text-micro mt-1 space-y-0.5 text-slate-600">
+              <p className="text-micro text-slate-500">
+                Χαρτονομίσματα ταμείου − πάγιο κεφάλαιο
+              </p>
+
+              {(totalSafeDrops(safeDrops) > 0 || envelope.coinHandover > 0 || envelope.settlement > 0) && (
+                <div className="mt-2 pt-2 border-t border-indigo-200/70 space-y-1">
+                  {totalSafeDrops(safeDrops) > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-micro">
+                      <span className="font-bold text-slate-700">Χρηματοκιβώτιο (safe drop)</span>
+                      <span className="font-mono font-black text-slate-900">
+                        {formatCurrency(totalSafeDrops(safeDrops))}
+                      </span>
+                    </div>
+                  )}
+                  {envelope.coinHandover > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-micro">
+                      <span className="font-bold text-amber-900">Παράδοση κερμάτων</span>
+                      <span className="font-mono font-black text-amber-900">
+                        {formatCurrency(envelope.coinHandover)}
+                      </span>
+                    </div>
+                  )}
+                  {envelope.settlement > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-micro">
+                      <span className="font-bold text-emerald-800">
+                        Εξόφληση απόκλισης — εκτός εισπράξεων
+                      </span>
+                      <span className="font-mono font-black text-emerald-800">
+                        {formatCurrency(envelope.settlement)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="text-micro mt-2 space-y-0.5 text-slate-600">
                 {envelope.isShort ? (
                   <p className="text-rose-700 font-semibold">
-                    Το συρτάρι έχει λιγότερα από το πάγιο κεφάλαιο
-                    ({formatCurrency(openingCashTotal - envelope.carriedCoinHandover)}).
+                    Τα χαρτονομίσματα του συρταριού είναι λιγότερα από το πάγιο
+                    κεφάλαιο ({formatCurrency(safeNum(openingNotesAmount) + topUpTotal + inheritedTopUps)}).
                   </p>
                 ) : (
                   <p>
-                    Μένουν {formatCurrency(envelope.retained)} στο συρτάρι ως πάγιο
-                    κεφάλαιο για αύριο.
+                    Μένουν {formatCurrency(envelope.retained)} στο συρτάρι — το πάγιο
+                    σε χαρτονομίσματα και όλα τα κέρματα.
                   </p>
                 )}
-                {envelope.coinHandover > 0 && (
-                  <p>
-                    Περιλαμβάνει {formatCurrency(envelope.coinHandover)} παράδοση
-                    κερμάτων.
-                  </p>
-                )}
-                {/* Said out loud, because it is the reason the drawer is
-                    allowed to hold less than the full πάγιο κεφάλαιο. */}
                 {envelope.carriedCoinHandover > 0 && (
                   <p>
-                    Το πάγιο είναι μειωμένο κατά{' '}
-                    {formatCurrency(envelope.carriedCoinHandover)} — κέρματα που
-                    παραδόθηκαν νωρίτερα σήμερα.
-                  </p>
-                )}
-                {envelope.settlement > 0 && (
-                  <p className="text-emerald-700">
-                    Περιλαμβάνει {formatCurrency(envelope.settlement)} εξόφληση
-                    απόκλισης — εκτός εισπράξεων.
-                  </p>
-                )}
-                {totalSafeDrops(safeDrops) > 0 && (
-                  <p>
-                    Επιπλέον {formatCurrency(totalSafeDrops(safeDrops))} ήδη στο
-                    χρηματοκιβώτιο.
+                    Είχαν παραδοθεί {formatCurrency(envelope.carriedCoinHandover)} κέρματα
+                    νωρίτερα σήμερα — δεν ξαναπαραδίδονται.
                   </p>
                 )}
               </div>
