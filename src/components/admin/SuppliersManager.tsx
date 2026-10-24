@@ -38,15 +38,28 @@ import {
   updateSupplierOrderStatusInFirestore,
 } from '../../services/supplierService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import { EXPENSE_CATEGORIES, normalizeSupplierCategory } from '../../lib/expenseSuppliers.ts';
 
+/**
+ * What a supplier may be filed under - the same list an expense uses (0048).
+ *
+ * It answers the same question, «which category does this get paid from»,
+ * and asking it twice in different words is what let the registry and the
+ * books disagree.
+ */
+const CATEGORY_OPTIONS = EXPENSE_CATEGORIES;
+
+/**
+ * For display only, and deliberately wider than the options above: a row
+ * written before 0048 still carries one of the old names, and showing the
+ * raw key to whoever opens it would be worse than a stale label.
+ */
 const CATEGORY_LABELS: Record<string, string> = {
+  ...Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label])),
   OPAP_SERVICES: 'Υπηρεσίες ΟΠΑΠ & Τερματικά',
   BEVERAGES_FNB: 'Αναψυκτικά, Καφέδες & Τρόφιμα (FnB)',
   OFFICE_CONSUMABLES: 'Γραφική Ύλη & Αναλώσιμα',
   IT_EQUIPMENT: 'Εξοπλισμός IT & POS',
-  UTILITIES: 'ΔΕΚΟ (Ρεύμα, Νερό, Τηλεφωνία)',
-  CLEANING: 'Καθαριότητα & Υγιεινή',
-  OTHER: 'Λοιποί Προμηθευτές',
 };
 
 export const SuppliersManager: React.FC = () => {
@@ -85,7 +98,7 @@ export const SuppliersManager: React.FC = () => {
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formAddress, setFormAddress] = useState('');
-  const [formCategory, setFormCategory] = useState<Supplier['category']>('OPAP_SERVICES');
+  const [formCategory, setFormCategory] = useState<Supplier['category']>('EXPENSES_GP');
   const [formBalance, setFormBalance] = useState<number>(0);
   const [formNotes, setFormNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -147,7 +160,7 @@ export const SuppliersManager: React.FC = () => {
     setFormPhone('');
     setFormEmail('');
     setFormAddress('');
-    setFormCategory('OPAP_SERVICES');
+    setFormCategory('EXPENSES_GP');
     setFormBalance(0);
     setFormNotes('');
     setFormError(null);
@@ -164,7 +177,7 @@ export const SuppliersManager: React.FC = () => {
     setFormPhone(sup.phone || '');
     setFormEmail(sup.email || '');
     setFormAddress(sup.address || '');
-    setFormCategory(sup.category || 'OPAP_SERVICES');
+    setFormCategory(normalizeSupplierCategory(sup.category));
     setFormBalance(sup.balance || 0);
     setFormNotes(sup.notes || '');
     setFormError(null);
@@ -463,7 +476,7 @@ export const SuppliersManager: React.FC = () => {
                 className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-colors cursor-pointer"
               >
                 <option value="ALL">Όλες οι Κατηγορίες ({suppliers.length})</option>
-                {Object.entries(CATEGORY_LABELS).map(([catKey, label]) => (
+                {CATEGORY_OPTIONS.map(({ value: catKey, label }) => (
                   <option key={catKey} value={catKey}>
                     {label}
                   </option>
@@ -1161,7 +1174,7 @@ export const SuppliersManager: React.FC = () => {
                     onChange={(e) => setFormCategory(e.target.value as Supplier['category'])}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
                   >
-                    {Object.entries(CATEGORY_LABELS).map(([catKey, label]) => (
+                    {CATEGORY_OPTIONS.map(({ value: catKey, label }) => (
                       <option key={catKey} value={catKey}>
                         {label}
                       </option>

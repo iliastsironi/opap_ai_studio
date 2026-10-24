@@ -66,7 +66,11 @@ export interface Supplier {
   phone?: string;
   email?: string;
   address?: string;
-  category: 'OPAP_SERVICES' | 'BEVERAGES_FNB' | 'OFFICE_CONSUMABLES' | 'IT_EQUIPMENT' | 'UTILITIES' | 'CLEANING' | 'OTHER';
+  // The same vocabulary expenses use (0048), because it answers the same
+  // question: which category does this supplier get paid from. The four old
+  // names are still read for a row written before the migration - see
+  // expenseCategoryOfSupplier in lib/expenseSuppliers.ts.
+  category: 'EXPENSES_GP' | 'EXPENSES_FNB' | 'SUPPLIES' | 'UTILITIES' | 'CLEANING' | 'MAINTENANCE' | 'OTHER';
   balance: number;
   notes?: string;
   is_active: boolean;

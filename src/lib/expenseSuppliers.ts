@@ -81,6 +81,17 @@ export const PRESET_SUPPLIERS: PresetSupplier[] = [
  * suppliers stay visible everywhere.
  */
 export function expenseCategoryOfSupplier(supplierCategory: unknown): ExpenseCategory | null {
+  // Since 0048 a supplier is filed under the same categories an expense is,
+  // so most of this is now a pass-through.
+  if (typeof supplierCategory === 'string'
+      && (EXPENSE_CATEGORY_KEYS as string[]).includes(supplierCategory)
+      && supplierCategory !== 'OTHER') {
+    return supplierCategory as ExpenseCategory;
+  }
+
+  // The names suppliers used before it. Still read, because a row written by
+  // a browser holding the previous bundle is still a supplier somebody needs
+  // to find.
   switch (supplierCategory) {
     case 'BEVERAGES_FNB':
       return 'EXPENSES_FNB';
@@ -89,11 +100,9 @@ export function expenseCategoryOfSupplier(supplierCategory: unknown): ExpenseCat
       return 'EXPENSES_GP';
     case 'OFFICE_CONSUMABLES':
       return 'SUPPLIES';
-    case 'CLEANING':
-      return 'CLEANING';
-    case 'UTILITIES':
-      return 'UTILITIES';
     default:
+      // OTHER, and anything unrecognised: says nothing about which category
+      // pays this supplier, so they stay visible under all of them.
       return null;
   }
 }
@@ -108,6 +117,22 @@ export function expenseCategoryOfSupplier(supplierCategory: unknown): ExpenseCat
  * end here: the registered suppliers are offered beside these, and the field
  * takes anything typed by hand.
  */
+/**
+ * A supplier's category as one of today's, for an editor that has to put the
+ * cursor somewhere.
+ *
+ * A row written before 0048 carries one of the old names, which no longer
+ * appears in the list; opening it would otherwise leave the select on
+ * whatever happened to be first and silently refile the supplier on save.
+ */
+export function normalizeSupplierCategory(supplierCategory: unknown): ExpenseCategory {
+  if (typeof supplierCategory === 'string'
+      && (EXPENSE_CATEGORY_KEYS as string[]).includes(supplierCategory)) {
+    return supplierCategory as ExpenseCategory;
+  }
+  return expenseCategoryOfSupplier(supplierCategory) ?? 'OTHER';
+}
+
 export function presetsForCategory(category: string): PresetSupplier[] {
   return PRESET_SUPPLIERS.filter((p) => p.category === category);
 }

@@ -14,7 +14,7 @@ import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTE
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
-import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES } from '../../lib/expenseSuppliers.ts';
+import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 
 export const ExpensesManager: React.FC = () => {
@@ -138,12 +138,11 @@ export const ExpensesManager: React.FC = () => {
     if (foundSupplier) {
       const name = foundSupplier.company_name || foundSupplier.trade_name;
       setRecipient(name);
-      // Auto-set category based on supplier
-      if (foundSupplier.category === 'BEVERAGES_FNB') {
-        setCategory('EXPENSES_FNB');
-      } else if (foundSupplier.category === 'OPAP_SERVICES' || foundSupplier.category === 'IT_EQUIPMENT') {
-        setCategory('EXPENSES_GP');
-      }
+      // The supplier's own category IS an expense category now, so picking
+      // one fills the field in. This used to be a hand-written switch over
+      // two of the old supplier names and missed the rest.
+      const own = expenseCategoryOfSupplier(foundSupplier.category);
+      if (own) setCategory(own);
       return;
     }
 

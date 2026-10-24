@@ -180,7 +180,10 @@ async function registerRecipientAsSupplier(
     store_ids: storeId ? [storeId] : [],
     code: '',
     company_name: name,
-    category: expenseCategory === 'EXPENSES_FNB' ? 'BEVERAGES_FNB' : 'OTHER',
+    // The category the expense was filed under, since 0048 made them the
+    // same vocabulary. It used to collapse everything that was not FnB into
+    // OTHER, which is how a utility supplier ended up unfiled.
+    category: expenseCategory || 'OTHER',
     balance: 0,
     is_active: true,
     notes: 'Δημιουργήθηκε κατά την καταχώρηση εξόδου',

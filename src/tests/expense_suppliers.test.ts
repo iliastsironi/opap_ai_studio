@@ -136,3 +136,47 @@ describe('the default category on a fresh row', () => {
     ]);
   });
 });
+
+import { normalizeSupplierCategory } from '../lib/expenseSuppliers.ts';
+
+describe('a supplier filed before the vocabularies were merged', () => {
+  it('is still found under the category that pays it', () => {
+    // 0048 converted the rows; this is for one written by a browser still
+    // holding the previous bundle.
+    expect(expenseCategoryOfSupplier('BEVERAGES_FNB')).toBe('EXPENSES_FNB');
+    expect(expenseCategoryOfSupplier('OPAP_SERVICES')).toBe('EXPENSES_GP');
+    expect(expenseCategoryOfSupplier('IT_EQUIPMENT')).toBe('EXPENSES_GP');
+    expect(expenseCategoryOfSupplier('OFFICE_CONSUMABLES')).toBe('SUPPLIES');
+  });
+
+  it('reads the new names straight through', () => {
+    expect(expenseCategoryOfSupplier('EXPENSES_FNB')).toBe('EXPENSES_FNB');
+    expect(expenseCategoryOfSupplier('UTILITIES')).toBe('UTILITIES');
+    expect(expenseCategoryOfSupplier('CLEANING')).toBe('CLEANING');
+    expect(expenseCategoryOfSupplier('MAINTENANCE')).toBe('MAINTENANCE');
+  });
+
+  it('still treats «anybody» as belonging nowhere in particular', () => {
+    // OTHER says nothing about which category pays them, so they stay
+    // visible under all of them.
+    expect(expenseCategoryOfSupplier('OTHER')).toBeNull();
+    expect(expenseCategoryOfSupplier(undefined)).toBeNull();
+  });
+});
+
+describe('opening an old supplier in the editor', () => {
+  it('lands on a category the list actually offers', () => {
+    // Otherwise the select shows whatever is first and saving refiles the
+    // supplier without anybody choosing to.
+    expect(normalizeSupplierCategory('BEVERAGES_FNB')).toBe('EXPENSES_FNB');
+    expect(normalizeSupplierCategory('OFFICE_CONSUMABLES')).toBe('SUPPLIES');
+    for (const key of EXPENSE_CATEGORY_KEYS) {
+      expect(EXPENSE_CATEGORY_KEYS).toContain(normalizeSupplierCategory(key));
+    }
+  });
+
+  it('falls back to «Λοιπά» rather than guessing', () => {
+    expect(normalizeSupplierCategory('ΚΑΤΙ ΑΛΛΟ')).toBe('OTHER');
+    expect(normalizeSupplierCategory(null)).toBe('OTHER');
+  });
+});
