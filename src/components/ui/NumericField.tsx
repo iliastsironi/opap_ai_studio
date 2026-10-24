@@ -5,6 +5,7 @@ import {
   isPartialNumber,
   parseLooseNumber,
 } from '../../lib/looseNumber.ts';
+import { focusAction } from '../../lib/zeroOnFocus.ts';
 
 /**
  * A number field that lets you finish typing the number.
@@ -30,6 +31,12 @@ export const NumericField: React.FC<{
   decimals?: number;
   disabled?: boolean;
   placeholder?: string;
+  /**
+   * Show nothing instead of «0» when the value is zero, so the placeholder
+   * reads through. For a field that starts empty - a charge nobody has typed
+   * yet - where a solid 0 looks like somebody entered one.
+   */
+  blankWhenZero?: boolean;
   className?: string;
   title?: string;
   'aria-label'?: string;
@@ -42,18 +49,23 @@ export const NumericField: React.FC<{
   decimals = 2,
   disabled,
   placeholder,
+  blankWhenZero,
   className,
   title,
   'aria-label': ariaLabel,
 }) => {
-  const [text, setText] = useState(() => formatLooseNumber(value, decimals));
+  const shown = (n: number): string =>
+    blankWhenZero && n === 0 ? '' : formatLooseNumber(n, decimals);
+
+  const [text, setText] = useState(() => shown(value));
   const focused = useRef(false);
 
   // Follow the value from outside, but never while somebody is typing into
   // it - that is what would reformat «5,» back to «5» mid-keystroke.
   useEffect(() => {
-    if (!focused.current) setText(formatLooseNumber(value, decimals));
-  }, [value, decimals]);
+    if (!focused.current) setText(shown(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, decimals, blankWhenZero]);
 
   return (
     <input
@@ -68,12 +80,16 @@ export const NumericField: React.FC<{
       aria-label={ariaLabel}
       onFocus={(e) => {
         focused.current = true;
-        e.target.select();
+        // A zero carries no information, so it is cleared outright rather
+        // than left to be deleted; anything else is selected, so one
+        // keystroke still replaces it. Same rule as MoneyField.
+        if (focusAction(e.target.value) === 'clear') setText('');
+        else e.target.select();
       }}
       onBlur={() => {
         focused.current = false;
         // Settle on the committed value, so a field left as «5,» reads «5».
-        setText(formatLooseNumber(value, decimals));
+        setText(shown(value));
       }}
       onChange={(e) => {
         const raw = e.target.value;

@@ -72,3 +72,29 @@ describe('an amount typed on a Greek keyboard', () => {
     expect(parseNonNegativeAmount('')).toEqual({ value: 0, isValid: true });
   });
 });
+
+import { parseLooseNumber, isPartialNumber } from '../lib/looseNumber.ts';
+
+describe('a customer charge typed with a comma', () => {
+  it('is read as the amount, not the half of it', () => {
+    // `parseFloat('12,50')` stops at the comma and answers 12 - the half the
+    // customer owes. That is what the charge field used to record.
+    expect(parseFloat('12,50')).toBe(12);
+    expect(parseLooseNumber('12,50')).toBe(12.5);
+  });
+
+  it('survives the comma being typed', () => {
+    // `type="number"` reports «12,» as an empty string, so the keystroke
+    // vanished before any parse got near it. Here the comma is a legal
+    // character, the field keeps «12,» on screen to type into, and the
+    // committed figure follows the decimals as they arrive.
+    expect(isPartialNumber('12,')).toBe(true);
+    expect(parseLooseNumber('12,')).toBe(12);
+    expect(parseLooseNumber('12,5')).toBe(12.5);
+    expect(parseLooseNumber('12,50')).toBe(12.5);
+  });
+
+  it('still reads a full stop, for anyone who types one', () => {
+    expect(parseLooseNumber('12.50')).toBe(12.5);
+  });
+});

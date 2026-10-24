@@ -33,6 +33,7 @@ import {
   DEFAULT_CREDIT_TIER_CONFIGS,
 } from '../../services/customerCreditService.ts';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
+import { NumericField } from '../ui/NumericField.tsx';
 
 interface CustomerCreditSectionProps {
   customerCredits: Array<Partial<CustomerCredit>>;
@@ -399,16 +400,21 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       Ποσό (€)
                     </label>
                     <div className="relative">
-                      <input
+                      {/* A charge of 12,50 used to be recorded as 12.
+                          `type="number"` reports a comma as an empty string,
+                          so the keystroke vanished, and parseFloat('12,50')
+                          stops at the comma and answers 12 - the half the
+                          customer owes. NumericField holds the text while it
+                          is being typed and reads the comma as the decimal
+                          separator it is on a Greek keyboard. */}
+                      <NumericField
                         id={`credit-amount-${idx}`}
-                        type="number"
-                        step="0.01"
                         disabled={readOnly}
                         placeholder="0.00"
-                        value={cred.amount || ''}
-                        onChange={(e) =>
-                          handleUpdateCredit(idx, 'amount', parseFloat(e.target.value) || 0)
-                        }
+                        decimals={2}
+                        blankWhenZero
+                        value={Number(cred.amount) || 0}
+                        onChange={(next) => handleUpdateCredit(idx, 'amount', next)}
                         className={`w-full px-3 py-2 rounded-xl border text-sm font-black font-mono ${
                           isOverLimit
                             ? 'bg-rose-50 border-rose-400 text-rose-950 focus:ring-rose-500'
