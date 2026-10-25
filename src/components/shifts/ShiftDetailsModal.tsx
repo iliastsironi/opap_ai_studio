@@ -535,7 +535,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Κέρματα Ταμείου
                         </div>
-                        <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                        {/* No height cap: the list is fixed at five
+                            denominations, so a scrollbar can never reveal
+                            anything new - it only hid what was there. */}
+                        <div className="space-y-0.5 pr-1">
                           {[
                             { label: '2x', key: '2', val: 2 },
                             { label: '1x', key: '1', val: 1 },
@@ -570,7 +573,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Μετρητά Ταμείου
                         </div>
-                        <div className="space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                        {/* Seven notes, and the cap was 144px - so a
+                            reconciliation cut off at 200x and somebody had
+                            to scroll inside the panel to see whether a 500
+                            had been counted. */}
+                        <div className="space-y-0.5 pr-1">
                           {[
                             { label: '5x', key: '5', val: 5 },
                             { label: '10x', key: '10', val: 10 },
@@ -620,15 +627,20 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         {/* Straight under it, this shift's own. A παράδοση
                             κερμάτων belongs to whoever made it and does not
                             carry, so the morning's and the evening's each
-                            show against their own operator. */}
-                        {safeNum(shift.coin_handover) > 0 && (
-                          <div className="flex justify-between text-slate-300 py-0.5">
-                            <span>Παράδοση Κερμάτων:</span>
-                            <span className="font-mono font-bold text-white">
-                              {formatCurrency(safeNum(shift.coin_handover))}
-                            </span>
-                          </div>
-                        )}
+                            show against their own operator.
+
+                            Shown even at zero, like every other line in this
+                            reconciliation - «nothing was handed over» is an
+                            answer, while a missing row leaves the reader
+                            wondering whether it was zero or not recorded. It
+                            was hidden at zero, which is why it was invisible
+                            on every shift that had no cup. */}
+                        <div className="flex justify-between text-slate-300 py-0.5">
+                          <span>Παράδοση Κερμάτων:</span>
+                          <span className="font-mono font-bold text-white">
+                            {formatCurrency(safeNum(shift.coin_handover))}
+                          </span>
+                        </div>
                         {storePosItems.length > 0 ? (
                           storePosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
