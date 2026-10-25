@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -33,6 +33,8 @@ import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
+import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
+import { isCarriedExpense } from '../../lib/expenseCarry.ts';
 import {
   safeNum,
   roundCurrency,
@@ -81,6 +83,28 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
+
+  /**
+   * The shift's expenses, from the table they actually live in.
+   *
+   * The RPC returns the whole day's, which is what the reconciliation was
+   * measured against - so a manager approving the shift sees the same set
+   * the till did, with the inherited ones marked.
+   */
+  const [shiftExpenses, setShiftExpenses] = useState<ExpenseRecord[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!shift?.id) return undefined;
+    fetchShiftReconciliationExpenses(shift.id)
+      .then((rows) => { if (!cancelled) setShiftExpenses(rows ?? []); })
+      .catch((err) => console.warn('[ShiftDetailsModal] could not load the expenses:', err));
+    return () => { cancelled = true; };
+  }, [shift?.id]);
+
+  const ownExpenses = shiftExpenses.filter(
+    (e) => !isCarriedExpense(e as any, shift?.id ?? '', shift?.opened_at)
+  );
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [approveSucceeded, setApproveSucceeded] = useState(false);
   const [reopenSucceededMsg, setReopenSucceededMsg] = useState<string | null>(null);
@@ -941,22 +965,40 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                 </div>
               </div>
 
-              {/* Expenses & Receipts */}
-              {shift.expenses && shift.expenses.length > 0 ? (
+              {/* Expenses & Receipts.
+              
+                  These used to be read from `shift.expenses`, a field left
+                  over from when a shift document carried its own expenses.
+                  Nothing has populated it since they moved to a table of
+                  their own, so this panel said «δεν υπάρχουν καταχωρημένα
+                  έξοδα» on every shift ever opened - including one with two
+                  rows against it. */}
+              {shiftExpenses.length > 0 ? (
                 <div>
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
                     <Receipt className="w-4 h-4 text-indigo-600" />
-                    <span>Καταχωρημένα Έξοδα Βάρδιας ({shift.expenses.length})</span>
+                    <span>Έξοδα Βάρδιας ({ownExpenses.length})</span>
                   </h3>
                   <div className="space-y-2">
-                    {shift.expenses.map((exp) => (
+                    {shiftExpenses.map((exp) => (
                       <div
                         key={exp.id}
                         className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
                       >
                         <div>
-                          <span className="font-bold text-slate-900">{exp.description}</span>
+                          <span className="font-bold text-slate-900">
+                            {exp.recipient || exp.notes || 'Έξοδο'}
+                          </span>
                           <span className="text-slate-500 ml-2">({exp.category})</span>
+                          {/* Which shift of the day it belongs to. The
+                              reconciliation counts the whole day's, so a
+                              manager reading this should see which ones this
+                              operator entered and which they inherited. */}
+                          {isCarriedExpense(exp, shift.id, shift.opened_at) && (
+                            <span className="ml-2 text-micro font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-full">
+                              άλλη βάρδια της ημέρας
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center space-x-3">
                           <span className="font-bold text-slate-900">{formatCurrency(exp.amount)}</span>
