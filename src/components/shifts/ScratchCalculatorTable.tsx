@@ -2437,8 +2437,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 πωλήσεις
               </p>
             </div>
+            {/* «Ορίστε» is wrong for somebody who is not allowed to. */}
             <p className="text-xs text-slate-600">
-              {targetIsBundleTracked
+              {!canEditLockedFields
+                ? 'Το προηγούμενο πακέτο ολοκληρώθηκε. Τα σημεία εκκίνησης του νέου είναι κλειδωμένα και τα ορίζει ο υπεύθυνος:'
+                : targetIsBundleTracked
                 ? 'Το προηγούμενο απόθεμα ολοκληρώθηκε. Ορίστε το αρχικό σύνολο του νέου αποθέματος:'
                 : 'Το προηγούμενο πακέτο ολοκληρώθηκε. Ορίστε τα δύο κλειδωμένα σημεία εκκίνησης του νέου πακέτου - ένα για κάθε κατεύθυνση πώλησης:'}
             </p>
@@ -2447,15 +2450,31 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               <label className="text-micro font-bold text-indigo-700 uppercase block mb-1">
                 {targetIsBundleTracked ? 'Αρχικό σύνολο κομματιών:' : 'Μπροστά - Αρχικό (πώληση από την αρχή):'}
               </label>
+              {/* The row's own type says «locked, Owner/Admin only» about
+                  startNo, and the table enforces exactly that. This dialog
+                  did not: opening a new pack let anybody type the figure
+                  every later sale is counted from, which is the same field
+                  by another door. */}
               <input
                 type="number"
                 min="0"
                 value={newPackStartNo}
                 onChange={(e) => setNewPackStartNo(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500"
+                disabled={!canEditLockedFields}
+                className={`w-full px-3 py-2 border-2 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500 ${
+                  canEditLockedFields
+                    ? 'border-indigo-300'
+                    : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                }`}
                 placeholder="0"
-                autoFocus
+                autoFocus={canEditLockedFields}
               />
+              {!canEditLockedFields && (
+                <p className="text-micro text-amber-700 mt-1 flex items-start gap-1">
+                  <Lock aria-hidden="true" className="w-3 h-3 shrink-0 mt-0.5" />
+                  <span>Το αρχικό νούμερο το ορίζει ο υπεύθυνος. Άνοιξε κανονικά το πακέτο — θα το συμπληρώσει εκείνος.</span>
+                </p>
+              )}
               {targetIsBundleTracked && (
                 <p className="text-micro text-slate-500 mt-1">
                   Η τιμή καταχωρίζεται αποκλειστικά σε μεμονωμένα κομμάτια{' '}
@@ -2478,10 +2497,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   min="0"
                   value={newPackBackEndNo}
                   onChange={(e) => setNewPackBackEndNo(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-purple-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500"
+                  disabled={!canEditLockedFields}
+                  className={`w-full px-3 py-2 border-2 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-purple-500 ${
+                    canEditLockedFields
+                      ? 'border-purple-300'
+                      : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                  }`}
                   placeholder="π.χ. 299"
                 />
-                <p className="text-micro text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
+                {canEditLockedFields ? (
+                  <p className="text-micro text-slate-500 mt-1">Προτεινόμενο: ο μέγιστος αριθμός του πακέτου για την τιμή αυτή. Μπορείτε να το αλλάξετε.</p>
+                ) : (
+                  <p className="text-micro text-amber-700 mt-1 flex items-start gap-1">
+                    <Lock aria-hidden="true" className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span>Κλειδωμένο σημείο εκκίνησης — το ορίζει ο υπεύθυνος.</span>
+                  </p>
+                )}
               </div>
             )}
           </div>
