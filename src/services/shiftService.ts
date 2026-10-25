@@ -401,6 +401,29 @@ export async function fetchDayCoinHandover(shiftId: string): Promise<number> {
 }
 
 /**
+ * Η χθεσινή ουρά του POS: ό,τι χτυπήθηκε μετά το κλείσιμο πακέτου της
+ * προηγούμενης βραδιάς, which is sitting inside tonight's batch report and
+ * has to come back out of it (0051).
+ *
+ * Falls back to 0 the way fetchDayCoinHandover does - on an older database
+ * the function is not there yet, and a close must never be blocked by a
+ * figure the operator can still see on their own report.
+ */
+export async function fetchPosCarry(shiftId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('shift_pos_carry', {
+      p_shift_id: shiftId,
+    });
+    if (error) throw error;
+    const amount = Number(data ?? 0);
+    return Number.isFinite(amount) ? amount : 0;
+  } catch (error) {
+    console.warn('Error fetching the previous night\'s POS tail:', error);
+    return 0;
+  }
+}
+
+/**
  * The day's shifts at one till, for working out what there is to collect
  * (0050). Elevated only, enforced by the function itself.
  *

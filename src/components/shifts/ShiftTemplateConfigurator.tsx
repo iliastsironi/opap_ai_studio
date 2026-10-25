@@ -1222,6 +1222,55 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
               )}
             </button>
+
+            {/* Για μαγαζί που κλείνει μετά τα μεσάνυχτα (0051). */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.pos_batch_close_enabled === true}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, pos_batch_close_enabled: !prev.pos_batch_close_enabled }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.pos_batch_close_enabled ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Το POS κλείνει πακέτο πριν κλείσει το μαγαζί</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Αντί για λίστα τερματικών, δύο πεδία: η αναφορά κλεισίματος και ό,τι χτυπήθηκε
+                  μετά. Το χθεσινό το αφαιρεί μόνο του το σύστημα.
+                </span>
+              </span>
+              {template.pos_batch_close_enabled ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.vlt_machine_cash_enabled === true}
+              disabled={!canManageScratchMode}
+              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, vlt_machine_cash_enabled: !prev.vlt_machine_cash_enabled }))}
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.vlt_machine_cash_enabled ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Καταγραφή μετρητών μέσα στα μηχανήματα</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Τι κρατάει κάθε ILink στο κλείσιμο. Καταγραφή μόνο — δεν μπαίνει στο ταμείο
+                  ούτε στην απόκλιση.
+                </span>
+              </span>
+              {template.vlt_machine_cash_enabled ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
           </div>
         </div>
       )}

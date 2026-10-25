@@ -321,6 +321,15 @@ export interface Shift {
   number_games_payouts?: number;
   number_games_vouchers?: number;
   safe_drop?: number;
+  // A PLAY store's card takings, which the terminal reports on a different
+  // clock than the shop keeps (0051). The batch report still holds last
+  // night's small hours; pos_after_close is tonight's, carried into tomorrow.
+  // NULL on pos_after_close means this shift does not keep the tail at all;
+  // 0 means it kept it and there was nothing.
+  pos_batch_total?: number;
+  pos_after_close?: number | null;
+  /** Μετρητά μέσα στα μηχανήματα. Καταγραφή μόνο - εκτός ισοζυγίου. */
+  vlt_machine_cash?: Array<{ label: string; amount: number }>;
   custom_field_values?: Record<string, any>;
   actual_cash?: number;
 
@@ -383,6 +392,14 @@ export interface ShiftTemplateConfig {
   safedrop_employee_allowed: boolean;
   morning_coins_carry_over: boolean;
   pos_terminal_count: number;
+  /**
+   * Το POS κλείνει πακέτο στα μεσάνυχτα, το μαγαζί αργότερα (0051).
+   * Αντικαθιστά τη λίστα τερματικών με δύο πεδία και κουβαλάει μόνο του τη
+   * χθεσινή ουρά. Κλειστό παντού μέχρι να το ανοίξει κάποιος.
+   */
+  pos_batch_close_enabled?: boolean;
+  /** Καταγραφή μετρητών μέσα στα μηχανήματα (ILink), εκτός ισοζυγίου. */
+  vlt_machine_cash_enabled?: boolean;
   // Org/store-level defaults for how never-explicitly-configured Σκρατς/
   // Λαχεία rows count: front-only vs front+back for Σκρατς, and plain
   // pieces vs €10 bundles for Λαχεία. A row's own explicit override (set

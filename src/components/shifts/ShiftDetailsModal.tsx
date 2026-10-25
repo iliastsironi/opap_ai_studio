@@ -35,6 +35,7 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
 import { fetchDayCollection } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -329,6 +330,31 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             const bankDeposits = safeNum(shift.custom_field_values?.bank_deposits ?? shift.custom_field_values?.safe_drops);
             const storePosItems: Array<{ name: string; amount: string | number }> = shift.custom_field_values?.store_pos_items || [];
             const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
+
+            // Το POS έκλεισε πακέτο πριν κλείσει το μαγαζί (0051).
+            //
+            // The manager used to see one flat POS figure with no way to tell
+            // where it came from - and under batch close it is not a reading
+            // off a machine at all, it is an arithmetic. So the three terms
+            // are shown separately.
+            //
+            // The χθεσινή ουρά is not stored on the shift: it was a lookup at
+            // closing time. It is recovered here from the three figures that
+            // ARE stored, which has the side benefit of being the exact number
+            // the operator was shown rather than whatever the lookup would
+            // answer today.
+            const usedBatchClose =
+              shift.pos_batch_total !== undefined && shift.pos_batch_total !== null;
+            const posBatchReport = safeNum(shift.pos_batch_total);
+            const posTailTonight = safeNum(shift.pos_after_close);
+            const posTailCarried = carriedFromStored(
+              posBatchReport,
+              posTailTonight,
+              shift.card_payments
+            );
+            const machineCash = Array.isArray(shift.vlt_machine_cash)
+              ? shift.vlt_machine_cash
+              : [];
 
             const expensesGpCashTotal = safeNum(shift.custom_field_values?.expenses_gp_cash ?? shift.expenses_paid_cash);
             const expensesFnbCashTotal = safeNum(shift.custom_field_values?.expenses_fnb_cash);
@@ -705,7 +731,32 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             {formatCurrency(safeNum(shift.coin_handover))}
                           </span>
                         </div>
-                        {storePosItems.length > 0 ? (
+                        {usedBatchClose ? (
+                          <>
+                            <div className="flex justify-between text-slate-400 py-0.5 text-micro">
+                              <span>Αναφορά κλεισίματος πακέτου:</span>
+                              <span className="font-mono">{formatCurrency(posBatchReport)}</span>
+                            </div>
+                            <div className="flex justify-between text-slate-400 py-0.5 text-micro">
+                              <span>Χθεσινή ουρά (αφαιρείται):</span>
+                              <span className="font-mono text-rose-300">
+                                -{formatCurrency(posTailCarried)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-400 py-0.5 text-micro">
+                              <span>Μετά το κλείσιμο, απόψε:</span>
+                              <span className="font-mono text-emerald-300">
+                                +{formatCurrency(posTailTonight)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-300 py-0.5">
+                              <span>Pos Καταστήματος:</span>
+                              <span className="font-mono font-bold text-white">
+                                {formatCurrency(safeNum(shift.card_payments))}
+                              </span>
+                            </div>
+                          </>
+                        ) : storePosItems.length > 0 ? (
                           storePosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
                               <span>{item.name || `Pos #${idx + 1}`}:</span>
@@ -739,6 +790,35 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span className="font-mono text-white">{formatCurrency(grossCount)}</span>
                         </div>
                       </div>
+
+                      {/* Μετρητά μέσα στα μηχανήματα (0051). Its own block,
+                          deliberately below the Σύνολο: this money is inside
+                          the machines and is not part of anything above it.
+                          Folding it into the reconciliation would read as
+                          cash the shift is answerable for. */}
+                      {machineCash.length > 0 && (
+                        <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                          <div className="text-center font-black text-slate-400 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
+                            Μετρητά στα VLTs — εκτός ισοζυγίου
+                          </div>
+                          {machineCash.map((reading, idx) => (
+                            <div key={idx} className="flex justify-between text-slate-300 py-0.5">
+                              <span>{reading.label || `ILink #${idx + 1}`}:</span>
+                              <span className="font-mono font-bold text-white">
+                                {formatCurrency(safeNum(reading.amount))}
+                              </span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between text-slate-400 font-bold border-t border-slate-800 pt-1">
+                            <span>Σύνολο:</span>
+                            <span className="font-mono text-slate-200">
+                              {formatCurrency(
+                                machineCash.reduce((t, r) => t + safeNum(r.amount), 0)
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Bottom Right Blue Bar */}

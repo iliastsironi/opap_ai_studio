@@ -31,7 +31,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { fetchShiftReconciliationExpenses, createAndSyncShiftExpense, updateExpenseInFirestore, deleteAndSyncShiftExpense } from '../../services/moduleServices.ts';
 import {
   deleteShiftFromFirestore, fetchDayCustomerCredits, DayCustomerCredit,
-  fetchDayCoinHandover, fetchHandoverSnapshot, fetchDayOpening,
+  fetchDayCoinHandover, fetchHandoverSnapshot, fetchDayOpening, fetchPosCarry,
 } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
@@ -189,6 +189,12 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
+import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
+import {
+  machineLabel,
+  normalizeMachineReadings,
+  vltMachineTotal,
+} from '../../lib/vltMachineCash.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
@@ -343,6 +349,37 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // the Owner's laptop could disagree about how many machines the shop owns.
   const [configuredPosCount, setConfiguredPosCount] = useState<number | null>(null);
   /**
+   * Το POS κλείνει πακέτο στα μεσάνυχτα, το μαγαζί στις τέσσερις (0051).
+   *
+   * With this on, the terminal grid gives way to two figures - the batch
+   * report and tonight's tail - and the shift's card takings become
+   *   αναφορά − (χθεσινή ουρά) + (αποψινή ουρά)
+   * where the χθεσινή comes back from the database rather than from the
+   * operator's memory.
+   */
+  const [posBatchCloseEnabled, setPosBatchCloseEnabled] = useState(false);
+  // Restored the way every other figure here is, so reopening a draft does
+  // not quietly blank the two numbers the whole POS arithmetic rests on.
+  const [posBatchTotal, setPosBatchTotal] = useState(() => {
+    const saved = shift.pos_batch_total ?? localDraft?.pos_batch_total;
+    return saved === undefined || saved === null ? '' : String(saved);
+  });
+  const [posAfterClose, setPosAfterClose] = useState(() => {
+    const saved = shift.pos_after_close ?? localDraft?.pos_after_close;
+    return saved === undefined || saved === null ? '' : String(saved);
+  });
+  const [posCarry, setPosCarry] = useState(0);
+  /** Μετρητά μέσα στα μηχανήματα. Καταγραφή μόνο - ποτέ στο ισοζύγιο. */
+  const [vltMachineCashEnabled, setVltMachineCashEnabled] = useState(false);
+  // Text, not numbers, for exactly as long as it is on screen - see
+  // MachineReadingInput. normalizeMachineReadings turns it back on save.
+  const [machineReadings, setMachineReadings] = useState<Array<{ label: string; amount: string }>>(
+    () =>
+      normalizeMachineReadings(
+        shift.vlt_machine_cash ?? localDraft?.vlt_machine_cash
+      ).map((r) => ({ label: r.label, amount: r.amount ? String(r.amount) : '' }))
+  );
+  /**
    * The suppliers with their own categories, not just their names.
    *
    * The list was flattened to names on arrival, so the expense rows could
@@ -467,6 +504,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     };
   }, [shift.organization_id, shift.store_id, organization]);
 
+  // Last night's POS tail, from the database rather than from memory. Runs
+  // for every shift: the figure is harmless when the switch is off, and
+  // fetching it only on a flag that arrives later would race the template.
+  useEffect(() => {
+    let cancelled = false;
+    fetchPosCarry(shift.id)
+      .then((carry) => {
+        if (!cancelled) setPosCarry(carry);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.id]);
+
   useEffect(() => {
     let cancelled = false;
     const orgId = shift.organization_id || organization!.id;
@@ -489,6 +541,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // to keep showing the module rather than to hide a till section.
         setFloatEditableByEmployee(config.opening_float_employee_editable === true);
         setConfiguredPosCount(Math.max(1, Number(config.pos_terminal_count) || 2));
+        // === rather than !== false: both of these are off for every store
+        // that predates 0051, and a template row without the column must not
+        // switch a shop onto a different POS arithmetic by accident.
+        setPosBatchCloseEnabled(config.pos_batch_close_enabled === true);
+        setVltMachineCashEnabled(config.vlt_machine_cash_enabled === true);
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
         setSafeDropAllowedForEmployee((config as any).safedrop_employee_allowed === true);
         // The store's rule, not this shift's. A shift already closed keeps the
@@ -1095,7 +1152,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const totalScratchNet =
     roundCurrency(safeNum(scratchSales) - safeNum(scratchPayouts))
     + nationalLotteryShiftContribution;
-  const totalStorePos = storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
+  // The shift's card takings, worked out one of two ways.
+  //
+  // A shop whose terminals and whose day end at the same time just adds its
+  // machines up. One that shuts after the batch has already been sent cannot:
+  // tonight's report is still carrying last night's small hours, and tonight's
+  // own have not been reported yet. See posBatchClose.ts.
+  const posBatch = posFromBatchClose({
+    batchTotal: posBatchTotal,
+    afterClose: posAfterClose,
+    carriedAfterClose: posCarry,
+  });
+  const totalStorePos = posBatchCloseEnabled
+    ? posBatch.amount
+    : storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
+  const machineCashTotal = vltMachineTotal(machineReadings);
   const totalToraPos = toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalArithmoNet =
     safeNum(arithmoGross) - safeNum(arithmoCancels) - safeNum(arithmoPayouts) + safeNum(arithmoVouchers);
@@ -1399,6 +1470,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       register_pos_1: safeNum(storePosItems[0]?.amount),
       register_pos_2: safeNum(storePosItems[1]?.amount),
       card_payments: totalStorePos,
+      // Stored even when the switch is off, so turning it on later does not
+      // read a column somebody half-filled. pos_after_close stays NULL unless
+      // this shift actually keeps the tail - a 0 there ends tomorrow's search
+      // and must mean «counted, and it was nothing».
+      pos_batch_total: posBatchCloseEnabled ? safeNum(posBatchTotal) : null,
+      pos_after_close: posBatchCloseEnabled ? safeNum(posAfterClose) : null,
+      vlt_machine_cash: vltMachineCashEnabled
+        ? normalizeMachineReadings(machineReadings)
+        : null,
 
       clever_point_total: safeNum(cleverPointTotal),
       ippodromos_balance: safeNum(ippodromosBalance),
@@ -3125,7 +3205,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
               <div className="flex items-center space-x-2 flex-wrap gap-1.5">
                 <span className="text-xs font-bold text-indigo-700 bg-white px-2.5 py-1 rounded-xl border border-indigo-200" title="Κοινά φυσικά μηχανήματα καταστήματος">
-                  {storePosItems.length} Τερματικά POS
+                  {posBatchCloseEnabled
+                    ? 'Κλείσιμο πακέτου στις 12'
+                    : `${storePosItems.length} Τερματικά POS`}
                 </span>
                 {/* Same again: the shop's terminal count is set in
                     «Διαμόρφωση», not partway through a count. */}
@@ -3135,6 +3217,89 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
             </div>
 
+            {/* Το POS κλείνει πακέτο στις 12, το μαγαζί αργότερα (0051).
+                Two figures instead of a list of machines, because what the
+                terminal reported and what the shop took are not the same
+                night. */}
+            {posBatchCloseEnabled && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-white p-3.5 rounded-xl border border-indigo-150 space-y-2 shadow-2xs">
+                    <div>
+                      <span className="text-micro font-black uppercase tracking-wider text-indigo-700 block">
+                        Αναφορά κλεισίματος πακέτου
+                      </span>
+                      <span className="text-micro text-slate-500 font-medium">
+                        Το σύνολο που τύπωσε το μηχάνημα στα μεσάνυχτα
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <MoneyField
+                        value={posBatchTotal}
+                        onChange={setPosBatchTotal}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                      />
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-indigo-150 space-y-2 shadow-2xs">
+                    <div>
+                      <span className="text-micro font-black uppercase tracking-wider text-indigo-700 block">
+                        POS μετά το κλείσιμο πακέτου
+                      </span>
+                      <span className="text-micro text-slate-500 font-medium">
+                        Το πρόχειρο report, από τα μεσάνυχτα μέχρι τώρα
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <MoneyField
+                        value={posAfterClose}
+                        onChange={setPosAfterClose}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                      />
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* The sum spelled out. The operator never types the middle
+                    term, so the screen has to show where it came from. */}
+                <div className="bg-white rounded-xl border border-indigo-200 p-3.5 flex items-center justify-between gap-3 flex-wrap shadow-2xs">
+                  <div className="min-w-0">
+                    <span className="text-micro font-black uppercase tracking-wider text-slate-500 block">
+                      Η πράξη
+                    </span>
+                    <span className="text-xs font-bold text-slate-700 font-mono break-words">
+                      {posBreakdownText(posBatch)}
+                    </span>
+                    <span className="text-micro text-slate-500 font-medium block mt-0.5">
+                      {posCarry > 0
+                        ? 'Το χθεσινό το κράτησε το σύστημα από την προηγούμενη βάρδια.'
+                        : 'Δεν υπάρχει χθεσινή ουρά καταχωρημένη.'}
+                    </span>
+                  </div>
+                  <span className="text-lg font-black text-indigo-800 font-mono shrink-0">
+                    {formatCurrency(posBatch.amount)}
+                  </span>
+                </div>
+
+                {posBatch.carryExceedsBatch && (
+                  <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <p className="text-xs font-semibold text-rose-800">
+                      Το χθεσινό ποσό ({formatCurrency(posBatch.carried)}) είναι μεγαλύτερο από
+                      ολόκληρη τη σημερινή αναφορά. Δες μήπως γράφτηκε λάθος κάποιο από τα δύο,
+                      ή μήπως δεν έκλεισε πακέτο.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!posBatchCloseEnabled && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {storePosItems.map((item, idx) => (
                 <div key={item.id} className="bg-white p-3.5 rounded-xl border border-indigo-150 space-y-2 relative group shadow-2xs">
@@ -3172,7 +3337,99 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 </div>
               ))}
             </div>
+            )}
           </div>
+
+          {/* Μετρητά μέσα στα μηχανήματα (0051).
+              Recorded and totalled for whoever goes to empty them. Never part
+              of the expected cash: that money is inside the machines, and
+              counting it as till cash would leave the shop thousands short
+              every night. */}
+          {vltMachineCashEnabled && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3.5">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2">
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-slate-600" />
+                    <span>Μετρητά στα VLTs</span>
+                  </h4>
+                  <p className="text-micro font-medium text-slate-600 mt-0.5">
+                    Καταγραφή μόνο — δεν μπαίνει στο ταμείο ούτε στην απόκλιση.
+                  </p>
+                </div>
+                <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
+                  Σύνολο: {formatCurrency(machineCashTotal)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {machineReadings.map((reading, idx) => (
+                  <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      {canManage ? (
+                        <input
+                          type="text"
+                          maxLength={MAX_LABEL_LENGTH}
+                          value={reading.label}
+                          onChange={(e) =>
+                            setMachineReadings((prev) =>
+                              prev.map((r, i) => (i === idx ? { ...r, label: e.target.value } : r))
+                            )
+                          }
+                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0 flex-1"
+                          placeholder={machineLabel(idx)}
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-slate-800 truncate">{reading.label}</span>
+                      )}
+
+                      {canManage && machineReadings.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMachineReadings((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          aria-label={`Αφαίρεση ${reading.label}`}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <MoneyField
+                        value={reading.amount}
+                        onChange={(next) =>
+                          setMachineReadings((prev) =>
+                            prev.map((r, i) => (i === idx ? { ...r, amount: next } : r))
+                          )
+                        }
+                        placeholder="0.00"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                      />
+                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMachineReadings((prev) => [
+                      ...prev,
+                      { label: machineLabel(prev.length), amount: '' },
+                    ])
+                  }
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-600 cursor-pointer transition-colors"
+                >
+                  + Προσθήκη μηχανήματος
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Καταθέσεις χρηματοκιβωτίου (safe drops).
               Money that left the drawer during the shift and is not missing:
