@@ -81,6 +81,12 @@ import {
   deleteShiftFromFirestore,
 } from '../../services/shiftService.ts';
 import { discrepancyClasses } from '../../lib/discrepancyTone.ts';
+import {
+  dayLabel,
+  groupShiftsByDay,
+  registerLabel,
+  shiftTypeLabel,
+} from '../../lib/inspectionDayGroups.ts';
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, assignedStores } = useAuth();
@@ -298,6 +304,15 @@ export const ShiftsManager: React.FC = () => {
     [shifts]
   );
   const pendingApprovalCount = pendingApprovalShifts.length;
+
+  // One card per day, not per shift. The manager inspects the day's last
+  // till; if that balances, the earlier ones have already passed their cash
+  // through it and nobody opens them. Grouping says that on screen instead of
+  // leaving three cards from the same Saturday to be matched up by eye.
+  const pendingApprovalDays = useMemo(
+    () => groupShiftsByDay(pendingApprovalShifts),
+    [pendingApprovalShifts]
+  );
 
   // If active closing wizard is open
   if (wizardShift) {
@@ -556,60 +571,115 @@ export const ShiftsManager: React.FC = () => {
                 </button>
               </div>
 
-              {/* Quick Tablet Grid Cards of Pending Shifts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
-                {pendingApprovalShifts.map((pShift) => (
+              {/* One card per day: the day's tills together, each still
+                  inspected on its own. Two columns at most - every shift
+                  inside carries its own button, so three columns crushes
+                  them at tablet width. */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-3.5 pt-1">
+                {pendingApprovalDays.map((day) => (
                   <div
-                    key={pShift.id}
-                    className="transition bg-white rounded-xl border border-amber-200 p-4 shadow-2xs hover:shadow-xs flex flex-col justify-between space-y-3"
+                    key={day.key}
+                    className="transition bg-white rounded-xl border border-amber-200 shadow-2xs hover:shadow-xs overflow-hidden"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="text-micro font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider inline-block mb-1">
-                          {pShift.store_name} ({pShift.register_id === 'REG-01' ? 'Ταμείο 1' : pShift.register_id})
-                        </span>
-                        <h4 className="font-extrabold text-slate-900 text-xs block">
-                          {pShift.opened_by_user_name || 'Υπάλληλος'} •{' '}
-                          {pShift.shift_type === 'MORNING'
-                            ? 'Πρωινή'
-                            : pShift.shift_type === 'AFTERNOON'
-                            ? 'Απογευματινή'
-                            : 'Βραδινή'}
+                    {/* Day header: whose day, and which day */}
+                    <div className="px-4 py-3 bg-amber-50/70 border-b border-amber-200 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <span className="text-micro font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            {day.storeName}
+                          </span>
+                          <span className="text-micro font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                            {registerLabel(day.registerId)}
+                          </span>
+                        </div>
+                        <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                          <Calendar aria-hidden="true" className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span className="truncate">{dayLabel(day.day)}</span>
                         </h4>
-                        <span className="text-micro text-slate-500 font-mono block mt-0.5">
-                          {new Date(pShift.closed_at || pShift.opened_at).toLocaleDateString('el-GR')}{' '}
-                          {new Date(pShift.closed_at || pShift.opened_at).toLocaleTimeString('el-GR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
                       </div>
 
-                      <div className="text-right shrink-0 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                        <span className="text-micro text-slate-500 block font-bold">
-                          {toGreekUpper('Αποκλιση')}
-                        </span>
-                        <span
-                          className={`font-black text-xs font-mono ${
-                            pShift.discrepancy < 0
-                              ? 'text-rose-600'
-                              : pShift.discrepancy > 0
-                              ? 'text-amber-600'
-                              : 'text-emerald-600'
-                          }`}
-                        >
-                          {formatCurrency(pShift.discrepancy, { showSign: true })}
-                        </span>
-                      </div>
+                      <span className="shrink-0 text-micro font-black px-2 py-1 rounded-md bg-amber-200/80 text-amber-900 whitespace-nowrap">
+                        {day.shifts.length}{' '}
+                        {toGreekUpper(day.shifts.length === 1 ? 'Βαρδια' : 'Βαρδιες')}
+                      </span>
                     </div>
 
-                    <button
-                      onClick={() => setDetailsShift(pShift)}
-                      className="w-full py-2.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition-colors cursor-pointer"
-                    >
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>{toGreekUpper('Επιθεωρηση & Εγκριση')}</span>
-                    </button>
+                    {/* The day's tills, last one first - that is the one the
+                        manager opens, and the only one they open when it
+                        balances. */}
+                    <div className="p-3 space-y-2">
+                      {day.shifts.map((pShift) => {
+                        const isLast = pShift.id === day.lastShift.id;
+                        const hasEarlier = day.shifts.length > 1;
+                        const stamp = new Date(pShift.closed_at || pShift.opened_at);
+
+                        return (
+                          <div
+                            key={pShift.id}
+                            className={`rounded-xl border p-3 space-y-2.5 ${
+                              isLast && hasEarlier
+                                ? 'border-amber-300 bg-amber-50/50'
+                                : 'border-slate-200 bg-slate-50/50'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-extrabold text-slate-900 text-xs">
+                                    {shiftTypeLabel(pShift.shift_type)}
+                                  </span>
+                                  {isLast && hasEarlier && (
+                                    <span className="text-micro font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 whitespace-nowrap">
+                                      {toGreekUpper('Τελευταια')}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-micro text-slate-600 font-bold block truncate mt-0.5">
+                                  {pShift.opened_by_user_name || 'Υπάλληλος'}
+                                </span>
+                                <span className="text-micro text-slate-500 font-mono block">
+                                  {stamp.toLocaleTimeString('el-GR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="text-micro text-slate-500 block font-bold">
+                                  {toGreekUpper('Αποκλιση')}
+                                </span>
+                                {/* The shift's own tolerance, as everywhere else. */}
+                                <span
+                                  className={`font-black text-xs font-mono px-2 py-0.5 rounded-lg border inline-block mt-0.5 ${
+                                    discrepancyClasses(
+                                      pShift.discrepancy,
+                                      pShift.discrepancy_threshold
+                                    ).badge
+                                  }`}
+                                >
+                                  {formatCurrency(Number(pShift.discrepancy || 0), {
+                                    showSign: true,
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => setDetailsShift(pShift)}
+                              className={`w-full py-2.5 px-3 rounded-lg font-black text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer ${
+                                isLast
+                                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-2xs'
+                                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+                              }`}
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>{toGreekUpper('Επιθεωρηση & Εγκριση')}</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>
