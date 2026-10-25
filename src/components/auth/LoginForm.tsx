@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft, MailCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { isStaffHandle, toAuthEmail } from '../../lib/staffIdentity.ts';
+import { toAuthEmail } from '../../lib/staffIdentity.ts';
 import { supabase } from '../../services/supabase.ts';
+import { resetProblemText, resetTargetFor } from '../../lib/passwordReset.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 
 interface LoginFormProps {
@@ -444,7 +445,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                     <CheckCircle className="w-8 h-8" />
                   </div>
                   <p className="text-sm font-semibold text-slate-200">
-                    Το email επαναφοράς στάλθηκε στο <span className="text-indigo-400 font-mono">{resetEmail}</span>!
+                    Το email επαναφοράς στάλθηκε στο <span className="text-indigo-400 font-mono">{resetEmail.trim().toLowerCase()}</span>!
                   </p>
                   <p className="text-xs text-slate-500">
                     Ελέγξτε τα εισερχόμενά σας (και τον φάκελο ανεπιθύμητων) για τις οδηγίες ορισμού νέου κωδικού.
@@ -463,20 +464,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                     e.preventDefault();
                     if (!resetEmail) return;
                     setResetError(null);
-                    // A staff handle has no mailbox behind it. Sending here
-                    // would succeed, deliver nothing, and leave the employee
-                    // waiting for an email that cannot arrive - worse than
-                    // being told plainly who can help.
-                    if (!resetEmail.includes('@') || isStaffHandle(toAuthEmail(resetEmail))) {
-                      setResetError(
-                        'Ο λογαριασμός σας δεν έχει email, οπότε δεν μπορεί να σταλεί επαναφορά. ' +
-                          'Ζητήστε από τον υπεύθυνο να σας δώσει καινούργιο κωδικό.'
-                      );
+                    // A staff handle has no mailbox behind it, and the address
+                    // has to be the one Auth stores rather than the one that
+                    // was typed - see passwordReset.ts for why a mismatch is
+                    // worse than an error here.
+                    const target = resetTargetFor(resetEmail);
+                    if (target.problem) {
+                      setResetError(resetProblemText(target.problem));
                       return;
                     }
                     setResettingPassword(true);
                     try {
-                      await supabase.auth.resetPasswordForEmail(resetEmail);
+                      // Without this, Supabase sends everyone to the project's
+                      // single configured Site URL - the same trap the Google
+                      // sign-in above documents - so a reset started from a
+                      // preview, a custom domain or localhost lands on a
+                      // different origin, where there is no recovery session
+                      // and so nothing happens. Each origin still has to be
+                      // listed under Authentication -> URL Configuration.
+                      await supabase.auth.resetPasswordForEmail(target.email, {
+                        redirectTo:
+                          typeof window !== 'undefined' ? window.location.origin : undefined,
+                      });
                       setResetSent(true);
                     } catch (err: any) {
                       setResetError(err.message || 'Αποτυχία αποστολής email επαναφοράς');

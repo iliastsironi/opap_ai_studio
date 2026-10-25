@@ -22,7 +22,7 @@ const hasInviteLink = () =>
   typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('action') === 'accept_invite';
 
 export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) => {
-  const { token, isLoading, user, organization } = useAuth();
+  const { token, isLoading, user, organization, isPasswordRecovery } = useAuth();
   const { isLoadingStores } = useTenant();
   const [currentTab, setCurrentTab] = useState('shifts');
   const [authScreen, setAuthScreen] = useState<'landing' | 'signin' | 'signup'>(
@@ -68,6 +68,15 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
   // everywhere and the person rings whoever deactivated them to ask what broke.
   if (user?.status === 'INACTIVE') {
     return <AccessDisabled />;
+  }
+
+  // A «ξέχασα τον κωδικό» link signs the person in so they can choose a new
+  // password - the link is the proof of identity, there is nothing else to
+  // ask them for. Without this gate that session is an ordinary one, so the
+  // app simply opened and never asked for the password they came to set:
+  // the reset looked broken while working exactly as designed.
+  if (isPasswordRecovery) {
+    return <ForcePasswordChange reason="RECOVERY" />;
   }
 
   // Before anything else loads. A staff account starts with a password the

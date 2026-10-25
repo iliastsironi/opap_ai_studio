@@ -16,8 +16,11 @@ const MIN_LENGTH = 8;
  * close at first use, which is why this blocks the whole app rather than
  * sitting in a settings page nobody opens.
  */
-export const ForcePasswordChange: React.FC = () => {
+export const ForcePasswordChange: React.FC<{ reason?: 'ISSUED' | 'RECOVERY' }> = ({
+  reason = 'ISSUED',
+}) => {
   const { user, logout } = useAuth();
+  const isRecovery = reason === 'RECOVERY';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,7 +48,14 @@ export const ForcePasswordChange: React.FC = () => {
         .from('users')
         .update({ must_change_password: false, updated_at: new Date().toISOString() })
         .eq('id', user?.id ?? '');
-      if (flagError) throw flagError;
+      // Fatal for an issued password - leaving the flag set would ask for a
+      // new one at every sign-in forever. Incidental after a reset, where the
+      // password is already changed and the flag was most likely false
+      // anyway: failing here would show an error for something that worked.
+      if (flagError) {
+        if (!isRecovery) throw flagError;
+        console.warn('[ForcePasswordChange] password changed, flag not cleared:', flagError);
+      }
       // Re-read the profile the plain way: the app reloads and AuthContext
       // picks up the cleared flag.
       window.location.reload();
@@ -63,11 +73,23 @@ export const ForcePasswordChange: React.FC = () => {
             <KeyRound className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-black text-white">Ορίστε τον δικό σας κωδικό</h1>
+            <h1 className="text-base font-black text-white">
+              {isRecovery ? 'Ορίστε νέο κωδικό' : 'Ορίστε τον δικό σας κωδικό'}
+            </h1>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Ο λογαριασμός <span className="font-mono text-slate-200">{displayIdentifier(user?.email)}</span>{' '}
-              χρησιμοποιεί ακόμα τον προσωρινό κωδικό που σας δόθηκε. Επιλέξτε έναν δικό σας
-              για να συνεχίσετε — κανείς άλλος δεν θα τον γνωρίζει.
+              {isRecovery ? (
+                <>
+                  Ήρθατε από τον σύνδεσμο επαναφοράς για τον λογαριασμό{' '}
+                  <span className="font-mono text-slate-200">{displayIdentifier(user?.email)}</span>.
+                  Γράψτε τον καινούργιο σας κωδικό για να μπείτε.
+                </>
+              ) : (
+                <>
+                  Ο λογαριασμός <span className="font-mono text-slate-200">{displayIdentifier(user?.email)}</span>{' '}
+                  χρησιμοποιεί ακόμα τον προσωρινό κωδικό που σας δόθηκε. Επιλέξτε έναν δικό σας
+                  για να συνεχίσετε — κανείς άλλος δεν θα τον γνωρίζει.
+                </>
+              )}
             </p>
           </div>
         </div>

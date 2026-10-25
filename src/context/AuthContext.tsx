@@ -19,6 +19,15 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permissionCode: string) => boolean;
+  /**
+   * The session came from a «ξέχασα τον κωδικό» link and nothing else.
+   *
+   * Supabase signs the person in to let them set a new password - the link IS
+   * the proof of identity. Treated as an ordinary sign-in, that drops them
+   * into the app still not knowing their password and with nothing left to
+   * prompt them, which is exactly how the reset appeared not to work.
+   */
+  isPasswordRecovery: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<string[]>(['*']);
   const [assignedStores, setAssignedStores] = useState<UserStoreAssignment[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
 
   // Sync profile whenever the Supabase session changes.
   const syncUserProfile = async (authUser: SupabaseAuthUser) => {
@@ -289,6 +299,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsLoading(true);
+      // Latched, not assigned: Supabase fires PASSWORD_RECOVERY once, and the
+      // TOKEN_REFRESHED and SIGNED_IN events that follow while the person is
+      // still choosing a password would otherwise clear it and let them
+      // through without ever setting one. It is cleared by the reload that
+      // follows a successful change.
+      if (_event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
       if (session?.user) {
         setSupabaseUser(session.user);
         setToken(session.access_token);
@@ -392,6 +408,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         refreshUser,
         hasPermission,
+        isPasswordRecovery,
       }}
     >
       {children}
