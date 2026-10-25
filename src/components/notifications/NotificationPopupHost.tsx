@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { MessageSquare, Receipt, AlertTriangle, ArrowRight, Ticket } from 'lucide-react';
+import { MessageSquare, Receipt, AlertTriangle, ArrowRight, Ticket, ShieldCheck, Bell } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { Modal } from '../ui/Modal.tsx';
@@ -21,8 +21,38 @@ const SHIFT_TYPE_LABELS: Record<string, string> = {
   CUSTOM: 'Έκτακτη',
 };
 
-const VARIANTS: Record<NotificationType, { icon: LucideIcon; iconBox: string; shortcut?: { label: string; tab: string } }> = {
+interface NotificationVariant {
+  icon: LucideIcon;
+  iconBox: string;
+  shortcut?: { label: string; tab: string };
+}
+
+/**
+ * What an unknown notification type looks like.
+ *
+ * The database decides which types exist - its CHECK constraint has carried
+ * INSPECTION_FLAG since 0036 - and this table is a separate list that has to
+ * be kept in step by hand. It was not: the first INSPECTION_FLAG ever raised
+ * made VARIANTS[type] undefined, and reading .icon off it threw during render,
+ * ABOVE the error boundary. The whole app went white, on every page, for
+ * everyone that notification was addressed to, until somebody read it - which
+ * they could not do, because the app was white.
+ *
+ * A missing icon is not worth an outage, so an unrecognised type now renders
+ * as a plain message that can still be acknowledged.
+ */
+const FALLBACK_VARIANT: NotificationVariant = {
+  icon: Bell,
+  iconBox: 'bg-slate-100 text-slate-600',
+};
+
+export const VARIANTS: Record<NotificationType, NotificationVariant> = {
   HANDOVER_MESSAGE: { icon: MessageSquare, iconBox: 'bg-indigo-100 text-indigo-600' },
+  INSPECTION_FLAG: {
+    icon: ShieldCheck,
+    iconBox: 'bg-indigo-100 text-indigo-600',
+    shortcut: { label: 'Προβολή Βαρδιών', tab: 'shifts' },
+  },
   EMPLOYEE_CHARGE: {
     icon: Receipt,
     iconBox: 'bg-rose-100 text-rose-600',
@@ -39,6 +69,21 @@ const VARIANTS: Record<NotificationType, { icon: LucideIcon; iconBox: string; sh
     shortcut: { label: 'Εθνικό Λαχείο', tab: 'national_lottery' },
   },
 };
+
+/**
+ * Never undefined, whatever the database decides to send.
+ *
+ * hasOwnProperty rather than a plain lookup with ??: every object inherits
+ * «constructor», «toString» and the rest from Object.prototype, so a bare
+ * VARIANTS[type] answers with a function for those names instead of
+ * undefined - and the ?? never fires, leaving .icon undefined and the crash
+ * exactly where it started.
+ */
+export function variantFor(type: string): NotificationVariant {
+  return Object.prototype.hasOwnProperty.call(VARIANTS, type)
+    ? (VARIANTS as Record<string, NotificationVariant>)[type]
+    : FALLBACK_VARIANT;
+}
 
 // The pop-up must be answered with «Το είδα» - Escape does nothing.
 const ignoreClose = () => {};
@@ -104,7 +149,7 @@ export const NotificationPopupHost: React.FC<NotificationPopupHostProps> = ({ on
   const current = queue[0];
   if (!current) return null;
 
-  const variant = VARIANTS[current.type];
+  const variant = variantFor(current.type);
   const Icon = variant.icon;
   const shiftLine = describeShift(current);
   const amount = formatCurrency(Number(current.amount ?? 0));

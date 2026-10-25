@@ -6,6 +6,10 @@ export type NotificationType =
   | 'HANDOVER_MESSAGE'
   | 'EMPLOYEE_CHARGE'
   | 'SHORTAGE_ALERT'
+  // Written by the database since 0036 and again by 0045, and never modelled
+  // here - so the pop-up had no icon for it and crashed the whole app the
+  // first time a shop actually raised one.
+  | 'INSPECTION_FLAG'
   | 'LOTTERY_CANCEL_REMINDER';
 
 export interface AppNotification {
