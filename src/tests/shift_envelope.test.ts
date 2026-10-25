@@ -35,11 +35,32 @@ describe('what goes in the envelope', () => {
     expect(e.totalOut).toBe(1342.5);
   });
 
-  it('includes the coins the float carries, not just the notes', () => {
-    // The float is 1000 in notes plus whatever ψιλά came over from last
-    // night; both stay in the drawer.
+  it('keeps back whatever base float it is handed, coins included', () => {
+    // The base float is 1000 in notes plus whatever ψιλά came over from last
+    // night; both stay in the drawer. Still true - what changed is that a
+    // προσαύξηση is no longer part of this figure.
     const e = calculateEnvelope({ countedNotes: 1500, floatNotes: 1000 + 47.35 });
     expect(e.amount).toBe(452.65);
+  });
+
+  // The Owner's rule: the envelope is everything in the till except the base
+  // capital and the coins. A προσαύξηση is cash that came IN during the day,
+  // so it goes out with the envelope - it is not capital and must not become
+  // tomorrow's opening float.
+  it('hands over a top-up instead of keeping it as float', () => {
+    // 1000 base float, somebody put 500 in during the day, drawer holds 1842,50.
+    const e = calculateEnvelope({ countedNotes: 1842.5, floatNotes: 1000 });
+    expect(e.amount).toBe(842.5);          // not 342,50
+    expect(e.retained).toBe(1000);         // the base capital, and no more
+  });
+
+  it('does not let the top-up compound into the next day', () => {
+    // Two days running, 500 put in each morning and the drawer counted back
+    // to the same total. Both envelopes must be the same size.
+    const monday = calculateEnvelope({ countedNotes: 2000, floatNotes: 1000 });
+    const tuesday = calculateEnvelope({ countedNotes: 2000, floatNotes: 1000 });
+    expect(monday.amount).toBe(1000);
+    expect(tuesday.amount).toBe(monday.amount);
   });
 
   it('survives empty figures rather than reporting NaN', () => {

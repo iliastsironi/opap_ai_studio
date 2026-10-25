@@ -4,6 +4,7 @@ import {
 import { Shift } from '../types/index.ts';
 import type { CollectableShift } from '../lib/collectionSummary.ts';
 import { calculateBanknotesAndCoins } from './financialCalculator.ts';
+import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 import { readTopUps, totalTopUps } from '../lib/shiftTopUps.ts';
 
 const TABLE_NAME = 'shifts';
@@ -246,8 +247,17 @@ export async function updateShiftInFirestore(
   try {
     // Bounded: each attempt removes one key, and the payload is finite.
     for (let attempt = 0; attempt <= Object.keys(payload).length; attempt += 1) {
-      const { error } = await supabase.from(TABLE_NAME).update(payload).eq('id', shiftId);
+      // count, because an UPDATE that matched no row is not an error: RLS
+      // filters the row out of the statement and PostgREST answers 204 with
+      // an empty body. See lib/writeGuard.ts - this is what silently threw
+      // away a whole closing count for anyone who did not open the shift.
+      const { error, count } = await supabase
+        .from(TABLE_NAME)
+        .update(payload, { count: 'exact' })
+        .eq('id', shiftId);
       if (!error) {
+        const problem = rowsWrittenProblem(count);
+        if (problem) throw new Error(problem);
         if (dropped.length > 0) {
           console.warn(
             `[shift] saved without ${dropped.join(', ')} - no such column yet. ` +
@@ -439,9 +449,6 @@ export async function fetchDayCollection(shiftId: string): Promise<CollectableSh
     if (error) throw error;
     return ((data ?? []) as any[]).map((row) => {
       const split = calculateBanknotesAndCoins(row.counted_denominations ?? {});
-      const custom = row.custom_field_values ?? {};
-      const own = totalTopUps(readTopUps(custom));
-      const inherited = Math.max(0, Number(custom.inherited_topups) || 0);
       return {
         shift_id: row.shift_id,
         shift_type: row.shift_type,
@@ -449,9 +456,10 @@ export async function fetchDayCollection(shiftId: string): Promise<CollectableSh
         opened_by_user_name: row.opened_by_user_name,
         notes: split.banknotes,
         coins: split.coins,
-        // Προσαυξήσεις are float, not takings, and count as notes - the same
-        // assumption the closing screen makes.
-        floatNotes: (Number(row.opening_cash_notes) || 0) + own + inherited,
+        // Base capital only. A προσαύξηση put into the till during the day
+        // is collected with the envelope rather than left behind as float -
+        // see lib/shiftEnvelope.ts.
+        floatNotes: Number(row.opening_cash_notes) || 0,
         safe_drop: row.safe_drop,
         coin_handover: row.coin_handover,
       };

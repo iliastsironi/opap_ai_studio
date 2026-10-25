@@ -2,8 +2,10 @@
  * Ο φάκελος: the money that leaves the till at the end of a shift.
  *
  * The drawer carries a fixed float - «πάγιο κεφάλαιο», 1000 € - which runs
- * from day to day and never goes anywhere. The banknotes above it are
- * counted into an envelope and handed to the supervisor.
+ * from day to day and never goes anywhere. Everything above it goes: the
+ * banknotes above the float are counted into an envelope and handed to the
+ * supervisor, προσαυξήσεις included. Only the base capital and the coins
+ * stay for the morning.
  *
  * BANKNOTES. The coins stay in the drawer, all of them: they are the change
  * the next shift works with, and they leave only when they overflow the tray
@@ -37,14 +39,15 @@ export interface EnvelopeInput {
   /** The coins in the drawer at the close. They stay. */
   countedCoins?: number | string | null | undefined;
   /**
-   * The note portion of the float that has to stay behind.
+   * The note portion of the BASE float - the shop's standing capital, the
+   * figure the drawer opens on every morning.
    *
-   * Προσαυξήσεις belong here, this shift's own and any the day made before
-   * it: that money went into the drawer and is capital, not takings. Nobody
-   * records whether a προσαύξηση was notes or coins, and this is the side to
-   * assume - counting it as notes can only make the envelope smaller, which
-   * leaves money in the shop. Leaving it out could ask an operator to hand
-   * over cash that is not there.
+   * Προσαυξήσεις are deliberately NOT here. A top-up is cash somebody put
+   * into the till during the day, and it leaves with the envelope like any
+   * other money the till took in. Counting it as float made the envelope
+   * short by exactly the top-up, and turned that cash into tomorrow's
+   * opening capital - so the money kept compounding into a float nobody had
+   * decided to raise, and every envelope after it was wrong by more.
    */
   floatNotes: number | string | null | undefined;
   /** Cash already moved to the safe during the shift, if any. */

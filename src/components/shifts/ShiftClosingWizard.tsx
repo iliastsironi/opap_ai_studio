@@ -1338,10 +1338,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     // change, and leave only in a cup of their own.
     countedNotes: banknotesAndCoins.banknotes,
     countedCoins: banknotesAndCoins.coins,
-    // Προσαυξήσεις count as notes here - see the note on floatNotes. Nobody
-    // records which they were, and this is the side that can only leave
-    // money in the shop rather than ask for money that is not there.
-    floatNotes: safeNum(openingNotesAmount) + topUpTotal + inheritedTopUps,
+    // The base capital, and nothing else. A προσαύξηση is cash that came
+    // INTO the till during the day; it goes out with the envelope rather
+    // than staying behind as float. Counting it as float made the envelope
+    // smaller by exactly the top-up and quietly turned it into tomorrow's
+    // opening capital.
+    floatNotes: safeNum(openingNotesAmount),
     safeDrops: totalSafeDrops(safeDrops),
     discrepancySettlement: settlementCash,
     coinHandover: coinTotals.ownHandover,
