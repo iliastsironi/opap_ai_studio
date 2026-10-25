@@ -29,6 +29,8 @@ export const MoneyField: React.FC<{
   value: string;
   onChange: (next: string) => void;
   onBlur?: () => void;
+  /** Passed through to the input, so a form still refuses to submit empty. */
+  required?: boolean;
   id?: string;
   disabled?: boolean;
   readOnly?: boolean;
@@ -49,6 +51,7 @@ export const MoneyField: React.FC<{
   value,
   onChange,
   onBlur,
+  required,
   id,
   disabled,
   readOnly,
@@ -69,6 +72,7 @@ export const MoneyField: React.FC<{
     className={className}
     title={title}
     aria-label={ariaLabel}
+    required={required}
     onBlur={onBlur}
     onFocus={(e) => {
       if (readOnly || disabled) return;

@@ -24,6 +24,9 @@ import { focusAction } from '../../lib/zeroOnFocus.ts';
 export const NumericField: React.FC<{
   value: number;
   onChange: (next: number) => void;
+  onBlur?: () => void;
+  /** Passed through to the input, so a form still refuses to submit empty. */
+  required?: boolean;
   id?: string;
   min?: number;
   max?: number;
@@ -43,6 +46,8 @@ export const NumericField: React.FC<{
 }> = ({
   value,
   onChange,
+  onBlur,
+  required,
   id,
   min,
   max,
@@ -74,6 +79,7 @@ export const NumericField: React.FC<{
       inputMode="decimal"
       value={text}
       disabled={disabled}
+      required={required}
       placeholder={placeholder}
       className={className}
       title={title}
@@ -90,6 +96,7 @@ export const NumericField: React.FC<{
         focused.current = false;
         // Settle on the committed value, so a field left as «5,» reads «5».
         setText(shown(value));
+        onBlur?.();
       }}
       onChange={(e) => {
         const raw = e.target.value;

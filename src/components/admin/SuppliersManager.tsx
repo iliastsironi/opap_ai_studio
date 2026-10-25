@@ -39,6 +39,7 @@ import {
 } from '../../services/supplierService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { EXPENSE_CATEGORIES, normalizeSupplierCategory } from '../../lib/expenseSuppliers.ts';
+import { NumericField } from '../ui/NumericField.tsx';
 
 /**
  * What a supplier may be filed under - the same list an expense uses (0048).
@@ -1102,12 +1103,10 @@ export const SuppliersManager: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="order-amount" className="block text-xs font-bold text-slate-700 uppercase mb-1">Συνολικό Ποσό (€)</label>
-                  <input
+                  <NumericField
                     id="order-amount"
-                    type="number"
-                    step="0.01"
-                    value={orderAmount}
-                    onChange={(e) => setOrderAmount(parseFloat(e.target.value) || 0)}
+                    value={Number(orderAmount) || 0}
+                    onChange={(next) => setOrderAmount(next)}
                     required
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
                   />
@@ -1272,12 +1271,10 @@ export const SuppliersManager: React.FC = () => {
 
               <div>
                 <label htmlFor="supplier-balance" className="block text-xs font-bold text-slate-700 uppercase mb-1">Αρχικό Υπόλοιπο Οφειλής (€)</label>
-                <input
+                <NumericField
                   id="supplier-balance"
-                  type="number"
-                  step="0.01"
-                  value={formBalance}
-                  onChange={(e) => setFormBalance(parseFloat(e.target.value) || 0)}
+                  value={Number(formBalance) || 0}
+                  onChange={(next) => setFormBalance(next)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
                 />
               </div>

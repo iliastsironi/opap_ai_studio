@@ -9,6 +9,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_CURRENCY_AMOUNT } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import type { Shift } from '../../types/index.ts';
+import { MoneyField } from '../ui/MoneyField.tsx';
 
 /** `YYYY-MM-DDTHH:mm` in local time, which is what datetime-local wants. */
 function localDateTimeValue(d: Date): string {
@@ -210,14 +211,10 @@ export const QuickCashDialog: React.FC<{
               <label htmlFor="quick-cash-amount" className="block text-xs font-bold text-slate-700 mb-1">
                 Ποσό (€)
               </label>
-              <input
+              <MoneyField
                 id="quick-cash-amount"
-                type="number"
-                step="0.01"
-                min="0"
-                max={MAX_CURRENCY_AMOUNT}
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(next) => setAmount(next)}
                 placeholder="0.00"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
               />

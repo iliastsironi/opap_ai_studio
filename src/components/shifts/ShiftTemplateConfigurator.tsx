@@ -43,6 +43,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { ScratchModeChangeModal } from './ScratchModeChangeModal.tsx';
 import { ScratchSellingMode } from './ScratchCalculatorTable.tsx';
 import { INSPECTION_MODE_OPTIONS, normalizeInspectionMode } from '../../lib/inspectionPolicy.ts';
+import { MoneyField } from '../ui/MoneyField.tsx';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
@@ -740,25 +741,22 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
                     {field.type === 'CURRENCY' ? (
                       <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
+                        <MoneyField
                           placeholder={field.placeholder || '0.00'}
                           value={previewValues[field.key] || ''}
-                          onChange={(e) =>
-                            setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                          onChange={(next) =>
+                            setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                           }
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-indigo-500"
                         />
                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">€</span>
                       </div>
                     ) : field.type === 'NUMBER' ? (
-                      <input
-                        type="number"
+                      <MoneyField
                         placeholder={field.placeholder || '0'}
                         value={previewValues[field.key] || ''}
-                        onChange={(e) =>
-                          setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        onChange={(next) =>
+                          setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                         }
                         className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
                       />
@@ -827,25 +825,22 @@ export const ShiftTemplateConfigurator: React.FC = () => {
 
                     {field.type === 'CURRENCY' ? (
                       <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
+                        <MoneyField
                           placeholder={field.placeholder || '0.00'}
                           value={previewValues[field.key] || ''}
-                          onChange={(e) =>
-                            setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                          onChange={(next) =>
+                            setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                           }
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-indigo-500"
                         />
                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">€</span>
                       </div>
                     ) : field.type === 'NUMBER' ? (
-                      <input
-                        type="number"
+                      <MoneyField
                         placeholder={field.placeholder || '0'}
                         value={previewValues[field.key] || ''}
-                        onChange={(e) =>
-                          setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        onChange={(next) =>
+                          setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                         }
                         className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
                       />

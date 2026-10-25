@@ -98,3 +98,25 @@ describe('a customer charge typed with a comma', () => {
     expect(parseLooseNumber('12.50')).toBe(12.5);
   });
 });
+
+describe('why a number-storing field needs NumericField', () => {
+  it('«24,» is not yet an amount, so parsing every keystroke loses it', () => {
+    // The expense row in the till stores a NUMBER. Parsing the text on each
+    // keystroke means the moment the comma is typed the value becomes 0 and
+    // the field wipes itself - which is «δε με αφήνει να βάλω δεκαδικά».
+    expect(parseNonNegativeAmount('24,').isValid).toBe(false);
+    expect(parseNonNegativeAmount('24,').value).toBe(0);
+  });
+
+  it('but it is a number in progress, which is what the field holds', () => {
+    // NumericField keeps the text as typed and commits what parses, so the
+    // decimals can arrive.
+    expect(parseLooseNumber('24,')).toBe(24);
+    expect(parseLooseNumber('24,2')).toBe(24.2);
+    expect(parseLooseNumber('24,20')).toBe(24.2);
+  });
+
+  it('and the finished figure validates', () => {
+    expect(parseNonNegativeAmount('24,20')).toEqual({ value: 24.2, isValid: true });
+  });
+});

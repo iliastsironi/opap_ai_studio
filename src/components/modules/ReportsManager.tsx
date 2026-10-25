@@ -55,6 +55,7 @@ import { PnlWorkspace } from '../pnl/PnlWorkspace.tsx';
 import { CommissionEntrySheet } from '../pnl/CommissionEntrySheet.tsx';
 import { percentLabel } from '../pnl/pnlDisplay.tsx';
 import { useMonthlyPnl } from '../pnl/useMonthlyPnl.ts';
+import { NumericField } from '../ui/NumericField.tsx';
 
 type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
 
@@ -1135,26 +1136,22 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
 
           <div>
             <label htmlFor="vlt-rec-opapnet" className="block font-bold text-slate-700 mb-1">Ποσό Εκκαθάρισης Opapnet (€)</label>
-            <input
+            <NumericField
               id="vlt-rec-opapnet"
-              type="number"
-              step="0.01"
               required
-              value={newVltRec.opapnetAmount || ''}
-              onChange={(e) => setNewVltRec({ ...newVltRec, opapnetAmount: parseFloat(e.target.value) || 0 })}
+              value={Number(newVltRec.opapnetAmount || '') || 0}
+              onChange={(next) => setNewVltRec({ ...newVltRec, opapnetAmount: next })}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
             />
           </div>
 
           <div>
             <label htmlFor="vlt-rec-counted" className="block font-bold text-slate-700 mb-1">Καταμέτρηση Ταμείου Βάρδιας (€)</label>
-            <input
+            <NumericField
               id="vlt-rec-counted"
-              type="number"
-              step="0.01"
               required
-              value={newVltRec.countedAmount || ''}
-              onChange={(e) => setNewVltRec({ ...newVltRec, countedAmount: parseFloat(e.target.value) || 0 })}
+              value={Number(newVltRec.countedAmount || '') || 0}
+              onChange={(next) => setNewVltRec({ ...newVltRec, countedAmount: next })}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-mono font-bold"
             />
           </div>

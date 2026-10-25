@@ -192,6 +192,7 @@ import { compareGreek } from '../../lib/greekSort.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
+import { NumericField } from '../ui/NumericField.tsx';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -2908,12 +2909,21 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     </div>
 
                     <div className="sm:col-span-2">
-                      <MoneyField
+                      {/* NumericField, not MoneyField, because this row
+                          stores a NUMBER. MoneyField hands back the text as
+                          typed, and parsing every keystroke means «24,» -
+                          which is not yet a number - lands as 0 and wipes
+                          the field the moment anybody reaches for the
+                          decimals. NumericField keeps the text while it is
+                          being typed and commits only what parses. */}
+                      <NumericField
                         placeholder="Ποσό €"
-                        value={String(exp.amount || '')}
+                        decimals={2}
+                        blankWhenZero
+                        value={Number(exp.amount) || 0}
                         onChange={(next) => {
                           const updated = [...expenses];
-                          updated[idx].amount = parseNonNegativeAmount(next, MAX_CURRENCY_AMOUNT).value;
+                          updated[idx].amount = Math.min(Math.max(0, next), MAX_CURRENCY_AMOUNT);
                           setExpenses(updated);
                         }}
                         onBlur={() => handleExpenseFieldBlur(idx)}

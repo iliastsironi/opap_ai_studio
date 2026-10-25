@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode, packPieceCount } from '../../lib/scratchPack.ts';
 import { packWarning, packWarningText } from '../../lib/scratchPackWarning.ts';
+import { NumericField } from '../ui/NumericField.tsx';
 import {
   applyEthnikoShape,
   canToggleBundleTracking,
@@ -1774,13 +1775,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         <td className="p-2 text-right">
                           {isEditing ? (
                             <div>
-                              <input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={row.price}
-                                onChange={(e) =>
-                                  handleUpdateRow(row.id, 'price', parseFloat(e.target.value) || 0)
+                              <NumericField
+                                min={0}
+                                value={Number(row.price) || 0}
+                                onChange={(next) =>
+                                  handleUpdateRow(row.id, 'price', next)
                                 }
                                 className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
                               />

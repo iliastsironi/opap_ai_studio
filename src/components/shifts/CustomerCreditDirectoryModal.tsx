@@ -38,6 +38,7 @@ import { TOAST_AUTO_DISMISS_MS } from '../../lib/timing.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
+import { MoneyField } from '../ui/MoneyField.tsx';
 
 interface CustomerCreditDirectoryModalProps {
   isOpen: boolean;
@@ -673,14 +674,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                         <label htmlFor="tier-limit-aplus" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                           Ποσό Ορίου (€):
                         </label>
-                        <input
+                        <MoneyField
                           id="tier-limit-aplus"
-                          type="number"
-                          value={editTierLimits['A+'].limit}
-                          onChange={(e) =>
+                          value={String(editTierLimits['A+'].limit ?? '')}
+                          onChange={(next) =>
                             setEditTierLimits({
                               ...editTierLimits,
-                              'A+': { ...editTierLimits['A+'], limit: e.target.value },
+                              'A+': { ...editTierLimits['A+'], limit: next },
                             })
                           }
                           className="w-full px-3 py-2 bg-white border border-purple-300 rounded-xl font-mono font-bold text-xs"
@@ -706,14 +706,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
-                      <input
+                      <MoneyField
                         id="tier-limit-a"
-                        type="number"
-                        value={editTierLimits['A'].limit}
-                        onChange={(e) =>
+                        value={String(editTierLimits['A'].limit ?? "")}
+                        onChange={(next) =>
                           setEditTierLimits({
                             ...editTierLimits,
-                            A: { limit: e.target.value },
+                            A: { limit: next },
                           })
                         }
                         className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-xl font-mono font-bold text-xs"
@@ -739,14 +738,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
-                      <input
+                      <MoneyField
                         id="tier-limit-b"
-                        type="number"
-                        value={editTierLimits['B'].limit}
-                        onChange={(e) =>
+                        value={String(editTierLimits['B'].limit ?? "")}
+                        onChange={(next) =>
                           setEditTierLimits({
                             ...editTierLimits,
-                            B: { limit: e.target.value },
+                            B: { limit: next },
                           })
                         }
                         className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl font-mono font-bold text-xs"
@@ -772,14 +770,13 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       Ανώτατο Όριο Πίστωσης (€):
                     </label>
                     <div className="relative">
-                      <input
+                      <MoneyField
                         id="tier-limit-c"
-                        type="number"
-                        value={editTierLimits['C'].limit}
-                        onChange={(e) =>
+                        value={String(editTierLimits['C'].limit ?? "")}
+                        onChange={(next) =>
                           setEditTierLimits({
                             ...editTierLimits,
-                            C: { limit: e.target.value },
+                            C: { limit: next },
                           })
                         }
                         className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl font-mono font-bold text-xs"
@@ -916,12 +913,10 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <label htmlFor="cust-debt" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Τρέχουσα Οφειλή (€)
                     </label>
-                    <input
+                    <MoneyField
                       id="cust-debt"
-                      type="number"
-                      step="0.01"
                       value={formData.current_debt}
-                      onChange={(e) => setFormData({ ...formData, current_debt: e.target.value })}
+                      onChange={(next) => setFormData({ ...formData, current_debt: next })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white font-mono"
                     />
                   </div>
@@ -930,13 +925,11 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <label htmlFor="cust-custom-limit" className="text-micro font-bold text-slate-700 uppercase block mb-1">
                       Ειδικό Όριο (Προαιρετικό)
                     </label>
-                    <input
+                    <MoneyField
                       id="cust-custom-limit"
-                      type="number"
-                      step="0.01"
                       placeholder="Default"
                       value={formData.custom_limit}
-                      onChange={(e) => setFormData({ ...formData, custom_limit: e.target.value })}
+                      onChange={(next) => setFormData({ ...formData, custom_limit: next })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white font-mono"
                     />
                   </div>
