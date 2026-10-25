@@ -44,6 +44,7 @@ import { ScratchModeChangeModal } from './ScratchModeChangeModal.tsx';
 import { ScratchSellingMode } from './ScratchCalculatorTable.tsx';
 import { INSPECTION_MODE_OPTIONS, normalizeInspectionMode } from '../../lib/inspectionPolicy.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
+import { COLLECTION_MODE_OPTIONS, normalizeCollectionMode } from '../../lib/collectionSummary.ts';
 
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
@@ -1047,6 +1048,33 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <p className="text-micro text-slate-500 mt-1">
                 {INSPECTION_MODE_OPTIONS.find(
                   (o) => o.value === normalizeInspectionMode(template.inspection_mode)
+                )?.hint}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="cfg-collection" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Σύνοψη προς παραλαβή
+              </label>
+              <select
+                id="cfg-collection"
+                disabled={!canManageScratchMode}
+                value={normalizeCollectionMode((template as any).collection_summary_mode)}
+                onChange={(e) =>
+                  setTemplate((prev) => ({
+                    ...prev,
+                    collection_summary_mode: normalizeCollectionMode(e.target.value),
+                  } as any))
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 bg-white disabled:bg-slate-50 cursor-pointer"
+              >
+                {COLLECTION_MODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="text-micro text-slate-500 mt-1">
+                {COLLECTION_MODE_OPTIONS.find(
+                  (o) => o.value === normalizeCollectionMode((template as any).collection_summary_mode)
                 )?.hint}
               </p>
             </div>

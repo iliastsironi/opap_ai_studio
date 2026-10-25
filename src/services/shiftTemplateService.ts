@@ -25,6 +25,7 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   // The way the agency runs: the morning checks what the night left, and
   // nobody is asked to count a till in the middle of trade.
   inspection_mode: 'FIRST_SHIFT_ONLY',
+  collection_summary_mode: 'LAST_SHIFT_ONLY',
   topup_employee_allowed: false,
   safedrop_employee_allowed: false,
   morning_coins_carry_over: true,

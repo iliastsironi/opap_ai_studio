@@ -2,6 +2,9 @@ import {
   supabase, handleSupabaseError, OperationType, cleanData, unknownColumnFrom,
 } from './supabase.ts';
 import { Shift } from '../types/index.ts';
+import type { CollectableShift } from '../lib/collectionSummary.ts';
+import { calculateBanknotesAndCoins } from './financialCalculator.ts';
+import { readTopUps, totalTopUps } from '../lib/shiftTopUps.ts';
 
 const TABLE_NAME = 'shifts';
 
@@ -394,6 +397,45 @@ export async function fetchDayCoinHandover(shiftId: string): Promise<number> {
   } catch (error) {
     console.warn('Error fetching the day\'s coin handovers:', error);
     return 0;
+  }
+}
+
+/**
+ * The day's shifts at one till, for working out what there is to collect
+ * (0050). Elevated only, enforced by the function itself.
+ *
+ * Returns the raw figures rather than a total: the envelope is recomputed
+ * through the same rule the operator was shown, so the manager's number and
+ * theirs cannot drift apart. See lib/collectionSummary.ts.
+ */
+export async function fetchDayCollection(shiftId: string): Promise<CollectableShift[]> {
+  try {
+    const { data, error } = await supabase.rpc('shift_day_collection', {
+      p_shift_id: shiftId,
+    });
+    if (error) throw error;
+    return ((data ?? []) as any[]).map((row) => {
+      const split = calculateBanknotesAndCoins(row.counted_denominations ?? {});
+      const custom = row.custom_field_values ?? {};
+      const own = totalTopUps(readTopUps(custom));
+      const inherited = Math.max(0, Number(custom.inherited_topups) || 0);
+      return {
+        shift_id: row.shift_id,
+        shift_type: row.shift_type,
+        opened_at: row.opened_at,
+        opened_by_user_name: row.opened_by_user_name,
+        notes: split.banknotes,
+        coins: split.coins,
+        // Προσαυξήσεις are float, not takings, and count as notes - the same
+        // assumption the closing screen makes.
+        floatNotes: (Number(row.opening_cash_notes) || 0) + own + inherited,
+        safe_drop: row.safe_drop,
+        coin_handover: row.coin_handover,
+      };
+    });
+  } catch (error) {
+    console.warn("Error fetching the day's collection:", error);
+    return [];
   }
 }
 

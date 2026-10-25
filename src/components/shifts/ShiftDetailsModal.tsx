@@ -35,6 +35,9 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
+import { fetchDayCollection } from '../../services/shiftService.ts';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import {
   safeNum,
   roundCurrency,
@@ -109,10 +112,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   const [approveSucceeded, setApproveSucceeded] = useState(false);
   const [reopenSucceededMsg, setReopenSucceededMsg] = useState<string | null>(null);
 
-  if (!isOpen || !shift) return null;
-
-  const approvalDiscrepancy = safeNum(shift.discrepancy);
-  const isShiftBalanced = Math.abs(approvalDiscrepancy) < 0.01;
 
   const isManagerOrOwner =
     roles?.some((r) =>
@@ -128,6 +127,47 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
   const canApprove = isManagerOrOwner || hasPermission('shift.approve') || hasPermission('shifts.approve');
   const canReopen = isManagerOrOwner || hasPermission('shift.reopen') || canApprove;
+
+  /**
+   * What somebody physically collects, across the whole day (0050).
+   *
+   * Only for a manager or the owner - the RPC refuses anyone else, since
+   * «how much cash is there to pick up» is not an employee's question about
+   * another operator's shift.
+   */
+  const [dayCollection, setDayCollection] = useState<CollectableShift[]>([]);
+  const [collectionMode, setCollectionMode] = useState<unknown>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!shift?.id || !isManagerOrOwner) return undefined;
+    fetchDayCollection(shift.id)
+      .then((rows) => { if (!cancelled) setDayCollection(rows); })
+      .catch(() => {});
+    getShiftTemplateConfig(shift.organization_id, shift.store_id)
+      .then((cfg) => { if (!cancelled) setCollectionMode((cfg as any)?.collection_summary_mode); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [shift?.id, shift?.organization_id, shift?.store_id, isManagerOrOwner]);
+
+  // The day's last shift is the one nothing was opened after.
+  const isLastOfDay =
+    dayCollection.length === 0 ||
+    dayCollection[dayCollection.length - 1]?.shift_id === shift?.id;
+  const collection = collectionSummary(dayCollection);
+  const showCollection =
+    isManagerOrOwner && dayCollection.length > 0 &&
+    shouldShowCollection({ mode: collectionMode, isLastOfDay });
+
+  // Every hook above this line, so each render runs the same ones in the
+  // same order - «Rendered more hooks than during the previous render» is
+  // what it says when they do not. Everything that reads `shift` goes
+  // below, because up here it may still be null.
+  if (!isOpen || !shift) return null;
+
+  const approvalDiscrepancy = safeNum(shift.discrepancy);
+  const isShiftBalanced = Math.abs(approvalDiscrepancy) < 0.01;
+
 
   const handleApprove = async () => {
     setLoading(true);
@@ -964,6 +1004,54 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   </p>
                 </div>
               </div>
+
+              {/* What somebody has to physically pick up, across the whole
+                  day. Three separate piles - the envelope is notes above the
+                  float, a safe drop is already in the safe, a cup of coins
+                  travels beside the envelope - and whoever walked in to
+                  collect was adding them up in their head. */}
+              {showCollection && (
+                <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                      Προς Παραλαβή — Σύνολο Ημέρας
+                    </h3>
+                    <span className="text-lg font-black font-mono text-indigo-900">
+                      {formatCurrency(collection.total)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {[
+                      ['Φάκελοι', collection.envelopes],
+                      ['Χρηματοκιβώτιο', collection.safeDrops],
+                      ['Κέρματα', collection.coins],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="bg-white rounded-lg border border-indigo-200 py-1.5">
+                        <span className="block text-micro font-bold text-slate-600">{label}</span>
+                        <span className="block font-mono font-black text-slate-900 text-xs">
+                          {formatCurrency(Number(value))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Per shift, so a figure can be traced to whoever counted
+                      it rather than arriving as one number to be trusted. */}
+                  {collection.lines.length > 1 && (
+                    <div className="space-y-0.5 pt-1 border-t border-indigo-200">
+                      {collection.lines.map((l) => (
+                        <div key={l.shiftId} className="flex items-center justify-between text-micro">
+                          <span className="text-indigo-900">{l.label}</span>
+                          <span className="font-mono font-bold text-indigo-900">
+                            {formatCurrency(l.total)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Expenses & Receipts.
               

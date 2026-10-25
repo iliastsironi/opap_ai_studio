@@ -376,6 +376,9 @@ export interface ShiftTemplateConfig {
   // the night's declaration because the shop was shut; a mid-day handover
   // cannot, so this is the store's own call. See lib/inspectionPolicy.ts.
   inspection_mode: 'FIRST_SHIFT_ONLY' | 'EVERY_SHIFT' | 'OFF';
+  // Where the «what there is to collect» summary appears (0050). The day's
+  // last shift is when somebody comes round, so that is the default.
+  collection_summary_mode: 'LAST_SHIFT_ONLY' | 'EVERY_SHIFT';
   topup_employee_allowed: boolean;
   safedrop_employee_allowed: boolean;
   morning_coins_carry_over: boolean;
