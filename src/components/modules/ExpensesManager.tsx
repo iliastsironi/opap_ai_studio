@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
+import { StoreTransfersPanel } from './StoreTransfersPanel.tsx';
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
@@ -523,6 +524,21 @@ export const ExpensesManager: React.FC = () => {
         )}
       </div>
 
+      {/* Cash moving between the company's own shops. Its own section rather
+          than a category in the expense form: a transfer needs a destination
+          and a signature from the other end, and it is not a cost to the
+          company at all - see lib/storeTransfer.ts. */}
+      {targetStoreId && targetStoreId !== 'ALL' && (
+        <StoreTransfersPanel
+          orgId={orgId}
+          storeId={targetStoreId}
+          stores={stores}
+          user={user as any}
+          activeShift={activeShift}
+          onSettled={loadExpenses}
+        />
+      )}
+
       {/* Filter and Table Section */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -730,6 +746,7 @@ export const ExpensesManager: React.FC = () => {
                     placeholder="0.00"
                     value={amount}
                     onChange={setAmount}
+                    required
                     className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-slate-900 bg-white"
                   />
                 </div>

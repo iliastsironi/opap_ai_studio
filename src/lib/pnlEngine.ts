@@ -2,6 +2,8 @@
 // store (plus F&B when it had activity), company costs and loans below it,
 // one bottom line. Pure - the whole month is reproducible from plain data.
 
+import { isTransferCategory } from './storeTransfer.ts';
+
 export type PnlUnit = 'STORE' | 'FNB';
 export type PnlCompanyCostKind = 'FIXED' | 'LOAN';
 
@@ -518,8 +520,16 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
       .sort((a, b) => byDefaultOrder(DEFAULT_FIXED_COST_LINES)(a.name, b.name));
     const fixedTotal = sum(fixedLines.map((f) => f.amount));
 
-    // Έξοδα Ημέρας (store) and F&B expenses
-    const storeExpenses = expenses.filter((e) => e.storeId === store.id);
+    // Έξοδα Ημέρας (store) and F&B expenses.
+    //
+    // Cash moved to another of the company's own shops is left out. It is a
+    // real expense row - the sending drawer lost the money and its till has
+    // to reconcile - but the company did not spend anything, it changed
+    // drawer. Counting it made the books poorer by every transfer ever made:
+    // there is a 2.000 € one on 8/9 alone.
+    const storeExpenses = expenses
+      .filter((e) => e.storeId === store.id)
+      .filter((e) => !isTransferCategory(e.category));
     const toGridItem = (e: PnlExpense) => ({ date: e.date, column: e.recipient.trim() || NO_SUPPLIER_LABEL, amount: e.amount });
     const dailyExpenses = buildDayGrid(days, storeExpenses.filter((e) => e.category !== FNB_EXPENSE_CATEGORY).map(toGridItem));
     const fnbExpenses = buildDayGrid(days, storeExpenses.filter((e) => e.category === FNB_EXPENSE_CATEGORY).map(toGridItem));
