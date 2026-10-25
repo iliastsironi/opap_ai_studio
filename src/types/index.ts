@@ -397,6 +397,8 @@ export interface ShiftTemplateConfig {
    * Αντικαθιστά τη λίστα τερματικών με δύο πεδία και κουβαλάει μόνο του τη
    * χθεσινή ουρά. Κλειστό παντού μέχρι να το ανοίξει κάποιος.
    */
+  /** Πάγια παραγγελία Λαϊκού σε πεντάδες, ανά κατάστημα (0053). */
+  laiko_standing_order_bundles?: number;
   pos_batch_close_enabled?: boolean;
   /** Καταγραφή μετρητών μέσα στα μηχανήματα (ILink), εκτός ισοζυγίου. */
   vlt_machine_cash_enabled?: boolean;

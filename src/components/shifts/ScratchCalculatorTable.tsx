@@ -25,6 +25,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode, packPieceCount } from '../../lib/scratchPack.ts';
 import { packWarning, packWarningText } from '../../lib/scratchPackWarning.ts';
+import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
   applyEthnikoShape,
@@ -72,6 +73,15 @@ export interface ScratchTicketRow {
   // before/after) - saleBundles/salePieces are just how the User expresses
   // THIS entry's sale, which the UI converts into that same endNo.
   bundleSize?: number;
+  /**
+   * Πεντάδες sent back unsold on the day of the draw.
+   *
+   * They came off the shelf but were never sold, so they must not reach the
+   * takings - calculateRowQty subtracts them. Whatever was neither cancelled
+   * nor left behind WAS sold and is charged, which is the Owner's rule and
+   * the reason this is asked for at all. See lib/laikoCancellation.ts.
+   */
+  cancelledBundles?: string;
   saleBundles?: string; // πεντάδες sold this entry (User-editable)
   salePieces?: string; // μεμονωμένα κομμάτια sold this entry, normalized 0..bundleSize-1 (User-editable)
   // Whether this row sells from both ends of the same stock (Πίσω side)
@@ -815,7 +825,12 @@ export function calculateRowQty(row: ScratchTicketRow): number {
   // progress below. Kept separate because the current pack's figures restart
   // at its own first ticket, and adding them would otherwise be impossible.
   const fromClosedPacks = Math.max(0, Number(row.closedPackQty) || 0);
-  return fromClosedPacks + currentPackQty(row);
+  // Tickets cancelled on the day of the draw left the shelf without being
+  // sold. The shelf reads empty afterwards, so without this they would all
+  // be counted as takings - the till would charge the operator for every
+  // ticket the draw did not sell.
+  const cancelled = bundlesToPieces(row.cancelledBundles, row.bundleSize);
+  return Math.max(0, fromClosedPacks + currentPackQty(row) - cancelled);
 }
 
 function currentPackQty(row: ScratchTicketRow): number {
@@ -1042,6 +1057,8 @@ interface ScratchCalculatorTableProps {
   // scr_laiko row's display/input mode. Undefined behaves like
   // 'PIECES_AND_BUNDLES' (today's shipped behavior).
   laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY';
+  /** Η πάγια παραγγελία Λαϊκού του καταστήματος, σε πεντάδες (0053). */
+  laikoStandingOrderBundles?: number;
   // Whether the catalogue itself can be edited from this table: a game's
   // name, its price, how it is counted, adding one, removing one.
   //
@@ -1060,6 +1077,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   sellingMode,
   specialEditionEnabled = false,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
+  laikoStandingOrderBundles = 0,
   catalogEditable = false,
 }) => {
   const { roles, permissions } = useAuth();
@@ -1090,6 +1108,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const [managerOverrideEnabled, setManagerOverrideEnabled] = useState(false);
   const [showRulesInfo, setShowRulesInfo] = useState(false);
   const [newPackModalRowId, setNewPackModalRowId] = useState<string | null>(null);
+  // Αδιάθετοι λαχνοί. Deliberately NOT behind canEditLockedFields: the
+  // person who physically sends the tickets back is whoever is on the
+  // counter on the day of the draw, and that is the shift employee.
+  const [cancelModalRowId, setCancelModalRowId] = useState<string | null>(null);
+  const [cancelBundles, setCancelBundles] = useState('');
   // The warehouse code of the pack being opened. Mandatory: a mistyped code
   // recorded today is a pack nobody can trace tomorrow, and its shape is the
   // only thing checkable until the stock list exists.
@@ -1266,6 +1289,33 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     });
     onChangeRows(updated);
     saveScratchCatalog(updated);
+  };
+
+  /**
+   * Η ακύρωση της κλήρωσης.
+   *
+   * The shelf is emptied - the draw is over and nothing of it can be sold
+   * tomorrow - and the πεντάδες that went back are recorded so
+   * calculateRowQty can keep them out of the takings. Whatever was on the
+   * shelf and did NOT go back stays in, and is charged.
+   */
+  const handleApplyCancellation = (rowId: string) => {
+    if (readOnly) return;
+    const updated = rows.map((r) =>
+      r.id === rowId
+        ? {
+            ...r,
+            cancelledBundles: String(parseNonNegativeInt(cancelBundles).value),
+            // The shelf reads empty from here on.
+            endNo: '0',
+            saleBundles: '',
+            salePieces: '',
+          }
+        : r
+    );
+    onChangeRows(updated);
+    setCancelModalRowId(null);
+    setCancelBundles('');
   };
 
   const handleApplyNewPack = (rowId: string) => {
@@ -2199,9 +2249,34 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     setNewPackModalRowId(row.id);
                                     setNewPackCode('');
                                     setNewPackRemainder('');
-                                    setNewPackStartNo('0');
+                                    // A Λαϊκό draw arrives as the same
+                                    // standing order every time, so the shelf
+                                    // opens on it rather than on a figure
+                                    // somebody retypes each week. 0 means the
+                                    // shop has not told us its order yet.
+                                    const standing = isBundleTrackedRow(row)
+                                      ? standingOrderPieces(laikoStandingOrderBundles, row.bundleSize)
+                                      : 0;
+                                    setNewPackStartNo(standing > 0 ? String(standing) : '0');
                                     const maxNo = getPackageMaxNumber(row.price);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
+                                  }}
+                                />
+                              )}
+
+                              {/* Αδιάθετοι - for a draw that does not sell
+                                  out. Not gated on canEditLockedFields: the
+                                  employee on the counter is the one who
+                                  sends the tickets back. */}
+                              {isBundleTrackedRow(row) && !isManual && (
+                                <IconButton
+                                  icon={RotateCcw}
+                                  label="Καταχώρηση Αδιάθετων"
+                                  size="sm"
+                                  className="bg-slate-100"
+                                  onClick={() => {
+                                    setCancelModalRowId(row.id);
+                                    setCancelBundles('');
                                   }}
                                 />
                               )}
@@ -2337,6 +2412,118 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       </div>
 
       {/* New Pack Modal for Managers */}
+      {/* Καταχώρηση Αδιάθετων: the day of the draw, what went back. */}
+      {cancelModalRowId && (() => {
+        const target = rows.find((r) => r.id === cancelModalRowId);
+        if (!target) return null;
+        const bundleSize = target.bundleSize || 5;
+        const shelfStr = String(target.endNo ?? '').trim() !== ''
+          ? String(target.endNo)
+          : String(target.startNo ?? '');
+        const shelfBundles = piecesToBundles(parseNonNegativeInt(shelfStr).value, bundleSize);
+        const result = applyCancellation({
+          remainingBundles: shelfBundles,
+          cancelledBundles: cancelBundles,
+          // price is PER PIECE on a bundle-tracked row.
+          bundlePrice: (Number(target.price) || 0) * bundleSize,
+        });
+        return (
+          <Modal
+            isOpen
+            onClose={() => setCancelModalRowId(null)}
+            closeOnBackdropClick
+            headerStyle="bordered"
+            icon={RotateCcw}
+            title="Καταχώρηση Αδιάθετων"
+            size="sm"
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCancelModalRowId(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-sm font-bold"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleApplyCancellation(cancelModalRowId)}
+                  disabled={cancelBundles.trim() === '' || result.cancelledMoreThanHeld}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-black cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Καταχώρηση
+                </button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <p className="text-xs text-slate-600">
+                <span className="font-black text-slate-900">{target.name}</span> — την ημέρα της
+                κλήρωσης, πόσες πεντάδες γύρισαν πίσω αδιάθετες.
+              </p>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+                <span className="text-micro font-black uppercase tracking-wider text-slate-500">
+                  Στο ράφι τώρα
+                </span>
+                <span className="font-mono font-black text-slate-900">
+                  {shelfBundles} πεντάδες
+                </span>
+              </div>
+
+              <div>
+                <label htmlFor="cancel-bundles" className="block text-micro font-black text-indigo-700 uppercase mb-1">
+                  Αδιάθετες πεντάδες
+                </label>
+                <input
+                  id="cancel-bundles"
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  value={cancelBundles}
+                  onChange={(e) => setCancelBundles(e.target.value.replace(/\D/g, ''))}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* The whole reason the figure is asked for. */}
+              <div className={`rounded-xl p-3 border ${
+                result.chargeable > 0 ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-micro font-black uppercase tracking-wider text-slate-600">
+                    Χρεώνονται
+                  </span>
+                  <span className="font-mono font-black text-slate-900">
+                    {result.chargeable} πεντάδες = {formatCurrency(result.chargeableAmount)}
+                  </span>
+                </div>
+                <p className="text-micro text-slate-600 mt-1">
+                  {result.chargeable > 0
+                    ? 'Όσες δεν γύρισαν πίσω και δεν έμειναν στο ράφι, πουλήθηκαν.'
+                    : 'Ό,τι έμεινε γύρισε πίσω — τίποτα στο ταμείο.'}
+                </p>
+              </div>
+
+              {result.cancelledMoreThanHeld && (
+                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <p className="text-xs font-semibold text-rose-800">
+                    Ακυρώνεις {result.cancelled} πεντάδες ενώ στο ράφι υπάρχουν {result.remaining}.
+                    Δες μήπως μετρήθηκαν λάθος.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-micro text-slate-500">
+                Μετά την καταχώρηση το ράφι μηδενίζει — η κλήρωση τελείωσε.
+              </p>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {newPackModalRowId && (() => {
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;

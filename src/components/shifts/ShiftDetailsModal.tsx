@@ -894,6 +894,16 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                         Νέο
                                       </span>
                                     )}
+                                    {/* Αδιάθετοι. The one figure that says a
+                                        draw was written off rather than sold,
+                                        so it has to be readable here or
+                                        nobody can check it against what went
+                                        back. */}
+                                    {safeNum(r.cancelledBundles) > 0 && (
+                                      <span className="ml-2 text-micro bg-slate-800 text-slate-300 border border-slate-600 px-1.5 py-0.2 rounded font-mono">
+                                        {safeNum(r.cancelledBundles)} πεντ. αδιάθετες
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">

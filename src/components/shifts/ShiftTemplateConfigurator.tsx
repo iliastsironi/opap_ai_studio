@@ -1097,6 +1097,26 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </div>
 
             <div>
+              <label htmlFor="cfg-laiko-order" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Πάγια παραγγελία Λαϊκού (πεντάδες)
+              </label>
+              <NumericField
+                id="cfg-laiko-order"
+                min={0}
+                max={999}
+                decimals={0}
+                disabled={!canManageScratchMode}
+                value={template.laiko_standing_order_bundles ?? 0}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, laiko_standing_order_bundles: next }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+              <p className="text-micro text-slate-500 mt-1">
+                Όσες έρχονται σε κάθε κλήρωση. Το «Νέο πακέτο» ανοίγει πάνω σε αυτές. 0 = ρωτάει
+                κάθε φορά.
+              </p>
+            </div>
+
+            <div>
               <label htmlFor="cfg-notes" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Αρχικό ταμείο — χαρτονομίσματα (€)
               </label>

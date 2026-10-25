@@ -404,6 +404,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fnb: true,
   });
   const [laikoSellingMode, setLaikoSellingMode] = useState<'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'>('PIECES_AND_BUNDLES');
+  /** Η πάγια παραγγελία Λαϊκού, σε πεντάδες. 0 = δεν έχει οριστεί (0053). */
+  const [laikoStandingOrder, setLaikoStandingOrder] = useState(0);
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -536,6 +538,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
         setSpecialEditionEnabled(config.special_edition_enabled === true);
         setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
+        setLaikoStandingOrder(Math.max(0, Number(config.laiko_standing_order_bundles) || 0));
         // `!== false` rather than a truthy test: a template row that predates
         // one of these columns reads undefined, and the safe answer there is
         // to keep showing the module rather than to hide a till section.
@@ -2433,6 +2436,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 sellingMode={scratchSellingMode}
                 specialEditionEnabled={specialEditionEnabled}
                 laikoSellingMode={laikoSellingMode}
+                laikoStandingOrderBundles={laikoStandingOrder}
               />
 
               {/* Direct inputs summary & payouts */}
