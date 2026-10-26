@@ -26,10 +26,9 @@ import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode, packPieceCount } from '../../lib/scratchPack.ts';
 import { packWarning, packWarningText } from '../../lib/scratchPackWarning.ts';
 import {
-  SEASONAL_DEFAULT_BUNDLE_SIZE,
-  SEASONAL_EDITIONS,
   hiddenSeasonalRowIds,
   isSeasonalEditionRow,
+  seasonalBundleSizeFor,
 } from '../../lib/seasonalEditions.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import { NumericField } from '../ui/NumericField.tsx';
@@ -625,6 +624,11 @@ export function applyFrontOnlyConversion(rows: ScratchTicketRow[]): ScratchTicke
 export interface ScratchCountingDefaults {
   scratch_backside_default: boolean;
   lottery_bundle_default: boolean;
+  /**
+   * The shop's per-edition units for the seasonal lotteries (0056), as they
+   * come off shift_templates. Absent means «πεντάδες», which is the default.
+   */
+  seasonal?: Record<string, unknown>;
 }
 
 // Fills in the admin-configured org/store default for backSideEnabled
@@ -653,8 +657,11 @@ export function applyCountingDefaults(
       // lottery default says - they are sold in fives far more often than
       // singly. Still only a starting point: the operator changes any row
       // from its own counting settings.
+      // A seasonal edition follows its OWN setting, one per edition, made
+      // once in «Διαμόρφωση» - not the store's blanket lottery default and
+      // not a badge on the till row.
       next = isSeasonalEditionRow(row.id)
-        ? { ...next, bundleSize: SEASONAL_DEFAULT_BUNDLE_SIZE }
+        ? { ...next, bundleSize: seasonalBundleSizeFor(row.id, defaults.seasonal) }
         : { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
     }
     return next;
@@ -1789,32 +1796,6 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   <span className="bg-emerald-100 text-emerald-800 text-micro font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
                                     Νέο Πακέτο
                                   </span>
-                                )}
-                                {/* Πεντάδες ή κομμάτια, on a seasonal edition,
-                                    for whoever is counting it.
-                                    «Ρυθμίσεις Καταμέτρησης» already changes
-                                    this, but it is admin-only and also moves
-                                    Μπροστά/Πίσω - a locked concept. These
-                                    editions arrive packaged either way from
-                                    one season to the next, and the operator
-                                    holding them is the one who can see
-                                    which. Nothing else about the row opens
-                                    up. */}
-                                {!readOnly && isSeasonalEditionRow(row.id) && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateRow(
-                                        row.id,
-                                        'bundleSize',
-                                        isBundleTrackedRow(row) ? 0 : SEASONAL_DEFAULT_BUNDLE_SIZE
-                                      )
-                                    }
-                                    title="Εναλλαγή μέτρησης: πεντάδες ή μεμονωμένα κομμάτια"
-                                    className="text-micro font-black px-1.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer whitespace-nowrap"
-                                  >
-                                    {isBundleTrackedRow(row) ? 'πεντάδες' : 'κομμάτια'}
-                                  </button>
                                 )}
                                 {/* While there is still time to fetch the next
                                     one. The count is shown, so the threshold

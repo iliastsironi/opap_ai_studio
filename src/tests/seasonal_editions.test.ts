@@ -5,6 +5,7 @@ import {
   hiddenSeasonalRowIds,
   isSeasonalEditionEnabled,
   isSeasonalEditionRow,
+  seasonalBundleSizeFor,
   seasonalEditionFor,
 } from '../lib/seasonalEditions.ts';
 
@@ -74,5 +75,38 @@ describe('rows that are not seasonal', () => {
 describe('how a seasonal edition is counted', () => {
   it('starts in πεντάδες', () => {
     expect(SEASONAL_DEFAULT_BUNDLE_SIZE).toBe(5);
+  });
+});
+
+describe('how each edition is counted, set once in Διαμόρφωση', () => {
+  it('counts in πεντάδες when the shop has not said otherwise', () => {
+    for (const e of SEASONAL_EDITIONS) {
+      expect(seasonalBundleSizeFor(e.rowId, {})).toBe(5);
+      expect(seasonalBundleSizeFor(e.rowId, null)).toBe(5);
+    }
+  });
+
+  it('counts one edition in pieces without touching the others', () => {
+    const cfg = { special_edition_x10_bundles: false };
+    expect(seasonalBundleSizeFor('scr_eidiki_x10', cfg)).toBe(0);
+    expect(seasonalBundleSizeFor('scr_eidiki_x5', cfg)).toBe(5);
+    expect(seasonalBundleSizeFor('scr_protochroniatiko', cfg)).toBe(5);
+  });
+
+  it('reads an explicit true as πεντάδες', () => {
+    expect(seasonalBundleSizeFor('scr_eidiki_x5', { special_edition_x5_bundles: true })).toBe(5);
+  });
+
+  // Only an explicit false switches to pieces: anything else - a column that
+  // does not exist yet, a null from a row written before the migration - is
+  // the default, not «pieces».
+  it('treats anything other than false as πεντάδες', () => {
+    for (const v of [undefined, null, 0, '', 'false']) {
+      expect(seasonalBundleSizeFor('scr_eidiki_x5', { special_edition_x5_bundles: v })).toBe(5);
+    }
+  });
+
+  it('has nothing to say about a row that is not seasonal', () => {
+    expect(seasonalBundleSizeFor('scr_laiko', { special_edition_x5_bundles: false })).toBe(5);
   });
 });

@@ -36,7 +36,11 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { ScratchCatalogEditor } from './ScratchCatalogEditor.tsx';
 import { NumericField } from '../ui/NumericField.tsx';
-import { SEASONAL_EDITIONS, isSeasonalEditionEnabled } from '../../lib/seasonalEditions.ts';
+import {
+  SEASONAL_EDITIONS,
+  isSeasonalEditionEnabled,
+  seasonalBundleSizeFor,
+} from '../../lib/seasonalEditions.ts';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -1491,11 +1495,57 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                     } ${on ? 'bg-white border-indigo-200' : 'bg-white/60 border-slate-200 opacity-60'}`}
                   >
                     <span className="text-xs font-bold text-slate-900">{edition.label}</span>
-                    {on ? (
-                      <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
-                    ) : (
-                      <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Πεντάδες ή κομμάτια, μία επιλογή ανά λαχείο (0056).
+                          Beside the switch, where the rest of the lottery
+                          settings already are, instead of a third control on
+                          a till row that already carries five. */}
+                      <div
+                        className="flex rounded-lg border border-slate-200 overflow-hidden bg-white"
+                        // The row around this is itself a switch, with its own
+                        // click and Enter/Space handlers. Without stopping both
+                        // here, choosing «κομμάτια» would also turn the edition
+                        // off - and pressing Space on the button would do it
+                        // from the keyboard too.
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        {[
+                          { bundles: true, label: 'πεντάδες' },
+                          { bundles: false, label: 'κομμάτια' },
+                        ].map((opt) => {
+                          const active =
+                            seasonalBundleSizeFor(edition.rowId, template as any) ===
+                            (opt.bundles ? 5 : 0);
+                          return (
+                            <button
+                              key={opt.label}
+                              type="button"
+                              disabled={!canManageScratchMode}
+                              onClick={() =>
+                                canManageScratchMode &&
+                                setTemplate((prev) => ({ ...prev, [edition.unitKey]: opt.bundles }))
+                              }
+                              className={`px-2.5 py-1 text-micro font-bold transition-colors ${
+                                canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
+                              } ${
+                                active
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'bg-white text-slate-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {on ? (
+                        <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                      ) : (
+                        <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
+                      )}
+                    </div>
                   </div>
                 );
               })}

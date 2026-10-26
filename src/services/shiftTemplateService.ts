@@ -48,6 +48,10 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   special_edition_x5_enabled: false,
   special_edition_x10_enabled: false,
   protochroniatiko_enabled: false,
+  // Πεντάδες: sold in fives far more often than singly (0056).
+  special_edition_x5_bundles: true,
+  special_edition_x10_bundles: true,
+  protochroniatiko_bundles: true,
   laiko_selling_mode: 'PIECES_AND_BUNDLES',
   // 0 = δεν έχει οριστεί· ο διάλογος ρωτάει κανονικά, όπως σήμερα.
   laiko_standing_order_bundles: 0,

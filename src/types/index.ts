@@ -427,6 +427,10 @@ export interface ShiftTemplateConfig {
   special_edition_x5_enabled?: boolean;
   special_edition_x10_enabled?: boolean;
   protochroniatiko_enabled?: boolean;
+  /** Μονάδα μέτρησης ανά εποχική έκδοση: true = πεντάδες (0056). */
+  special_edition_x5_bundles?: boolean;
+  special_edition_x10_bundles?: boolean;
+  protochroniatiko_bundles?: boolean;
   // Λαϊκό Λαχείο (scr_laiko) selling mode: dual bundle+piece entry at
   // 2 EUR/piece, or bundle-only entry at 10 EUR/bundle for stores that
   // never sell loose pieces. Same total either way (2 EUR x 5 = 10 EUR) -

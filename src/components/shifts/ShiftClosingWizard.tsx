@@ -534,6 +534,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             applyCountingDefaults(prev, {
               scratch_backside_default: config.scratch_backside_default,
               lottery_bundle_default: config.lottery_bundle_default,
+              // Each seasonal edition's own unit, set in «Διαμόρφωση» (0056).
+              seasonal: {
+                special_edition_x5_bundles: (config as any).special_edition_x5_bundles,
+                special_edition_x10_bundles: (config as any).special_edition_x10_bundles,
+                protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
+              },
             })
           )
         );
