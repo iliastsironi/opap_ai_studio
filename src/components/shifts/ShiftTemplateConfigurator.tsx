@@ -349,6 +349,33 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     );
   }
 
+  /**
+   * Κάθε κατάστημα έχει τις δικές του ρυθμίσεις.
+   *
+   * Under «Όλα τα Καταστήματα» there is no store to configure, and the
+   * screen used to render anyway - on DEFAULT_OPAP_SHIFT_TEMPLATE, the
+   * generic defaults, shown exactly as if they were this shop's own
+   * settings. Every store therefore looked identical from here, and the
+   * mismatch only surfaced as an error on save. That is what «το αρχικό
+   * ταμείο πρέπει να είναι ανεξάρτητο» was describing: it already is, and
+   * this screen was hiding it.
+   */
+  if (!storeId) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-3 shadow-2xs">
+        <span className="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+          <Sliders className="w-6 h-6" />
+        </span>
+        <h2 className="text-base font-extrabold text-slate-900">Διάλεξε κατάστημα</h2>
+        <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+          Κάθε κατάστημα έχει το δικό του αρχικό ταμείο, τα δικά του όρια και τις δικές του
+          ενότητες. Διάλεξε κατάστημα από τον διακόπτη στην κορυφή για να δεις και να αλλάξεις
+          τις δικές του ρυθμίσεις.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header Banner */}
@@ -362,8 +389,15 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
                 Διαμόρφωση Φόρμας Βάρδιας
               </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Απλή διαχείριση ενοτήτων & πρόσθετων πεδίων για τους υπαλλήλους του καταστήματος.
+              {/* Which shop. Without this the screen looked like one global
+                  setting, and switching stores silently reloaded it. */}
+              <p className="text-xs text-slate-600 mt-1 flex items-center flex-wrap gap-1.5">
+                <span className="font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                  {currentStore?.name || storeId}
+                </span>
+                <span className="text-slate-500">
+                  — ρυθμίσεις μόνο γι' αυτό το κατάστημα
+                </span>
               </p>
             </div>
           </div>
