@@ -668,6 +668,32 @@ export function applyCountingDefaults(
   });
 }
 
+/**
+ * Forces every seasonal edition's bundleSize to the SHOP's setting.
+ *
+ * Unconditional, like applyLaikoDefaults below and unlike
+ * applyCountingDefaults above. The unit used to be a per-row default that an
+ * admin could override on the row, so «never overwrite an explicit value»
+ * was right. It is not a default any more: it is one store setting per
+ * edition, made in «Διαμόρφωση», and there is no per-row override left to
+ * protect.
+ *
+ * Leaving it as a default is exactly what went wrong - rows already carrying
+ * bundleSize 5 from before the setting existed ignored it completely, so
+ * switching Πρωτοχρονιάτικο to κομμάτια changed the configuration screen and
+ * nothing in the till.
+ */
+export function applySeasonalUnits(
+  rows: ScratchTicketRow[],
+  seasonal: Record<string, unknown> | null | undefined
+): ScratchTicketRow[] {
+  return rows.map((row) =>
+    isSeasonalEditionRow(row.id)
+      ? { ...row, bundleSize: seasonalBundleSizeFor(row.id, seasonal) }
+      : row
+  );
+}
+
 // Forces the Λαϊκό Λαχείο row's price/bundleSize back to the real product
 // shape (2 EUR/piece, 5 pieces/bundle = 10 EUR/bundle) unconditionally -
 // unlike applyCountingDefaults above, this never checks "is it already

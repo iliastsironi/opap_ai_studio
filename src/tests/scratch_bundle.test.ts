@@ -12,6 +12,7 @@ import {
   getCountingMode,
   validateScratchRow,
   applyCountingDefaults,
+  applySeasonalUnits,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -330,5 +331,49 @@ describe('applyCountingDefaults (org/store defaults, never overwrite an explicit
     // Λαχεία row: only bundleSize gets filled, backSideEnabled stays untouched (undefined, so hasBackSide still infers false).
     expect(result[1].bundleSize).toBe(5);
     expect(result[1].backSideEnabled).toBeUndefined();
+  });
+});
+
+describe('applySeasonalUnits (the shop decides, not the row)', () => {
+  const seasonal = (id: string, bundleSize?: number) =>
+    ({ id, name: id, category: 'Λαχεία', price: 5, startNo: '', endNo: '', bundleSize } as ScratchTicketRow);
+
+  // The unit used to be a per-row default an admin could override, so
+  // «never overwrite an explicit value» was right. It is one store setting
+  // per edition now, and leaving it as a default is exactly what made
+  // switching Πρωτοχρονιάτικο to κομμάτια change nothing in the till.
+  it('overwrites a bundleSize the row already carries', () => {
+    const out = applySeasonalUnits(
+      [seasonal('scr_protochroniatiko', 5)],
+      { protochroniatiko_bundles: false }
+    );
+    expect(out[0].bundleSize).toBe(0);
+  });
+
+  it('puts a row back into πεντάδες just as readily', () => {
+    const out = applySeasonalUnits(
+      [seasonal('scr_eidiki_x5', 0)],
+      { special_edition_x5_bundles: true }
+    );
+    expect(out[0].bundleSize).toBe(5);
+  });
+
+  it('moves one edition without touching the others', () => {
+    const out = applySeasonalUnits(
+      [seasonal('scr_eidiki_x5', 5), seasonal('scr_eidiki_x10', 5), seasonal('scr_protochroniatiko', 5)],
+      { protochroniatiko_bundles: false }
+    );
+    expect(out.map((r) => r.bundleSize)).toEqual([5, 5, 0]);
+  });
+
+  it('leaves a row that is not a seasonal edition completely alone', () => {
+    const laiko = seasonal('scr_laiko', 5);
+    const out = applySeasonalUnits([laiko], { protochroniatiko_bundles: false });
+    expect(out[0]).toBe(laiko);
+  });
+
+  it('defaults to πεντάδες when the shop has said nothing', () => {
+    expect(applySeasonalUnits([seasonal('scr_eidiki_x10', 0)], {})[0].bundleSize).toBe(5);
+    expect(applySeasonalUnits([seasonal('scr_eidiki_x10', 0)], null)[0].bundleSize).toBe(5);
   });
 });

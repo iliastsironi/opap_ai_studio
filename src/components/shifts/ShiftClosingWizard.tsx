@@ -53,6 +53,7 @@ import {
   saveLatestStoreScratchInventory,
   applyCountingDefaults,
   applyLotteryProductShapes,
+  applySeasonalUnits,
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -328,8 +329,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // 0017_scratch_layout_settings.sql. Defaults match DEFAULT_OPAP_SHIFT_
   // TEMPLATE exactly, so there's no flash of the wrong state before load.
   const [specialEditionEnabled, setSpecialEditionEnabled] = useState(false);
-  /** The store's per-edition seasonal switches (0055). */
+  /** The store's per-edition seasonal switches and units (0055, 0056). */
   const [seasonalConfig, setSeasonalConfig] = useState<Record<string, unknown>>({});
+  // Read by the catalogue effect, which must not re-run when the config
+  // changes but must not use a stale copy of it either.
+  const seasonalConfigRef = useRef(seasonalConfig);
+  seasonalConfigRef.current = seasonalConfig;
+
+  /**
+   * The shop's unit wins, whenever either side of it arrives.
+   *
+   * The catalogue load and the template load race each other, and the
+   * catalogue carries a bundleSize of its own. Whichever landed second
+   * decided - which is why switching Πρωτοχρονιάτικο to κομμάτια moved the
+   * configuration screen and left the till in πεντάδες.
+   */
+  useEffect(() => {
+    setScratchRows((prev) => applySeasonalUnits(prev, seasonalConfig));
+  }, [seasonalConfig]);
 
   // Which modules this store actually runs.
   //
@@ -500,7 +517,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           previousRows: declared,
           openedAt: shift.opened_at,
         }) as any[];
-        setScratchRows((current) => mergeScratchCatalogWithSaved(catalog, current, seed));
+        setScratchRows((current) =>
+          applySeasonalUnits(
+            mergeScratchCatalogWithSaved(catalog, current, seed),
+            seasonalConfigRef.current
+          )
+        );
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
     return () => {
@@ -550,6 +572,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           special_edition_x5_enabled: (config as any).special_edition_x5_enabled,
           special_edition_x10_enabled: (config as any).special_edition_x10_enabled,
           protochroniatiko_enabled: (config as any).protochroniatiko_enabled,
+          // The units belong here too. Without them the effect above had
+          // nothing to read and every edition stayed in πεντάδες.
+          special_edition_x5_bundles: (config as any).special_edition_x5_bundles,
+          special_edition_x10_bundles: (config as any).special_edition_x10_bundles,
+          protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
         });
         setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
         setLaikoStandingOrder(Math.max(0, Number(config.laiko_standing_order_bundles) || 0));
