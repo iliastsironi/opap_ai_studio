@@ -90,7 +90,7 @@ import {
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, assignedStores } = useAuth();
-  const { currentStore, stores: tenantStores, setStoreId } = useTenant();
+  const { currentStore, stores: tenantStores, storeId, setStoreId } = useTenant();
 
   const isOwnerOrAdmin =
     roles?.some((r) => ['ORG_OWNER', 'ORG_ADMIN', 'PLATFORM_ADMIN'].includes(r.code)) ||
@@ -148,7 +148,21 @@ export const ShiftsManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Filters & Search
-  const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>('ALL');
+  /**
+   * Το κατάστημα που κοιτάς, ένα για όλη την εφαρμογή.
+   *
+   * This was local state starting at 'ALL', with the store picker in the top
+   * bar driving a completely different value - setStoreId was imported here
+   * and never called. So choosing a shop up there changed the heading and
+   * nothing else: the list, the open shift and the totals all stayed on
+   * every store at once, and shop 101499 showed you the shift that was open
+   * at a different shop.
+   *
+   * One value now, read and written in both places, so the two controls
+   * cannot disagree.
+   */
+  const selectedStoreFilter = storeId;
+  const setSelectedStoreFilter = setStoreId;
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
