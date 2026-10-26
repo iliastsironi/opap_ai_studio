@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Store } from '../types/index.js';
 import { useAuth } from './AuthContext.tsx';
 import { fetchStoresFromFirestore } from '../services/storeService.ts';
+import { isElevatedRole, visibleStores } from '../lib/storeAccess.ts';
 
 interface TenantContextType {
   activeStoreId: string | 'ALL';
@@ -19,8 +20,11 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, organization, isLoading: authLoading } = useAuth();
-  const [stores, setStores] = useState<Store[]>([]);
+  const { token, organization, isLoading: authLoading, roles, permissions, assignedStores } =
+    useAuth();
+  // The organisation's stores as fetched, before anyone's own reach is
+  // applied. Nothing outside this file sees this list.
+  const [allStores, setAllStores] = useState<Store[]>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | 'ALL'>('ALL');
   const [isLoadingStores, setIsLoadingStores] = useState<boolean>(false);
 
@@ -32,13 +36,13 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const refreshStores = async () => {
     if (!orgId) {
-      setStores([]);
+      setAllStores([]);
       return;
     }
     setIsLoadingStores(true);
     try {
       const fsStores = await fetchStoresFromFirestore(orgId);
-      setStores(fsStores);
+      setAllStores(fsStores);
     } catch (err) {
       console.error('Failed to fetch stores:', err);
     } finally {
@@ -54,6 +58,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (authLoading) return;
     refreshStores();
   }, [token, organization, authLoading]);
+
+  /**
+   * The stores THIS person may work a till at.
+   *
+   * Filtered here rather than in each screen, because the screens that got it
+   * wrong were the ones that never thought to ask: the store picker in the
+   * top bar listed every shop in the organisation to everybody, so an
+   * employee could switch to a shop they have never set foot in and open a
+   * shift there. One rule, one place, and every consumer is right at once.
+   */
+  const elevated = isElevatedRole(roles, permissions);
+  const stores = useMemo(
+    () => visibleStores(allStores, assignedStores, elevated),
+    [allStores, assignedStores, elevated]
+  );
+
+  // A store that was picked before - or carried over from another account on
+  // this machine - can be one this person is not allowed to work at. Falling
+  // back to «all of mine» beats leaving them pointed at a shop whose data
+  // will not load and whose till they cannot open.
+  useEffect(() => {
+    if (activeStoreId === 'ALL') return;
+    if (isLoadingStores || allStores.length === 0) return;
+    if (!stores.some((s) => s.id === activeStoreId)) setActiveStoreId('ALL');
+  }, [activeStoreId, stores, isLoadingStores, allStores.length]);
 
   const currentStore = stores.find((s) => s.id === activeStoreId) || null;
 
