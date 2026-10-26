@@ -422,7 +422,11 @@ export interface ShiftTemplateConfig {
   // DEFAULT_SCRATCH_PRESETS' two "Ειδική Έκδοση χ5/χ10" rows are hidden
   // from the shift table unless the Owner turns this on for a real special
   // edition currently running.
+  /** @deprecated Fallback only - each edition now has its own switch (0055). */
   special_edition_enabled: boolean;
+  special_edition_x5_enabled?: boolean;
+  special_edition_x10_enabled?: boolean;
+  protochroniatiko_enabled?: boolean;
   // Λαϊκό Λαχείο (scr_laiko) selling mode: dual bundle+piece entry at
   // 2 EUR/piece, or bundle-only entry at 10 EUR/bundle for stores that
   // never sell loose pieces. Same total either way (2 EUR x 5 = 10 EUR) -

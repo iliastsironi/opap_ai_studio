@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { ScratchCatalogEditor } from './ScratchCatalogEditor.tsx';
 import { NumericField } from '../ui/NumericField.tsx';
+import { SEASONAL_EDITIONS, isSeasonalEditionEnabled } from '../../lib/seasonalEditions.ts';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -1448,35 +1449,57 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             )}
           </div>
 
-          <div
-            onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }))}
-            role="switch"
-            aria-checked={template.special_edition_enabled}
-            aria-label="Εποχικές Εκδόσεις Λαχείων"
-            tabIndex={canManageScratchMode ? 0 : -1}
-            onKeyDown={(e) => {
-              if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                setTemplate((prev) => ({ ...prev, special_edition_enabled: !prev.special_edition_enabled }));
-              }
-            }}
-            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-              canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
-            } ${template.special_edition_enabled ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
-          >
+          {/* Μία γραμμή ανά έκδοση (0055). They do not arrive together and
+              they do not stop selling together, so one switch between them
+              put the two you are NOT selling into every operator's list the
+              moment you turned on the one you are. */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
             <div>
               <h4 className="text-xs font-bold text-slate-900">Εποχικές Εκδόσεις Λαχείων</h4>
               <p className="text-micro text-slate-500 mt-0.5">
-                Ειδική Έκδοση χ5, Ειδική Έκδοση χ10 και Πρωτοχρονιάτικο. Ανενεργό από
-                προεπιλογή — ενεργοποιήστε το όσο διάστημα υπάρχουν πραγματικά προς
-                πώληση, ώστε να μην κάθονται στη λίστα του ταμείου τον υπόλοιπο χρόνο.
+                Η καθεμία ξεχωριστά. Ανοίξτε την όσο διάστημα υπάρχει πραγματικά προς πώληση,
+                ώστε να μην κάθεται στη λίστα του ταμείου τον υπόλοιπο χρόνο. Μετριούνται σε
+                πεντάδες — αλλάζει ανά γραμμή από τις ρυθμίσεις καταμέτρησης.
               </p>
             </div>
-            {template.special_edition_enabled ? (
-              <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
-            ) : (
-              <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
-            )}
+
+            <div className="space-y-2">
+              {SEASONAL_EDITIONS.map((edition) => {
+                const on = isSeasonalEditionEnabled(edition.rowId, template as any);
+                const toggle = () =>
+                  canManageScratchMode &&
+                  setTemplate((prev) => ({
+                    ...prev,
+                    [edition.settingKey]: !isSeasonalEditionEnabled(edition.rowId, prev as any),
+                  }));
+                return (
+                  <div
+                    key={edition.rowId}
+                    onClick={toggle}
+                    role="switch"
+                    aria-checked={on}
+                    aria-label={edition.label}
+                    tabIndex={canManageScratchMode ? 0 : -1}
+                    onKeyDown={(e) => {
+                      if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        toggle();
+                      }
+                    }}
+                    className={`px-3 py-2.5 rounded-lg border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
+                    } ${on ? 'bg-white border-indigo-200' : 'bg-white/60 border-slate-200 opacity-60'}`}
+                  >
+                    <span className="text-xs font-bold text-slate-900">{edition.label}</span>
+                    {on ? (
+                      <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                    ) : (
+                      <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">

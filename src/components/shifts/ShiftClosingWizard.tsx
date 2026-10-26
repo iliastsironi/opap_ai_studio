@@ -328,6 +328,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // 0017_scratch_layout_settings.sql. Defaults match DEFAULT_OPAP_SHIFT_
   // TEMPLATE exactly, so there's no flash of the wrong state before load.
   const [specialEditionEnabled, setSpecialEditionEnabled] = useState(false);
+  /** The store's per-edition seasonal switches (0055). */
+  const [seasonalConfig, setSeasonalConfig] = useState<Record<string, unknown>>({});
 
   // Which modules this store actually runs.
   //
@@ -537,6 +539,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         );
         setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
         setSpecialEditionEnabled(config.special_edition_enabled === true);
+        setSeasonalConfig({
+          special_edition_enabled: config.special_edition_enabled,
+          special_edition_x5_enabled: (config as any).special_edition_x5_enabled,
+          special_edition_x10_enabled: (config as any).special_edition_x10_enabled,
+          protochroniatiko_enabled: (config as any).protochroniatiko_enabled,
+        });
         setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
         setLaikoStandingOrder(Math.max(0, Number(config.laiko_standing_order_bundles) || 0));
         // `!== false` rather than a truthy test: a template row that predates
@@ -2435,6 +2443,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 onChangeRows={handleScratchRowsChange}
                 sellingMode={scratchSellingMode}
                 specialEditionEnabled={specialEditionEnabled}
+                seasonalConfig={seasonalConfig}
                 laikoSellingMode={laikoSellingMode}
                 laikoStandingOrderBundles={laikoStandingOrder}
               />

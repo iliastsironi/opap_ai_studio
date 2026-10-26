@@ -43,6 +43,11 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   scratch_selling_mode: 'FRONT_AND_BACK',
   show_national_lottery: true,
   special_edition_enabled: false,
+  // Each on its own switch (0055). All off: a seasonal edition belongs in the
+  // till list only while it is actually on the counter.
+  special_edition_x5_enabled: false,
+  special_edition_x10_enabled: false,
+  protochroniatiko_enabled: false,
   laiko_selling_mode: 'PIECES_AND_BUNDLES',
   // 0 = δεν έχει οριστεί· ο διάλογος ρωτάει κανονικά, όπως σήμερα.
   laiko_standing_order_bundles: 0,

@@ -269,13 +269,28 @@ describe('applyCountingDefaults (org/store defaults, never overwrite an explicit
   });
 
   it('fills bundleSize on an untouched Λαχεία row from lottery_bundle_default (5 = on, 0 = explicit off)', () => {
-    const untouchedLottery = () => ({ id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow);
+    // Deliberately NOT a seasonal edition: those start in πεντάδες whatever
+    // this default says (0055), which is the case below.
+    const untouchedLottery = () => ({ id: 'scr_some_lottery', name: 'Λαχείο', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow);
 
     const onResult = applyCountingDefaults([untouchedLottery()], { scratch_backside_default: true, lottery_bundle_default: true });
     expect(onResult[0].bundleSize).toBe(5);
 
     const offResult = applyCountingDefaults([untouchedLottery()], { scratch_backside_default: true, lottery_bundle_default: false });
     expect(offResult[0].bundleSize).toBe(0);
+  });
+
+  it('starts a seasonal edition in πεντάδες whatever the store default says', () => {
+    // Sold in fives far more often than singly, so the row starts there even
+    // in a shop whose general lottery default is pieces. Still a starting
+    // point: an explicit per-row value is never overwritten (next test).
+    const seasonal = () => ({ id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow);
+
+    const off = applyCountingDefaults([seasonal()], { scratch_backside_default: true, lottery_bundle_default: false });
+    expect(off[0].bundleSize).toBe(5);
+
+    const on = applyCountingDefaults([seasonal()], { scratch_backside_default: true, lottery_bundle_default: true });
+    expect(on[0].bundleSize).toBe(5);
   });
 
   it('never overwrites an already-explicit value, including the bundleSize: 0 "explicit off" sentinel', () => {

@@ -25,6 +25,12 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { piecesLeftInPack, isValidPackCode, normalizePackCode, packPieceCount } from '../../lib/scratchPack.ts';
 import { packWarning, packWarningText } from '../../lib/scratchPackWarning.ts';
+import {
+  SEASONAL_DEFAULT_BUNDLE_SIZE,
+  SEASONAL_EDITIONS,
+  hiddenSeasonalRowIds,
+  isSeasonalEditionRow,
+} from '../../lib/seasonalEditions.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
@@ -643,7 +649,13 @@ export function applyCountingDefaults(
       next = { ...next, backSideEnabled: defaults.scratch_backside_default };
     }
     if (lottery && row.bundleSize === undefined) {
-      next = { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
+      // A seasonal edition starts in πεντάδες whatever the store's general
+      // lottery default says - they are sold in fives far more often than
+      // singly. Still only a starting point: the operator changes any row
+      // from its own counting settings.
+      next = isSeasonalEditionRow(row.id)
+        ? { ...next, bundleSize: SEASONAL_DEFAULT_BUNDLE_SIZE }
+        : { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
     }
     return next;
   });
@@ -1053,6 +1065,11 @@ interface ScratchCalculatorTableProps {
   // so any historical sale already recorded before an Owner turns this back
   // off stays counted). Undefined behaves like false (hidden).
   specialEditionEnabled?: boolean;
+  /**
+   * The store's per-edition switches (0055), falling back to the single
+   * special_edition_enabled above when a store has not answered yet.
+   */
+  seasonalConfig?: Record<string, unknown>;
   // shift_templates.laiko_selling_mode - applied authoritatively to the
   // scr_laiko row's display/input mode. Undefined behaves like
   // 'PIECES_AND_BUNDLES' (today's shipped behavior).
@@ -1076,6 +1093,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   readOnly = false,
   sellingMode,
   specialEditionEnabled = false,
+  seasonalConfig,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
   laikoStandingOrderBundles = 0,
   catalogEditable = false,
@@ -1452,7 +1470,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // Rendering-only filter - never applied to `rows` itself or the totals
   // above, so a row with a real historical sale stays counted even after
   // an Owner turns special_edition_enabled back off.
-  const visibleRows = specialEditionEnabled ? rows : rows.filter((r) => !SPECIAL_EDITION_ROW_IDS.includes(r.id));
+  // Each seasonal edition answers for itself (0055). seasonalConfig carries
+  // the store's three switches plus the old single one it falls back to, so
+  // a store configured before the split keeps seeing what it saw.
+  //
+  // Hidden from the TABLE only, never from `rows` or the totals - a sale
+  // already recorded against an edition the Owner has since switched off
+  // stays counted, exactly as before.
+  const hiddenSeasonal = hiddenSeasonalRowIds(
+    seasonalConfig ?? { special_edition_enabled: specialEditionEnabled }
+  );
+  const visibleRows = hiddenSeasonal.length === 0
+    ? rows
+    : rows.filter((r) => !hiddenSeasonal.includes(r.id));
 
   // Group rows by category
   // Σκρατς first, then Λαχεία, never interleaved - they are different products
@@ -1759,6 +1789,32 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   <span className="bg-emerald-100 text-emerald-800 text-micro font-black px-1.5 py-0.5 rounded-full border border-emerald-300">
                                     Νέο Πακέτο
                                   </span>
+                                )}
+                                {/* Πεντάδες ή κομμάτια, on a seasonal edition,
+                                    for whoever is counting it.
+                                    «Ρυθμίσεις Καταμέτρησης» already changes
+                                    this, but it is admin-only and also moves
+                                    Μπροστά/Πίσω - a locked concept. These
+                                    editions arrive packaged either way from
+                                    one season to the next, and the operator
+                                    holding them is the one who can see
+                                    which. Nothing else about the row opens
+                                    up. */}
+                                {!readOnly && isSeasonalEditionRow(row.id) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateRow(
+                                        row.id,
+                                        'bundleSize',
+                                        isBundleTrackedRow(row) ? 0 : SEASONAL_DEFAULT_BUNDLE_SIZE
+                                      )
+                                    }
+                                    title="Εναλλαγή μέτρησης: πεντάδες ή μεμονωμένα κομμάτια"
+                                    className="text-micro font-black px-1.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer whitespace-nowrap"
+                                  >
+                                    {isBundleTrackedRow(row) ? 'πεντάδες' : 'κομμάτια'}
+                                  </button>
                                 )}
                                 {/* While there is still time to fetch the next
                                     one. The count is shown, so the threshold
