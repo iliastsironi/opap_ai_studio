@@ -81,6 +81,7 @@ import {
   deleteShiftFromFirestore,
 } from '../../services/shiftService.ts';
 import { discrepancyClasses } from '../../lib/discrepancyTone.ts';
+import { whoAndWhen } from '../../lib/shiftWhoWhen.ts';
 import {
   dayLabel,
   groupShiftsByDay,
@@ -378,6 +379,10 @@ export const ShiftsManager: React.FC = () => {
                 the one staff hit on a phone, where the card is below the fold. */}
             {openShifts.length === 1 && (
               <div className="flex items-center gap-1.5">
+                {/* Who is on it and since when, on screen rather than in a
+                    title attribute - this control is the one staff hit on a
+                    phone, where a tooltip does not exist. */}
+                <div className="flex flex-col items-start gap-0.5">
                 <button
                   onClick={() => handleOpenWizard(openShifts[0])}
                   className="transition px-3.5 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-xs whitespace-nowrap cursor-pointer"
@@ -389,6 +394,10 @@ export const ShiftsManager: React.FC = () => {
                     · {toGreekUpper('Κλεισιμο')}
                   </span>
                 </button>
+                <span className="text-micro font-bold text-slate-600 font-mono pl-1 whitespace-nowrap">
+                  {whoAndWhen(openShifts[0])}
+                </span>
+                </div>
                 <IconButton
                   icon={Eye}
                   label="Προβολή ανοιχτής βάρδιας"
@@ -721,10 +730,10 @@ export const ShiftsManager: React.FC = () => {
                     <p className="text-sm font-bold text-indigo-100 mt-1">
                       {activeShift.store_name} ({activeShift.register_id})
                     </p>
-                    <p className="text-xs text-slate-300 mt-0.5 flex items-center space-x-1">
-                      <span>Χειριστής: {activeShift.opened_by_user_name || 'Υπάλληλος'}</span>
-                      <span>•</span>
-                      <span>{new Date(activeShift.opened_at).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {/* The date as well as the time: a till left open
+                        overnight read as though it had started this morning. */}
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Χειριστής: {whoAndWhen(activeShift)}
                     </p>
                   </div>
                 </div>
