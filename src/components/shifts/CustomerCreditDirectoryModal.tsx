@@ -39,6 +39,13 @@ import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { MoneyField } from '../ui/MoneyField.tsx';
+import {
+  CUSTOMER_SORT_OPTIONS,
+  DEFAULT_CUSTOMER_SORT,
+  normalizeCustomerSort,
+  sortCustomers,
+  type CustomerSort,
+} from '../../lib/customerSort.ts';
 
 interface CustomerCreditDirectoryModalProps {
   isOpen: boolean;
@@ -75,6 +82,15 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTierFilter, setSelectedTierFilter] = useState<string>('ALL');
+  /**
+   * Η σειρά του τεφτεριού.
+   *
+   * Two different questions get asked of this screen - «βρες μου τον
+   * Γιώργο» and «ποιος χρωστάει πιο πολλά» - and they want opposite orders.
+   * It had neither: the list came out in whatever sequence the query
+   * returned, which moves as rows are written.
+   */
+  const [customerSort, setCustomerSort] = useState<CustomerSort>(DEFAULT_CUSTOMER_SORT);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Customer Edit/Add Modal State
@@ -147,7 +163,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedTierFilter]);
+  }, [searchQuery, selectedTierFilter, customerSort]);
 
   if (!isOpen) return null;
 
@@ -289,7 +305,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
   };
 
   // Calculations
-  const filteredCustomers = customers.filter((c) => {
+  const filteredCustomers = sortCustomers(customers, customerSort).filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.phone && c.phone.includes(searchQuery));
@@ -455,6 +471,27 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       {tier === 'ALL' ? 'Όλοι' : `Κατηγορία ${tier}`}
                     </button>
                   ))}
+                </div>
+
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <label
+                    htmlFor="customer-sort"
+                    className="text-micro font-bold text-slate-500 whitespace-nowrap"
+                  >
+                    Σειρά:
+                  </label>
+                  <select
+                    id="customer-sort"
+                    value={customerSort}
+                    onChange={(e) => setCustomerSort(normalizeCustomerSort(e.target.value))}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  >
+                    {CUSTOMER_SORT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
