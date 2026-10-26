@@ -38,6 +38,7 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { readTopUps, topUpsForLegacyFields, totalTopUps } from '../../lib/shiftTopUps.ts';
 import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type SafeDrop } from '../../lib/shiftSafeDrops.ts';
+import { SAFE_LABELS, normalizeSafeDirection, safeAmountOut } from '../../lib/safeDirection.ts';
 import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
 import { splitDiscrepancy, DiscrepancySettlement } from '../../lib/discrepancySplit.ts';
 import {
@@ -409,6 +410,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [suppliers, setSuppliers] = useState<Array<{ name: string; category?: unknown }>>([]);
   const [topUpAllowedForEmployee, setTopUpAllowedForEmployee] = useState(false);
   const [safeDropAllowedForEmployee, setSafeDropAllowedForEmployee] = useState(false);
+  /**
+   * Προς ποια κατεύθυνση κινείται το χρηματοκιβώτιο (0058).
+   *
+   * An agency drops cash in; a PLAY hall fetches it out to pay customers.
+   * Same list, opposite sign in the reconciliation.
+   */
+  const [safeDirection, setSafeDirection] = useState<'DROP' | 'WITHDRAW'>('DROP');
   const [newSafeDropAmount, setNewSafeDropAmount] = useState('');
   const [newSafeDropNote, setNewSafeDropNote] = useState('');
 
@@ -593,6 +601,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         setVltMachineCashEnabled(config.vlt_machine_cash_enabled === true);
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
         setSafeDropAllowedForEmployee((config as any).safedrop_employee_allowed === true);
+        setSafeDirection(normalizeSafeDirection((config as any).safe_direction));
         // The store's rule, not this shift's. A shift already closed keeps the
         // threshold it was judged against (shift.discrepancy_threshold above);
         // one still open follows the configuration.
@@ -1338,6 +1347,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     posSalesTotal: totalStorePos,
     expensesTotal: expensesCashTotal,
     bankDeposits: bankDeposits,
+    safeDirection,
     customerCreditsGranted: creditGrantedTotal,
     customerReturns: creditCollectedTotal,
   });
@@ -1389,7 +1399,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     // smaller by exactly the top-up and quietly turned it into tomorrow's
     // opening capital.
     floatNotes: safeNum(openingNotesAmount),
-    safeDrops: totalSafeDrops(safeDrops),
+    // Nothing left the till through a withdrawal - something arrived.
+    safeDrops: safeAmountOut(totalSafeDrops(safeDrops), safeDirection),
     discrepancySettlement: settlementCash,
     coinHandover: coinTotals.ownHandover,
     carriedCoinHandover: coinTotals.carriedToday,
@@ -3488,7 +3499,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-200/80 pb-2">
               <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
                 <Vault className="w-4 h-4 text-indigo-600" />
-                <span>Χρηματοκιβώτιο (Safe Drop)</span>
+                <span>{SAFE_LABELS[safeDirection].title}</span>
               </h4>
               <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 font-mono">
                 {formatCurrency(totalSafeDrops(safeDrops))}

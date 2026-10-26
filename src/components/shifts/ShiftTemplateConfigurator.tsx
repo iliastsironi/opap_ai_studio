@@ -41,6 +41,7 @@ import {
   isSeasonalEditionEnabled,
   seasonalBundleSizeFor,
 } from '../../lib/seasonalEditions.ts';
+import { SAFE_DIRECTION_OPTIONS, normalizeSafeDirection } from '../../lib/safeDirection.ts';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -1133,6 +1134,41 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
               <p className="text-micro text-slate-500 mt-1">Προστίθενται μόνο από εδώ, όχι μέσα στη βάρδια.</p>
+            </div>
+
+            {/* Κατεύθυνση χρηματοκιβωτίου (0058). An agency drops cash in; a
+                PLAY hall fetches it out to pay customers, and the
+                reconciliation has to take it off rather than add it back. */}
+            <div className="sm:col-span-2">
+              <span className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Χρηματοκιβώτιο — κατεύθυνση
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SAFE_DIRECTION_OPTIONS.map((opt) => {
+                  const active = normalizeSafeDirection(template.safe_direction) === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={!canManageScratchMode}
+                      onClick={() =>
+                        canManageScratchMode &&
+                        setTemplate((prev) => ({ ...prev, safe_direction: opt.value }))
+                      }
+                      className={`text-left px-3 py-2 rounded-xl border transition-colors ${
+                        canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+                      } ${
+                        active
+                          ? 'bg-indigo-50 border-indigo-300'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="block text-xs font-bold text-slate-900">{opt.label}</span>
+                      <span className="block text-micro text-slate-500 mt-0.5">{opt.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>

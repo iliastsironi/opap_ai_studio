@@ -1,4 +1,5 @@
 import { MAX_DENOMINATION_QUANTITY } from '../lib/limits.ts';
+import { safeSignedAmount } from '../lib/safeDirection.ts';
 
 export interface ExpectedCashInput {
   opening_cash?: number | string | null;
@@ -209,6 +210,8 @@ export interface TotalReconciliationInput {
   posSalesTotal: number | string | null | undefined;
   expensesTotal: number | string | null | undefined;
   bankDeposits?: number | string | null | undefined;
+  /** Κατεύθυνση χρηματοκιβωτίου (0058). Απούσα = DROP, όπως πάντα. */
+  safeDirection?: 'DROP' | 'WITHDRAW' | null;
   customerCreditsGranted: number | string | null | undefined;
   customerReturns: number | string | null | undefined;
 }
@@ -234,7 +237,11 @@ export function calculateReconciliationBreakdown(input: TotalReconciliationInput
   const drawerCash = safeNum(input.countedCashInDrawer);
   const posSales = safeNum(input.posSalesTotal);
   const expenses = safeNum(input.expensesTotal);
-  const deposits = safeNum(input.bankDeposits);
+  // Signed, because a safe can run either way. An agency drops cash in and
+  // the reconciliation adds it back; a PLAY hall fetches cash out to pay
+  // customers, which is capital arriving and must come off instead. See
+  // lib/safeDirection.ts.
+  const deposits = safeSignedAmount(input.bankDeposits, input.safeDirection);
   const creditsGranted = safeNum(input.customerCreditsGranted);
   const creditCollected = safeNum(input.customerReturns);
   const opening = safeNum(input.openingCash);

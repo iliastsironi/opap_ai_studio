@@ -399,6 +399,8 @@ export interface ShiftTemplateConfig {
    */
   /** Πάγια παραγγελία Λαϊκού σε πεντάδες, ανά κατάστημα (0053). */
   laiko_standing_order_bundles?: number;
+  /** Κατεύθυνση χρηματοκιβωτίου: DROP (πρακτορείο) ή WITHDRAW (PLAY) — 0058. */
+  safe_direction?: 'DROP' | 'WITHDRAW';
   pos_batch_close_enabled?: boolean;
   /** Καταγραφή μετρητών μέσα στα μηχανήματα (ILink), εκτός ισοζυγίου. */
   vlt_machine_cash_enabled?: boolean;

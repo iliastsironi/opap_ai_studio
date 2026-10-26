@@ -55,6 +55,7 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   laiko_selling_mode: 'PIECES_AND_BUNDLES',
   // 0 = δεν έχει οριστεί· ο διάλογος ρωτάει κανονικά, όπως σήμερα.
   laiko_standing_order_bundles: 0,
+  safe_direction: 'DROP',
   custom_fields: [
     // System-Managed Calculation Fields
     {

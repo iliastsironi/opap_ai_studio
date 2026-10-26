@@ -53,6 +53,9 @@ export const PLAY_TEMPLATE_OVERRIDES = {
   // the till is measured on the arithmetic rather than on one reading (0051).
   pos_batch_close_enabled: true,
   vlt_machine_cash_enabled: true,
+  // The machines pay out more than they take, so the safe feeds the drawer
+  // rather than the other way round (0058).
+  safe_direction: 'WITHDRAW',
 } as const;
 
 /** The switches a PLAY hall turns off, for telling somebody what changed. */
