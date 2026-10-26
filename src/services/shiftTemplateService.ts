@@ -1,5 +1,6 @@
 import { supabase, unknownColumnFrom } from './supabase.ts';
 import { ShiftTemplateConfig } from '../types/index.ts';
+import { overridesFor } from '../lib/storeTypeDefaults.ts';
 
 export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   id: 'template_opap_default',
@@ -189,6 +190,28 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
 };
 
 /**
+ * The store's type, for seeding its first template.
+ *
+ * Returns undefined rather than throwing on any problem: a template that
+ * cannot be created is a worse outcome than one created on the agency
+ * default, which is exactly what happened before this existed.
+ */
+async function fetchStoreType(storeId: string): Promise<string | undefined> {
+  try {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('store_type')
+      .eq('id', storeId)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { store_type?: string } | null)?.store_type;
+  } catch (err) {
+    console.warn('[ShiftTemplateService] could not read the store type:', err);
+    return undefined;
+  }
+}
+
+/**
  * Loads the customized shift template configuration for an organization or store.
  */
 export async function getShiftTemplateConfig(
@@ -205,9 +228,23 @@ export async function getShiftTemplateConfig(
       return data as ShiftTemplateConfig;
     }
 
-    // Initialize in the DB if not already present
+    // Initialize in the DB if not already present.
+    //
+    // Seeded from the store's own TYPE, not from the agency default every
+    // time. A PLAY hall has no scratch, no ΤΟΡΑ, no ιππόδρομος and a card
+    // terminal that closes its batch at midnight - all of which the store
+    // type already says. Seeding it as an agency meant somebody who had just
+    // chosen «PLAY OPAP Store» was asked to say the same thing again through
+    // ten switches, and until they did, the hall's till looked exactly like
+    // the agency's. See lib/storeTypeDefaults.ts.
+    //
+    // Only ever on CREATE. A store that already has a template keeps what is
+    // in it, whatever its type: this must not reach back and overwrite a
+    // choice somebody made.
+    const storeType = storeId ? await fetchStoreType(storeId) : undefined;
     const initialTemplate: ShiftTemplateConfig = {
       ...DEFAULT_OPAP_SHIFT_TEMPLATE,
+      ...overridesFor(storeType),
       organization_id: orgId,
       store_id: storeId,
       updated_at: new Date().toISOString(),
