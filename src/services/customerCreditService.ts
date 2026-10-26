@@ -1,6 +1,7 @@
 import { supabase } from './supabase.ts';
 import { Customer, CreditScoreTier, CreditTierConfig, CustomerCredit } from '../types/index.ts';
 import { sortByGreekName } from '../lib/greekSort.ts';
+import { creditsToApply, type CreditLine } from '../lib/creditIdempotency.ts';
 
 export const DEFAULT_CREDIT_TIER_CONFIGS: Record<CreditScoreTier, CreditTierConfig> = {
   'A+': {
@@ -287,10 +288,31 @@ export async function applyShiftCustomerCredits(
 ): Promise<void> {
   if (!Array.isArray(credits) || credits.length === 0) return;
 
+  // What this shift has already written. Submitting twice - a retry, a double
+  // click, a correction resubmitted - used to write the whole list again, and
+  // the INSERT trigger charged every customer a second time. See
+  // lib/creditIdempotency.ts.
+  let alreadyApplied: string[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('customer_credit_transactions')
+      .select('client_line_id')
+      .eq('shift_id', shiftId)
+      .not('client_line_id', 'is', null);
+    if (error) throw error;
+    alreadyApplied = (data ?? []).map((r: any) => String(r.client_line_id));
+  } catch (err) {
+    // An older database has no such column. Writing the credits is still
+    // better than not writing them; the unique index is the backstop.
+    console.warn('Could not read which credits this shift already applied:', err);
+  }
+
+  const pending = creditsToApply(credits as CreditLine[], alreadyApplied) as Partial<CustomerCredit>[];
+  if (pending.length === 0) return;
+
   const customers = await getCustomers(orgId, storeId);
 
-  for (const cred of credits) {
-    if (!cred.customer_name || !cred.amount || cred.amount <= 0) continue;
+  for (const cred of pending) {
 
     let customer = customers.find(
       (c) => (cred.customer_id && c.id === cred.customer_id) || c.name.toLowerCase() === cred.customer_name?.trim().toLowerCase()
@@ -317,6 +339,9 @@ export async function applyShiftCustomerCredits(
       amount: cred.amount,
       notes: cred.notes || null,
       created_by_user_id: createdByUserId,
+      // The idempotency key. A second submit collides with the unique index
+      // and is refused, rather than charging the customer again.
+      client_line_id: cred.id ?? null,
     });
     if (error) console.warn('Failed to record customer credit transaction', error);
   }

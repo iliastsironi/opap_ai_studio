@@ -190,6 +190,7 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
+import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
 import {
   machineLabel,
@@ -1811,7 +1812,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     setCustomerCredits([
       ...customerCredits,
       {
-        id: 'temp_cred_' + Date.now(),
+        id: newCreditLineId(),
         customer_name: '',
         type: 'GRANTED',
         amount: 0,
