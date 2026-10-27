@@ -56,6 +56,14 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   // 0 = δεν έχει οριστεί· ο διάλογος ρωτάει κανονικά, όπως σήμερα.
   laiko_standing_order_bundles: 0,
   safe_direction: 'DROP',
+  // Κάθε λαχείο όπως έρχεται συσκευασμένο, μέχρι να πει αλλιώς το μαγαζί.
+  lottery_units: {
+    scr_laiko: 'DUAL',
+    scr_ethniko_x20: 'BUNDLES',
+    scr_eidiki_x5: 'BUNDLES',
+    scr_eidiki_x10: 'BUNDLES',
+    scr_protochroniatiko: 'BUNDLES',
+  },
   custom_fields: [
     // System-Managed Calculation Fields
     {

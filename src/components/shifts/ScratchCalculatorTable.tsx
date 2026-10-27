@@ -30,6 +30,12 @@ import {
   isSeasonalEditionRow,
   seasonalBundleSizeFor,
 } from '../../lib/seasonalEditions.ts';
+import {
+  bundleSizeForUnit,
+  isBundlesOnly,
+  unitFor,
+  type LegacyUnitSettings,
+} from '../../lib/lotteryUnits.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
@@ -698,11 +704,34 @@ export function applyCountingDefaults(
  */
 export function isBundlesOnlyRow(
   row: ScratchTicketRow,
-  laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'
+  units?: Record<string, unknown> | null,
+  legacy?: LegacyUnitSettings | null
 ): boolean {
-  if (!isBundleTrackedRow(row)) return false;
-  if (row.id === LAIKO_ROW_ID) return laikoSellingMode === 'BUNDLES_ONLY';
-  return isSeasonalEditionRow(row.id);
+  if (!isLotteryRow(row)) return false;
+  return isBundlesOnly(unitFor(row.id, units, legacy, row.bundleSize));
+}
+
+/**
+ * Forces every lottery row to the unit the shop counts it in (0059).
+ *
+ * Unconditional, like applyLaikoDefaults. The unit is one store setting per
+ * game, not a per-row default somebody can override on the row, so «never
+ * overwrite an explicit value» would leave rows written before the setting
+ * existed ignoring it forever - which is precisely the bug this replaces.
+ */
+export function applyLotteryUnits(
+  rows: ScratchTicketRow[],
+  units?: Record<string, unknown> | null,
+  legacy?: LegacyUnitSettings | null
+): ScratchTicketRow[] {
+  return rows.map((row) => {
+    if (!isLotteryRow(row)) return row;
+    const unit = unitFor(row.id, units, legacy, row.bundleSize);
+    // The row's own packaging decides how big a πεντάδα is; the setting only
+    // decides whether πεντάδες are used at all.
+    const packaged = Number(row.bundleSize) > 0 ? Number(row.bundleSize) : 5;
+    return { ...row, bundleSize: bundleSizeForUnit(unit, packaged) };
+  });
 }
 
 export function applySeasonalUnits(
@@ -1125,6 +1154,10 @@ interface ScratchCalculatorTableProps {
    * special_edition_enabled above when a store has not answered yet.
    */
   seasonalConfig?: Record<string, unknown>;
+  /** Μονάδα ανά λαχείο (0059). */
+  lotteryUnits?: Record<string, unknown> | null;
+  /** Οι παλιές ρυθμίσεις, για πρότυπο που δεν έχει ξανασωθεί. */
+  legacyUnits?: LegacyUnitSettings | null;
   // shift_templates.laiko_selling_mode - applied authoritatively to the
   // scr_laiko row's display/input mode. Undefined behaves like
   // 'PIECES_AND_BUNDLES' (today's shipped behavior).
@@ -1149,6 +1182,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   sellingMode,
   specialEditionEnabled = false,
   seasonalConfig,
+  lotteryUnits,
+  legacyUnits,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
   laikoStandingOrderBundles = 0,
   catalogEditable = false,
@@ -1776,7 +1811,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
                     const isManual = getCountingMode(row) === 'manual';
-                    const isLaikoBundlesOnly = isBundlesOnlyRow(row, laikoSellingMode);
+                    const isLaikoBundlesOnly = isBundlesOnlyRow(row, lotteryUnits, legacyUnits);
                     const rowUnitLabel = lotteryUnitLabel(row);
                     const rowUnitPlural = lotteryUnitLabelPlural(row);
                     // Σκρατς only: a λαχείο's figure IS its remaining stock,

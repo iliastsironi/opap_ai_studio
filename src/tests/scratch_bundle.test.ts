@@ -386,28 +386,34 @@ describe('isBundlesOnlyRow (one column, price per πεντάδα)', () => {
   // The complaint: «την ειδική έκδοση που την έχω σε πεντάδες μετράει σε
   // κομμάτια». It did - bundles-only was hard-coded to the Λαϊκό row, so
   // every other lottery in πεντάδες still drew the dual entry.
-  it('counts a seasonal edition in πεντάδες alone', () => {
-    expect(isBundlesOnlyRow(row('scr_eidiki_x5', 5))).toBe(true);
-    expect(isBundlesOnlyRow(row('scr_eidiki_x10', 5))).toBe(true);
-    expect(isBundlesOnlyRow(row('scr_protochroniatiko', 5))).toBe(true);
+  it('counts in πεντάδες whatever the lottery is, when the shop says so', () => {
+    const units = {
+      scr_eidiki_x5: 'BUNDLES',
+      scr_eidiki_x10: 'BUNDLES',
+      scr_protochroniatiko: 'BUNDLES',
+      scr_kati_kainourio: 'BUNDLES',
+    };
+    for (const id of Object.keys(units)) {
+      expect(isBundlesOnlyRow(row(id, 5), units)).toBe(true);
+    }
   });
 
   it('leaves one the shop set to κομμάτια alone', () => {
-    expect(isBundlesOnlyRow(row('scr_eidiki_x5', 0))).toBe(false);
+    expect(isBundlesOnlyRow(row('scr_eidiki_x5', 5), { scr_eidiki_x5: 'PIECES' })).toBe(false);
   });
 
-  it('keeps Λαϊκό on its own three-way setting', () => {
-    expect(isBundlesOnlyRow(row('scr_laiko', 5), 'BUNDLES_ONLY')).toBe(true);
-    expect(isBundlesOnlyRow(row('scr_laiko', 5), 'PIECES_AND_BUNDLES')).toBe(false);
-    expect(isBundlesOnlyRow(row('scr_laiko', 5))).toBe(false);
+  it('keeps a lottery sold both ways in the dual entry', () => {
+    expect(isBundlesOnlyRow(row('scr_laiko', 5), { scr_laiko: 'DUAL' })).toBe(false);
+    expect(isBundlesOnlyRow(row('scr_laiko', 5), { scr_laiko: 'BUNDLES' })).toBe(true);
   });
 
-  it('says no for anything that is not bundle-tracked at all', () => {
-    expect(isBundlesOnlyRow(row('scr_eidiki_x5', undefined))).toBe(false);
-    expect(isBundlesOnlyRow(row('scr_ethniko_x20', 0))).toBe(false);
+  it('falls back to the old settings for a template nobody has resaved', () => {
+    expect(isBundlesOnlyRow(row('scr_laiko', 5), {}, { laiko_selling_mode: 'BUNDLES_ONLY' })).toBe(true);
+    expect(isBundlesOnlyRow(row('scr_eidiki_x10', 5), {}, { special_edition_x10_bundles: false })).toBe(false);
   });
 
-  it('says no for a σκρατς row', () => {
-    expect(isBundlesOnlyRow({ id: 'scr_1', name: 'Σκρατς', price: 2, startNo: '', endNo: '' } as ScratchTicketRow)).toBe(false);
+  it('says no for a σκρατς row, whatever the map says', () => {
+    const scratch = { id: 'scr_1', name: 'Σκρατς', price: 2, startNo: '', endNo: '' } as ScratchTicketRow;
+    expect(isBundlesOnlyRow(scratch, { scr_1: 'BUNDLES' })).toBe(false);
   });
 });

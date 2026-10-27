@@ -54,7 +54,7 @@ import {
   saveLatestStoreScratchInventory,
   applyCountingDefaults,
   applyLotteryProductShapes,
-  applySeasonalUnits,
+  applyLotteryUnits,
   ScratchSellingMode,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -335,8 +335,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [seasonalConfig, setSeasonalConfig] = useState<Record<string, unknown>>({});
   // Read by the catalogue effect, which must not re-run when the config
   // changes but must not use a stale copy of it either.
+  /** Μονάδα ανά λαχείο (0059), με τις παλιές ρυθμίσεις ως εφεδρεία. */
+  const [lotteryUnits, setLotteryUnits] = useState<Record<string, unknown>>({});
+  const [legacyUnits, setLegacyUnits] = useState<Record<string, unknown>>({});
   const seasonalConfigRef = useRef(seasonalConfig);
   seasonalConfigRef.current = seasonalConfig;
+  const unitsRef = useRef({ units: lotteryUnits, legacy: legacyUnits });
+  unitsRef.current = { units: lotteryUnits, legacy: legacyUnits };
 
   /**
    * The shop's unit wins, whenever either side of it arrives.
@@ -347,8 +352,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * configuration screen and left the till in πεντάδες.
    */
   useEffect(() => {
-    setScratchRows((prev) => applySeasonalUnits(prev, seasonalConfig));
-  }, [seasonalConfig]);
+    setScratchRows((prev) => applyLotteryUnits(prev, lotteryUnits, legacyUnits as any));
+  }, [lotteryUnits, legacyUnits]);
 
   // Which modules this store actually runs.
   //
@@ -527,9 +532,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           openedAt: shift.opened_at,
         }) as any[];
         setScratchRows((current) =>
-          applySeasonalUnits(
+          applyLotteryUnits(
             mergeScratchCatalogWithSaved(catalog, current, seed),
-            seasonalConfigRef.current
+            unitsRef.current.units,
+            unitsRef.current.legacy as any
           )
         );
       })
@@ -561,7 +567,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       .then((config) => {
         if (cancelled) return;
         setScratchRows((prev) =>
-          applyLotteryProductShapes(
+          applyLotteryUnits(
+            applyLotteryProductShapes(
             applyCountingDefaults(prev, {
               scratch_backside_default: config.scratch_backside_default,
               lottery_bundle_default: config.lottery_bundle_default,
@@ -572,6 +579,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
               },
             })
+          ),
+            (config as any).lottery_units,
+            config as any
           )
         );
         setScratchSellingMode(config.scratch_selling_mode || 'FRONT_AND_BACK');
@@ -588,6 +598,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
         });
         setLaikoSellingMode(config.laiko_selling_mode || 'PIECES_AND_BUNDLES');
+        setLotteryUnits(((config as any).lottery_units ?? {}) as Record<string, unknown>);
+        setLegacyUnits({
+          special_edition_x5_bundles: (config as any).special_edition_x5_bundles,
+          special_edition_x10_bundles: (config as any).special_edition_x10_bundles,
+          protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
+          laiko_selling_mode: config.laiko_selling_mode,
+        });
         setLaikoStandingOrder(Math.max(0, Number(config.laiko_standing_order_bundles) || 0));
         // `!== false` rather than a truthy test: a template row that predates
         // one of these columns reads undefined, and the safe answer there is
@@ -2489,6 +2506,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 sellingMode={scratchSellingMode}
                 specialEditionEnabled={specialEditionEnabled}
                 seasonalConfig={seasonalConfig}
+                lotteryUnits={lotteryUnits}
+                legacyUnits={legacyUnits as any}
                 laikoSellingMode={laikoSellingMode}
                 laikoStandingOrderBundles={laikoStandingOrder}
               />

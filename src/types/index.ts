@@ -401,6 +401,8 @@ export interface ShiftTemplateConfig {
   laiko_standing_order_bundles?: number;
   /** Κατεύθυνση χρηματοκιβωτίου: DROP (πρακτορείο) ή WITHDRAW (PLAY) — 0058. */
   safe_direction?: 'DROP' | 'WITHDRAW';
+  /** Μονάδα ανά λαχείο (0059): {"scr_laiko":"BUNDLES"}. */
+  lottery_units?: Record<string, 'BUNDLES' | 'PIECES' | 'DUAL'>;
   pos_batch_close_enabled?: boolean;
   /** Καταγραφή μετρητών μέσα στα μηχανήματα (ILink), εκτός ισοζυγίου. */
   vlt_machine_cash_enabled?: boolean;

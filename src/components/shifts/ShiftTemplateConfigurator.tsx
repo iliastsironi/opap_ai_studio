@@ -37,11 +37,18 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { ScratchCatalogEditor } from './ScratchCatalogEditor.tsx';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  SEASONAL_EDITIONS,
   isSeasonalEditionEnabled,
-  seasonalBundleSizeFor,
+  isSeasonalEditionRow,
+  seasonalEditionFor,
 } from '../../lib/seasonalEditions.ts';
 import { SAFE_DIRECTION_OPTIONS, normalizeSafeDirection } from '../../lib/safeDirection.ts';
+import { LOTTERY_UNIT_OPTIONS, unitFor, withUnit } from '../../lib/lotteryUnits.ts';
+import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
+import {
+  DEFAULT_SCRATCH_PRESETS,
+  isLotteryRow,
+  type ScratchTicketRow,
+} from './ScratchCalculatorTable.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
@@ -103,6 +110,35 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   // Scratch Selling Mode is Owner-only per spec, stricter than whatever
   // canEdit ends up covering.
   const canManageScratchMode = hasPermission('store.scratch_mode.manage');
+
+  /**
+   * Τα λαχεία που πουλάει αυτό το μαγαζί.
+   *
+   * From the store's own catalogue, so a lottery the shop added itself gets
+   * the same settings as the built-in ones - which is the point of holding
+   * the units in a map rather than a column per game. Falls back to the
+   * presets, which is what the till would show anyway.
+   */
+  const [lotteryRows, setLotteryRows] = useState<ScratchTicketRow[]>(
+    () => DEFAULT_SCRATCH_PRESETS.filter(isLotteryRow)
+  );
+
+  useEffect(() => {
+    if (!storeId) return;
+    let cancelled = false;
+    fetchScratchCatalog(orgId, storeId)
+      .then((catalog) => {
+        if (cancelled) return;
+        const list = catalog && catalog.length > 0 ? catalog : DEFAULT_SCRATCH_PRESETS;
+        setLotteryRows(list.filter(isLotteryRow));
+      })
+      .catch(() => {
+        if (!cancelled) setLotteryRows(DEFAULT_SCRATCH_PRESETS.filter(isLotteryRow));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, storeId]);
   const [showScratchModeModal, setShowScratchModeModal] = useState(false);
 
   useEffect(() => {
@@ -1523,97 +1559,99 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             )}
           </div>
 
-          {/* Μία γραμμή ανά έκδοση (0055). They do not arrive together and
-              they do not stop selling together, so one switch between them
-              put the two you are NOT selling into every operator's list the
-              moment you turned on the one you are. */}
+          {/* Όλα τα λαχεία, μία φορά, με τον ίδιο τρόπο (0059).
+              The unit used to be answered in three different shapes and three
+              different places - a boolean per seasonal edition, a selling
+              mode for the Λαϊκό, the Εθνικό pinned in code - which is how a
+              game set to πεντάδες could be counted in κομμάτια without
+              anybody being able to see where to look. */}
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
             <div>
-              <h4 className="text-xs font-bold text-slate-900">Εποχικές Εκδόσεις Λαχείων</h4>
+              <h4 className="text-xs font-bold text-slate-900">Λαχεία — εμφάνιση & μονάδα μέτρησης</h4>
               <p className="text-micro text-slate-500 mt-0.5">
-                Η καθεμία ξεχωριστά. Ανοίξτε την όσο διάστημα υπάρχει πραγματικά προς πώληση,
-                ώστε να μην κάθεται στη λίστα του ταμείου τον υπόλοιπο χρόνο. Διπλανή επιλογή:
-                πώς μετριέται η καθεμία στο ταμείο.
+                Σε τι μετριέται κάθε λαχείο στο ταμείο. Οι εποχικές εκδόσεις έχουν και διακόπτη:
+                ανοίξτε τις όσο διάστημα υπάρχουν προς πώληση, ώστε να μην κάθονται στη λίστα
+                τον υπόλοιπο χρόνο.
               </p>
             </div>
 
             <div className="space-y-2">
-              {SEASONAL_EDITIONS.map((edition) => {
-                const on = isSeasonalEditionEnabled(edition.rowId, template as any);
-                const toggle = () =>
-                  canManageScratchMode &&
-                  setTemplate((prev) => ({
-                    ...prev,
-                    [edition.settingKey]: !isSeasonalEditionEnabled(edition.rowId, prev as any),
-                  }));
+              {lotteryRows.map((row) => {
+                const seasonal = isSeasonalEditionRow(row.id);
+                const on = !seasonal || isSeasonalEditionEnabled(row.id, template as any);
+                const unit = unitFor(row.id, template.lottery_units, template as any, row.bundleSize);
                 return (
                   <div
-                    key={edition.rowId}
-                    onClick={toggle}
-                    role="switch"
-                    aria-checked={on}
-                    aria-label={edition.label}
-                    tabIndex={canManageScratchMode ? 0 : -1}
-                    onKeyDown={(e) => {
-                      if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault();
-                        toggle();
-                      }
-                    }}
-                    className={`px-3 py-2.5 rounded-lg border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                      canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
-                    } ${on ? 'bg-white border-indigo-200' : 'bg-white/60 border-slate-200 opacity-60'}`}
+                    key={row.id}
+                    className={`px-3 py-2.5 rounded-lg border flex items-center justify-between gap-3 flex-wrap transition-colors ${
+                      on ? 'bg-white border-slate-200' : 'bg-white/60 border-slate-200 opacity-60'
+                    }`}
                   >
-                    <span className="text-xs font-bold text-slate-900">{edition.label}</span>
+                    <span className="text-xs font-bold text-slate-900 min-w-0">{row.name}</span>
+
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Πεντάδες ή κομμάτια, μία επιλογή ανά λαχείο (0056).
-                          Beside the switch, where the rest of the lottery
-                          settings already are, instead of a third control on
-                          a till row that already carries five. */}
-                      <div
-                        className="flex rounded-lg border border-slate-200 overflow-hidden bg-white"
-                        // The row around this is itself a switch, with its own
-                        // click and Enter/Space handlers. Without stopping both
-                        // here, choosing «κομμάτια» would also turn the edition
-                        // off - and pressing Space on the button would do it
-                        // from the keyboard too.
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        {[
-                          { bundles: true, label: 'πεντάδες' },
-                          { bundles: false, label: 'κομμάτια' },
-                        ].map((opt) => {
-                          const active =
-                            seasonalBundleSizeFor(edition.rowId, template as any) ===
-                            (opt.bundles ? 5 : 0);
-                          return (
-                            <button
-                              key={opt.label}
-                              type="button"
-                              disabled={!canManageScratchMode}
-                              onClick={() =>
-                                canManageScratchMode &&
-                                setTemplate((prev) => ({ ...prev, [edition.unitKey]: opt.bundles }))
-                              }
-                              className={`px-2.5 py-1 text-micro font-bold transition-colors ${
-                                canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
-                              } ${
-                                active
-                                  ? 'bg-indigo-600 text-white'
-                                  : 'bg-white text-slate-600 hover:bg-slate-50'
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
+                      <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
+                        {LOTTERY_UNIT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            disabled={!canManageScratchMode}
+                            onClick={() =>
+                              canManageScratchMode &&
+                              setTemplate((prev) => ({
+                                ...prev,
+                                lottery_units: withUnit(prev.lottery_units, row.id, opt.value),
+                                // The Λαϊκό's old setting is kept in step, so
+                                // a browser still running yesterday's build
+                                // does not disagree with this screen.
+                                ...(row.id === 'scr_laiko'
+                                  ? {
+                                      laiko_selling_mode:
+                                        opt.value === 'BUNDLES' ? 'BUNDLES_ONLY' : 'PIECES_AND_BUNDLES',
+                                    }
+                                  : {}),
+                              }))
+                            }
+                            className={`px-2.5 py-1 text-micro font-bold transition-colors ${
+                              canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
+                            } ${
+                              unit === opt.value
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
 
-                      {on ? (
-                        <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                      {seasonal ? (
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          aria-label={`Εμφάνιση ${row.name}`}
+                          disabled={!canManageScratchMode}
+                          onClick={() =>
+                            canManageScratchMode &&
+                            setTemplate((prev) => ({
+                              ...prev,
+                              [seasonalEditionFor(row.id)!.settingKey]: !isSeasonalEditionEnabled(
+                                row.id,
+                                prev as any
+                              ),
+                            }))
+                          }
+                          className={canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'}
+                        >
+                          {on ? (
+                            <ToggleRight className="w-6 h-6 text-indigo-600" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-slate-500" />
+                          )}
+                        </button>
                       ) : (
-                        <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
+                        <span className="w-6" aria-hidden="true" />
                       )}
                     </div>
                   </div>
@@ -1622,36 +1660,6 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
-            <div>
-              <h4 className="text-xs font-bold text-slate-900">Τρόπος Πώλησης Λαϊκού Λαχείου</h4>
-              <p className="text-micro text-slate-500 mt-0.5">Ίδιο συνολικό ποσό και στις δύο επιλογές (2€/κομμάτι = 10€/πεντάδα) - αλλάζει μόνο πώς καταχωρείται η πώληση.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={!canManageScratchMode}
-                onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'PIECES_AND_BUNDLES' }))}
-                className={`p-3 rounded-xl border text-left transition-colors ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
-                  template.laiko_selling_mode === 'PIECES_AND_BUNDLES' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
-                }`}
-              >
-                <p className="text-xs font-bold text-slate-900">Πεντάδες + Κομμάτια (2€/κομμάτι)</p>
-                <p className="text-micro text-slate-500 mt-0.5">Πουλάει και μεμονωμένα κομμάτια - διπλή καταχώρηση.</p>
-              </button>
-              <button
-                type="button"
-                disabled={!canManageScratchMode}
-                onClick={() => setTemplate((prev) => ({ ...prev, laiko_selling_mode: 'BUNDLES_ONLY' }))}
-                className={`p-3 rounded-xl border text-left transition-colors ${canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'} ${
-                  template.laiko_selling_mode === 'BUNDLES_ONLY' ? 'bg-indigo-50/50 border-indigo-300' : 'bg-white border-slate-200'
-                }`}
-              >
-                <p className="text-xs font-bold text-slate-900">Μόνο Πεντάδες (10€/πεντάδα)</p>
-                <p className="text-micro text-slate-500 mt-0.5">Πουλάει μόνο ολόκληρες πεντάδες, όπως πριν.</p>
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
