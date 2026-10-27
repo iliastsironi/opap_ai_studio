@@ -60,9 +60,11 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   lottery_units: {
     scr_laiko: 'DUAL',
     scr_ethniko_x20: 'BUNDLES',
+    // Πεντάδα 5 € / κομμάτι 1 €, και πεντάδα 10 € / κομμάτι 2 €.
     scr_eidiki_x5: 'BUNDLES',
     scr_eidiki_x10: 'BUNDLES',
-    scr_protochroniatiko: 'BUNDLES',
+    // Πωλείται μόνο κομμάτι, στα 5 €.
+    scr_protochroniatiko: 'PIECES',
   },
   custom_fields: [
     // System-Managed Calculation Fields

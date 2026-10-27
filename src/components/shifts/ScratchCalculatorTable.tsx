@@ -150,9 +150,14 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   // (the name "e-Λαϊκό" alone does not) so this stays back-side-off by the
   // same default as every other Λαχεία row.
   { id: 'scr_elaiko', name: 'e-Λαϊκό', category: 'Λαχεία', price: 10, startNo: '', endNo: '', countingMode: 'manual' },
-  { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' },
-  { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
-  { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '' },
+  // Πεντάδα 10 €, κομμάτι 2 € - and πεντάδα 5 €, κομμάτι 1 €. Both are sold
+  // either way, so the price here is PER PIECE and the πεντάδα is five of
+  // them, exactly as the Λαϊκό above. Storing the πεντάδα price instead is
+  // what made a single ticket cost 25 € once bundles were switched on.
+  { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 2, startNo: '', endNo: '', bundleSize: 5 },
+  { id: 'scr_eidiki_x5', name: 'Ειδική Έκδοση χ5', category: 'Λαχεία', price: 1, startNo: '', endNo: '', bundleSize: 5 },
+  // Sold by the piece only, at 5 € - no πεντάδα behind it.
+  { id: 'scr_protochroniatiko', name: 'Πρωτοχρονιάτικο', category: 'Λαχεία', price: 5, startNo: '', endNo: '', bundleSize: 0 },
   // One πεντάδα at 20 EUR, and no dual tracking: bundleSize is spelled out
   // rather than left undefined, which is what let lottery_bundle_default
   // decide and made the row flip between counting πεντάδες and κομμάτια.
@@ -767,8 +772,33 @@ export function applyLaikoDefaults(rows: ScratchTicketRow[]): ScratchTicketRow[]
 // Applied after applyCountingDefaults, because it exists precisely to
 // override the store-wide lottery default that was flipping it. See
 // lib/ethnikoLottery.ts for why it is 20 EUR x one unit and not 4 EUR x five.
+/**
+ * Οι πραγματικές τιμές των ειδικών εκδόσεων, καρφωμένες.
+ *
+ * Unconditional, for the same reason applyLaikoDefaults is: a catalogue
+ * saved before these carried a bundleSize holds the πεντάδα price as though
+ * it were the piece price - 5 € and 10 € - and «already set» would leave it
+ * stuck there forever. That shape is what charged 25 € for one Ειδική
+ * Έκδοση χ5 the moment πεντάδες were switched on.
+ *
+ * Πεντάδα 5 € = 1 €/κομμάτι, πεντάδα 10 € = 2 €/κομμάτι. The Πρωτοχρονιάτικο
+ * is sold by the piece alone, at 5 €, so it has no πεντάδα at all.
+ */
+const SPECIAL_EDITION_SHAPES: Record<string, { price: number; bundleSize: number }> = {
+  scr_eidiki_x5: { price: 1, bundleSize: 5 },
+  scr_eidiki_x10: { price: 2, bundleSize: 5 },
+  scr_protochroniatiko: { price: 5, bundleSize: 0 },
+};
+
+export function applySpecialEditionShapes(rows: ScratchTicketRow[]): ScratchTicketRow[] {
+  return rows.map((row) => {
+    const shape = SPECIAL_EDITION_SHAPES[row.id];
+    return shape ? { ...row, ...shape } : row;
+  });
+}
+
 export function applyLotteryProductShapes(rows: ScratchTicketRow[]): ScratchTicketRow[] {
-  return applyEthnikoShape(applyLaikoDefaults(rows));
+  return applySpecialEditionShapes(applyEthnikoShape(applyLaikoDefaults(rows)));
 }
 
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
@@ -1824,6 +1854,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const rowPackWarning = isLottery ? null : packWarning(row as any);
                     const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
+                    /**
+                     * Πόσα κομμάτια κουβαλάει μία μονάδα τιμής.
+                     *
+                     * 1 unless the game really is sold as several pieces at a
+                     * per-piece price - which is the Λαϊκό and nothing else.
+                     * rowBundleSize above turns a 0 into 5 so the πεντάδες
+                     * arithmetic has something to split by; multiplying the
+                     * PRICE by that same 5 is how a 5 € Ειδική Έκδοση was
+                     * shown as 25 € and the Εθνικό's 20 € as 100 €.
+                     */
+                    const pricedPerPiece = Number(row.bundleSize) > 0 ? Number(row.bundleSize) : 1;
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
                     const bundleSaleCheck = validateBundleSaleEntry(row);
                     const remainingPieces = Math.max(0, parseNonNegativeInt(row.startNo).value - bundleSaleCheck.soldPieces);
@@ -1959,13 +2000,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               />
                               {isBundleTracked && !isLaikoBundlesOnly && (
                                 <p className="text-micro text-slate-500 mt-0.5 whitespace-nowrap">
-                                  /κομμάτιο (≈{formatCurrency((Number(row.price) || 0) * rowBundleSize)}/{rowBundleSize}άδα)
+                                  /κομμάτιο (≈{formatCurrency((Number(row.price) || 0) * pricedPerPiece)}/{rowBundleSize}άδα)
                                 </p>
                               )}
                             </div>
                           ) : (
                             <span className="font-extrabold text-slate-900 font-mono text-xs">
-                              {isLaikoBundlesOnly ? formatCurrency((Number(row.price) || 0) * rowBundleSize) : formatCurrency(row.price)}
+                              {isLaikoBundlesOnly
+                                ? formatCurrency((Number(row.price) || 0) * pricedPerPiece)
+                                : formatCurrency(row.price)}
                               {/* A row that names its own unit says so even
                                   without dual tracking - Εθνικό counts
                                   πεντάδες and used to show a bare 20,00 € with
@@ -1974,9 +2017,19 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 <span className="block text-micro font-semibold text-slate-500">
                                   /{rowUnitLabel}
                                 </span>
+                              ) : isLaikoBundlesOnly ? (
+                                /* Any lottery the shop counts in πεντάδες
+                                   says so, not just the Εθνικό. */
+                                <span className="block text-micro font-semibold text-slate-500">
+                                  /πεντάδα
+                                </span>
                               ) : isBundleTracked ? (
                                 <span className="block text-micro font-semibold text-slate-500">
-                                  {isLaikoBundlesOnly ? `/${rowBundleSize}άδα` : '/κομμάτιο'}
+                                  {isLaikoBundlesOnly
+                                    ? pricedPerPiece > 1
+                                      ? `/${rowBundleSize}άδα`
+                                      : '/πεντάδα'
+                                    : '/κομμάτιο'}
                                 </span>
                               ) : null}
                             </span>
