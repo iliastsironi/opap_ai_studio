@@ -683,6 +683,28 @@ export function applyCountingDefaults(
  * switching Πρωτοχρονιάτικο to κομμάτια changed the configuration screen and
  * nothing in the till.
  */
+/**
+ * Μόνο πεντάδες: μία στήλη, τιμή ανά πεντάδα.
+ *
+ * This was hard-coded to the Λαϊκό row, so every other lottery the shop had
+ * set to πεντάδες still drew the dual entry - price «/κομμάτιο» and a box
+ * asking for loose pieces. Which is exactly how «την έχω σε πεντάδες και
+ * μετράει σε κομμάτια» looks from behind the counter.
+ *
+ * A seasonal edition's bundleSize IS the shop's answer to that question
+ * (0056): 5 means πεντάδες and nothing else, so being bundle-tracked is the
+ * whole condition. Λαϊκό keeps its own three-way setting, which offers the
+ * dual mode deliberately.
+ */
+export function isBundlesOnlyRow(
+  row: ScratchTicketRow,
+  laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'
+): boolean {
+  if (!isBundleTrackedRow(row)) return false;
+  if (row.id === LAIKO_ROW_ID) return laikoSellingMode === 'BUNDLES_ONLY';
+  return isSeasonalEditionRow(row.id);
+}
+
 export function applySeasonalUnits(
   rows: ScratchTicketRow[],
   seasonal: Record<string, unknown> | null | undefined
@@ -1754,7 +1776,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     const isLottery = isLotteryRow(row);
                     const isBundleTracked = isBundleTrackedRow(row);
                     const isManual = getCountingMode(row) === 'manual';
-                    const isLaikoBundlesOnly = row.id === LAIKO_ROW_ID && laikoSellingMode === 'BUNDLES_ONLY';
+                    const isLaikoBundlesOnly = isBundlesOnlyRow(row, laikoSellingMode);
                     const rowUnitLabel = lotteryUnitLabel(row);
                     const rowUnitPlural = lotteryUnitLabelPlural(row);
                     // Σκρατς only: a λαχείο's figure IS its remaining stock,

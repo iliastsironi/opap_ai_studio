@@ -13,6 +13,7 @@ import {
   validateScratchRow,
   applyCountingDefaults,
   applySeasonalUnits,
+  isBundlesOnlyRow,
   ScratchTicketRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
@@ -375,5 +376,38 @@ describe('applySeasonalUnits (the shop decides, not the row)', () => {
   it('defaults to πεντάδες when the shop has said nothing', () => {
     expect(applySeasonalUnits([seasonal('scr_eidiki_x10', 0)], {})[0].bundleSize).toBe(5);
     expect(applySeasonalUnits([seasonal('scr_eidiki_x10', 0)], null)[0].bundleSize).toBe(5);
+  });
+});
+
+describe('isBundlesOnlyRow (one column, price per πεντάδα)', () => {
+  const row = (id: string, bundleSize?: number) =>
+    ({ id, name: id, category: 'Λαχεία', price: 5, startNo: '', endNo: '', bundleSize } as ScratchTicketRow);
+
+  // The complaint: «την ειδική έκδοση που την έχω σε πεντάδες μετράει σε
+  // κομμάτια». It did - bundles-only was hard-coded to the Λαϊκό row, so
+  // every other lottery in πεντάδες still drew the dual entry.
+  it('counts a seasonal edition in πεντάδες alone', () => {
+    expect(isBundlesOnlyRow(row('scr_eidiki_x5', 5))).toBe(true);
+    expect(isBundlesOnlyRow(row('scr_eidiki_x10', 5))).toBe(true);
+    expect(isBundlesOnlyRow(row('scr_protochroniatiko', 5))).toBe(true);
+  });
+
+  it('leaves one the shop set to κομμάτια alone', () => {
+    expect(isBundlesOnlyRow(row('scr_eidiki_x5', 0))).toBe(false);
+  });
+
+  it('keeps Λαϊκό on its own three-way setting', () => {
+    expect(isBundlesOnlyRow(row('scr_laiko', 5), 'BUNDLES_ONLY')).toBe(true);
+    expect(isBundlesOnlyRow(row('scr_laiko', 5), 'PIECES_AND_BUNDLES')).toBe(false);
+    expect(isBundlesOnlyRow(row('scr_laiko', 5))).toBe(false);
+  });
+
+  it('says no for anything that is not bundle-tracked at all', () => {
+    expect(isBundlesOnlyRow(row('scr_eidiki_x5', undefined))).toBe(false);
+    expect(isBundlesOnlyRow(row('scr_ethniko_x20', 0))).toBe(false);
+  });
+
+  it('says no for a σκρατς row', () => {
+    expect(isBundlesOnlyRow({ id: 'scr_1', name: 'Σκρατς', price: 2, startNo: '', endNo: '' } as ScratchTicketRow)).toBe(false);
   });
 });
