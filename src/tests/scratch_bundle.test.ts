@@ -282,17 +282,16 @@ describe('applyCountingDefaults (org/store defaults, never overwrite an explicit
     expect(offResult[0].bundleSize).toBe(0);
   });
 
-  it('starts a seasonal edition in πεντάδες whatever the store default says', () => {
-    // Sold in fives far more often than singly, so the row starts there even
-    // in a shop whose general lottery default is pieces. Still a starting
-    // point: an explicit per-row value is never overwritten (next test).
+  // A seasonal edition is a single ticket with a single price - 5 € for the
+  // x5, 10 € for the x10 - not five of anything. Giving it a bundleSize of 5
+  // made the till charge 25 € for one, which is what was reported.
+  it('never gives a seasonal edition a bundle it does not come in', () => {
     const seasonal = () => ({ id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow);
 
-    const off = applyCountingDefaults([seasonal()], { scratch_backside_default: true, lottery_bundle_default: false });
-    expect(off[0].bundleSize).toBe(5);
-
-    const on = applyCountingDefaults([seasonal()], { scratch_backside_default: true, lottery_bundle_default: true });
-    expect(on[0].bundleSize).toBe(5);
+    for (const lottery_bundle_default of [true, false]) {
+      const out = applyCountingDefaults([seasonal()], { scratch_backside_default: true, lottery_bundle_default });
+      expect(out[0].bundleSize).toBe(0);
+    }
   });
 
   it('never overwrites an already-explicit value, including the bundleSize: 0 "explicit off" sentinel', () => {
@@ -321,7 +320,7 @@ describe('applyCountingDefaults (org/store defaults, never overwrite an explicit
   });
 
   it('keeps scratch_backside_default scoped to Σκρατς and lottery_bundle_default scoped to Λαχεία - no cross-category leak', () => {
-    const untouchedLottery = { id: 'scr_eidiki_x10', name: 'Ειδική Έκδοση χ10', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow;
+    const untouchedLottery = { id: 'scr_some_lottery', name: 'Λαχείο', category: 'Λαχεία', price: 10, startNo: '', endNo: '' } as ScratchTicketRow;
     const result = applyCountingDefaults([scratchRow(), untouchedLottery], {
       scratch_backside_default: true,
       lottery_bundle_default: true,

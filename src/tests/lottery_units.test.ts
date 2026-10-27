@@ -36,23 +36,33 @@ describe('falling back to the settings this replaces', () => {
   });
 
   it('falls back to how the game is packaged when nothing else says', () => {
+    // A row that genuinely comes in bundles is sold both ways by default -
+    // that is the Λαϊκό. One that does not is counted in pieces.
     expect(unitFor('scr_ethniko_x20', {}, {}, 0)).toBe('PIECES');
-    expect(unitFor('scr_kati_kainourio', null, null, 5)).toBe('BUNDLES');
+    expect(unitFor('scr_kati_kainourio', null, null, 5)).toBe('DUAL');
     expect(unitFor('scr_kati_kainourio', null, null, undefined)).toBe('PIECES');
   });
 });
 
 describe('what a unit means on the row', () => {
-  it('turns πεντάδες into a bundle size and κομμάτια into zero', () => {
-    expect(bundleSizeForUnit('BUNDLES')).toBe(5);
-    expect(bundleSizeForUnit('DUAL')).toBe(5);
-    expect(bundleSizeForUnit('PIECES')).toBe(0);
+  // The one that cost real money: defaulting to 5 turned a 5 € ticket into a
+  // 25 € «πεντάδα» and the Εθνικό's 20 € into 100 €. A unit names what the
+  // price is for; it must never multiply it.
+  it('never invents a bundle the game does not come in', () => {
+    expect(bundleSizeForUnit('BUNDLES')).toBe(0);
+    expect(bundleSizeForUnit('DUAL')).toBe(0);
+    expect(bundleSizeForUnit('BUNDLES', 0)).toBe(0);
+    expect(bundleSizeForUnit('BUNDLES', 'ουπς')).toBe(0);
   });
 
-  it('respects a game packaged in something other than fives', () => {
+  it('keeps the bundle a game really does come in', () => {
+    expect(bundleSizeForUnit('BUNDLES', 5)).toBe(5);
+    expect(bundleSizeForUnit('DUAL', 5)).toBe(5);
     expect(bundleSizeForUnit('BUNDLES', 10)).toBe(10);
+  });
+
+  it('κομμάτια is zero whatever the packaging', () => {
     expect(bundleSizeForUnit('PIECES', 10)).toBe(0);
-    expect(bundleSizeForUnit('BUNDLES', 'ουπς')).toBe(5);
   });
 
   it('is one column only for πεντάδες', () => {

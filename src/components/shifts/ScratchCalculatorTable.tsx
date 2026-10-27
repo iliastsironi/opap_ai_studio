@@ -666,8 +666,11 @@ export function applyCountingDefaults(
       // A seasonal edition follows its OWN setting, one per edition, made
       // once in «Διαμόρφωση» - not the store's blanket lottery default and
       // not a badge on the till row.
+      // A seasonal edition is a single ticket with a single price - 5 € for
+      // the x5, 10 € for the x10 - not five of anything. Giving it a
+      // bundleSize of 5 made the till charge 25 € for one.
       next = isSeasonalEditionRow(row.id)
-        ? { ...next, bundleSize: seasonalBundleSizeFor(row.id, defaults.seasonal) }
+        ? { ...next, bundleSize: 0 }
         : { ...next, bundleSize: defaults.lottery_bundle_default ? 5 : 0 };
     }
     return next;
@@ -727,10 +730,11 @@ export function applyLotteryUnits(
   return rows.map((row) => {
     if (!isLotteryRow(row)) return row;
     const unit = unitFor(row.id, units, legacy, row.bundleSize);
-    // The row's own packaging decides how big a πεντάδα is; the setting only
-    // decides whether πεντάδες are used at all.
-    const packaged = Number(row.bundleSize) > 0 ? Number(row.bundleSize) : 5;
-    return { ...row, bundleSize: bundleSizeForUnit(unit, packaged) };
+    // Only a row that genuinely comes in bundles has one. Inventing a
+    // bundleSize of 5 made a 5 € ticket a 25 € «πεντάδα» and the Εθνικό's
+    // 20 € a 100 € one - the unit names what the price is for, it never
+    // multiplies it.
+    return { ...row, bundleSize: bundleSizeForUnit(unit, row.bundleSize) };
   });
 }
 

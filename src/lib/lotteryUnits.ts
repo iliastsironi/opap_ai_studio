@@ -73,14 +73,26 @@ export function unitFor(
   }
 
   const packaged = Number(bundleSize);
-  return Number.isFinite(packaged) && packaged > 0 ? 'BUNDLES' : 'PIECES';
+  return Number.isFinite(packaged) && packaged > 0 ? 'DUAL' : 'PIECES';
 }
 
-/** What bundleSize a unit means. 0 is the explicit «pieces» sentinel. */
+/**
+ * What bundleSize a unit means, for a row that genuinely comes in bundles.
+ *
+ * NEVER invents one. A bundleSize above zero says «this row's price is per
+ * PIECE and a bundle is this many of them» - which is true of the Λαϊκό
+ * (2 € × 5 = 10 €) and of nothing else in the catalogue. The Ειδικές and the
+ * Πρωτοχρονιάτικο are single tickets with a single price, and the Εθνικό's
+ * 20 € IS the πεντάδα.
+ *
+ * Defaulting to 5 here turned a 5 € ticket into a 25 € «πεντάδα» and the
+ * Εθνικό's 20 € into 100 €. The unit a shop counts in is a label on the
+ * price; it must never multiply it.
+ */
 export function bundleSizeForUnit(unit: LotteryUnit, packaged?: unknown): number {
   if (unit === 'PIECES') return 0;
   const n = Number(packaged);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 5;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
 /** One column, price per πεντάδα. */
