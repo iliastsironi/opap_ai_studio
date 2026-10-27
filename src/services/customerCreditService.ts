@@ -273,6 +273,39 @@ export function validateCustomerCreditGrant(
 }
 
 /**
+ * Τι χρεώθηκε ο κάθε πελάτης σε αυτή τη βάρδια.
+ *
+ * For whoever is inspecting the till. The approval screen's own credits
+ * table read `shift.customer_credits`, a field with no column behind it, so
+ * it was always empty and the panel never rendered - the inspector could
+ * see that 85 € of credit had been given and never to whom.
+ *
+ * These are the rows that actually reached each customer's balance, with
+ * the name and tier as they stood at the time. A shift still in draft has
+ * none yet, and the caller falls back to the operator's own list.
+ *
+ * Returns [] rather than throwing: a panel that cannot load its detail must
+ * not take the approval screen down with it.
+ */
+export async function fetchShiftCustomerCredits(
+  shiftId: string
+): Promise<Array<Record<string, unknown>>> {
+  if (!shiftId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('customer_credit_transactions')
+      .select('*')
+      .eq('shift_id', shiftId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as Array<Record<string, unknown>>;
+  } catch (err) {
+    console.warn('[customerCredit] could not load the shift\'s credits:', err);
+    return [];
+  }
+}
+
+/**
  * Applies shift credit transactions (GRANTED / COLLECTED). Each one is now
  * a real row in customer_credit_transactions - the DB trigger
  * (apply_customer_credit_transaction, 0001_schema.sql) maintains the

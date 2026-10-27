@@ -36,6 +36,12 @@ import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
+import {
+  byCustomer,
+  creditLineTotals,
+  creditLinesFor,
+} from '../../lib/shiftCreditLines.ts';
+import { fetchShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
 import { fetchDayCollection } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -96,6 +102,8 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
    * the till did, with the inherited ones marked.
    */
   const [shiftExpenses, setShiftExpenses] = useState<ExpenseRecord[]>([]);
+  /** The credits that actually reached each customer's balance. */
+  const [postedCredits, setPostedCredits] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +111,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
     fetchShiftReconciliationExpenses(shift.id)
       .then((rows) => { if (!cancelled) setShiftExpenses(rows ?? []); })
       .catch((err) => console.warn('[ShiftDetailsModal] could not load the expenses:', err));
+    return () => { cancelled = true; };
+  }, [shift?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!shift?.id) return undefined;
+    fetchShiftCustomerCredits(shift.id)
+      .then((rows) => { if (!cancelled) setPostedCredits(rows ?? []); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [shift?.id]);
 
@@ -956,8 +973,23 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                 {/* Customer Credits & Credit Score Verification Table */}
                 {(() => {
-                  const creditsList = shift.customer_credits || [];
-                  if (!Array.isArray(creditsList) || creditsList.length === 0) return null;
+                  /**
+                   * Ποιον χρέωσε η βάρδια και πόσο.
+                   *
+                   * This read `shift.customer_credits` - a field on the Shift
+                   * type with no column behind it, exactly like
+                   * `shift.expenses` before it. Always undefined, so the
+                   * whole panel returned null and has never appeared on any
+                   * shift: the inspector could see that 85 € of credit had
+                   * been given and never to whom.
+                   */
+                  const creditsList = creditLinesFor(
+                    postedCredits,
+                    shift.custom_field_values?.customer_credits
+                  );
+                  if (creditsList.length === 0) return null;
+                  const creditTotals = creditLineTotals(creditsList);
+                  const perCustomer = byCustomer(creditsList);
 
                   return (
                     <div className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-4 space-y-3">
@@ -990,21 +1022,33 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               return (
                                 <tr key={cred.id || idx} className="hover:bg-slate-800/40">
                                   <td className="py-1.5 px-2 font-bold text-slate-200">
-                                    {cred.customer_name || 'Πελάτης'}
+                                    {cred.customerName}
+                                    {cred.at && (
+                                      <span className="block text-micro font-mono font-normal text-slate-500">
+                                        {new Date(cred.at).toLocaleString('el-GR', {
+                                          timeZone: 'Europe/Athens',
+                                          day: '2-digit',
+                                          month: '2-digit',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                          hour12: false,
+                                        })}
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="py-1.5 px-2 text-center">
                                     <span
                                       className={`px-1.5 py-0.5 rounded text-micro font-black font-mono ${
-                                        cred.customer_tier === 'A+'
+                                        cred.tier === 'A+'
                                           ? 'bg-purple-900/80 text-purple-300 border border-purple-700'
-                                          : cred.customer_tier === 'A'
+                                          : cred.tier === 'A'
                                           ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-700'
-                                          : cred.customer_tier === 'B'
+                                          : cred.tier === 'B' || !cred.tier
                                           ? 'bg-amber-900/80 text-amber-300 border border-amber-700'
                                           : 'bg-rose-900/80 text-rose-300 border border-rose-700'
                                       }`}
                                     >
-                                      {cred.customer_tier || 'B'}
+                                      {cred.tier || 'B'}
                                     </span>
                                   </td>
                                   <td className="py-1.5 px-2 text-center">
@@ -1027,13 +1071,61 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     }`}
                                   >
                                     {isCollected ? '-' : '+'}
-                                    {formatCurrency(Number(cred.amount || 0))}
+                                    {formatCurrency(cred.amount)}
                                   </td>
                                 </tr>
                               );
                             })}
                           </tbody>
                         </table>
+                      </div>
+
+                      {/* «Πόσο χρέωσε τον κάθε πελάτη» - the question the
+                          panel existed to answer and could not, because a
+                          list of movements is not the same as a position
+                          once somebody both took credit and paid some back
+                          in the same shift. */}
+                      <div className="border-t border-slate-800 pt-2.5 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-micro font-black uppercase tracking-wider text-slate-400">
+                            Ανά πελάτη
+                          </span>
+                          <span className="text-micro font-mono text-slate-400">
+                            {creditTotals.customers}{' '}
+                            {creditTotals.customers === 1 ? 'πελάτης' : 'πελάτες'}
+                          </span>
+                        </div>
+                        {perCustomer.map((c) => (
+                          <div
+                            key={c.customerName}
+                            className="flex items-center justify-between text-xs gap-2"
+                          >
+                            <span className="text-slate-300 truncate">
+                              {c.customerName}
+                              {c.lines > 1 && (
+                                <span className="text-micro text-slate-500 font-mono">
+                                  {' '}
+                                  ({c.granted > 0 && `+${formatCurrency(c.granted)}`}
+                                  {c.granted > 0 && c.collected > 0 && ' '}
+                                  {c.collected > 0 && `-${formatCurrency(c.collected)}`})
+                                </span>
+                              )}
+                            </span>
+                            <span
+                              className={`font-mono font-black shrink-0 ${
+                                c.net > 0 ? 'text-amber-300' : c.net < 0 ? 'text-emerald-300' : 'text-slate-400'
+                              }`}
+                            >
+                              {formatCurrency(c.net, { showSign: true })}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 text-xs">
+                          <span className="font-bold text-slate-300">Καθαρή χρέωση βάρδιας</span>
+                          <span className="font-mono font-black text-white">
+                            {formatCurrency(creditTotals.net, { showSign: true })}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
