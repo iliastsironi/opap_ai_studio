@@ -42,7 +42,7 @@ import {
   seasonalEditionFor,
 } from '../../lib/seasonalEditions.ts';
 import { SAFE_DIRECTION_OPTIONS, normalizeSafeDirection } from '../../lib/safeDirection.ts';
-import { LOTTERY_UNIT_OPTIONS, unitFor, withUnit } from '../../lib/lotteryUnits.ts';
+import { LOTTERY_UNIT_OPTIONS, isUnitLocked, unitFor, withUnit } from '../../lib/lotteryUnits.ts';
 import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
 import {
   DEFAULT_SCRATCH_PRESETS,
@@ -1590,6 +1590,15 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                     <span className="text-xs font-bold text-slate-900 min-w-0">{row.name}</span>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Το Εθνικό πουλιέται μόνο σε πεντάδες - its 20 € IS
+                          the πεντάδα - so the choice is not offered rather
+                          than offered and ignored. */}
+                      {isUnitLocked(row.id) ? (
+                        <span className="px-2.5 py-1 text-micro font-bold rounded-lg border border-slate-200 bg-slate-100 text-slate-500 flex items-center gap-1">
+                          <Lock aria-hidden="true" className="w-3 h-3" />
+                          μόνο πεντάδες
+                        </span>
+                      ) : (
                       <div className="flex rounded-lg border border-slate-200 overflow-hidden bg-white">
                         {LOTTERY_UNIT_OPTIONS.map((opt) => (
                           <button
@@ -1624,6 +1633,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                           </button>
                         ))}
                       </div>
+                      )}
 
                       {seasonal ? (
                         <button

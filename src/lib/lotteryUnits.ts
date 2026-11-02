@@ -21,7 +21,14 @@
  * screen keeps exactly what it had.
  */
 
+import { ETHNIKO_ROW_ID } from './ethnikoLottery.ts';
+
 export type LotteryUnit = 'BUNDLES' | 'PIECES' | 'DUAL';
+
+/** Λαχεία που δεν δέχονται αλλαγή μονάδας: η τιμή τους ΕΙΝΑΙ η πεντάδα. */
+export function isUnitLocked(rowId: unknown): boolean {
+  return String(rowId ?? '') === ETHNIKO_ROW_ID;
+}
 
 export const LOTTERY_UNITS: ReadonlyArray<LotteryUnit> = ['BUNDLES', 'PIECES', 'DUAL'];
 
@@ -57,6 +64,12 @@ export function unitFor(
   bundleSize?: unknown
 ): LotteryUnit {
   const id = String(rowId ?? '');
+
+  // Το Εθνικό πουλιέται μόνο σε πεντάδες. Its 20 € IS the πεντάδα and the
+  // row carries no pieces behind it, so «κομμάτια» has nothing to count -
+  // it would show a 20 € price labelled as one ticket. Decided here rather
+  // than left to the map, so a value written by accident cannot change it.
+  if (id === ETHNIKO_ROW_ID) return 'BUNDLES';
 
   const explicit = normalizeLotteryUnit(map?.[id]);
   if (explicit) return explicit;

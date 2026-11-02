@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bundleSizeForUnit,
   isBundlesOnly,
+  isUnitLocked,
   normalizeLotteryUnit,
   unitFor,
   withUnit,
@@ -38,7 +39,8 @@ describe('falling back to the settings this replaces', () => {
   it('falls back to how the game is packaged when nothing else says', () => {
     // A row that genuinely comes in bundles is sold both ways by default -
     // that is the Λαϊκό. One that does not is counted in pieces.
-    expect(unitFor('scr_ethniko_x20', {}, {}, 0)).toBe('PIECES');
+    // Deliberately not the Εθνικό: its unit is locked, see further down.
+    expect(unitFor('scr_kati_allo', {}, {}, 0)).toBe('PIECES');
     expect(unitFor('scr_kati_kainourio', null, null, 5)).toBe('DUAL');
     expect(unitFor('scr_kati_kainourio', null, null, undefined)).toBe('PIECES');
   });
@@ -84,5 +86,34 @@ describe('changing one lottery', () => {
 
   it('starts a map that did not exist', () => {
     expect(withUnit(null, 'scr_laiko', 'PIECES')).toEqual({ scr_laiko: 'PIECES' });
+  });
+});
+
+// Το Εθνικό πουλιέται μόνο σε πεντάδες: its 20 € IS the πεντάδα, and the row
+// carries no pieces behind it, so «κομμάτια» would label a 20 € price as one
+// ticket. Decided in the lib rather than left to the map, so a value written
+// by accident - or by an older build - cannot change it.
+describe('the Εθνικό is πεντάδες and nothing else', () => {
+  it('ignores a map that says otherwise', () => {
+    expect(unitFor('scr_ethniko_x20', { scr_ethniko_x20: 'PIECES' })).toBe('BUNDLES');
+    expect(unitFor('scr_ethniko_x20', { scr_ethniko_x20: 'DUAL' })).toBe('BUNDLES');
+  });
+
+  it('is πεντάδες with no settings at all', () => {
+    expect(unitFor('scr_ethniko_x20', null, null, 0)).toBe('BUNDLES');
+  });
+
+  it('is the only lottery whose unit is locked', () => {
+    expect(isUnitLocked('scr_ethniko_x20')).toBe(true);
+    for (const id of ['scr_laiko', 'scr_eidiki_x5', 'scr_eidiki_x10', 'scr_protochroniatiko']) {
+      expect(isUnitLocked(id)).toBe(false);
+    }
+    expect(isUnitLocked(undefined)).toBe(false);
+  });
+
+  it('still costs 20 € the πεντάδα, locked or not', () => {
+    // bundleSizeForUnit must not invent a bundle for it - the price is
+    // already the πεντάδα price.
+    expect(bundleSizeForUnit(unitFor('scr_ethniko_x20', {}), 0)).toBe(0);
   });
 });
