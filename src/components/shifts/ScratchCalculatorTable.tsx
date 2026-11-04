@@ -929,6 +929,32 @@ export function tailSoldOnNewPack(row: ScratchTicketRow | null | undefined): num
   return piecesLeftInPack(row?.price, row?.startNo);
 }
 
+/**
+ * Με πόσο πολλαπλασιάζει το κουτί του αρχικού ό,τι γράφεται μέσα του.
+ *
+ * Όταν ένα κατάστημα μετράει ένα λαχείο σε πεντάδες, το κουτί δέχεται και
+ * δείχνει πεντάδες ενώ η γραμμή κρατάει κομμάτια - γιατί σε κομμάτια
+ * δουλεύουν η καταχώρηση πώλησης και ο trigger του 0008. Άρα διαιρεί στην
+ * εμφάνιση και πολλαπλασιάζει στην αποθήκευση.
+ *
+ * Ένα, όχι πέντε, όταν δεν υπάρχουν κομμάτια από πίσω. Το Εθνικό κρατάει
+ * ήδη πεντάδες: η μονάδα του ΕΙΝΑΙ η πεντάδα. Το `row.bundleSize || 5`
+ * διάβαζε το μηδέν του ως «δεν ορίστηκε» και το κουτί πολλαπλασίαζε - 84
+ * πεντάδες γράφτηκαν 420 στη γραμμή.
+ *
+ * Το ύπουλο ήταν ότι η εμφάνιση διαιρούσε πίσω με το ίδιο πέντε, οπότε το
+ * κουτί ξανάδειχνε 84 και η αλλοίωση δεν φαινόταν. Μόνο το κουτί του
+ * τελικού την αποκάλυπτε, γιατί εκείνο κρίνεται από το isBundleTracked
+ * (bundleSize > 0) και έμενε ακατέργαστο: 420 − 83 = 337 πεντάδες, 6.740 €,
+ * για μία πεντάδα πουλημένη. Δύο σημαίες για την ίδια ερώτηση, που
+ * διαφωνούσαν ακριβώς πάνω σε αυτή τη γραμμή.
+ */
+export function bundleBoxFactor(bundleSize: unknown, bundlesOnly: boolean): number {
+  const packed = Number(bundleSize);
+  if (!bundlesOnly || !Number.isFinite(packed) || packed <= 0) return 1;
+  return Math.floor(packed);
+}
+
 export interface BundleSaleValidationResult {
   errors: string[];
   isValid: boolean;
@@ -1968,6 +1994,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                      * πεντάδες came to report κομμάτια on screen.
                      */
                     const rowCountNoun = rowUnitPlural ?? 'τμχ';
+                    // Μία μόνο απάντηση στο «μεταφράζουν τα κουτιά;», αντί
+                    // για δύο σημαίες που διαφωνούν.
+                    const startFactor = bundleBoxFactor(row.bundleSize, isLaikoBundlesOnly);
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
                     const bundleSaleCheck = validateBundleSaleEntry(row);
                     const remainingPieces = Math.max(0, parseNonNegativeInt(row.startNo).value - bundleSaleCheck.soldPieces);
@@ -2151,8 +2180,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               maxLength={MAX_LABEL_LENGTH}
                               disabled={!canEditStart}
                               value={
-                                isLaikoBundlesOnly
-                                  ? String(Math.floor((parseInt(row.startNo, 10) || 0) / rowBundleSize))
+                                startFactor > 1
+                                  ? String(Math.floor((parseInt(row.startNo, 10) || 0) / startFactor))
                                   : row.startNo
                               }
                               onFocus={(e) => {
@@ -2179,12 +2208,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 // sale entry and the 0008 trigger both work in -
                                 // storing bundles here would make 3 πεντάδες
                                 // read as 3 tickets everywhere else.
-                                if (isLaikoBundlesOnly) {
+                                if (startFactor > 1) {
                                   const bundles = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10);
                                   handleUpdateRow(
                                     row.id,
                                     'startNo',
-                                    Number.isFinite(bundles) ? String(bundles * rowBundleSize) : ''
+                                    Number.isFinite(bundles) ? String(bundles * startFactor) : ''
                                   );
                                   return;
                                 }
