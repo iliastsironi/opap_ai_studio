@@ -191,6 +191,49 @@ export async function movePackToStore(packId: string, shiftId?: string | null): 
   }
 }
 
+/**
+ * Ξαναβάζει στο ράφι ένα πακέτο που αναιρέθηκε στο ταμείο.
+ *
+ * Το άνοιγμα το βγάζει από την αποθήκη· η αναίρεση πρέπει να το γυρίζει,
+ * αλλιώς μένει IN_STORE για πάντα ενώ κανείς δεν το πούλησε - και η αξία
+ * αποθήκης λείπει 300 € που βρίσκονται ακόμα στο ράφι.
+ *
+ * Ψάχνει με catalog_code ΚΑΙ pack_code: ο κωδικός πακέτου δεν είναι
+ * μοναδικός από μόνος του. Στην αποθήκη του Owner το 1234567 υπάρχει ήδη
+ * δύο φορές, στο 0163 και στο 0166 - ο μοναδικός δείκτης είναι σε
+ * (οργανισμός, παιχνίδι, κωδικός), και ένα ψάξιμο μόνο με κωδικό θα
+ * γύριζε λάθος πακέτο.
+ */
+export async function returnPackToWarehouse(
+  orgId: string,
+  storeId: string,
+  catalogCode: string,
+  packCode: string
+): Promise<void> {
+  const { error, count } = await supabase
+    .from(TABLE)
+    .update(
+      {
+        status: 'IN_WAREHOUSE',
+        moved_at: null,
+        moved_shift_id: null,
+        updated_at: new Date().toISOString(),
+      },
+      { count: 'exact' }
+    )
+    .eq('organization_id', orgId)
+    .eq('store_id', storeId)
+    .eq('catalog_code', catalogCode)
+    .eq('pack_code', packCode)
+    .eq('status', 'IN_STORE');
+  if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error(
+      `Το πακέτο ${packCode} δεν επέστρεψε στην αποθήκη — ίσως δεν είχε έρθει από εκεί.`
+    );
+  }
+}
+
 /** Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί. */
 export async function withdrawPack(packId: string, reason: string): Promise<void> {
   const { error, count } = await supabase

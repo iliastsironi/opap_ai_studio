@@ -203,7 +203,8 @@ import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  fetchWarehousePacks, movePackToStore, storeUsesWarehouse, type WarehousePack,
+  fetchWarehousePacks, movePackToStore, returnPackToWarehouse, storeUsesWarehouse,
+  type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 
 interface ShiftClosingWizardProps {
@@ -2568,6 +2569,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 onPackTaken={async (packId) => {
                   await movePackToStore(packId, shift.id);
                   setWarehousePacks((prev) => prev.filter((p) => p.id !== packId));
+                }}
+                onPackReturned={async (catalogCode, packCode) => {
+                  const orgId = shift.organization_id || organization!.id;
+                  await returnPackToWarehouse(orgId, shift.store_id, catalogCode, packCode);
+                  // Ξαναδιαβάζεται αντί να μπει πίσω στη λίστα από μνήμη: το
+                  // πακέτο μπορεί να έχει αναιρεθεί μετά από επαναφόρτωση,
+                  // οπότε δεν υπάρχει τίποτα αποθηκευμένο να ξαναμπεί.
+                  setWarehousePacks(await fetchWarehousePacks(orgId, shift.store_id));
                 }}
               />
 

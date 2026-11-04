@@ -1343,6 +1343,13 @@ interface ScratchCalculatorTableProps {
   warehouseInUse?: boolean;
   /** Το πακέτο βγήκε στον πάγκο: η αποθήκη πρέπει να το μάθει. */
   onPackTaken?: (packId: string) => Promise<void>;
+  /**
+   * Η αναίρεση το ξαναβάζει στο ράφι.
+   *
+   * Χωρίς αυτό το πακέτο έμενε IN_STORE για πάντα ενώ κανείς δεν το
+   * πούλησε, και η αξία αποθήκης έλειπε 300 € που βρίσκονταν ακόμα εκεί.
+   */
+  onPackReturned?: (catalogCode: string, packCode: string) => Promise<void>;
   // Whether the catalogue itself can be edited from this table: a game's
   // name, its price, how it is counted, adding one, removing one.
   //
@@ -1368,6 +1375,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   warehousePacks,
   warehouseInUse = false,
   onPackTaken,
+  onPackReturned,
   catalogEditable = false,
 }) => {
   const { roles, permissions } = useAuth();
@@ -1691,19 +1699,33 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
    * numbers back to where they were and removes the sale the finished pack
    * had booked.
    */
-  const handleUndoPack = (rowId: string) => {
+  const handleUndoPack = async (rowId: string) => {
     if (readOnly) return;
     const target = rows.find((r) => r.id === rowId);
     if (!target) return;
     const last = lastPackOpened(target);
     if (!last) return;
 
+    const governed = warehouseGoverns(warehouseInUse, isLotteryRow(target));
     const message =
       `Αναίρεση του πακέτου ${last.code} στο «${target.name}»;\n\n` +
       `Θα αφαιρεθούν ${last.addedQty} δελτία από την πώληση και οι αριθμοί ` +
       `θα επιστρέψουν όπως ήταν (αρχικό ${last.previous.startNo || '-'}` +
-      `, τελικό ${last.previous.endNo || '-'}).`;
+      `, τελικό ${last.previous.endNo || '-'}).` +
+      (governed ? `\n\nΤο πακέτο θα επιστρέψει στην αποθήκη.` : '');
     if (!window.confirm(message)) return;
+
+    // Η αποθήκη πρώτα, όπως και στο άνοιγμα. Αν η επιστροφή αποτύχει, δεν
+    // θέλουμε το ταμείο να έχει ήδη ξεχάσει ένα πακέτο που η αποθήκη
+    // εξακολουθεί να θεωρεί βγαλμένο στον πάγκο.
+    if (governed && onPackReturned) {
+      try {
+        await onPackReturned(target.id, last.code);
+      } catch (err: any) {
+        window.alert(err?.message ?? 'Το πακέτο δεν επέστρεψε στην αποθήκη. Η αναίρεση ακυρώθηκε.');
+        return;
+      }
+    }
 
     onChangeRows(rows.map((r) => (r.id === rowId ? undoLastPack(r) : r)));
   };
@@ -2150,7 +2172,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 {!readOnly && canUndoPack(row) && (
                                   <button
                                     type="button"
-                                    onClick={() => handleUndoPack(row.id)}
+                                    onClick={() => void handleUndoPack(row.id)}
                                     title={`Αναίρεση του πακέτου ${lastPackOpened(row)?.code ?? ''}`}
                                     className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition-colors cursor-pointer text-micro font-bold"
                                   >
