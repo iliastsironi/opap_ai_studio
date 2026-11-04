@@ -862,6 +862,29 @@ export function displayedRowCount(
   return Math.floor(totalQty / packed);
 }
 
+/**
+ * Πόσα δελτία του παλιού πακέτου μετράνε ως πώληση όταν ανοίγει καινούριο.
+ *
+ * Μηδέν για κάθε λαχείο. Ένα λαχείο δεν έχει πακέτο 300 € που «τελειώνει»:
+ * έχει παραλαβή ανά κλήρωση, και ό,τι δεν πουληθεί είτε επιστρέφεται - το
+ * Λαϊκό, γι' αυτό υπάρχει η καταχώρηση αδιάθετων - είτε το χρεώνεται το
+ * πρακτορείο από τον ΟΠΑΠ: το Εθνικό και το Πρωτοχρονιάτικο. Και στις δύο
+ * περιπτώσεις είναι κόστος, όχι μετρητά στο συρτάρι, οπότε δεν είναι
+ * είσπραξη της βάρδιας.
+ *
+ * Ο τύπος των σκρατς έβγαινε και ανάποδα εδώ. Ο αριθμός ενός λαχείου ΕΙΝΑΙ
+ * το υπόλοιπο, όχι θέση μέσα στο πακέτο, οπότε «μέγεθος πακέτου − αρχικό»
+ * χρέωνε ολόκληρο πακέτο με άδειο ράφι και τίποτα με γεμάτο - όσο λιγότερα
+ * είχες, τόσα περισσότερα πλήρωνες.
+ *
+ * Null μόνο όπου το είχε πάντα: σκρατς με τιμή που δεν διαιρεί τα 300 €,
+ * όπου δεν ορίζεται μέγεθος πακέτου και τη ρωτάμε τον χειριστή.
+ */
+export function tailSoldOnNewPack(row: ScratchTicketRow | null | undefined): number | null {
+  if (row && isLotteryRow(row)) return 0;
+  return piecesLeftInPack(row?.price, row?.startNo);
+}
+
 export interface BundleSaleValidationResult {
   errors: string[];
   isValid: boolean;
@@ -1496,7 +1519,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     //
     // Null when the price does not divide 300: no defined pack size, so the
     // operator typed the figure instead and we take theirs.
-    const automatic = piecesLeftInPack(target.price, target.startNo);
+    const automatic = tailSoldOnNewPack(target);
     const soldOut = automatic === null
       ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
       : automatic;
@@ -2742,7 +2765,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow, sellingMode) : false;
-        const autoRemainder = targetRow ? piecesLeftInPack(targetRow.price, targetRow.startNo) : null;
+        const autoRemainder = tailSoldOnNewPack(targetRow);
         const remainderPieces = autoRemainder === null
           ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
           : autoRemainder;
