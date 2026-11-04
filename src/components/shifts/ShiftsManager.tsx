@@ -36,6 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
+import { returnPacksFromShift } from '../../services/scratchWarehouseService.ts';
 import {
   canDeleteShift, closedShiftWarning, deleteShiftLabel,
 } from '../../lib/shiftDeletePermission.ts';
@@ -219,6 +220,11 @@ export const ShiftsManager: React.FC = () => {
       if (creditDisposition === 'DELETE') {
         await deleteShiftCustomerCredits(shiftToDel.id);
       }
+      // Τα πακέτα πίσω στο ράφι, ΠΡΙΝ φύγει η βάρδια. Το moved_shift_id
+      // είναι ON DELETE SET NULL: μόλις σβηστεί η βάρδια, δεν υπάρχει πια
+      // τρόπος να βρεθεί ποια πακέτα ήταν δικά της, και μένουν IN_STORE
+      // ενώ καμία βάρδια δεν τα κρατάει.
+      await returnPacksFromShift(shiftToDel.id);
       await deleteShiftFromFirestore(shiftToDel.id);
       if (activeShift?.id === shiftToDel.id) {
         setActiveShift(null);

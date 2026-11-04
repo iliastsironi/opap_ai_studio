@@ -37,6 +37,8 @@ export interface ShiftDeletionCounts {
   customerCreditTotal: number;
   /** Μεταφορές μετρητών προς/από άλλο κατάστημα. Αποσυνδέονται πάντα. */
   cashTransfers: number;
+  /** Πακέτα αποθήκης που είχε βγάλει αυτή η βάρδια στον πάγκο. */
+  warehousePacks: number;
 }
 
 export type Fate = 'GOES' | 'STAYS' | 'DETACHES';
@@ -86,6 +88,16 @@ export function deletionLines(
         `${formatCurrency(counts.customerCreditTotal)}` +
         (disposition === 'KEEP' ? ' — το χρέος παραμένει στο τεφτέρι' : ''),
       fate: disposition === 'DELETE' ? 'GOES' : 'DETACHES',
+    });
+  }
+
+  if (counts.warehousePacks > 0) {
+    lines.push({
+      label: 'Πακέτα σκρατς',
+      detail:
+        `${plural(counts.warehousePacks, 'πακέτο επιστρέφει', 'πακέτα επιστρέφουν')} στην αποθήκη` +
+        ' — κανείς δεν τα πούλησε',
+      fate: 'STAYS',
     });
   }
 

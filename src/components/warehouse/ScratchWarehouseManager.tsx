@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Boxes, Check, PackagePlus, RotateCcw, Search,
+  AlertTriangle, Boxes, Check, PackagePlus, RotateCcw, Search, Undo2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack, withdrawPack,
+  fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack,
+  returnPackById, withdrawPack,
   type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
@@ -546,7 +547,34 @@ export const ScratchWarehouseManager: React.FC = () => {
                     </td>
                     <td className="p-2.5">
                       <div className="flex items-center justify-end gap-1.5">
-                        {pack.status !== 'IN_WAREHOUSE' ? (
+                        {pack.status === 'IN_STORE' ? (
+                          /* Διέξοδος για ό,τι ξέφυγε: πακέτο ορφανό από
+                             διαγραμμένη βάρδια, λάθος κλικ, ή κενό που δεν
+                             έχει βρεθεί ακόμα. Μόνο όσο δεν έχει πουλήσει
+                             τίποτα - ένα πακέτο με πωλήσεις πάνω του δεν
+                             «γυρίζει στο ράφι», έχει αρχίσει να υπάρχει
+                             στα λεφτά της ημέρας. */
+                          packProgress(positions[pack.pack_code], pack.pieces).sold === 0 ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await returnPackById(pack.id);
+                                  await load();
+                                } catch (err: any) {
+                                  setProblem(err?.message ?? 'Η επιστροφή απέτυχε.');
+                                }
+                              }}
+                              title="Δεν έχει πουλήσει τίποτα — επιστροφή στο ράφι"
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-micro cursor-pointer flex items-center gap-1"
+                            >
+                              <Undo2 className="w-3 h-3" />
+                              Πίσω στο ράφι
+                            </button>
+                          ) : (
+                            <span className="text-micro text-slate-400">πουλάει</span>
+                          )
+                        ) : pack.status !== 'IN_WAREHOUSE' ? (
                           <span className="text-micro text-slate-400">—</span>
                         ) : (
                         <button

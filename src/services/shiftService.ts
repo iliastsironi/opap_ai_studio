@@ -4,6 +4,7 @@ import {
 import { Shift } from '../types/index.ts';
 import type { CollectableShift } from '../lib/collectionSummary.ts';
 import type { ShiftDeletionCounts } from '../lib/shiftDeletion.ts';
+import { countPacksFromShift } from './scratchWarehouseService.ts';
 import { calculateBanknotesAndCoins } from './financialCalculator.ts';
 import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 import { readTopUps, totalTopUps } from '../lib/shiftTopUps.ts';
@@ -307,11 +308,12 @@ export async function fetchShiftDeletionCounts(shiftId: string): Promise<ShiftDe
     return count ?? 0;
   };
 
-  const [expenses, employeeCharges, cashFrom, cashTo] = await Promise.all([
+  const [expenses, employeeCharges, cashFrom, cashTo, warehousePacks] = await Promise.all([
     countOf('shift_expenses'),
     countOf('employee_charges'),
     countOf('store_cash_transfers', 'from_shift_id'),
     countOf('store_cash_transfers', 'to_shift_id'),
+    countPacksFromShift(shiftId),
   ]);
 
   const { data: credits, error: creditError } = await supabase
@@ -328,6 +330,7 @@ export async function fetchShiftDeletionCounts(shiftId: string): Promise<ShiftDe
     customerCredits: (credits ?? []).length,
     customerCreditTotal: (credits ?? []).reduce((t, c) => t + (Number(c.amount) || 0), 0),
     cashTransfers: cashFrom + cashTo,
+    warehousePacks,
   };
 }
 

@@ -6,7 +6,7 @@ import {
 
 const counts = (over: Partial<ShiftDeletionCounts> = {}): ShiftDeletionCounts => ({
   expenses: 0, employeeCharges: 0, customerCredits: 0, customerCreditTotal: 0,
-  cashTransfers: 0, ...over,
+  cashTransfers: 0, warehousePacks: 0, ...over,
 });
 
 describe('τι δείχνει το παράθυρο πριν σβήσει', () => {
@@ -55,5 +55,24 @@ describe('τι μένει στο ιστορικό', () => {
     expect(creditDispositionNote(c, 'DELETE')).toContain('Διαγράφηκαν 2');
     expect(creditDispositionNote(c, 'KEEP')).toContain('Διατηρήθηκαν 2');
     expect(creditDispositionNote(counts(), 'KEEP')).toBe('Καμία χρέωση πελάτη.');
+  });
+});
+
+describe('τα πακέτα της αποθήκης', () => {
+  it('επιστρέφουν στο ράφι — κανείς δεν τα πούλησε', () => {
+    // Η διαγραφή βάρδιας μηδένιζε το moved_shift_id και τα άφηνε IN_STORE:
+    // καμία βάρδια δεν τα κρατούσε και η αποθήκη τα θεωρούσε στον πάγκο.
+    const line = deletionLines(counts({ warehousePacks: 3 }), 'KEEP')[0];
+    expect(line.fate).toBe('STAYS');
+    expect(line.detail).toContain('3 πακέτα επιστρέφουν');
+  });
+
+  it('ένα πακέτο στον ενικό', () => {
+    expect(deletionLines(counts({ warehousePacks: 1 }), 'KEEP')[0].detail)
+      .toContain('1 πακέτο επιστρέφει');
+  });
+
+  it('καμία γραμμή όταν δεν είχε πάρει πακέτα', () => {
+    expect(deletionLines(counts(), 'KEEP')).toEqual([]);
   });
 });

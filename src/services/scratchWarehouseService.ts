@@ -279,6 +279,69 @@ export async function returnPackToWarehouse(
   }
 }
 
+/**
+ * Ξαναβάζει στο ράφι όλα τα πακέτα που είχε βγάλει μια βάρδια.
+ *
+ * Η διαγραφή βάρδιας σβήνει τις γραμμές που κρατούσαν τα πακέτα και
+ * μηδενίζει το moved_shift_id - το ξένο κλειδί είναι ON DELETE SET NULL.
+ * Τα πακέτα όμως έμεναν IN_STORE: καμία βάρδια δεν τα κρατούσε πια, και η
+ * αποθήκη εξακολουθούσε να τα θεωρεί στον πάγκο. Τρία πακέτα, 1.350 €,
+ * χάθηκαν έτσι την πρώτη μέρα.
+ *
+ * ΠΡΙΝ τη διαγραφή, για τον ίδιο λόγο που και οι χρεώσεις πελατών: μόλις
+ * φύγει η βάρδια, το moved_shift_id είναι NULL και δεν υπάρχει πια τρόπος
+ * να βρεθεί ποια πακέτα ήταν δικά της.
+ */
+export async function returnPacksFromShift(shiftId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      status: 'IN_WAREHOUSE',
+      moved_at: null,
+      moved_shift_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('moved_shift_id', shiftId)
+    .eq('status', 'IN_STORE')
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
+/** Πόσα πακέτα θα επιστρέψουν αν σβηστεί αυτή η βάρδια. */
+export async function countPacksFromShift(shiftId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('id', { count: 'exact', head: true })
+    .eq('moved_shift_id', shiftId)
+    .eq('status', 'IN_STORE');
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/**
+ * Ξαναβάζει στο ράφι ένα πακέτο που βγήκε αλλά δεν πούλησε τίποτα.
+ *
+ * Η διέξοδος για ό,τι ξέφυγε: πακέτο που έμεινε ορφανό από διαγραμμένη
+ * βάρδια, λάθος κλικ, ή οποιοδήποτε κενό δεν έχει βρεθεί ακόμα. Ο έλεγχος
+ * «δεν πούλησε τίποτα» γίνεται στην οθόνη, που ξέρει τη θέση του πακέτου -
+ * εδώ αρκεί ότι είναι IN_STORE.
+ */
+export async function returnPackById(packId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from(TABLE)
+    .update(
+      { status: 'IN_WAREHOUSE', moved_at: null, moved_shift_id: null, updated_at: new Date().toISOString() },
+      { count: 'exact' }
+    )
+    .eq('id', packId)
+    .eq('status', 'IN_STORE');
+  if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Το πακέτο δεν επέστρεψε — ίσως κάποιος το πρόλαβε. Ανανεώστε τη λίστα.');
+  }
+}
+
 /** Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί. */
 export async function withdrawPack(packId: string, reason: string): Promise<void> {
   const { error, count } = await supabase
