@@ -51,6 +51,20 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
 
         {/* Store Selector Dropdown */}
         <div className="relative">
+          {stores.length === 0 ? (
+            /* Χωρίς ανάθεση δεν υπάρχει τίποτα να επιλεγεί, και ένα άδειο
+               μενού αφήνει τον υπάλληλο να ψάχνει το μαγαζί του. Λέει τι
+               λείπει και ποιος το δίνει - δεν το δίνει ο ίδιος. */
+            <div
+              className="flex items-center space-x-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-xs font-bold text-amber-900"
+              title="Οι αναθέσεις γίνονται στο «Χρήστες & Αναθέσεις» από τον διαχειριστή."
+            >
+              <div className="p-1 bg-amber-100 text-amber-700 rounded-lg">
+                <StoreIcon aria-hidden="true" className="w-3.5 h-3.5" />
+              </div>
+              <span>Δεν σου έχει ανατεθεί κατάστημα</span>
+            </div>
+          ) : (
           <div className="flex items-center space-x-2 bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-800 shadow-2xs">
             <div className="p-1 bg-indigo-50 text-indigo-600 rounded-lg">
               <StoreIcon aria-hidden="true" className="w-3.5 h-3.5" />
@@ -61,7 +75,11 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
               aria-label="Επιλογή Καταστήματος"
               className="bg-transparent font-bold text-slate-800 focus:outline-hidden cursor-pointer pr-2 text-xs"
             >
-              <option value="ALL">🏢 Όλα τα Καταστήματα ({stores.length})</option>
+              {/* Με ένα μόνο κατάστημα δεν υπάρχει «όλα»: η επιλογή θα
+                  ήταν ανάμεσα σε ένα και στον εαυτό του. */}
+              {stores.length > 1 && (
+                <option value="ALL">🏢 Όλα τα Καταστήματα ({stores.length})</option>
+              )}
               {stores.map((st) => (
                 <option key={st.id} value={st.id}>
                   📍 {st.code} - {st.name}
@@ -69,6 +87,7 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
               ))}
             </select>
           </div>
+          )}
         </div>
       </div>
 

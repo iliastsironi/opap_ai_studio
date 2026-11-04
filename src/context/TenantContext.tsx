@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Store } from '../types/index.js';
 import { useAuth } from './AuthContext.tsx';
 import { fetchStoresFromFirestore } from '../services/storeService.ts';
@@ -83,6 +83,34 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (isLoadingStores || allStores.length === 0) return;
     if (!stores.some((s) => s.id === activeStoreId)) setActiveStoreId('ALL');
   }, [activeStoreId, stores, isLoadingStores, allStores.length]);
+
+  /**
+   * Ένα κατάστημα, καμία επιλογή.
+   *
+   * Ο υπάλληλος δουλεύει σε ένα μαγαζί και η εφαρμογή το ξέρει - είναι
+   * γραμμένο στις αναθέσεις του. Το να ανοίγει σε «όλα τα καταστήματα» και
+   * να του ζητείται να διαλέξει ανάμεσα σε ένα είναι ένα κλικ που δεν
+   * αποφασίζει τίποτα, και χειρότερα: οι οθόνες που ζητούν συγκεκριμένο
+   * κατάστημα - η αποθήκη, το ταμείο - φαίνονται άδειες μέχρι να γίνει.
+   *
+   * Ισχύει για οποιονδήποτε έχει ακριβώς ένα, όχι μόνο για υπαλλήλους: ένας
+   * ιδιοκτήτης με ένα πρακτορείο δεν έχει λόγο να το επιλέγει κάθε πρωί.
+   *
+   * Μόνο όταν δεν έχει επιλεγεί ήδη κάτι: αν κάποιος γύρισε συνειδητά σε
+   * «όλα», δεν του το παίρνουμε πίσω στο επόμενο render.
+   */
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (autoPicked.current || isLoadingStores) return;
+    if (activeStoreId !== 'ALL') {
+      autoPicked.current = true;
+      return;
+    }
+    if (stores.length === 1) {
+      autoPicked.current = true;
+      setActiveStoreId(stores[0].id);
+    }
+  }, [stores, isLoadingStores, activeStoreId]);
 
   const currentStore = stores.find((s) => s.id === activeStoreId) || null;
 
