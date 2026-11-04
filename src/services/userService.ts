@@ -1,5 +1,5 @@
 import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
-import { User, Role } from '../types/index.ts';
+import { User, Role, UserStoreAssignment } from '../types/index.ts';
 import { ASSIGNABLE_ROLES } from '../lib/rbac.ts';
 
 const USERS_TABLE = 'users';
@@ -60,6 +60,32 @@ export async function setUserStoreAssignments(
     await handleSupabaseError(error, OperationType.UPDATE, 'user_store_assignments');
     throw error;
   }
+}
+
+/**
+ * Τα καταστήματα ΑΥΤΟΥ του χρήστη.
+ *
+ * Το AuthContext κρατούσε assignedStores από την πρώτη μέρα και δεν τα
+ * γέμιζε ποτέ: το setAssignedStores υπήρχε μόνο στη δήλωσή του. Όσο καμία
+ * οθόνη δεν τα διάβαζε δεν φαινόταν, αλλά από το 0054 το visibleStores
+ * φιλτράρει με αυτά - και μια κενή λίστα σημαίνει κανένα κατάστημα. Κάθε
+ * υπάλληλος, και όσοι ΕΙΧΑΝ ανάθεση, έμεναν κλειδωμένοι έξω.
+ *
+ * Σφάλμα δεν μπλοκάρει τη σύνδεση: επιστρέφει κενό, που είναι η αυστηρή
+ * ανάγνωση - κανένα κατάστημα αντί για όλα. Ένα δίκτυο που κόπηκε δεν
+ * πρέπει να ανοίγει μαγαζιά που δεν δικαιούσαι.
+ */
+export async function fetchMyStoreAssignments(userId: string): Promise<UserStoreAssignment[]> {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('user_store_assignments')
+    .select('id, user_id, organization_id, store_id, department_id, is_primary')
+    .eq('user_id', userId);
+  if (error) {
+    console.warn('[userService] could not read store assignments:', error.message);
+    return [];
+  }
+  return (data ?? []) as UserStoreAssignment[];
 }
 
 /** The store ids a user may reach, keyed by user id. */

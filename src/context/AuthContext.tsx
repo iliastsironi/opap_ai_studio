@@ -3,6 +3,7 @@ import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase.ts';
 import { Organization, Role, User, UserStoreAssignment } from '../types/index.ts';
 import { getPermissionsForRole, getRoleByCode, normalizeRoleCode } from '../lib/rbac.ts';
+import { fetchMyStoreAssignments } from '../services/userService.ts';
 
 interface AuthContextType {
   supabaseUser: SupabaseAuthUser | null;
@@ -291,6 +292,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRoles([activeRole]);
       setOrganization(activeOrg);
       setPermissions(activePerms);
+
+      // Τα καταστήματα αυτού του χρήστη. Κρατιόντουσαν εδώ από την πρώτη
+      // μέρα και δεν φορτώνονταν ποτέ - το setAssignedStores υπήρχε μόνο
+      // στη δήλωσή του. Όσο καμία οθόνη δεν τα διάβαζε δεν φαινόταν, αλλά
+      // από το 0054 το visibleStores φιλτράρει με αυτά, και κενή λίστα
+      // σημαίνει κανένα κατάστημα: κάθε υπάλληλος, ακόμα και με ανάθεση,
+      // έμενε κλειδωμένος έξω.
+      setAssignedStores(await fetchMyStoreAssignments(authUser.id));
     } catch (err) {
       console.error('Error syncing user profile with Supabase:', err);
     }
