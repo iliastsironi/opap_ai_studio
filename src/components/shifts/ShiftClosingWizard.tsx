@@ -202,6 +202,9 @@ import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
+import {
+  fetchWarehousePacks, movePackToStore, type WarehousePack,
+} from '../../services/scratchWarehouseService.ts';
 
 interface ShiftClosingWizardProps {
   shift: Shift;
@@ -447,6 +450,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * φορά. Δες lib/lotteryDelivery.ts.
    */
   const [standingOrders, setStandingOrders] = useState<Record<string, unknown>>({});
+  /**
+   * Τα πακέτα που περιμένουν στην αποθήκη αυτού του καταστήματος (0065).
+   *
+   * Όσο είναι άδεια, το «νέο πακέτο» δουλεύει όπως πάντα. Από το πρώτο
+   * καταχωρημένο πακέτο και μετά, ο κωδικός έρχεται μόνο από εκεί.
+   */
+  const [warehousePacks, setWarehousePacks] = useState<WarehousePack[]>([]);
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -557,6 +567,23 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         );
       })
       .catch((err) => console.warn('[ShiftClosingWizard] could not load the scratch catalogue:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [shift.organization_id, shift.store_id, organization]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = shift.organization_id || organization!.id;
+    fetchWarehousePacks(orgId, shift.store_id)
+      .then((packs) => {
+        if (!cancelled) setWarehousePacks(packs);
+      })
+      // Σιωπηλά: μια αποθήκη που δεν διαβάζεται αφήνει το ταμείο όπως ήταν
+      // πριν υπάρξει, που είναι η ασφαλής κατάσταση. Το να μπλοκάρει το
+      // κλείσιμο επειδή δεν φόρτωσε μια λίστα θα ήταν χειρότερο από το να
+      // λείπει ο έλεγχος προέλευσης για μία βάρδια.
+      .catch((err) => console.warn('[ShiftClosingWizard] could not read the warehouse:', err));
     return () => {
       cancelled = true;
     };
@@ -2530,6 +2557,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 legacyUnits={legacyUnits as any}
                 laikoSellingMode={laikoSellingMode}
                 standingOrders={standingOrders}
+                warehousePacks={warehousePacks}
+                onPackTaken={async (packId) => {
+                  await movePackToStore(packId, shift.id);
+                  setWarehousePacks((prev) => prev.filter((p) => p.id !== packId));
+                }}
               />
 
               {/* Direct inputs summary & payouts */}

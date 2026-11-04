@@ -38,6 +38,9 @@ import {
 } from '../../lib/lotteryUnits.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import {
+  handoverProblem, packsForGame, warehouseGoverns, type HandoverPack,
+} from '../../lib/warehouseHandover.ts';
+import {
   canReturnUnsold,
   deliveryIdLabel,
   isValidDeliveryId,
@@ -1320,6 +1323,17 @@ interface ScratchCalculatorTableProps {
   /** Η πάγια παραγγελία Λαϊκού του καταστήματος, σε πεντάδες (0053). */
   /** Οι πάγιες ποσότητες ανά λαχείο, όπως τις κρατά το πρότυπο (0053, 0063). */
   standingOrders?: Record<string, unknown>;
+  /**
+   * Τα πακέτα που περιμένουν στην αποθήκη αυτού του καταστήματος (0065).
+   *
+   * Όσο είναι άδεια, το «νέο πακέτο» δουλεύει όπως πάντα. Από το πρώτο
+   * καταχωρημένο πακέτο και μετά, ο κωδικός έρχεται μόνο από εκεί - δες
+   * lib/warehouseHandover.ts για το γιατί ο διακόπτης είναι το απόθεμα και
+   * όχι ρύθμιση.
+   */
+  warehousePacks?: HandoverPack[];
+  /** Το πακέτο βγήκε στον πάγκο: η αποθήκη πρέπει να το μάθει. */
+  onPackTaken?: (packId: string) => Promise<void>;
   // Whether the catalogue itself can be edited from this table: a game's
   // name, its price, how it is counted, adding one, removing one.
   //
@@ -1342,6 +1356,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   legacyUnits,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
   standingOrders,
+  warehousePacks,
+  onPackTaken,
   catalogEditable = false,
 }) => {
   const { roles, permissions } = useAuth();
@@ -1381,6 +1397,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // recorded today is a pack nobody can trace tomorrow, and its shape is the
   // only thing checkable until the stock list exists.
   const [newPackCode, setNewPackCode] = useState<string>('');
+  /** Ποιο πακέτο της αποθήκης βγαίνει στον πάγκο (0065). */
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [newPackError, setNewPackError] = useState<string | null>(null);
   // Only asked for when the price does not divide 300 and the pack size
   // cannot be derived.
   const [newPackRemainder, setNewPackRemainder] = useState<string>('');
@@ -1582,10 +1601,36 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     setCancelBundles('');
   };
 
-  const handleApplyNewPack = (rowId: string) => {
+  const handleApplyNewPack = async (rowId: string) => {
     const target = rows.find((r) => r.id === rowId);
     if (!target) return;
-    if (!isValidPackCode(newPackCode)) return;
+
+    // Όταν η αποθήκη αναλαμβάνει, ο κωδικός ΔΕΝ γράφεται - έρχεται από το
+    // πακέτο που διαλέχτηκε, και το πακέτο μεταφέρεται τη στιγμή που
+    // ανοίγει. Μεταφορά πρώτα: αν η βάση την αρνηθεί, δεν θέλουμε να έχει
+    // ήδη ανοίξει στον πάγκο ένα πακέτο που η αποθήκη λέει ότι κάθεται.
+    const governed = warehouseGoverns(warehousePacks, isLotteryRow(target));
+    const fromWarehouse = governed
+      ? packsForGame(warehousePacks, target.id).find((p) => p.id === selectedPackId)
+      : undefined;
+
+    if (governed) {
+      if (!fromWarehouse) return;
+      if (onPackTaken) {
+        try {
+          await onPackTaken(fromWarehouse.id);
+        } catch (err: any) {
+          // Η βάση αρνήθηκε τη μεταφορά. Χωρίς αυτό το μήνυμα το κουμπί
+          // απλώς δεν θα έκανε τίποτα, που διαβάζεται ως χαλασμένη οθόνη.
+          setNewPackError(err?.message ?? 'Δεν ήταν δυνατή η μεταφορά του πακέτου από την αποθήκη.');
+          return;
+        }
+      }
+    } else if (!isValidDeliveryId(isLotteryRow(target), newPackCode)) {
+      return;
+    }
+
+    const code = fromWarehouse ? fromWarehouse.pack_code : newPackCode;
 
     // Opening a new pack means the old one is finished, so everything from
     // where this shift found it to its last ticket was sold. That used to be
@@ -1602,7 +1647,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     const updated = rows.map((r) =>
       r.id === rowId
         ? openPack(r, {
-            code: newPackCode,
+            code,
             soldOut,
             startNo: newPackStartNo,
             backEndNo: newPackBackEndNo,
@@ -1613,6 +1658,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     setNewPackModalRowId(null);
     setNewPackCode('');
     setNewPackRemainder('');
+    setSelectedPackId(null);
   };
 
   /**
@@ -2564,6 +2610,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     setNewPackModalRowId(row.id);
                                     setNewPackCode('');
                                     setNewPackRemainder('');
+                                    setSelectedPackId(null);
+                                    setNewPackError(null);
                                     // Όπου υπάρχει πάγια ποσότητα, το ράφι
                                     // ανοίγει πάνω της αντί σε έναν αριθμό
                                     // που ξαναγράφεται κάθε φορά. Μόνο το
@@ -2854,7 +2902,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         const remainderPieces = autoRemainder === null
           ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
           : autoRemainder;
-        const codeOk = isValidDeliveryId(targetIsLottery, newPackCode);
+        // Η αποθήκη αναλαμβάνει μόλις το κατάστημα καταχωρήσει το πρώτο
+        // πακέτο. Μέχρι τότε το παράθυρο δουλεύει όπως πάντα - αλλιώς το
+        // ταμείο θα σταματούσε απόψε για μια καταχώρηση που θέλει μέρες.
+        const governed = warehouseGoverns(warehousePacks, targetIsLottery);
+        const available = governed ? packsForGame(warehousePacks, targetRow?.id) : [];
+        const warehouseIssue = governed ? handoverProblem(available, selectedPackId) : null;
+        const codeOk = governed
+          ? warehouseIssue === null
+          : isValidDeliveryId(targetIsLottery, newPackCode);
         const canApply = codeOk && (autoRemainder !== null || newPackRemainder.trim() !== '');
         return (
         <Modal
@@ -2876,7 +2932,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => handleApplyNewPack(newPackModalRowId)}
+                onClick={() => void handleApplyNewPack(newPackModalRowId)}
                 disabled={!canApply}
                 className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -2887,8 +2943,51 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           }
         >
           <div className="space-y-4">
+            {newPackError && (
+              <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
+                {newPackError}
+              </p>
+            )}
             {/* The code first: it is the only thing that ties this pack to the
                 stock list, and it is asked for before anything is changed. */}
+            {governed ? (
+              /* Ο κωδικός δεν γράφεται πια: διαλέγεται από την αποθήκη και
+                 το πακέτο μεταφέρεται τη στιγμή που ανοίγει. Παλαιότερο
+                 πρώτο, γιατί αυτό πλησιάζει τις 90 ημέρες. */
+              <div>
+                <label htmlFor="new-pack-pick" className="block text-xs font-bold text-slate-700 mb-1">
+                  Πακέτο από την αποθήκη <span className="text-rose-600">*</span>
+                </label>
+                {available.length === 0 ? (
+                  <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
+                    {warehouseIssue}
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      id="new-pack-pick"
+                      value={selectedPackId ?? ''}
+                      onChange={(e) => setSelectedPackId(e.target.value || null)}
+                      className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-bold"
+                    >
+                      <option value="">— διαλέξτε —</option>
+                      {available.map((pack) => (
+                        <option key={pack.id} value={pack.id}>
+                          {pack.pack_code} · παρελήφθη{' '}
+                          {new Date(`${pack.received_at}T00:00:00`).toLocaleDateString('el-GR')}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-micro text-slate-500 mt-1">
+                      {available.length === 1
+                        ? 'Ένα πακέτο στην αποθήκη.'
+                        : `${available.length} πακέτα στην αποθήκη — παλαιότερο πρώτο.`}{' '}
+                      Μεταφέρεται στο μαγαζί μόλις ανοίξει.
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : (
             <div>
               <label htmlFor="new-pack-code" className="block text-xs font-bold text-slate-700 mb-1">
                 {deliveryIdLabel(targetIsLottery)} <span className="text-rose-600">*</span>
@@ -2919,6 +3018,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   : `Χρειάζονται 7 ψηφία — έχετε ${newPackCode.length}.`}
               </p>
             </div>
+            )}
 
             {/* What closing the old pack costs, stated before it happens. */}
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-2">
