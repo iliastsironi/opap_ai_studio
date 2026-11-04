@@ -838,6 +838,30 @@ export function splitPiecesIntoBundles(totalPieces: number, bundleSize: number):
   return { bundles: Math.floor(totalPieces / bundleSize), pieces: totalPieces % bundleSize };
 }
 
+/**
+ * Πόσες μονάδες δείχνει η στήλη του πλήθους.
+ *
+ * Ένα κατάστημα που μετράει ένα λαχείο σε πεντάδες θέλει το πλήθος σε
+ * πεντάδες, οπότε μια γραμμή κοστολογημένη ανά κομμάτι διαιρείται. Μια
+ * γραμμή της οποίας η τιμή ΕΙΝΑΙ η πεντάδα δεν έχει τι να διαιρέσει - το
+ * πλήθος της είναι ήδη σε πεντάδες.
+ *
+ * Το `row.bundleSize || 5` που γυρνούσε το 0 σε 5 έκανε τη δεύτερη
+ * διαίρεση να μοιάζει λογική: 337 πεντάδες Εθνικού εμφανίζονταν ως 67, και
+ * η ίδια γραμμή έλεγε «337 τμχ» για ένα λαχείο που δεν πωλείται ποτέ σε
+ * κομμάτια. Η συνθήκη είναι η ίδια που φυλάει και την τιμή - bundleSize
+ * πάνω από το μηδέν - γιατί είναι η ίδια ερώτηση: έχει κομμάτια από πίσω;
+ */
+export function displayedRowCount(
+  totalQty: number,
+  bundleSize: unknown,
+  bundlesOnly: boolean
+): number {
+  const packed = Number(bundleSize);
+  if (!bundlesOnly || !Number.isFinite(packed) || packed <= 0) return totalQty;
+  return Math.floor(totalQty / packed);
+}
+
 export interface BundleSaleValidationResult {
   errors: string[];
   isValid: boolean;
@@ -1865,6 +1889,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                      * shown as 25 € and the Εθνικό's 20 € as 100 €.
                      */
                     const pricedPerPiece = Number(row.bundleSize) > 0 ? Number(row.bundleSize) : 1;
+                    /**
+                     * Πώς λέγεται αυτό που μετράει η γραμμή.
+                     *
+                     * frontQty/totalQty are counted in whatever unit the
+                     * row's PRICE is quoted in - κομμάτια for everything
+                     * with pieces behind it, and πεντάδες for the Εθνικό,
+                     * whose serial advances one πεντάδα at a time. Calling
+                     * every count «τμχ» is how a row the shop keeps in
+                     * πεντάδες came to report κομμάτια on screen.
+                     */
+                    const rowCountNoun = rowUnitPlural ?? 'τμχ';
                     const startPiecesSplit = splitPiecesIntoBundles(parseNonNegativeInt(row.startNo).value, rowBundleSize);
                     const bundleSaleCheck = validateBundleSaleEntry(row);
                     const remainingPieces = Math.max(0, parseNonNegativeInt(row.startNo).value - bundleSaleCheck.soldPieces);
@@ -2141,7 +2176,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 className="w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700"
                               />
                               {frontQty > 0 && (
-                                <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                                <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} {rowCountNoun}</span>
                               )}
                             </div>
                           ) : isBundleTracked ? (
@@ -2289,7 +2324,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               </span>
                             )}
                             {frontQty > 0 && !isInvalidScratchEnd && (
-                              <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} τμχ</span>
+                              <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} {rowCountNoun}</span>
                             )}
                             </div>
                           )}
@@ -2334,7 +2369,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 </span>
                               )}
                               {backQty > 0 && !isInvalidBackStart && (
-                                <span className="text-micro font-bold text-purple-500 block mt-0.5">{backQty} τμχ</span>
+                                <span className="text-micro font-bold text-purple-500 block mt-0.5">{backQty} {rowCountNoun}</span>
                               )}
                             </div>
                           )}
@@ -2387,9 +2422,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             }`}
                             title={
                               isLaikoBundlesOnly
-                                ? `${rowBundleSize}άδες που πωλήθηκαν`
+                                ? pricedPerPiece > 1
+                                  ? `${rowBundleSize}άδες που πωλήθηκαν`
+                                  : `${rowCountNoun} που πωλήθηκαν`
                                 : rowHasBackSide
-                                ? `Μπροστά: ${frontQty} τμχ • Πίσω: ${backQty} τμχ`
+                                ? `Μπροστά: ${frontQty} ${rowCountNoun} • Πίσω: ${backQty} ${rowCountNoun}`
                                 : undefined
                             }
                           >
@@ -2399,7 +2436,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 asked not to see: they count packets. The value
                                 beside it is the same either way - one πεντάδα
                                 at 10 € is five tickets at 2 €. */}
-                            {isLaikoBundlesOnly ? Math.floor(totalQty / rowBundleSize) : totalQty}
+                            {displayedRowCount(totalQty, row.bundleSize, isLaikoBundlesOnly)}
                           </span>
                         </td>
 
