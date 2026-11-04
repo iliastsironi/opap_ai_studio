@@ -146,6 +146,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // known, because «expected» is exactly what this screen is about to write
   // into the shift - not a figure invented for the inspection.
   const [inspectionLines, setInspectionLines] = useState<InspectionLine[] | null>(null);
+  /** Μετράει ο ίδιος που δούλεψε τη βάρδια που επιθεωρείται. */
+  const [isSelfInspection, setIsSelfInspection] = useState(false);
   const [inspectionSkipped, setInspectionSkipped] = useState(false);
   const [inspectionError, setInspectionError] = useState<string | null>(null);
   /** Why no inspection is on offer, when there is a handover but it cannot be checked. */
@@ -340,16 +342,31 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           isFirstOfDay: !todaySnapshot,
         });
 
+        // Ο ίδιος άνθρωπος και στις δύο βάρδιες.
+        //
+        // Αυτό εμπόδιζε την επιθεώρηση, και στα πραγματικά δεδομένα ήταν ο
+        // λόγος που 11 από τις 29 πρώτες βάρδιες δεν την άνοιγαν ποτέ. Σε
+        // ένα πρακτορείο με τέσσερις υπαλλήλους, το ίδιο άτομο κλείνει το
+        // βράδυ και ανοίγει το πρωί συνέχεια.
+        //
+        // Η επιθεώρηση είναι ΚΑΤΑΜΕΤΡΗΣΗ, όχι έγκριση. Μια καταμέτρηση που
+        // έκανε ο ίδιος είναι ασθενέστερη απόδειξη από μια που έκανε άλλος -
+        // αλλά η εναλλακτική δεν ήταν «καλύτερη απόδειξη», ήταν ΚΑΜΙΑ. Ο
+        // κανόνας προστάτευε την αξιοπιστία του αριθμού διαγράφοντας τον
+        // αριθμό.
+        //
+        // Οπότε επιτρέπεται, και σημειώνεται: ο πίνακας το λέει στον
+        // χειριστή και η εγγραφή το κρατάει, ώστε όποιος διαβάζει μια
+        // επιθεώρηση να ξέρει ποιανού μέτρημα είναι.
+        const selfInspection = !!prev && prev.opened_by_user_id === (operatorId || user?.id);
+
         const inspectable = offered
           && prev
           && prev.shift_id
           && (prev.shift_status === 'SUBMITTED' || prev.shift_status === 'APPROVED')
-          && !prev.inspection_status
-          // Against the operator of the shift being opened, not whoever is
-          // signed in. An Owner opening a till for an employee is not the
-          // one counting it, and comparing with the keyboard made the
-          // morning unable to inspect a night the Owner had worked.
-          && prev.opened_by_user_id !== (operatorId || user?.id);
+          && !prev.inspection_status;
+
+        setIsSelfInspection(!!inspectable && selfInspection);
 
         if (inspectable) {
           setInspectionLines(
@@ -592,6 +609,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             inspectionSkipped
               ? { skipped: true }
               : {
+                  // Ποιανού μέτρημα είναι: ο ίδιος που δούλεψε τη βάρδια, ή
+                  // κάποιος άλλος. Χωρίς αυτό, μια αυτο-επιθεώρηση διαβάζεται
+                  // αργότερα σαν ανεξάρτητος έλεγχος.
+                  self_inspected: isSelfInspection,
                   lines: inspectionLines.map((l) => ({
                     key: l.key,
                     label: l.label,
@@ -923,6 +944,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               previousOperatorName={previousShift?.previous_operator_name || 'την προηγούμενη βάρδια'}
               lines={inspectionLines}
               skipped={inspectionSkipped}
+              selfInspection={isSelfInspection}
               disabled={loading}
               onChangeFound={(key, found) => {
                 setInspectionLines((current) =>

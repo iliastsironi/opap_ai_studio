@@ -30,7 +30,12 @@ export const ShiftInspectionPanel: React.FC<{
   onSkip: () => void;
   disabled?: boolean;
   skipped?: boolean;
-}> = ({ previousOperatorName, lines, onChangeFound, onSkip, disabled = false, skipped = false }) => {
+  /** Μετράει ο ίδιος που δούλεψε τη βάρδια που επιθεωρείται. */
+  selfInspection?: boolean;
+}> = ({
+  previousOperatorName, lines, onChangeFound, onSkip,
+  disabled = false, skipped = false, selfInspection = false,
+}) => {
   const summary = useMemo(() => summariseInspection(lines), [lines]);
 
   const sections: { kind: InspectionLine['kind'][]; title: string; hint: string }[] = [
@@ -81,6 +86,15 @@ export const ShiftInspectionPanel: React.FC<{
           </span>
         </div>
       </div>
+
+      {selfInspection && (
+        /* Η επιθεώρηση είναι καταμέτρηση, όχι έγκριση - οπότε επιτρέπεται.
+           Αλλά δεν είναι ανεξάρτητος έλεγχος, και αυτό πρέπει να το ξέρει
+           και όποιος τη διαβάσει αργότερα: καταγράφεται στην εγγραφή. */
+        <p className="text-micro font-bold text-amber-900 bg-amber-100/70 border border-amber-200 rounded-lg px-3 py-2">
+          Μετράτε βάρδια που δουλέψατε εσείς. Καταγράφεται ως αυτο-καταμέτρηση.
+        </p>
+      )}
 
       {sections.map((section) => {
         const sectionLines = lines.filter((l) => section.kind.includes(l.kind));
