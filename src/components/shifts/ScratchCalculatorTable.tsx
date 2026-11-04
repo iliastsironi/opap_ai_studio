@@ -37,6 +37,13 @@ import {
   type LegacyUnitSettings,
 } from '../../lib/lotteryUnits.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
+import {
+  canReturnUnsold,
+  deliveryIdLabel,
+  isValidDeliveryId,
+  normalizeDeliveryId,
+  standingQuantityFor,
+} from '../../lib/lotteryDelivery.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
   applyEthnikoShape,
@@ -1244,7 +1251,8 @@ interface ScratchCalculatorTableProps {
   // 'PIECES_AND_BUNDLES' (today's shipped behavior).
   laikoSellingMode?: 'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY';
   /** Η πάγια παραγγελία Λαϊκού του καταστήματος, σε πεντάδες (0053). */
-  laikoStandingOrderBundles?: number;
+  /** Οι πάγιες ποσότητες ανά λαχείο, όπως τις κρατά το πρότυπο (0053, 0063). */
+  standingOrders?: Record<string, unknown>;
   // Whether the catalogue itself can be edited from this table: a game's
   // name, its price, how it is counted, adding one, removing one.
   //
@@ -1266,7 +1274,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   lotteryUnits,
   legacyUnits,
   laikoSellingMode = 'PIECES_AND_BUNDLES',
-  laikoStandingOrderBundles = 0,
+  standingOrders,
   catalogEditable = false,
 }) => {
   const { roles, permissions } = useAuth();
@@ -2486,15 +2494,20 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     setNewPackModalRowId(row.id);
                                     setNewPackCode('');
                                     setNewPackRemainder('');
-                                    // A Λαϊκό draw arrives as the same
-                                    // standing order every time, so the shelf
-                                    // opens on it rather than on a figure
-                                    // somebody retypes each week. 0 means the
-                                    // shop has not told us its order yet.
-                                    const standing = isBundleTrackedRow(row)
-                                      ? standingOrderPieces(laikoStandingOrderBundles, row.bundleSize)
-                                      : 0;
-                                    setNewPackStartNo(standing > 0 ? String(standing) : '0');
+                                    // Όπου υπάρχει πάγια ποσότητα, το ράφι
+                                    // ανοίγει πάνω της αντί σε έναν αριθμό
+                                    // που ξαναγράφεται κάθε φορά. Μόνο το
+                                    // Λαϊκό και το Εθνικό έχουν· οι Ειδικές
+                                    // και το Πρωτοχρονιάτικο έρχονται σε
+                                    // άλλη ποσότητα κάθε κλήρωση, και η
+                                    // πάγια του Λαϊκού προσυμπλήρωνε και
+                                    // εκείνες. null = δεν έχει οριστεί.
+                                    const standing = standingQuantityFor(row.id, standingOrders);
+                                    setNewPackStartNo(
+                                      standing === null
+                                        ? '0'
+                                        : String(standingOrderPieces(standing, row.bundleSize))
+                                    );
                                     const maxNo = getPackageMaxNumber(row.price);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
                                   }}
@@ -2505,7 +2518,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   out. Not gated on canEditLockedFields: the
                                   employee on the counter is the one who
                                   sends the tickets back. */}
-                              {isBundleTrackedRow(row) && !isManual && (
+                              {isBundleTrackedRow(row) && !isManual && canReturnUnsold(row.id) && (
                                 <IconButton
                                   icon={RotateCcw}
                                   label="Καταχώρηση Αδιάθετων"
@@ -2764,12 +2777,14 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       {newPackModalRowId && (() => {
         const targetRow = rows.find((r) => r.id === newPackModalRowId);
         const targetIsBundleTracked = targetRow ? isBundleTrackedRow(targetRow) : false;
+        // Τα λαχεία δεν ανοίγουν πακέτο, παραλαμβάνουν για μια κλήρωση.
+        const targetIsLottery = targetRow ? isLotteryRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow, sellingMode) : false;
         const autoRemainder = tailSoldOnNewPack(targetRow);
         const remainderPieces = autoRemainder === null
           ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
           : autoRemainder;
-        const codeOk = isValidPackCode(newPackCode);
+        const codeOk = isValidDeliveryId(targetIsLottery, newPackCode);
         const canApply = codeOk && (autoRemainder !== null || newPackRemainder.trim() !== '');
         return (
         <Modal
@@ -2778,7 +2793,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
           closeOnBackdropClick
           headerStyle="bordered"
           icon={PackagePlus}
-          title={`Άνοιγμα Νέου Πακέτου${targetIsBundleTracked ? '' : ' Σκρατς'}`}
+          title={targetIsLottery ? 'Καταχώρηση Παραλαβής' : 'Άνοιγμα Νέου Πακέτου Σκρατς'}
           size="sm"
           footer={
             <>
@@ -2806,7 +2821,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 stock list, and it is asked for before anything is changed. */}
             <div>
               <label htmlFor="new-pack-code" className="block text-xs font-bold text-slate-700 mb-1">
-                Κωδικός πακέτου <span className="text-rose-600">*</span>
+                {deliveryIdLabel(targetIsLottery)} <span className="text-rose-600">*</span>
               </label>
               <input
                 id="new-pack-code"
@@ -2814,8 +2829,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 inputMode="numeric"
                 autoFocus
                 value={newPackCode}
-                onChange={(e) => setNewPackCode(normalizePackCode(e.target.value))}
-                placeholder="7 ψηφία"
+                onChange={(e) => setNewPackCode(normalizeDeliveryId(targetIsLottery, e.target.value))}
+                placeholder={targetIsLottery ? 'π.χ. 2451' : '7 ψηφία'}
                 className={`w-full px-3 py-2 rounded-xl border-2 bg-white text-sm font-black font-mono tracking-widest text-center ${
                   newPackCode === ''
                     ? 'border-slate-200 text-slate-900'
@@ -2826,7 +2841,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               />
               <p className="text-micro text-slate-500 mt-1">
                 {newPackCode === '' || codeOk
-                  ? 'Ο κωδικός του πακέτου που ανοίγετε, όπως είναι καταχωρημένος στην αποθήκη.'
+                  ? targetIsLottery
+                    ? 'Ο αριθμός της κλήρωσης για την οποία ήρθαν τα λαχεία.'
+                    : 'Ο κωδικός του πακέτου που ανοίγετε, όπως είναι καταχωρημένος στην αποθήκη.'
+                  : targetIsLottery
+                  ? 'Γράψτε τον αριθμό της κλήρωσης.'
                   : `Χρειάζονται 7 ψηφία — έχετε ${newPackCode.length}.`}
               </p>
             </div>

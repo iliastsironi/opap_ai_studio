@@ -1222,8 +1222,29 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
               />
               <p className="text-micro text-slate-500 mt-1">
-                Όσες έρχονται σε κάθε κλήρωση. Το «Νέο πακέτο» ανοίγει πάνω σε αυτές. 0 = ρωτάει
-                κάθε φορά.
+                Όσες έρχονται σε κάθε κλήρωση. Η «Καταχώρηση παραλαβής» ανοίγει πάνω σε αυτές.
+              </p>
+            </div>
+
+            {/* Το Εθνικό έχει κι αυτό πάγια, με δική του τιμή. Έλειπε, και
+                η παραλαβή του προσυμπληρωνόταν από την πάγια του Λαϊκού. */}
+            <div>
+              <label htmlFor="cfg-ethniko-order" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Πάγια παραγγελία Εθνικού (πεντάδες)
+              </label>
+              <NumericField
+                id="cfg-ethniko-order"
+                min={0}
+                max={999}
+                decimals={0}
+                disabled={!canManageScratchMode}
+                value={template.ethniko_standing_order_bundles ?? 0}
+                onChange={(next) => setTemplate((prev) => ({ ...prev, ethniko_standing_order_bundles: next }))}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 bg-white disabled:bg-slate-50"
+              />
+              <p className="text-micro text-slate-500 mt-1">
+                Όσες έρχονται σε κάθε κλήρωση. Τα αδιάθετα του Εθνικού χρεώνονται, οπότε δεν
+                δηλώνεται επιστροφή.
               </p>
             </div>
 

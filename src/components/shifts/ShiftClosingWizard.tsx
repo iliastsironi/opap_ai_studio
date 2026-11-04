@@ -437,8 +437,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     fnb: true,
   });
   const [laikoSellingMode, setLaikoSellingMode] = useState<'PIECES_AND_BUNDLES' | 'BUNDLES_ONLY'>('PIECES_AND_BUNDLES');
-  /** Η πάγια παραγγελία Λαϊκού, σε πεντάδες. 0 = δεν έχει οριστεί (0053). */
-  const [laikoStandingOrder, setLaikoStandingOrder] = useState(0);
+  /**
+   * Οι πάγιες ποσότητες ανά λαχείο, σε πεντάδες.
+   *
+   * Κρατιούνται όπως έρχονται από το πρότυπο αντί για έναν αριθμό, γιατί
+   * δεν είναι μόνο το Λαϊκό που έχει πάγια: το Εθνικό έχει κι αυτό, με
+   * δική του τιμή. Ο ένας αριθμός ήταν και ο λόγος που η πάγια του Λαϊκού
+   * προσυμπλήρωνε τις Ειδικές Εκδόσεις, που έρχονται σε άλλη ποσότητα κάθε
+   * φορά. Δες lib/lotteryDelivery.ts.
+   */
+  const [standingOrders, setStandingOrders] = useState<Record<string, unknown>>({});
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -614,7 +622,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           protochroniatiko_bundles: (config as any).protochroniatiko_bundles,
           laiko_selling_mode: config.laiko_selling_mode,
         });
-        setLaikoStandingOrder(Math.max(0, Number(config.laiko_standing_order_bundles) || 0));
+        setStandingOrders({
+          laiko_standing_order_bundles: (config as any).laiko_standing_order_bundles,
+          ethniko_standing_order_bundles: (config as any).ethniko_standing_order_bundles,
+        });
         // `!== false` rather than a truthy test: a template row that predates
         // one of these columns reads undefined, and the safe answer there is
         // to keep showing the module rather than to hide a till section.
@@ -2518,7 +2529,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 lotteryUnits={lotteryUnits}
                 legacyUnits={legacyUnits as any}
                 laikoSellingMode={laikoSellingMode}
-                laikoStandingOrderBundles={laikoStandingOrder}
+                standingOrders={standingOrders}
               />
 
               {/* Direct inputs summary & payouts */}

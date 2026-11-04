@@ -71,10 +71,19 @@ export function applyCancellation(input: CancellationInput): Cancellation {
   };
 }
 
-/** Πεντάδες -> κομμάτια, the unit the rows themselves count in. */
+/**
+ * Πεντάδες -> κομμάτια, the unit the rows themselves count in.
+ *
+ * Μία, όχι πέντε, όταν η γραμμή δεν έχει πεντάδα από πίσω. A bundleSize of
+ * 0 does not mean «κανείς δεν το όρισε»· it means the counted unit IS the
+ * πεντάδα, which is the Εθνικό. Το `|| 5` το διάβαζε ως «δεν ορίστηκε» και
+ * πολλαπλασίαζε - η πάγια των 40 πεντάδων Εθνικού έβγαινε 200 στο ράφι.
+ * Ίδια παγίδα με το `row.bundleSize || 5` στη στήλη του πλήθους και με το
+ * `price * bundleSize` στην τιμή.
+ */
 export function bundlesToPieces(bundles: unknown, bundleSize: unknown): number {
-  const size = whole(bundleSize) || 5;
-  return whole(bundles) * size;
+  const size = whole(bundleSize);
+  return whole(bundles) * (size > 0 ? size : 1);
 }
 
 /** 40 πεντάδες standing order -> how many pieces that is on the shelf. */
@@ -84,7 +93,9 @@ export function standingOrderPieces(bundles: unknown, bundleSize: unknown): numb
 
 /** Pieces back into the unit the shop speaks in. */
 export function piecesToBundles(pieces: unknown, bundleSize: unknown): number {
-  const size = whole(bundleSize) || 5;
+  // Ίδια φρουρά με το bundlesToPieces παραπάνω: χωρίς πεντάδα από πίσω, το
+  // πλήθος είναι ήδη σε πεντάδες και η διαίρεση το πεμπταπλασίαζε προς τα κάτω.
+  const size = whole(bundleSize) || 1;
   return Math.floor(whole(pieces) / size);
 }
 

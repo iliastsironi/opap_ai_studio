@@ -399,6 +399,8 @@ export interface ShiftTemplateConfig {
    */
   /** Πάγια παραγγελία Λαϊκού σε πεντάδες, ανά κατάστημα (0053). */
   laiko_standing_order_bundles?: number;
+  /** Πάγια παραγγελία Εθνικού, σε πεντάδες (0063). */
+  ethniko_standing_order_bundles?: number;
   /** Κατεύθυνση χρηματοκιβωτίου: DROP (πρακτορείο) ή WITHDRAW (PLAY) — 0058. */
   safe_direction?: 'DROP' | 'WITHDRAW';
   /** Μονάδα ανά λαχείο (0059): {"scr_laiko":"BUNDLES"}. */

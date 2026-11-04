@@ -67,9 +67,12 @@ describe('the standing order', () => {
     expect(piecesToBundles(203, 5)).toBe(40); // three loose ones are not a πεντάδα
   });
 
-  it('falls back to a πεντάδα when the size is missing', () => {
-    expect(standingOrderPieces(40, undefined)).toBe(200);
-    expect(standingOrderPieces(40, 0)).toBe(200);
+  it('δεν επινοεί πεντάδα όταν η γραμμή δεν έχει', () => {
+    // Αυτό περίμενε 200 και στις δύο γραμμές, από ένα `|| 5` που διάβαζε
+    // το 0 ως «δεν ορίστηκε». Στο Εθνικό το 0 σημαίνει ότι η μονάδα ΕΙΝΑΙ
+    // η πεντάδα - 40 πάγιες πεντάδες είναι 40 στο ράφι, όχι 200.
+    expect(standingOrderPieces(40, 0)).toBe(40);
+    expect(standingOrderPieces(40, undefined)).toBe(40);
   });
 
   it('is nothing until somebody sets it', () => {
