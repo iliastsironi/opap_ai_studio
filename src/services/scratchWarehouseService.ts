@@ -99,6 +99,24 @@ export async function fetchWarehousePacks(
   return (data ?? []) as WarehousePack[];
 }
 
+/**
+ * Αν το κατάστημα έχει παραλάβει ποτέ πακέτο.
+ *
+ * Οποιαδήποτε κατάσταση μετράει - και ένα πακέτο που έχει ήδη βγει στο
+ * μαγαζί ή αποσυρθεί σημαίνει ότι η αποθήκη χρησιμοποιείται. Κρίνοντας από
+ * το τρέχον απόθεμα, το ταμείο ξαναζητούσε πληκτρολογημένο κωδικό κάθε
+ * φορά που άδειαζε το ράφι.
+ */
+export async function storeUsesWarehouse(orgId: string, storeId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .eq('store_id', storeId);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
 export interface ReceivePackInput {
   orgId: string;
   storeId: string;

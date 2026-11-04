@@ -33,16 +33,23 @@ export interface HandoverPack {
 /**
  * Αν ο κωδικός πρέπει να έρθει από την αποθήκη.
  *
+ * Το ερώτημα είναι «το κατάστημα ΧΡΗΣΙΜΟΠΟΙΕΙ αποθήκη», όχι «έχει κάτι
+ * μέσα αυτή τη στιγμή». Η πρώτη εκδοχή αυτού του κανόνα κοιτούσε το
+ * τρέχον απόθεμα και αναβόσβηνε: μόλις βγήκε στο μαγαζί το μοναδικό
+ * πακέτο, η αποθήκη άδειασε, ο κανόνας έσβησε και το ταμείο ξαναζήτησε
+ * πληκτρολογημένο κωδικό - ακριβώς όταν η ιχνηλασία είχε αρχίσει να
+ * δουλεύει.
+ *
+ * Το κατάστημα που παρέλαβε έστω ένα πακέτο, έστω και περασμένο στο
+ * μαγαζί, έχει αποθήκη. Άδειο ράφι σημαίνει «παράγγειλε», όχι «γράψε τον
+ * κωδικό στο χέρι».
+ *
  * Μόνο για σκρατς. Τα λαχεία δεν έχουν πακέτα 300 € - έχουν παραλαβή ανά
  * κλήρωση, με αριθμό κλήρωσης, και εκείνη τη ροή τη χειρίζεται το
  * lotteryDelivery.ts.
  */
-export function warehouseGoverns(
-  storePacks: ReadonlyArray<HandoverPack> | null | undefined,
-  isLottery: boolean
-): boolean {
-  if (isLottery) return false;
-  return (storePacks ?? []).length > 0;
+export function warehouseGoverns(usesWarehouse: boolean, isLottery: boolean): boolean {
+  return !isLottery && usesWarehouse;
 }
 
 /**

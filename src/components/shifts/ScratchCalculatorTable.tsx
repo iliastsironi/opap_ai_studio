@@ -1332,6 +1332,15 @@ interface ScratchCalculatorTableProps {
    * όχι ρύθμιση.
    */
   warehousePacks?: HandoverPack[];
+  /**
+   * Αν το κατάστημα χρησιμοποιεί αποθήκη - δηλαδή έχει παραλάβει έστω ένα
+   * πακέτο, έστω και περασμένο ήδη στο μαγαζί.
+   *
+   * Ξεχωριστό από το warehousePacks επίτηδες. Κρίνοντας από το τρέχον
+   * απόθεμα, ο κανόνας έσβηνε μόλις άδειαζε το ράφι και το ταμείο
+   * ξαναζητούσε πληκτρολογημένο κωδικό.
+   */
+  warehouseInUse?: boolean;
   /** Το πακέτο βγήκε στον πάγκο: η αποθήκη πρέπει να το μάθει. */
   onPackTaken?: (packId: string) => Promise<void>;
   // Whether the catalogue itself can be edited from this table: a game's
@@ -1357,6 +1366,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   laikoSellingMode = 'PIECES_AND_BUNDLES',
   standingOrders,
   warehousePacks,
+  warehouseInUse = false,
   onPackTaken,
   catalogEditable = false,
 }) => {
@@ -1609,7 +1619,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     // πακέτο που διαλέχτηκε, και το πακέτο μεταφέρεται τη στιγμή που
     // ανοίγει. Μεταφορά πρώτα: αν η βάση την αρνηθεί, δεν θέλουμε να έχει
     // ήδη ανοίξει στον πάγκο ένα πακέτο που η αποθήκη λέει ότι κάθεται.
-    const governed = warehouseGoverns(warehousePacks, isLotteryRow(target));
+    const governed = warehouseGoverns(warehouseInUse, isLotteryRow(target));
     const fromWarehouse = governed
       ? packsForGame(warehousePacks, target.id).find((p) => p.id === selectedPackId)
       : undefined;
@@ -2905,7 +2915,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         // Η αποθήκη αναλαμβάνει μόλις το κατάστημα καταχωρήσει το πρώτο
         // πακέτο. Μέχρι τότε το παράθυρο δουλεύει όπως πάντα - αλλιώς το
         // ταμείο θα σταματούσε απόψε για μια καταχώρηση που θέλει μέρες.
-        const governed = warehouseGoverns(warehousePacks, targetIsLottery);
+        const governed = warehouseGoverns(warehouseInUse, targetIsLottery);
         const available = governed ? packsForGame(warehousePacks, targetRow?.id) : [];
         const warehouseIssue = governed ? handoverProblem(available, selectedPackId) : null;
         const codeOk = governed

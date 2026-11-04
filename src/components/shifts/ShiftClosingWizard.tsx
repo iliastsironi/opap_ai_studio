@@ -203,7 +203,7 @@ import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  fetchWarehousePacks, movePackToStore, type WarehousePack,
+  fetchWarehousePacks, movePackToStore, storeUsesWarehouse, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 
 interface ShiftClosingWizardProps {
@@ -457,6 +457,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * καταχωρημένο πακέτο και μετά, ο κωδικός έρχεται μόνο από εκεί.
    */
   const [warehousePacks, setWarehousePacks] = useState<WarehousePack[]>([]);
+  const [warehouseInUse, setWarehouseInUse] = useState(false);
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -575,9 +576,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   useEffect(() => {
     let cancelled = false;
     const orgId = shift.organization_id || organization!.id;
-    fetchWarehousePacks(orgId, shift.store_id)
-      .then((packs) => {
-        if (!cancelled) setWarehousePacks(packs);
+    Promise.all([
+      fetchWarehousePacks(orgId, shift.store_id),
+      storeUsesWarehouse(orgId, shift.store_id),
+    ])
+      .then(([packs, inUse]) => {
+        if (cancelled) return;
+        setWarehousePacks(packs);
+        setWarehouseInUse(inUse);
       })
       // Σιωπηλά: μια αποθήκη που δεν διαβάζεται αφήνει το ταμείο όπως ήταν
       // πριν υπάρξει, που είναι η ασφαλής κατάσταση. Το να μπλοκάρει το
@@ -2558,6 +2564,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 laikoSellingMode={laikoSellingMode}
                 standingOrders={standingOrders}
                 warehousePacks={warehousePacks}
+                warehouseInUse={warehouseInUse}
                 onPackTaken={async (packId) => {
                   await movePackToStore(packId, shift.id);
                   setWarehousePacks((prev) => prev.filter((p) => p.id !== packId));

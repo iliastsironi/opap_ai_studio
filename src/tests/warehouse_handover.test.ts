@@ -11,16 +11,22 @@ const pack = (over: Partial<HandoverPack>): HandoverPack => ({
 describe('πότε αναλαμβάνει η αποθήκη', () => {
   it('όχι όσο το κατάστημα δεν έχει καταχωρήσει τίποτα', () => {
     // Αλλιώς το ταμείο θα σταματούσε απόψε για μια δουλειά που θέλει μέρες.
-    expect(warehouseGoverns([], false)).toBe(false);
-    expect(warehouseGoverns(null, false)).toBe(false);
+    expect(warehouseGoverns(false, false)).toBe(false);
   });
 
   it('ναι από το πρώτο πακέτο και μετά', () => {
-    expect(warehouseGoverns([pack({})], false)).toBe(true);
+    expect(warehouseGoverns(true, false)).toBe(true);
+  });
+
+  it('και όταν το ράφι αδειάσει — ο διακόπτης δεν αναβοσβήνει', () => {
+    // Η πρώτη εκδοχή κοιτούσε το τρέχον απόθεμα: μόλις βγήκε το μοναδικό
+    // πακέτο στο μαγαζί, το ταμείο ξαναζήτησε πληκτρολογημένο κωδικό.
+    // Άδειο ράφι σημαίνει «παράγγειλε», όχι «γράψε το στο χέρι».
+    expect(warehouseGoverns(true, false)).toBe(true);
   });
 
   it('ποτέ για λαχείο — εκείνα έχουν παραλαβή ανά κλήρωση', () => {
-    expect(warehouseGoverns([pack({})], true)).toBe(false);
+    expect(warehouseGoverns(true, true)).toBe(false);
   });
 });
 

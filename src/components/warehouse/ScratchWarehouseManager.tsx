@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, ArrowRightLeft, Boxes, Check, PackagePlus, RotateCcw, Search,
+  AlertTriangle, Boxes, Check, PackagePlus, RotateCcw, Search,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  fetchWarehouseGames, fetchWarehousePacks, movePackToStore, receivePack, withdrawPack,
+  fetchWarehouseGames, fetchWarehousePacks, receivePack, withdrawPack,
   type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
@@ -141,15 +141,6 @@ export const ScratchWarehouseManager: React.FC = () => {
     }
   };
 
-  const toStore = async (pack: WarehousePack) => {
-    try {
-      await movePackToStore(pack.id);
-      await load();
-    } catch (err: any) {
-      setProblem(err?.message ?? 'Η μεταφορά απέτυχε.');
-    }
-  };
-
   if (!storeId) {
     return (
       <div className="p-8 text-center">
@@ -179,6 +170,9 @@ export const ScratchWarehouseManager: React.FC = () => {
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Προς πώληση, αλλά όχι ακόμα στο μαγαζί — {currentStore?.name ?? storeId}
+          </p>
+          <p className="text-micro text-slate-400 mt-0.5">
+            Ένα πακέτο φεύγει από εδώ μόνο όταν το ανοίξει το ταμείο, ή αν αποσυρθεί.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -392,15 +386,6 @@ export const ScratchWarehouseManager: React.FC = () => {
                     </td>
                     <td className="p-2.5">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => toStore(pack)}
-                          title="Μεταφορά στο μαγαζί"
-                          className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-micro cursor-pointer flex items-center gap-1"
-                        >
-                          <ArrowRightLeft className="w-3 h-3" />
-                          Στο μαγαζί
-                        </button>
                         <button
                           type="button"
                           onClick={() => setToWithdraw(pack)}
