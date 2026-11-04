@@ -804,8 +804,45 @@ export function applySpecialEditionShapes(rows: ScratchTicketRow[]): ScratchTick
   });
 }
 
+/**
+ * Σβήνει την «ουρά πακέτου» από κάθε λαχείο.
+ *
+ * Ένα λαχείο δεν μπορεί πια να αποκτήσει closedPackQty: το
+ * tailSoldOnNewPack επιστρέφει μηδέν για όλα, γιατί τα αδιάθετα είτε
+ * γυρίζουν πίσω είτε τα χρεώνεται το πρακτορείο - σε καμία περίπτωση δεν
+ * είναι είσπραξη. Άρα ό,τι νούμερο κάθεται εκεί είναι υπόλειμμα του παλιού,
+ * αντεστραμμένου τύπου «μέγεθος πακέτου − αρχικό».
+ *
+ * Χρειάζεται να σβηστεί και όχι απλώς να σταματήσει να μεγαλώνει: η γραμμή
+ * ζει στο localStorage του κάθε browser και στα πρόχειρα, οπότε ένα 336
+ * γραμμένο μια φορά επέστρεφε σε κάθε φόρτωση - 337 πεντάδες Εθνικού,
+ * 6.740 €, για μία πεντάδα πουλημένη. Ίδιο μοτίβο με τις τιμές: μια κακή
+ * τιμή γραμμένη μια φορά επιβιώνει της διόρθωσης αν δεν καθαριστεί στην
+ * ανάγνωση.
+ *
+ * Το ιστορικό των παραλαβών μένει - οι αριθμοί κλήρωσης είναι χρήσιμο
+ * αρχείο - αλλά με μηδενισμένες τις ποσότητες, αλλιώς μια αναίρεση θα
+ * επανέφερε το υπόλειμμα από το στιγμιότυπο.
+ */
+export function clearLotteryPackTail(rows: ScratchTicketRow[]): ScratchTicketRow[] {
+  return rows.map((row) => {
+    if (!isLotteryRow(row)) return row;
+    const history = row.packHistory ?? [];
+    if (!Number(row.closedPackQty) && history.every((h) => !Number(h.addedQty))) return row;
+    return {
+      ...row,
+      closedPackQty: 0,
+      packHistory: history.map((h) => ({
+        ...h,
+        addedQty: 0,
+        previous: { ...h.previous, closedPackQty: 0 },
+      })),
+    };
+  });
+}
+
 export function applyLotteryProductShapes(rows: ScratchTicketRow[]): ScratchTicketRow[] {
-  return applySpecialEditionShapes(applyEthnikoShape(applyLaikoDefaults(rows)));
+  return clearLotteryPackTail(applySpecialEditionShapes(applyEthnikoShape(applyLaikoDefaults(rows))));
 }
 
 // Parses a field as a non-negative integer. Empty/undefined -> 0 (no
