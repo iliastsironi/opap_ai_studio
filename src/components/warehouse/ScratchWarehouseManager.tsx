@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
   fetchWarehouseGames, fetchWarehousePacks, receivePack, withdrawPack,
-  type WarehouseGame, type WarehousePack,
+  type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
   digitsOnly, GAME_NO_LENGTH, isValidPackCode, PACK_CODE_LENGTH, readBarcode,
@@ -51,6 +51,7 @@ export const ScratchWarehouseManager: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const [sortKey, setSortKey] = useState<SortKey>('received_at');
+  const [statusFilter, setStatusFilter] = useState<PackStatus>('IN_WAREHOUSE');
   const [search, setSearch] = useState('');
   const [toWithdraw, setToWithdraw] = useState<WarehousePack | null>(null);
 
@@ -61,7 +62,11 @@ export const ScratchWarehouseManager: React.FC = () => {
     try {
       const [g, p] = await Promise.all([
         fetchWarehouseGames(orgId, storeId),
-        fetchWarehousePacks(orgId, storeId),
+        // Όλες οι καταστάσεις: η αποθήκη πρέπει να λέει και τι έφυγε, όχι
+        // μόνο τι απέμεινε. Ένα πακέτο που εξαφανίζεται από την οθόνη τη
+        // στιγμή που βγαίνει στον πάγκο δεν αφήνει τίποτα να κοιτάξει
+        // κανείς όταν αναρωτηθεί πού πήγε.
+        fetchWarehousePacks(orgId, storeId, ['IN_WAREHOUSE', 'IN_STORE', 'WITHDRAWN']),
       ]);
       setGames(g);
       setPacks(p);
@@ -103,29 +108,44 @@ export const ScratchWarehouseManager: React.FC = () => {
     [games, gameNo]
   );
 
-  const totals = useMemo(() => {
-    const value = packs.reduce((t, p) => t + (Number(p.pieces) || 0) * (Number(p.unit_price) || 0), 0);
-    return { value: Math.round(value * 100) / 100, count: packs.length };
-  }, [packs]);
+  /** Μόνο ό,τι είναι στο ράφι. Ένα πακέτο στον πάγκο δεν είναι απόθεμα. */
+  const shelf = useMemo(() => packs.filter((p) => p.status === 'IN_WAREHOUSE'), [packs]);
 
-  const aging = useMemo(() => summariseAging(packs), [packs]);
+  const counts = useMemo(
+    () => ({
+      IN_WAREHOUSE: shelf.length,
+      IN_STORE: packs.filter((p) => p.status === 'IN_STORE').length,
+      WITHDRAWN: packs.filter((p) => p.status === 'WITHDRAWN').length,
+    }),
+    [packs, shelf]
+  );
+
+  const totals = useMemo(() => {
+    const value = shelf.reduce((t, p) => t + (Number(p.pieces) || 0) * (Number(p.unit_price) || 0), 0);
+    return { value: Math.round(value * 100) / 100, count: shelf.length };
+  }, [shelf]);
+
+  // Το ρολόι λήξης αφορά μόνο ό,τι κάθεται. Ένα πακέτο που πουλήθηκε δεν
+  // λήγει, και μια ειδοποίηση γι' αυτό θα έκρυβε όσες μετράνε.
+  const aging = useMemo(() => summariseAging(shelf), [shelf]);
 
   const visible = useMemo(() => {
     const needle = digitsOnly(search) || search.trim().toLowerCase();
+    const inGroup = packs.filter((p) => p.status === statusFilter);
     const rows = search.trim()
-      ? packs.filter(
+      ? inGroup.filter(
           (p) =>
             p.pack_code.includes(needle) ||
             p.game_no.includes(needle) ||
             p.game_name.toLowerCase().includes(search.trim().toLowerCase())
         )
-      : packs;
+      : inGroup;
     return [...rows].sort((a, b) =>
       sortKey === 'game_no'
         ? a.game_no.localeCompare(b.game_no) || a.pack_code.localeCompare(b.pack_code)
         : a.received_at.localeCompare(b.received_at)
     );
-  }, [packs, search, sortKey]);
+  }, [packs, search, sortKey, statusFilter]);
 
   /** Ο σαρωτής δίνει 14 ψηφία στο πρώτο πεδίο. Σπάσ' τα. */
   const onGameNoInput = (raw: string) => {
@@ -328,6 +348,32 @@ export const ScratchWarehouseManager: React.FC = () => {
 
       {/* Λίστα */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="px-3 pt-3 flex items-center gap-1.5 flex-wrap">
+          {(
+            [
+              ['IN_WAREHOUSE', 'Στο ράφι'],
+              ['IN_STORE', 'Στο μαγαζί'],
+              ['WITHDRAWN', 'Αποσυρμένα'],
+            ] as Array<[PackStatus, string]>
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setStatusFilter(key)}
+              className={`px-3 py-1.5 rounded-lg text-micro font-bold cursor-pointer border transition-colors ${
+                statusFilter === key
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+              <span className={statusFilter === key ? 'ml-1.5 text-slate-300' : 'ml-1.5 text-slate-400'}>
+                {counts[key]}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -360,7 +406,13 @@ export const ScratchWarehouseManager: React.FC = () => {
           <p className="p-6 text-center text-xs text-slate-500">Φόρτωση…</p>
         ) : visible.length === 0 ? (
           <p className="p-6 text-center text-xs text-slate-500">
-            {packs.length === 0 ? 'Η αποθήκη είναι άδεια.' : 'Κανένα πακέτο δεν ταιριάζει.'}
+            {search.trim()
+              ? 'Κανένα πακέτο δεν ταιριάζει.'
+              : statusFilter === 'IN_WAREHOUSE'
+              ? 'Κανένα πακέτο στο ράφι.'
+              : statusFilter === 'IN_STORE'
+              ? 'Κανένα πακέτο δεν έχει βγει στο μαγαζί.'
+              : 'Κανένα αποσυρμένο πακέτο.'}
           </p>
         ) : (
           <table className="w-full text-xs">
@@ -394,19 +446,35 @@ export const ScratchWarehouseManager: React.FC = () => {
                       {new Date(`${pack.received_at}T00:00:00`).toLocaleDateString('el-GR')}
                     </td>
                     <td className="p-2.5">
-                      <span
-                        className={`font-bold ${
-                          tone === 'CRITICAL' ? 'text-rose-700' : tone === 'WARNING' ? 'text-amber-700' : 'text-slate-600'
-                        }`}
-                      >
-                        {label ?? `${days} ${days === 1 ? 'ημέρα' : 'ημέρες'}`}
-                      </span>
+                      {pack.status === 'IN_WAREHOUSE' ? (
+                        <span
+                          className={`font-bold ${
+                            tone === 'CRITICAL' ? 'text-rose-700' : tone === 'WARNING' ? 'text-amber-700' : 'text-slate-600'
+                          }`}
+                        >
+                          {label ?? `${days} ${days === 1 ? 'ημέρα' : 'ημέρες'}`}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">
+                          {pack.status === 'IN_STORE' ? 'Βγήκε στο μαγαζί' : 'Αποσύρθηκε'}
+                          {(pack.moved_at ?? pack.withdrawn_at) && (
+                            <span className="block text-micro text-slate-400">
+                              {new Date(pack.moved_at ?? pack.withdrawn_at!).toLocaleString('el-GR')}
+                              {pack.status === 'IN_STORE' &&
+                                (pack.moved_shift_id ? ' · από το ταμείο' : '')}
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="p-2.5 text-right font-mono font-black text-slate-900">
                       {formatCurrency(pack.pieces * pack.unit_price)}
                     </td>
                     <td className="p-2.5">
                       <div className="flex items-center justify-end gap-1.5">
+                        {pack.status !== 'IN_WAREHOUSE' ? (
+                          <span className="text-micro text-slate-400">—</span>
+                        ) : (
                         <button
                           type="button"
                           onClick={() => setToWithdraw(pack)}
@@ -416,6 +484,7 @@ export const ScratchWarehouseManager: React.FC = () => {
                           <RotateCcw className="w-3 h-3" />
                           Απόσυρση
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>
