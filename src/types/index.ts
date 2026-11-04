@@ -280,6 +280,10 @@ export interface Shift {
   counted_cash: number;
   expected_cash: number;
   discrepancy: number;
+  /** Η σωρευτική απόκλιση της ημέρας όταν άνοιξε αυτή η βάρδια (0067). */
+  discrepancy_baseline?: number;
+  /** Η απόκλιση ΑΥΤΗΣ της βάρδιας: discrepancy − discrepancy_baseline (0067). */
+  shift_discrepancy?: number;
   discrepancy_percentage: number;
   discrepancy_threshold: number;
   is_unbalanced: boolean;

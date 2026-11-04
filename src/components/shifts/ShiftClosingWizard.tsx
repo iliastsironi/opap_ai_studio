@@ -41,6 +41,7 @@ import { readSafeDrops, safeDropShiftFields, sortSafeDrops, totalSafeDrops, type
 import { SAFE_LABELS, normalizeSafeDirection, safeAmountOut } from '../../lib/safeDirection.ts';
 import { calculateEnvelope } from '../../lib/shiftEnvelope.ts';
 import { splitDiscrepancy, DiscrepancySettlement } from '../../lib/discrepancySplit.ts';
+import { ownDiscrepancy } from '../../lib/shiftOwnDiscrepancy.ts';
 import {
   ScratchCalculatorTable,
   lockScratchRowsForSave,
@@ -1441,7 +1442,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // absorbed by the discrepancy ledger, only the excess reaches the person.
   // The same arithmetic runs in the database, so this is what will happen,
   // not a preview of it.
-  const split = splitDiscrepancy(discResult.discrepancy, safeNum(discrepancyThreshold));
+  //
+  // Εφαρμόζεται στη ΔΙΚΗ της απόκλιση, όχι στη σωρευτική της ημέρας. Το
+  // counted_cash και το expected μετράνε από το άνοιγμα της ημέρας, οπότε η
+  // δεύτερη βάρδια κουβαλούσε μέσα στο νούμερό της το μείον της πρώτης -
+  // και χρεωνόταν γι' αυτό. Η βάση αφαιρείται εδώ όπως και στο 0067.
+  const dayBaseline = safeNum(shift.discrepancy_baseline);
+  const ownDiff = ownDiscrepancy(discResult.discrepancy, dayBaseline);
+  const split = splitDiscrepancy(ownDiff, safeNum(discrepancyThreshold));
 
   // Owners are never charged for their own till (0018, kept in 0034).
   const operatorIsExempt =
@@ -2132,10 +2140,28 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     <span>Έλλειμμα πάνω από την αποδεκτή απόκλιση</span>
                   </p>
                   <dl className="space-y-1 font-mono tabular-nums">
+                    {/* Όταν η ημέρα κουβαλάει ήδη διαφορά, φαίνονται και τα
+                        τρία: τι βρήκε η βάρδια, τι βρήκε την ώρα που άνοιξε,
+                        και τι ανήκει σε αυτήν. Χωρίς τη μεσαία γραμμή, ο
+                        υπάλληλος βλέπει ένα νούμερο και χρεώνεται άλλο. */}
+                    {Math.abs(dayBaseline) > 0.009 && (
+                      <>
+                        <div className="flex justify-between opacity-80">
+                          <dt className="font-sans">Διαφορά ημέρας (σωρευτικά)</dt>
+                          <dd>{formatCurrency(discResult.discrepancy, { showSign: true })}</dd>
+                        </div>
+                        <div className="flex justify-between opacity-80">
+                          <dt className="font-sans">Από προηγούμενη βάρδια</dt>
+                          <dd>{formatCurrency(dayBaseline, { showSign: true })}</dd>
+                        </div>
+                      </>
+                    )}
                     <div className="flex justify-between">
-                      <dt className="font-sans">Διαφορά ταμείου</dt>
+                      <dt className="font-sans">
+                        {Math.abs(dayBaseline) > 0.009 ? 'Διαφορά αυτής της βάρδιας' : 'Διαφορά ταμείου'}
+                      </dt>
                       <dd className="font-bold">
-                        {formatCurrency(discResult.discrepancy, { showSign: true })}
+                        {formatCurrency(ownDiff, { showSign: true })}
                       </dd>
                     </div>
                     <div className="flex justify-between">
