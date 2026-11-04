@@ -69,6 +69,31 @@ export function agingLabel(days: number): string | null {
   return null;
 }
 
+/**
+ * Αν επιτρέπεται η απόσυρση.
+ *
+ * Όχι πριν από τις 90 ημέρες. Ένα πακέτο που κάθεται δύο μήνες δεν
+ * επιστρέφεται στον ΟΠΑΠ επειδή δεν πουλάει - επιστρέφεται όταν λήξει, και
+ * η απόσυρσή του νωρίτερα είναι απώλεια εμπορεύματος που θα μπορούσε ακόμα
+ * να πουληθεί. Το κουμπί ανοίγει την 90ή ημέρα, την ίδια που ανάβει και η
+ * έντονη ειδοποίηση: η προειδοποίηση και η πράξη της είναι το ίδιο σκαλί.
+ */
+export function canWithdraw(days: number): boolean {
+  return days >= EXPIRY_DAYS;
+}
+
+/** Πόσες ημέρες μένουν μέχρι να ανοίξει η απόσυρση. 0 = ανοιχτή. */
+export function daysUntilWithdrawable(days: number): number {
+  return Math.max(0, EXPIRY_DAYS - days);
+}
+
+/** Γιατί δεν μπορεί να αποσυρθεί ακόμα. null όταν μπορεί. */
+export function withdrawBlockedReason(days: number): string | null {
+  if (canWithdraw(days)) return null;
+  const left = daysUntilWithdrawable(days);
+  return `Η απόσυρση ανοίγει στις ${EXPIRY_DAYS} ημέρες — απομένουν ${left}.`;
+}
+
 export interface AgingSummary {
   warning: number;
   critical: number;

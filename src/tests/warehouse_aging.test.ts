@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  agingLabel, agingTone, daysInWarehouse, EXPIRY_DAYS, HARD_LIMIT_DAYS,
-  summariseAging, WARN_AFTER_DAYS,
+  agingLabel, agingTone, canWithdraw, daysInWarehouse, daysUntilWithdrawable,
+  EXPIRY_DAYS, HARD_LIMIT_DAYS, summariseAging, WARN_AFTER_DAYS, withdrawBlockedReason,
 } from '../lib/warehouseAging.ts';
 
 const NOW = new Date('2026-11-04T09:00:00Z');
@@ -75,5 +75,30 @@ describe('η σύνοψη πάνω από τη λίστα', () => {
 
   it('άδεια αποθήκη δεν ειδοποιεί', () => {
     expect(summariseAging([], NOW)).toEqual({ warning: 0, critical: 0, criticalValue: 0 });
+  });
+});
+
+describe('πότε ανοίγει η απόσυρση', () => {
+  it('κλειστή πριν από τις 90 ημέρες', () => {
+    // Ένα πακέτο που δεν πουλάει δεν επιστρέφεται· επιστρέφεται όταν λήξει.
+    expect(canWithdraw(0)).toBe(false);
+    expect(canWithdraw(85)).toBe(false);
+    expect(canWithdraw(EXPIRY_DAYS - 1)).toBe(false);
+  });
+
+  it('ανοίγει ακριβώς την 90ή', () => {
+    expect(canWithdraw(EXPIRY_DAYS)).toBe(true);
+    expect(canWithdraw(200)).toBe(true);
+  });
+
+  it('λέει πόσες ημέρες μένουν', () => {
+    expect(daysUntilWithdrawable(85)).toBe(5);
+    expect(daysUntilWithdrawable(90)).toBe(0);
+    expect(daysUntilWithdrawable(120)).toBe(0);
+  });
+
+  it('εξηγεί γιατί είναι κλειστή', () => {
+    expect(withdrawBlockedReason(85)).toContain('απομένουν 5');
+    expect(withdrawBlockedReason(90)).toBeNull();
   });
 });

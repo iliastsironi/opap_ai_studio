@@ -1,6 +1,7 @@
 import { supabase } from './supabase.ts';
 import { packPieces, packValue } from '../lib/scratchBarcode.ts';
 import { rowsWrittenProblem } from '../lib/writeGuard.ts';
+import type { ProgressRow } from '../lib/packProgress.ts';
 
 /**
  * Η αποθήκη των σκρατς: τι παρελήφθη, τι περιμένει, τι βγήκε.
@@ -116,6 +117,50 @@ export async function storeUsesWarehouse(orgId: string, storeId: string): Promis
     .eq('store_id', storeId);
   if (error) throw error;
   return (count ?? 0) > 0;
+}
+
+/**
+ * Πού βρίσκεται κάθε πακέτο που τρέχει στον πάγκο.
+ *
+ * Τίποτα καινούριο δεν αποθηκεύεται: η θέση ζει ήδη στις γραμμές των
+ * βαρδιών. Κάθε βάρδια ξεκινάει από εκεί που τελείωσε η προηγούμενη, οπότε
+ * η πιο πρόσφατη γραμμή που κρατάει αυτόν τον κωδικό πακέτου έχει την
+ * τρέχουσα θέση.
+ *
+ * Οι βάρδιες διαβάζονται με φθίνουσα σειρά και κρατιέται η πρώτη που
+ * ταιριάζει - η πρώτη είναι η πιο πρόσφατη. Το όριο των 60 είναι γενναιόδωρο
+ * για ένα πακέτο που τρέχει: αν χρειάστηκαν περισσότερες βάρδιες για να
+ * πουληθεί, η πρόοδός του δεν είναι η πληροφορία που λείπει.
+ */
+export async function fetchPackPositions(
+  orgId: string,
+  storeId: string
+): Promise<Record<string, ProgressRow>> {
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('opened_at,custom_field_values')
+    .eq('organization_id', orgId)
+    .eq('store_id', storeId)
+    .order('opened_at', { ascending: false })
+    .limit(60);
+  if (error) throw error;
+
+  const byCode: Record<string, ProgressRow> = {};
+  for (const shift of data ?? []) {
+    const rows = (shift as any).custom_field_values?.scratch_ticket_items ?? [];
+    for (const row of rows) {
+      const code = String(row?.packCode ?? '').trim();
+      // Η πρώτη που συναντάμε είναι η πιο πρόσφατη· οι παλιότερες αγνοούνται.
+      if (!code || byCode[code]) continue;
+      byCode[code] = {
+        startNo: row.startNo,
+        endNo: row.endNo,
+        backStartNo: row.backStartNo,
+        backEndNo: row.backEndNo,
+      };
+    }
+  }
+  return byCode;
 }
 
 export interface ReceivePackInput {

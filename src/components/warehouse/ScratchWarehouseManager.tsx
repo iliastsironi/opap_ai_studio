@@ -5,13 +5,16 @@ import {
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  fetchWarehouseGames, fetchWarehousePacks, receivePack, withdrawPack,
+  fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack, withdrawPack,
   type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
   digitsOnly, GAME_NO_LENGTH, isValidPackCode, PACK_CODE_LENGTH, readBarcode,
 } from '../../lib/scratchBarcode.ts';
-import { agingLabel, agingTone, daysInWarehouse, summariseAging } from '../../lib/warehouseAging.ts';
+import {
+  agingLabel, agingTone, canWithdraw, daysInWarehouse, summariseAging, withdrawBlockedReason,
+} from '../../lib/warehouseAging.ts';
+import { packProgress, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
@@ -39,6 +42,8 @@ export const ScratchWarehouseManager: React.FC = () => {
 
   const [games, setGames] = useState<WarehouseGame[]>([]);
   const [packs, setPacks] = useState<WarehousePack[]>([]);
+  /** Πού βρίσκεται κάθε πακέτο που τρέχει, από τις γραμμές των βαρδιών. */
+  const [positions, setPositions] = useState<Record<string, ProgressRow>>({});
   const [loading, setLoading] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -60,16 +65,20 @@ export const ScratchWarehouseManager: React.FC = () => {
     setLoading(true);
     setProblem(null);
     try {
-      const [g, p] = await Promise.all([
+      const [g, p, pos] = await Promise.all([
         fetchWarehouseGames(orgId, storeId),
         // Όλες οι καταστάσεις: η αποθήκη πρέπει να λέει και τι έφυγε, όχι
         // μόνο τι απέμεινε. Ένα πακέτο που εξαφανίζεται από την οθόνη τη
         // στιγμή που βγαίνει στον πάγκο δεν αφήνει τίποτα να κοιτάξει
         // κανείς όταν αναρωτηθεί πού πήγε.
         fetchWarehousePacks(orgId, storeId, ['IN_WAREHOUSE', 'IN_STORE', 'WITHDRAWN']),
+        // Η πρόοδος των πακέτων που τρέχουν. Αποτυχία εδώ δεν κρύβει την
+        // αποθήκη: χωρίς θέσεις, η στήλη λέει απλώς «βγήκε στο μαγαζί».
+        fetchPackPositions(orgId, storeId).catch(() => ({})),
       ]);
       setGames(g);
       setPacks(p);
+      setPositions(pos);
     } catch (err: any) {
       setProblem(err?.message ?? 'Δεν ήταν δυνατή η φόρτωση της αποθήκης.');
     } finally {
@@ -114,10 +123,21 @@ export const ScratchWarehouseManager: React.FC = () => {
   const counts = useMemo(
     () => ({
       IN_WAREHOUSE: shelf.length,
-      IN_STORE: packs.filter((p) => p.status === 'IN_STORE').length,
+      IN_STORE: packs.filter(
+        (p) => p.status === 'IN_STORE' && packProgress(positions[p.pack_code], p.pieces).remaining > 0
+      ).length,
       WITHDRAWN: packs.filter((p) => p.status === 'WITHDRAWN').length,
     }),
-    [packs, shelf]
+    [packs, shelf, positions]
+  );
+
+  const finished = useMemo(
+    () =>
+      packs.filter(
+        (p) =>
+          p.status === 'IN_STORE' && packProgress(positions[p.pack_code], p.pieces).remaining === 0
+      ).length,
+    [packs, positions]
   );
 
   const totals = useMemo(() => {
@@ -131,7 +151,16 @@ export const ScratchWarehouseManager: React.FC = () => {
 
   const visible = useMemo(() => {
     const needle = digitsOnly(search) || search.trim().toLowerCase();
-    const inGroup = packs.filter((p) => p.status === statusFilter);
+    // Ένα πακέτο που πουλήθηκε ως το τέλος δεν «τρέχει» πια στον πάγκο, και
+    // μια λίστα με τελειωμένα πακέτα σταματά να απαντά στο «τι τρέχει
+    // τώρα;» - που είναι ο λόγος που υπάρχει αυτή η καρτέλα. Μένουν στη
+    // βάση και στο ίχνος· απλώς δεν κάθονται εδώ.
+    const inGroup = packs.filter(
+      (p) =>
+        p.status === statusFilter &&
+        (statusFilter !== 'IN_STORE' ||
+          packProgress(positions[p.pack_code], p.pieces).remaining > 0)
+    );
     const rows = search.trim()
       ? inGroup.filter(
           (p) =>
@@ -145,7 +174,7 @@ export const ScratchWarehouseManager: React.FC = () => {
         ? a.game_no.localeCompare(b.game_no) || a.pack_code.localeCompare(b.pack_code)
         : a.received_at.localeCompare(b.received_at)
     );
-  }, [packs, search, sortKey, statusFilter]);
+  }, [packs, positions, search, sortKey, statusFilter]);
 
   /** Ο σαρωτής δίνει 14 ψηφία στο πρώτο πεδίο. Σπάσ' τα. */
   const onGameNoInput = (raw: string) => {
@@ -374,6 +403,13 @@ export const ScratchWarehouseManager: React.FC = () => {
           ))}
         </div>
 
+        {statusFilter === 'IN_STORE' && finished > 0 && (
+          <p className="px-3 pt-2 text-micro text-slate-400">
+            {finished} {finished === 1 ? 'πακέτο ολοκληρώθηκε' : 'πακέτα ολοκληρώθηκαν'} και δεν
+            εμφανίζονται εδώ.
+          </p>
+        )}
+
         <div className="p-3 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -421,7 +457,15 @@ export const ScratchWarehouseManager: React.FC = () => {
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Παιχνιδι')}</th>
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Κωδικος')}</th>
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Παρελαβη')}</th>
-                <th className="text-left p-2.5 font-black">{toGreekUpper('Στην αποθηκη')}</th>
+                <th className="text-left p-2.5 font-black">
+                  {toGreekUpper(
+                    statusFilter === 'IN_STORE'
+                      ? 'Προοδος πωλησης'
+                      : statusFilter === 'WITHDRAWN'
+                      ? 'Αποσυρση'
+                      : 'Στην αποθηκη'
+                  )}
+                </th>
                 <th className="text-right p-2.5 font-black">{toGreekUpper('Αξια')}</th>
                 <th className="text-right p-2.5 font-black">{toGreekUpper('Ενεργειες')}</th>
               </tr>
@@ -455,14 +499,44 @@ export const ScratchWarehouseManager: React.FC = () => {
                           {label ?? `${days} ${days === 1 ? 'ημέρα' : 'ημέρες'}`}
                         </span>
                       ) : (
-                        <span className="text-slate-600">
-                          {pack.status === 'IN_STORE' ? 'Βγήκε στο μαγαζί' : 'Αποσύρθηκε'}
-                          {(pack.moved_at ?? pack.withdrawn_at) && (
-                            <span className="block text-micro text-slate-400">
-                              {new Date(pack.moved_at ?? pack.withdrawn_at!).toLocaleString('el-GR')}
-                              {pack.status === 'IN_STORE' &&
-                                (pack.moved_shift_id ? ' · από το ταμείο' : '')}
-                            </span>
+                        <span className="text-slate-600 block min-w-[170px]">
+                          {pack.status === 'IN_STORE' ? (
+                            (() => {
+                              const prog = packProgress(positions[pack.pack_code], pack.pieces);
+                              const tone = progressTone(prog.percent);
+                              const bar =
+                                tone === 'HIGH' ? 'bg-rose-500' : tone === 'MID' ? 'bg-amber-500' : 'bg-emerald-500';
+                              return (
+                                <>
+                                  <span className="font-bold text-slate-900 font-mono">
+                                    #{prog.position}
+                                  </span>
+                                  <span className="text-micro text-slate-500">
+                                    {' '}/ {prog.pieces} · {prog.percent}%
+                                  </span>
+                                  <span className="block mt-1 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                                    <span
+                                      className={`block h-full rounded-full ${bar}`}
+                                      style={{ width: `${prog.percent}%` }}
+                                    />
+                                  </span>
+                                  <span className="block text-micro text-slate-400 mt-0.5">
+                                    {prog.remaining === 0
+                                      ? 'Τελείωσε'
+                                      : `απομένουν ${prog.remaining}`}
+                                  </span>
+                                </>
+                              );
+                            })()
+                          ) : (
+                            <>
+                              Αποσύρθηκε
+                              {pack.withdrawn_at && (
+                                <span className="block text-micro text-slate-400">
+                                  {new Date(pack.withdrawn_at).toLocaleString('el-GR')}
+                                </span>
+                              )}
+                            </>
                           )}
                         </span>
                       )}
@@ -477,9 +551,14 @@ export const ScratchWarehouseManager: React.FC = () => {
                         ) : (
                         <button
                           type="button"
+                          disabled={!canWithdraw(days)}
                           onClick={() => setToWithdraw(pack)}
-                          title="Απόσυρση στον ΟΠΑΠ"
-                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-micro cursor-pointer flex items-center gap-1"
+                          title={withdrawBlockedReason(days) ?? 'Απόσυρση στον ΟΠΑΠ'}
+                          className={`px-2.5 py-1.5 rounded-lg font-bold text-micro flex items-center gap-1 ${
+                            canWithdraw(days)
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          }`}
                         >
                           <RotateCcw className="w-3 h-3" />
                           Απόσυρση
