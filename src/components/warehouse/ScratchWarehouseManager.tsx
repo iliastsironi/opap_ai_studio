@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Boxes, Check, PackagePlus, RotateCcw, Search, Undo2,
+  AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Undo2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack,
+  correctPack, fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack,
   returnPackById, withdrawPack,
   type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
@@ -18,6 +18,7 @@ import {
 import { packProgress, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { Modal } from '../ui/Modal.tsx';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 
 /**
@@ -36,7 +37,7 @@ const TONE_ROW: Record<string, string> = {
 };
 
 export const ScratchWarehouseManager: React.FC = () => {
-  const { organization, user } = useAuth();
+  const { organization, user, roles, permissions } = useAuth();
   const { activeStoreId, stores, currentStore } = useTenant();
   const orgId = organization?.id ?? '';
   const storeId = activeStoreId !== 'ALL' ? activeStoreId : '';
@@ -60,6 +61,62 @@ export const ScratchWarehouseManager: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<PackStatus>('IN_WAREHOUSE');
   const [search, setSearch] = useState('');
   const [toWithdraw, setToWithdraw] = useState<WarehousePack | null>(null);
+  /** Το πακέτο που διορθώνεται, με ό,τι έχει γραφτεί μέχρι στιγμής. */
+  const [editing, setEditing] = useState<WarehousePack | null>(null);
+  const [editGameNo, setEditGameNo] = useState('');
+  const [editPackCode, setEditPackCode] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editProblem, setEditProblem] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  /**
+   * Η διόρθωση είναι στενότερη από το υπόλοιπο της οθόνης.
+   *
+   * Η αποθήκη ανοίγει σε Ιδιοκτήτη, Διαχειριστή και Υπεύθυνο καταστήματος -
+   * η παραλαβή είναι καθημερινή δουλειά. Το να ξαναγράψεις ΠΟΙΟ πακέτο
+   * είναι αυτό και ΠΟΤΕ ήρθε δεν είναι: η ημερομηνία είναι το ρολόι της
+   * λήξης, και ένας πρόχειρος χειρισμός κάνει ένα ληγμένο πακέτο φρέσκο.
+   *
+   * Η βάση δέχεται και τον υπεύθυνο. Εδώ η οθόνη είναι πιο αυστηρή από τη
+   * βάση, που είναι η ακίνδυνη κατεύθυνση - το αντίστροφο δίνει κουμπί που
+   * αποτυγχάνει πάντα.
+   */
+  const canCorrect =
+    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code)) ||
+    permissions.includes('*');
+
+  const editGame = useMemo(
+    () => games.find((g) => g.gameNo === editGameNo) ?? null,
+    [games, editGameNo]
+  );
+
+  const openEdit = (pack: WarehousePack) => {
+    setEditing(pack);
+    setEditGameNo(pack.game_no.trim());
+    setEditPackCode(pack.pack_code.trim());
+    setEditDate(pack.received_at.slice(0, 10));
+    setEditProblem(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editing || !editGame) return;
+    setEditSaving(true);
+    setEditProblem(null);
+    try {
+      await correctPack({
+        packId: editing.id,
+        game: editGame,
+        packCode: digitsOnly(editPackCode),
+        receivedAt: editDate,
+      });
+      setEditing(null);
+      await load();
+    } catch (err: any) {
+      setEditProblem(err?.message ?? 'Η διόρθωση απέτυχε.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const load = async () => {
     if (!orgId || !storeId) return;
@@ -577,6 +634,18 @@ export const ScratchWarehouseManager: React.FC = () => {
                         ) : pack.status !== 'IN_WAREHOUSE' ? (
                           <span className="text-micro text-slate-400">—</span>
                         ) : (
+                        <>
+                        {canCorrect && (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(pack)}
+                            title="Διόρθωση — λάθος κωδικός, παιχνίδι ή ημερομηνία"
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-micro cursor-pointer flex items-center gap-1"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            Διόρθωση
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={!canWithdraw(days)}
@@ -591,6 +660,7 @@ export const ScratchWarehouseManager: React.FC = () => {
                           <RotateCcw className="w-3 h-3" />
                           Απόσυρση
                         </button>
+                        </>
                         )}
                       </div>
                     </td>
@@ -601,6 +671,102 @@ export const ScratchWarehouseManager: React.FC = () => {
           </table>
         )}
       </div>
+
+      {editing && (
+        <Modal
+          isOpen
+          onClose={() => setEditing(null)}
+          headerStyle="bordered"
+          icon={Pencil}
+          title="Διόρθωση πακέτου"
+          size="sm"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer text-sm font-bold"
+              >
+                Ακύρωση
+              </button>
+              <button
+                type="button"
+                disabled={!editGame || !isValidPackCode(editPackCode) || !editDate || editSaving}
+                onClick={saveEdit}
+                className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {editSaving ? 'Αποθήκευση…' : 'Αποθήκευση'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-micro text-slate-500">
+              Διορθώνεται μόνο όσο το πακέτο είναι στο ράφι. Μόλις βγει στο μαγαζί, ο κωδικός του
+              είναι γραμμένος μέσα στις βάρδιες.
+            </p>
+
+            <div>
+              <label htmlFor="ed-game" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Αριθμός παιχνιδιού
+              </label>
+              <input
+                id="ed-game"
+                inputMode="numeric"
+                value={editGameNo}
+                onChange={(e) => setEditGameNo(digitsOnly(e.target.value).slice(0, GAME_NO_LENGTH))}
+                className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-black font-mono tracking-widest text-center"
+              />
+              <p className="text-micro mt-1 min-h-[1rem]">
+                {editGame ? (
+                  <span className="text-emerald-700 font-bold">
+                    {editGame.name} · {formatCurrency(editGame.price)} · {editGame.pieces} δελτία ·{' '}
+                    {formatCurrency(editGame.value)}
+                  </span>
+                ) : (
+                  <span className="text-rose-600 font-bold">Άγνωστος αριθμός παιχνιδιού.</span>
+                )}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="ed-code" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Κωδικός πακέτου
+              </label>
+              <input
+                id="ed-code"
+                inputMode="numeric"
+                value={editPackCode}
+                onChange={(e) => setEditPackCode(digitsOnly(e.target.value).slice(0, PACK_CODE_LENGTH))}
+                className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-black font-mono tracking-widest text-center"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="ed-date" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Ημερομηνία παραλαβής
+              </label>
+              <input
+                id="ed-date"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border-2 border-slate-200 bg-white text-sm font-bold"
+              />
+              <p className="text-micro text-amber-700 mt-1">
+                Από εδώ μετράνε οι 90 ημέρες — αλλάζοντάς την, αλλάζει και η λήξη.
+              </p>
+            </div>
+
+            {editProblem && (
+              <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                {editProblem}
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
 
       <ConfirmDestructiveModal
         isOpen={toWithdraw !== null}

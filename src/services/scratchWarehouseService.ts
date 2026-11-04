@@ -342,6 +342,57 @@ export async function returnPackById(packId: string): Promise<void> {
   }
 }
 
+export interface CorrectPackInput {
+  packId: string;
+  /** Το παιχνίδι όπως είναι τώρα σωστό - ίσως άλλο από το αρχικό. */
+  game: WarehouseGame;
+  packCode: string;
+  receivedAt: string;
+}
+
+/**
+ * Διορθώνει πακέτο που καταχωρήθηκε λάθος.
+ *
+ * Μόνο όσο είναι στο ράφι. Από τη στιγμή που βγαίνει στον πάγκο, ο κωδικός
+ * του είναι γραμμένος μέσα στις γραμμές των βαρδιών - αλλάζοντάς τον εδώ, η
+ * πρόοδος πώλησης δεν θα έβρισκε πια το πακέτο της και το ταμείο θα
+ * κρατούσε έναν κωδικό που η αποθήκη δεν έχει. Το .eq('status',
+ * 'IN_WAREHOUSE') το επιβάλλει στη βάση και όχι μόνο στην οθόνη.
+ *
+ * Το παιχνίδι μπορεί να αλλάξει κι αυτό: σκαναρισμένος λάθος 4ψήφιος είναι
+ * το ίδιο εύκολο λάθος με λάθος κωδικό. Μαζί του αλλάζουν δελτία και τιμή,
+ * αλλιώς η αξία θα έμενε αυτή του παλιού παιχνιδιού.
+ */
+export async function correctPack(input: CorrectPackInput): Promise<void> {
+  const { error, count } = await supabase
+    .from(TABLE)
+    .update(
+      {
+        game_no: input.game.gameNo,
+        catalog_code: input.game.catalogCode,
+        game_name: input.game.name,
+        pack_code: input.packCode,
+        pieces: input.game.pieces,
+        unit_price: input.game.price,
+        received_at: input.receivedAt,
+        updated_at: new Date().toISOString(),
+      },
+      { count: 'exact' }
+    )
+    .eq('id', input.packId)
+    .eq('status', 'IN_WAREHOUSE');
+
+  if (error) {
+    if ((error as any).code === '23505') {
+      throw new Error(`Το πακέτο ${input.packCode} για ${input.game.name} υπάρχει ήδη.`);
+    }
+    throw error;
+  }
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Το πακέτο δεν διορθώθηκε — ίσως έχει ήδη βγει στο μαγαζί.');
+  }
+}
+
 /** Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί. */
 export async function withdrawPack(packId: string, reason: string): Promise<void> {
   const { error, count } = await supabase
