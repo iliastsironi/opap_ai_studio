@@ -41,7 +41,8 @@ import { NumericField } from '../ui/NumericField.tsx';
 import {
   applyEthnikoShape,
   canToggleBundleTracking,
-  ETHNIKO_BUNDLE_PRICE,
+  ETHNIKO_BUNDLE_SIZE,
+  ETHNIKO_PIECE_PRICE,
   lotteryUnitLabel,
   lotteryUnitLabelPlural,
 } from '../../lib/ethnikoLottery.ts';
@@ -163,7 +164,8 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   // decide and made the row flip between counting πεντάδες and κομμάτια.
   // Pinned again at load time by applyEthnikoShape, for catalogues already
   // saved without it.
-  { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: ETHNIKO_BUNDLE_PRICE, bundleSize: 0, startNo: '', endNo: '' },
+  // 4 € το κομμάτι x 5 = 20 € η πεντάδα. Ο αριθμός προχωράει ανά κομμάτι.
+  { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: ETHNIKO_PIECE_PRICE, bundleSize: ETHNIKO_BUNDLE_SIZE, startNo: '', endNo: '' },
 ];
 
 export const SCRATCH_CATALOG_STORAGE_KEY = 'shiftledger_scratch_catalog_v2';
@@ -2505,7 +2507,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     screen is how the row drifted. */}
                                 {isLottery && !canToggleBundleTracking(row) && (
                                   <span className="text-micro font-semibold text-slate-500">
-                                    Πωλείται μόνο σε {rowUnitPlural} — {formatCurrency(row.price)} η καθεμία.
+                                    Πωλείται μόνο σε {rowUnitPlural} —{' '}
+                                    {formatCurrency((Number(row.price) || 0) * pricedPerPiece)} η
+                                    καθεμία.
                                   </span>
                                 )}
                                 {isLottery && isBundleTracked && (

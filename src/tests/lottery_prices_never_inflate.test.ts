@@ -33,8 +33,11 @@ describe('what a πεντάδα costs', () => {
     expect(calculateRowTotal(sold(preset('scr_eidiki_x10'), 5))).toBe(10);
   });
 
+  // Ο αριθμός του Εθνικού προχωράει ανά κομμάτι, όπως κάθε άλλου λαχείου:
+  // πέντε βήματα είναι μία πεντάδα. Διαβαζόταν ως ένα βήμα = μία πεντάδα,
+  // που χρέωνε 20 € το κομμάτι.
   it('Εθνικό: πεντάδα 20 €', () => {
-    expect(calculateRowTotal(sold(preset('scr_ethniko_x20'), 1))).toBe(20);
+    expect(calculateRowTotal(sold(preset('scr_ethniko_x20'), 5))).toBe(20);
   });
 
   it('Λαϊκό: πεντάδα 10 €', () => {
@@ -53,6 +56,10 @@ describe('what a κομμάτι costs', () => {
 
   it('Λαϊκό: κομμάτι 2 €', () => {
     expect(calculateRowTotal(sold(preset('scr_laiko'), 1))).toBe(2);
+  });
+
+  it('Εθνικό: κομμάτι 4 €', () => {
+    expect(calculateRowTotal(sold(preset('scr_ethniko_x20'), 1))).toBe(4);
   });
 
   // Sold by the piece alone - there is no πεντάδα behind it.
@@ -78,18 +85,15 @@ describe('choosing a unit never changes what a sale costs', () => {
 });
 
 describe('which games really come in fives', () => {
-  it('the ones sold both ways keep their bundle', () => {
-    for (const id of ['scr_laiko', 'scr_eidiki_x5', 'scr_eidiki_x10']) {
+  it('the ones with five pieces behind them keep their bundle', () => {
+    for (const id of ['scr_laiko', 'scr_eidiki_x5', 'scr_eidiki_x10', 'scr_ethniko_x20']) {
       expect(preset(id).bundleSize).toBe(5);
     }
   });
 
-  it('the ones sold as a single unit have none', () => {
-    // Εθνικό's 20 € IS the πεντάδα - one unit, one price, pinned since the
-    // day a «five pieces at 4 €» reading turned a real 80 € shift into 16 €.
-    for (const id of ['scr_ethniko_x20', 'scr_protochroniatiko']) {
-      expect(preset(id).bundleSize).toBe(0);
-    }
+  it('the one sold as a single ticket has none', () => {
+    // Το Πρωτοχρονιάτικο πωλείται μόνο κομμάτι, στα 5 €.
+    expect(preset('scr_protochroniatiko').bundleSize).toBe(0);
   });
 });
 
@@ -114,7 +118,7 @@ describe('a catalogue row saved with the old shape', () => {
     expect(calculateRowTotal(sold(shaped('scr_eidiki_x5'), 5))).toBe(5);
     expect(calculateRowTotal(sold(shaped('scr_eidiki_x10'), 5))).toBe(10);
     expect(calculateRowTotal(sold(shaped('scr_laiko'), 5))).toBe(10);
-    expect(calculateRowTotal(sold(shaped('scr_ethniko_x20'), 1))).toBe(20);
+    expect(calculateRowTotal(sold(shaped('scr_ethniko_x20'), 5))).toBe(20);
   });
 
   it('και ένα κομμάτι κοστίζει ένα κομμάτι', () => {

@@ -65,10 +65,14 @@ export function unitFor(
 ): LotteryUnit {
   const id = String(rowId ?? '');
 
-  // Το Εθνικό πουλιέται μόνο σε πεντάδες. Its 20 € IS the πεντάδα and the
-  // row carries no pieces behind it, so «κομμάτια» has nothing to count -
-  // it would show a 20 € price labelled as one ticket. Decided here rather
-  // than left to the map, so a value written by accident cannot change it.
+  // Το Εθνικό το μετράει το κατάστημα σε πεντάδες - μία στήλη, 20 € η
+  // πεντάδα. Decided here rather than left to the map, so a value written
+  // by accident cannot change it.
+  //
+  // Πεντάδες είναι η ΕΤΙΚΕΤΑ, όχι ο αριθμός: το βιβλίο προχωράει ανά
+  // κομμάτι και η γραμμή κοστολογείται ανά κομμάτι, στα 4 €. Δες
+  // ethnikoLottery.ts - η υπόθεση ότι ένα βήμα ήταν μία ολόκληρη πεντάδα
+  // χρέωνε 20 € το τεμάχιο.
   if (id === ETHNIKO_ROW_ID) return 'BUNDLES';
 
   const explicit = normalizeLotteryUnit(map?.[id]);
@@ -93,14 +97,12 @@ export function unitFor(
  * What bundleSize a unit means, for a row that genuinely comes in bundles.
  *
  * NEVER invents one. A bundleSize above zero says «this row's price is per
- * PIECE and a bundle is this many of them» - which is true of the Λαϊκό
- * (2 € × 5 = 10 €) and of nothing else in the catalogue. The Ειδικές and the
- * Πρωτοχρονιάτικο are single tickets with a single price, and the Εθνικό's
- * 20 € IS the πεντάδα.
+ * PIECE and a bundle is this many of them» - true of the Λαϊκό (2 € × 5 =
+ * 10 €), of both Ειδικές (1 € × 5 and 2 € × 5) and of the Εθνικό (4 € × 5 =
+ * 20 €). Only the Πρωτοχρονιάτικο has none: it is a single 5 € ticket.
  *
- * Defaulting to 5 here turned a 5 € ticket into a 25 € «πεντάδα» and the
- * Εθνικό's 20 € into 100 €. The unit a shop counts in is a label on the
- * price; it must never multiply it.
+ * Defaulting to 5 here turned that 5 € ticket into a 25 € «πεντάδα». The
+ * unit a shop counts in is a label on the price; it must never multiply it.
  */
 export function bundleSizeForUnit(unit: LotteryUnit, packaged?: unknown): number {
   if (unit === 'PIECES') return 0;

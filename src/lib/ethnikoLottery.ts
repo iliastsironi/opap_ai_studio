@@ -1,45 +1,48 @@
 /**
- * Το Εθνικό Λαχείο counts πεντάδες, and nothing else.
+ * Το Εθνικό Λαχείο: 20 € η πεντάδα, 4 € το κομμάτι.
  *
- * Its serial advances once per πεντάδα - the whole five-share strip - at
- * 20 € each. That is the product, not a preference, and the figures already
- * on record were entered that way: a shift that went from 53 to 49 sold four
- * πεντάδες for 80 €.
+ * Ο αριθμός στο βιβλίο προχωράει ΑΝΑ ΚΟΜΜΑΤΙ. Ο Owner το είπε καθαρά,
+ * κοιτώντας το ταμείο: «το έχουμε σε πεντάδες αλλά μετράει κομμάτια και
+ * χρεώνει 20 € το τεμάχιο, ενώ κανονικά είναι 20 € η πεντάδα, δηλαδή 4 €
+ * ανά κομμάτι».
  *
- * What went wrong is that the row never said so. It ships without a
- * bundleSize, which left it to `lottery_bundle_default`, a store-wide
- * default meant for ordinary Λαχεία rows - and that produced two different
- * wrong answers depending on which way it fell:
+ * This file used to assert the opposite - that one tick of the serial WAS a
+ * whole πεντάδα - and pinned the row at 20 € against a single unit so the
+ * arithmetic would follow. Every tick therefore charged 20 €, which is five
+ * times what a κομμάτι costs. A shift that went 84 -> 80 sold four tickets
+ * for 16 € and was billed 80 €.
  *
- *   default off  -> bundleSize 0: a plain piece count. The arithmetic came
- *                   out right by accident, but every label called a πεντάδα
- *                   a κομμάτι.
- *   default on   -> bundleSize 5: the dual πεντάδες/κομμάτια entry, which
- *                   multiplies the price by five. 20 € per piece became
- *                   100 € per πεντάδα, and a loose-pieces box appeared for
- *                   a product that has no loose pieces.
+ * The old reasoning is worth keeping visible, because it was not careless:
+ * the recorded serials move in small steps (53 -> 49, 48 -> 47) and reading
+ * those as πεντάδες made the money look plausible. It was inferred from the
+ * numbers rather than asked, and the numbers fit both readings. The shop
+ * knows which one its ticket book does.
  *
- * Worse, it flipped between the two from shift to shift - the live rows show
- * bundleSize 0 ten times, 5 five times and absent twice on the same game -
- * because a figure saved by one shift carries into the next while a row
- * rebuilt from the catalogue goes back to the default. That is the «έχει
- * αρχίσει να μετράει κι αυτό σε κομμάτια» the Owner reported.
+ *   price      4 €, ανά ΚΟΜΜΑΤΙ - what one tick of the serial costs
+ *   bundleSize 5 κομμάτια η πεντάδα, so a πεντάδα is 4 x 5 = 20 €
  *
- * So the shape is pinned here instead, the way Λαϊκό Λαχείο's is. One unit,
- * one price, named correctly - and no dual tracking to turn on, because
- * there is no smaller unit to sell.
+ * Still pinned rather than left to `lottery_bundle_default`, for the reason
+ * it always was: the store-wide default flipped this row between shapes from
+ * shift to shift - the live rows show bundleSize 0 ten times, 5 five times
+ * and absent twice on the same game - because a figure saved by one shift
+ * carries into the next while a row rebuilt from the catalogue goes back to
+ * the default.
  *
- * Deliberately NOT modelled as bundleSize 5 with a 4 € piece price. The
- * arithmetic would agree on a whole πεντάδα, but every serial already
- * recorded counts πεντάδες, so reading them as pieces would quarter the
- * money on shifts that are closed and approved - 80 € of real August
- * takings would become 16 €.
+ * Το κατάστημα το μετράει σε πεντάδες (isUnitLocked in lotteryUnits.ts), so
+ * the till shows one column at 20 € η πεντάδα. That is a label on the price,
+ * not a change to it: the box still counts the κομμάτια the book counts.
  */
 
 export const ETHNIKO_ROW_ID = 'scr_ethniko_x20';
 
-/** What one πεντάδα sells for. */
-export const ETHNIKO_BUNDLE_PRICE = 20;
+/** Τι κοστίζει ένα κομμάτι - ένα βήμα του αριθμού. */
+export const ETHNIKO_PIECE_PRICE = 4;
+
+/** Πόσα κομμάτια έχει η πεντάδα. */
+export const ETHNIKO_BUNDLE_SIZE = 5;
+
+/** What one πεντάδα sells for. Derived, never stored as the row's price. */
+export const ETHNIKO_BUNDLE_PRICE = ETHNIKO_PIECE_PRICE * ETHNIKO_BUNDLE_SIZE;
 
 export interface ShapedRow {
   id?: string;
@@ -54,10 +57,10 @@ export function isEthnikoRow(row: ShapedRow | null | undefined): boolean {
 }
 
 /**
- * Forces the row back to one πεντάδα at 20 €.
+ * Forces the row back to 4 € το κομμάτι, πέντε κομμάτια η πεντάδα.
  *
  * Unconditional, like applyLaikoDefaults: checking «is it already set»
- * would leave a stale 0 or 5 from a cached catalogue or an earlier shift
+ * would leave a stale 20 € from a cached catalogue or an earlier shift
  * stuck there for good, which is the whole fault being fixed.
  */
 export function applyEthnikoShape<T extends ShapedRow>(rows: T[]): T[] {
@@ -65,12 +68,11 @@ export function applyEthnikoShape<T extends ShapedRow>(rows: T[]): T[] {
     isEthnikoRow(row)
       ? {
           ...row,
-          price: ETHNIKO_BUNDLE_PRICE,
-          // 0, not 5: the counted unit IS the πεντάδα, so there is no
-          // second unit to split it into.
-          bundleSize: 0,
-          // Any dual-entry figures left behind by the five-piece spell
-          // would be read as extra pieces on top of the serial.
+          price: ETHNIKO_PIECE_PRICE,
+          bundleSize: ETHNIKO_BUNDLE_SIZE,
+          // Any dual-entry figures left behind would be read as extra
+          // pieces on top of the serial. The shop counts this one in
+          // πεντάδες, so the dual boxes are not shown at all.
           saleBundles: '',
           salePieces: '',
         }
@@ -79,8 +81,8 @@ export function applyEthnikoShape<T extends ShapedRow>(rows: T[]): T[] {
 }
 
 /**
- * The name of the unit this row counts, for the labels that otherwise all
- * say «κομμάτιο».
+ * The name of the unit this row's PRICE is quoted in, for the labels that
+ * otherwise all say «κομμάτιο».
  */
 export function lotteryUnitLabel(row: ShapedRow | null | undefined): string | null {
   return isEthnikoRow(row) ? 'πεντάδα' : null;
