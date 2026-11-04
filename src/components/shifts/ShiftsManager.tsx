@@ -37,6 +37,9 @@ import {
 } from 'lucide-react';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import {
+  canDeleteShift, closedShiftWarning, deleteShiftLabel,
+} from '../../lib/shiftDeletePermission.ts';
+import {
   creditDispositionNote, deletionLines, needsCreditChoice,
   type CreditDisposition, type ShiftDeletionCounts,
 } from '../../lib/shiftDeletion.ts';
@@ -102,6 +105,9 @@ export const ShiftsManager: React.FC = () => {
   const isOwnerOrAdmin =
     roles?.some((r) => ['ORG_OWNER', 'ORG_ADMIN', 'PLATFORM_ADMIN'].includes(r.code)) ||
     hasPermission('roles.manage');
+
+  /** Οι κωδικοί ρόλων, όπως τους περιμένει το canDeleteShift. */
+  const roleCodes = (roles ?? []).map((r) => r.code);
 
   const canApprove =
     roles?.some(
@@ -810,11 +816,11 @@ export const ShiftsManager: React.FC = () => {
                     <ChevronRight className="w-4 h-4" />
                   </button>
 
-                  {(isOwnerOrAdmin || canApprove) && (
+                  {canDeleteShift(roleCodes, activeShift.status) && (
                     <button
                       onClick={() => setShiftToDelete(activeShift)}
                       className="py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shrink-0"
-                      title="Διαγραφή Προχείρου Βάρδιας (Μόνο Διαχειριστής/Ιδιοκτήτης)"
+                      title={deleteShiftLabel(activeShift.status)}
                     >
                       <Trash2 className="w-4 h-4 text-rose-400" />
                       <span className="sm:hidden md:inline lg:hidden">{toGreekUpper('Διαγραφη')}</span>
@@ -1070,14 +1076,11 @@ export const ShiftsManager: React.FC = () => {
                       <span>{toGreekUpper('Προβολη')}</span>
                     </button>
 
-                    {(isOwnerOrAdmin || canApprove) &&
-                      ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
-                        s.status
-                      ) && (
+                    {canDeleteShift(roleCodes, s.status) && (
                         <button
                           onClick={() => setShiftToDelete(s)}
                           className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer"
-                          title="Διαγραφή Προχείρου Βάρδιας (Μόνο Ιδιοκτήτης / Διαχειριστής)"
+                          title={deleteShiftLabel(s.status)}
                           aria-label="Διαγραφή Προχείρου Βάρδιας"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1245,13 +1248,10 @@ export const ShiftsManager: React.FC = () => {
                               className="border border-slate-200 bg-white shadow-2xs"
                             />
 
-                            {(isOwnerOrAdmin || canApprove) &&
-                              ['DRAFT_CLOSING', 'OPEN', 'CORRECTION_REQUESTED', 'REOPENED'].includes(
-                                s.status
-                              ) && (
+                            {canDeleteShift(roleCodes, s.status) && (
                                 <IconButton
                                   icon={Trash2}
-                                  label="Διαγραφή Προχείρου Βάρδιας"
+                                  label={deleteShiftLabel(s.status)}
                                   tone="danger"
                                   onClick={() => setShiftToDelete(s)}
                                   className="bg-rose-50 text-rose-700"
@@ -1365,6 +1365,7 @@ export const ShiftsManager: React.FC = () => {
             </span>
           ) : null
         }
+        warning={shiftToDelete ? closedShiftWarning(shiftToDelete.status) : null}
         lines={deletionCounts ? deletionLines(deletionCounts, creditDisposition) : []}
         choice={
           deletionCounts === null ? (

@@ -28,6 +28,13 @@ export interface ConfirmDestructiveModalProps {
   lines?: DeletionLine[];
   /** Μια ακόμα απόφαση, όταν υπάρχει (π.χ. οι χρεώσεις πελατών). */
   choice?: React.ReactNode;
+  /**
+   * Γιατί ΑΥΤΗ η διαγραφή βαραίνει περισσότερο από μια συνηθισμένη.
+   *
+   * null όταν δεν βαραίνει. Μια προειδοποίηση που εμφανίζεται πάντα παύει
+   * να διαβάζεται, και παρασύρει μαζί της εκείνη που είχε σημασία.
+   */
+  warning?: string | null;
   /** Εκτελείται μόνο αφού επαληθευτεί ο κωδικός. */
   onConfirm: () => Promise<void>;
   confirmLabel?: string;
@@ -40,7 +47,7 @@ const FATE_STYLE: Record<string, { chip: string; word: string }> = {
 };
 
 export const ConfirmDestructiveModal: React.FC<ConfirmDestructiveModalProps> = ({
-  isOpen, onClose, what, lines = [], choice, onConfirm, confirmLabel = 'Οριστική διαγραφή',
+  isOpen, onClose, what, lines = [], choice, warning, onConfirm, confirmLabel = 'Οριστική διαγραφή',
 }) => {
   const { user } = useAuth();
   const [password, setPassword] = useState('');
@@ -118,6 +125,13 @@ export const ConfirmDestructiveModal: React.FC<ConfirmDestructiveModalProps> = (
         <p className="text-sm text-slate-800">
           Πρόκειται να διαγράψετε {what}. <span className="font-bold">Δεν αναιρείται.</span>
         </p>
+
+        {warning && (
+          <p className="text-xs font-bold text-rose-900 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <AlertTriangle aria-hidden="true" className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{warning}</span>
+          </p>
+        )}
 
         {lines.length > 0 && (
           <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
