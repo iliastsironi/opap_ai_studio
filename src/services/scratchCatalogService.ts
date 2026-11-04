@@ -1,5 +1,6 @@
 import { supabase } from './supabase.ts';
 import {
+  applyLotteryProductShapes,
   DEFAULT_SCRATCH_PRESETS,
   getSavedScratchCatalog,
   isLotteryRow,
@@ -51,6 +52,13 @@ const toTicketRow = (r: CatalogRow): ScratchTicketRow => ({
  * An organisation that has never opened the configurator has no rows, and gets
  * the same presets the app has always started from - so nothing changes for a
  * store until somebody actually edits the list.
+ *
+ * Τα πέντε λαχεία βγαίνουν πάντα στο σχήμα του προϊόντος, ό,τι κι αν λέει η
+ * γραμμή. Their price is not a shop's preference - Ειδική χ5 is 1 €/κομμάτι
+ * and 5 € η πεντάδα everywhere it is sold - and a catalogue written before the
+ * πεντάδα existed stored that 5 € in the piece field with no bundle behind it.
+ * Every screen reads the list through here, so pinning it here is what stops a
+ * row saved in 2025 from charging five times the price in a till today.
  */
 export async function fetchScratchCatalog(
   orgId: string,
@@ -65,7 +73,7 @@ export async function fetchScratchCatalog(
     if (error) throw error;
 
     const rows = (data ?? []) as (CatalogRow & { store_id: string | null })[];
-    if (rows.length === 0) return DEFAULT_SCRATCH_PRESETS;
+    if (rows.length === 0) return applyLotteryProductShapes(DEFAULT_SCRATCH_PRESETS);
 
     // When both exist, the store's row replaces the org-wide one of the same code.
     const byCode = new Map<string, CatalogRow & { store_id: string | null }>();
@@ -73,12 +81,12 @@ export async function fetchScratchCatalog(
       const existing = byCode.get(r.code);
       if (!existing || (r.store_id && !existing.store_id)) byCode.set(r.code, r);
     }
-    return [...byCode.values()]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map(toTicketRow);
+    return applyLotteryProductShapes(
+      [...byCode.values()].sort((a, b) => a.sort_order - b.sort_order).map(toTicketRow)
+    );
   } catch (err) {
     console.warn('[scratchCatalog] could not read the catalogue, using presets:', err);
-    return DEFAULT_SCRATCH_PRESETS;
+    return applyLotteryProductShapes(DEFAULT_SCRATCH_PRESETS);
   }
 }
 

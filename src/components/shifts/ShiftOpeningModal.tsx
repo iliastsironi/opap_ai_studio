@@ -25,6 +25,7 @@ import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal } from '../ui/Modal.tsx';
 import {
+  applyLotteryProductShapes,
   carryOverScratchInventory,
   continueDayScratchInventory,
   getLatestStoreScratchInventory,
@@ -35,7 +36,6 @@ import {
 } from '../../lib/shiftInspection.ts';
 import { shouldOfferInspection } from '../../lib/inspectionPolicy.ts';
 import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
-import { applyEthnikoShape } from '../../lib/ethnikoLottery.ts';
 import {
   ShiftInspectionPanel, buildInspectionLines, applyInspectionToScratchRows,
 } from './ShiftInspectionPanel.tsx';
@@ -481,8 +481,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
       // Pinned here too, not only on the closing screen: these rows are what
       // gets stored on the shift, and a row saved with the wrong shape is
-      // what the next shift inherits. Εθνικό Λαχείο counts πεντάδες.
-      const initialScratchInventory = applyEthnikoShape(
+      // what the next shift inherits.
+      //
+      // ΟΛΑ τα λαχεία, not only the Εθνικό. carryOverScratchInventory takes
+      // the PREVIOUS shift's price over the catalogue's, so one row saved
+      // with the πεντάδα price in the κομμάτι field propagates into every
+      // shift after it - and pinning only the Εθνικό left the Ειδικές doing
+      // exactly that: 5 € a piece × πεντάδα of five = the 25 € the Owner saw.
+      const initialScratchInventory = applyLotteryProductShapes(
         canContinueDay
           ? continueDayScratchInventory(
               dayOpening!.scratch_ticket_items ?? undefined,

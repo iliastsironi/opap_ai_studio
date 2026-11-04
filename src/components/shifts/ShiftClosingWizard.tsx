@@ -533,7 +533,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         }) as any[];
         setScratchRows((current) =>
           applyLotteryUnits(
-            mergeScratchCatalogWithSaved(catalog, current, seed),
+            // Shaped here too, because the merge keeps the SAVED row's
+            // bundleSize over the catalogue's - rightly, it is the pack the
+            // till is counting - and shifts on record carry a Πρωτοχρονιάτικο
+            // with a bundle of five behind a 5 € piece price. This effect and
+            // the template's race each other, so whichever lands second
+            // decides; without the pin, the catalogue landing last showed a
+            // 25 € πεντάδα for a λαχείο that has no πεντάδα.
+            applyLotteryProductShapes(
+              mergeScratchCatalogWithSaved(catalog, current, seed)
+            ),
             unitsRef.current.units,
             unitsRef.current.legacy as any
           )
