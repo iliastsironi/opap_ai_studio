@@ -35,7 +35,11 @@ import {
   HelpCircle,
   X,
 } from 'lucide-react';
-import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
+import {
+  creditDispositionNote, deletionLines, needsCreditChoice,
+  type CreditDisposition, type ShiftDeletionCounts,
+} from '../../lib/shiftDeletion.ts';
 import { IconButton } from '../ui/IconButton.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
@@ -79,6 +83,8 @@ import {
   fetchShiftsFromFirestore,
   subscribeToShifts,
   deleteShiftFromFirestore,
+  deleteShiftCustomerCredits,
+  fetchShiftDeletionCounts,
 } from '../../services/shiftService.ts';
 import { discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { whoAndWhen } from '../../lib/shiftWhoWhen.ts';
@@ -186,6 +192,14 @@ export const ShiftsManager: React.FC = () => {
   const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
   const [isDeletingShift, setIsDeletingShift] = useState(false);
   const [deleteShiftError, setDeleteShiftError] = useState<string | null>(null);
+  /** Τι κρέμεται από τη βάρδια, διαβασμένο από τη βάση όταν ανοίγει το παράθυρο. */
+  const [deletionCounts, setDeletionCounts] = useState<ShiftDeletionCounts | null>(null);
+  /**
+   * Προεπιλογή «κράτα το χρέος»: είναι η σημερινή συμπεριφορά της βάσης
+   * (ON DELETE SET NULL) και η μόνη από τις δύο που δεν χάνει χρήματα αν
+   * κανείς δεν διαβάσει την ερώτηση.
+   */
+  const [creditDisposition, setCreditDisposition] = useState<CreditDisposition>('KEEP');
 
   const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
@@ -194,6 +208,11 @@ export const ShiftsManager: React.FC = () => {
     setIsDeletingShift(true);
     setDeleteShiftError(null);
     try {
+      // Πρώτα οι χρεώσεις, μετά η βάρδια. Το ξένο κλειδί είναι SET NULL:
+      // μόλις φύγει η βάρδια, δεν υπάρχει πια τρόπος να βρεθούν.
+      if (creditDisposition === 'DELETE') {
+        await deleteShiftCustomerCredits(shiftToDel.id);
+      }
       await deleteShiftFromFirestore(shiftToDel.id);
       if (activeShift?.id === shiftToDel.id) {
         setActiveShift(null);
@@ -204,11 +223,37 @@ export const ShiftsManager: React.FC = () => {
       setShiftToDelete(null);
       await fetchShifts();
     } catch (err: any) {
-      setDeleteShiftError(err.message || 'Σφάλμα κατά τη διαγραφή του προχείρου βάρδιας');
+      const message = err?.message || 'Σφάλμα κατά τη διαγραφή της βάρδιας';
+      setDeleteShiftError(message);
+      // Ξαναπετιέται ώστε το παράθυρο να μείνει ανοιχτό με το σφάλμα. Σιωπηλά
+      // καταπιεμένο, θα έκλεινε σαν να πέτυχε και η βάρδια θα ήταν ακόμα εκεί.
+      throw new Error(message);
     } finally {
       setIsDeletingShift(false);
     }
   };
+
+  // Τι κρέμεται από τη βάρδια - διαβάζεται όταν ανοίγει το παράθυρο, ώστε
+  // να λέει τι υπάρχει τώρα και όχι τι είχε φορτωθεί στη λίστα.
+  useEffect(() => {
+    if (!shiftToDelete) {
+      setDeletionCounts(null);
+      setCreditDisposition('KEEP');
+      return;
+    }
+    let cancelled = false;
+    setDeletionCounts(null);
+    fetchShiftDeletionCounts(shiftToDelete.id)
+      .then((counts) => {
+        if (!cancelled) setDeletionCounts(counts);
+      })
+      .catch((err) => {
+        if (!cancelled) setDeleteShiftError(err?.message ?? 'Δεν ήταν δυνατή η καταμέτρηση.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shiftToDelete]);
 
   // Fetch list of shifts
   const fetchShifts = useCallback(async () => {
@@ -1304,55 +1349,55 @@ export const ShiftsManager: React.FC = () => {
         }}
       />
 
-      {/* Delete Draft Shift Confirmation */}
-      <ConfirmDialog
+      {/* Οριστική διαγραφή βάρδιας - με επαλήθευση κωδικού (0064). */}
+      <ConfirmDestructiveModal
         isOpen={shiftToDelete !== null}
-        layer="stacked"
-        closeOnBackdropClick={false}
-        title="Διαγραφή Προχείρου Βάρδιας"
-        message={
-          shiftToDelete && (
-            <div className="space-y-3">
-              <p className="text-micro font-bold text-rose-600 tracking-wider">
-                {toGreekUpper('Ενεργεια Ιδιοκτητη / Διαχειριστη')}
-              </p>
-              <div className="bg-rose-50/70 border border-rose-200/80 rounded-xl p-3.5 space-y-2 text-xs text-rose-950">
-                <p className="font-bold">
-                  Είστε βέβαιοι ότι θέλετε να διαγράψετε οριστικά αυτό το πρόχειρο βάρδιας;
-                </p>
-                <div className="bg-white/80 rounded-lg p-2.5 space-y-1 text-micro border border-rose-200">
-                  <div>
-                    <strong>Κατάστημα:</strong> {shiftToDelete.store_name} ({shiftToDelete.register_id})
-                  </div>
-                  <div>
-                    <strong>Υπάλληλος Έναρξης:</strong> {shiftToDelete.opened_by_user_name || 'Υπάλληλος'}
-                  </div>
-                  <div>
-                    <strong>Ημερομηνία:</strong> {new Date(shiftToDelete.opened_at).toLocaleString('el-GR')}
-                  </div>
-                  <div>
-                    <strong>Κατάσταση:</strong> {shiftToDelete.status}
-                  </div>
-                </div>
-                <p className="text-micro text-rose-700">
-                  ⚠️ Τα δεδομένα του προχείρου (καταμετρήσεις, πρόχειρες καταχωρήσεις) θα διαγραφούν οριστικά από τη βάση δεδομένων.
-                </p>
-              </div>
-              {deleteShiftError && (
-                <div className="bg-rose-100 border border-rose-300 rounded-xl p-3 text-xs font-semibold text-rose-800">
-                  {deleteShiftError}
-                </div>
-              )}
-            </div>
-          )
-        }
-        confirmLabel="Οριστική Διαγραφή"
-        isLoading={isDeletingShift}
-        loadingLabel="Διαγραφή..."
-        onConfirm={() => shiftToDelete && handleDeleteShift(shiftToDelete)}
-        onCancel={() => {
+        onClose={() => {
           setShiftToDelete(null);
           setDeleteShiftError(null);
+        }}
+        what={
+          shiftToDelete ? (
+            <span className="font-bold">
+              τη βάρδια {new Date(shiftToDelete.opened_at).toLocaleString('el-GR')} —{' '}
+              {shiftToDelete.store_name} ({shiftToDelete.register_id}),{' '}
+              {shiftToDelete.opened_by_user_name || 'Υπάλληλος'}, {shiftToDelete.status}
+            </span>
+          ) : null
+        }
+        lines={deletionCounts ? deletionLines(deletionCounts, creditDisposition) : []}
+        choice={
+          deletionCounts === null ? (
+            <p className="text-micro text-slate-500">Καταμέτρηση όσων κρέμονται από τη βάρδια…</p>
+          ) : needsCreditChoice(deletionCounts) ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+              <p className="text-xs font-bold text-amber-900">
+                Οι χρεώσεις πελατών αυτής της βάρδιας
+              </p>
+              {(['KEEP', 'DELETE'] as CreditDisposition[]).map((option) => (
+                <label key={option} className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="credit-disposition"
+                    className="mt-0.5 cursor-pointer"
+                    checked={creditDisposition === option}
+                    onChange={() => setCreditDisposition(option)}
+                  />
+                  <span className="text-micro text-amber-950">
+                    {option === 'KEEP'
+                      ? 'Να μείνουν — ο πελάτης χρωστάει ακόμα, αλλά η χρέωση δεν θα δείχνει πια από ποια βάρδια ήρθε.'
+                      : 'Να σβηστούν κι αυτές — το υπόλοιπο του πελάτη στο τεφτέρι μειώνεται αντίστοιχα.'}
+                  </span>
+                </label>
+              ))}
+              <p className="text-micro text-amber-800 font-bold">
+                {creditDispositionNote(deletionCounts, creditDisposition)}
+              </p>
+            </div>
+          ) : null
+        }
+        onConfirm={async () => {
+          if (shiftToDelete) await handleDeleteShift(shiftToDelete);
         }}
       />
 

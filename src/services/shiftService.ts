@@ -3,6 +3,7 @@ import {
 } from './supabase.ts';
 import { Shift } from '../types/index.ts';
 import type { CollectableShift } from '../lib/collectionSummary.ts';
+import type { ShiftDeletionCounts } from '../lib/shiftDeletion.ts';
 import { calculateBanknotesAndCoins } from './financialCalculator.ts';
 import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 import { readTopUps, totalTopUps } from '../lib/shiftTopUps.ts';
@@ -280,6 +281,72 @@ export async function updateShiftInFirestore(
     await handleSupabaseError(error, OperationType.UPDATE, `${TABLE_NAME}/${shiftId}`);
     throw error;
   }
+}
+
+/**
+ * Τι θα πάρει μαζί της η διαγραφή, μετρημένο πριν ρωτηθεί ο χρήστης.
+ *
+ * Διαβάζεται από τη βάση και όχι από την οθόνη: το παράθυρο πρέπει να λέει
+ * τι υπάρχει, όχι τι φορτώθηκε. Μια βάρδια ανοιγμένη σε δύο καρτέλες, ή
+ * πειραγμένη από άλλον στο μεταξύ, έχει στην οθόνη ό,τι είχε όταν φόρτωσε.
+ *
+ * Το count: 'exact' με head: true ζητά μόνο τον αριθμό - καμία γραμμή δεν
+ * κατεβαίνει, που μετράει σε βάρδια με δεκάδες χρεώσεις.
+ */
+export async function fetchShiftDeletionCounts(shiftId: string): Promise<ShiftDeletionCounts> {
+  const countOf = async (table: string, column = 'shift_id'): Promise<number> => {
+    const { count, error } = await supabase
+      .from(table)
+      .select('id', { count: 'exact', head: true })
+      .eq(column, shiftId);
+    if (error) {
+      // Ένας πίνακας που δεν διαβάζεται δεν γίνεται σιωπηλό μηδέν: αυτό θα
+      // έδειχνε «τίποτα δεν χάνεται» ακριβώς εκεί που κάτι χάνεται.
+      throw new Error(`Δεν ήταν δυνατή η καταμέτρηση (${table}): ${error.message}`);
+    }
+    return count ?? 0;
+  };
+
+  const [expenses, employeeCharges, cashFrom, cashTo] = await Promise.all([
+    countOf('shift_expenses'),
+    countOf('employee_charges'),
+    countOf('store_cash_transfers', 'from_shift_id'),
+    countOf('store_cash_transfers', 'to_shift_id'),
+  ]);
+
+  const { data: credits, error: creditError } = await supabase
+    .from('customer_credit_transactions')
+    .select('amount')
+    .eq('shift_id', shiftId);
+  if (creditError) {
+    throw new Error(`Δεν ήταν δυνατή η καταμέτρηση των χρεώσεων: ${creditError.message}`);
+  }
+
+  return {
+    expenses,
+    employeeCharges,
+    customerCredits: (credits ?? []).length,
+    customerCreditTotal: (credits ?? []).reduce((t, c) => t + (Number(c.amount) || 0), 0),
+    cashTransfers: cashFrom + cashTo,
+  };
+}
+
+/**
+ * Σβήνει τις χρεώσεις πελατών της βάρδιας, όταν αυτό επιλέχθηκε.
+ *
+ * Πρέπει να γίνει ΠΡΙΝ τη βάρδια. Το ξένο κλειδί είναι ON DELETE SET NULL,
+ * οπότε μόλις φύγει η βάρδια οι χρεώσεις μένουν χωρίς shift_id και δεν
+ * υπάρχει πια τρόπος να βρεθούν - θα κάθονταν στο τεφτέρι για πάντα, χωρίς
+ * κανείς να ξέρει από πού ήρθαν.
+ */
+export async function deleteShiftCustomerCredits(shiftId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('customer_credit_transactions')
+    .delete()
+    .eq('shift_id', shiftId)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
 }
 
 export async function deleteShiftFromFirestore(shiftId: string): Promise<void> {

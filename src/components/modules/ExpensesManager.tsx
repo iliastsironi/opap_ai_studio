@@ -12,7 +12,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { athensDateKey, currentMonthKey, shiftMonthKey, monthLabel } from '../../lib/pnlEngine.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
-import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
@@ -235,7 +235,11 @@ export const ExpensesManager: React.FC = () => {
       setExpenseToDelete(null);
     } catch (err: any) {
       console.error('Delete expense error:', err);
-      setDeleteError(err.message || 'Αποτυχία διαγραφής εξόδου');
+      const message = err?.message || 'Αποτυχία διαγραφής εξόδου';
+      setDeleteError(message);
+      // Ξαναπετιέται ώστε το παράθυρο να μείνει ανοιχτό με το σφάλμα. Σιωπηλά
+      // καταπιεμένο, θα έκλεινε σαν να πέτυχε και το έξοδο θα ήταν ακόμα εκεί.
+      throw new Error(message);
     } finally {
       setIsDeletingExpense(false);
     }
@@ -878,24 +882,19 @@ export const ExpensesManager: React.FC = () => {
             </div>
       </Modal>
 
-      {/* Delete Expense Confirmation Modal */}
-      <ConfirmDialog
+      {/* Οριστική διαγραφή εξόδου - με επαλήθευση κωδικού (0064). */}
+      <ConfirmDestructiveModal
         isOpen={!!expenseToDelete}
-        onCancel={() => setExpenseToDelete(null)}
+        onClose={() => setExpenseToDelete(null)}
+        what={<span className="font-bold">το έξοδο «{expenseToDelete?.label}»</span>}
+        lines={[
+          {
+            label: 'Ταμείο βάρδιας',
+            detail: 'ενημερώνεται αυτόματα, αν το έξοδο ανήκει σε ενεργή βάρδια',
+            fate: 'STAYS',
+          },
+        ]}
         onConfirm={handleDeleteExpense}
-        tone="destructive"
-        title="Διαγραφή Εξόδου"
-        message={
-          <>
-            Είστε σίγουροι ότι θέλετε να διαγράψετε το έξοδο «{expenseToDelete?.label}»; Αν ανήκει σε ενεργή βάρδια, το ταμείο της θα ενημερωθεί αυτόματα.
-            {deleteError && (
-              <p className="text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg mt-3">{deleteError}</p>
-            )}
-          </>
-        }
-        confirmLabel="Ναι, Διαγραφή"
-        isLoading={isDeletingExpense}
-        loadingLabel="Διαγραφή..."
       />
     </div>
   );

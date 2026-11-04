@@ -23,7 +23,7 @@ import {
   DollarSign,
   PackageCheck,
 } from 'lucide-react';
-import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
+import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -328,7 +328,10 @@ export const SuppliersManager: React.FC = () => {
       await loadSuppliers();
       setSupplierToDelete(null);
     } catch (e: any) {
-      setErrorMsg(e.message || 'Αποτυχία διαγραφής');
+      const message = e?.message || 'Αποτυχία διαγραφής';
+      setErrorMsg(message);
+      // Ξαναπετιέται ώστε το παράθυρο να μείνει ανοιχτό με το σφάλμα.
+      throw new Error(message);
     } finally {
       setIsDeletingSupplier(false);
     }
@@ -1294,24 +1297,23 @@ export const SuppliersManager: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Delete Supplier Confirmation */}
-      <ConfirmDialog
+      {/* Οριστική διαγραφή προμηθευτή - με επαλήθευση κωδικού (0064). */}
+      <ConfirmDestructiveModal
         isOpen={supplierToDelete !== null}
-        layer="stacked"
-        title="Διαγραφή Προμηθευτή"
-        message={
-          supplierToDelete && (
-            <>
-              Είστε βέβαιοι ότι θέλετε να διαγράψετε τον προμηθευτή «{supplierToDelete.name}»; Το ιστορικό
-              παραγγελιών του θα παραμείνει, αλλά η καρτέλα του θα διαγραφεί οριστικά.
-            </>
-          )
+        onClose={() => setSupplierToDelete(null)}
+        what={
+          supplierToDelete ? (
+            <span className="font-bold">τον προμηθευτή «{supplierToDelete.name}»</span>
+          ) : null
         }
-        confirmLabel="Ναι, Διαγραφή"
-        isLoading={isDeletingSupplier}
-        loadingLabel="Διαγραφή..."
+        lines={[
+          {
+            label: 'Ιστορικό παραγγελιών',
+            detail: 'μένει — οι παραγγελίες δεν σβήνονται μαζί με την καρτέλα',
+            fate: 'DETACHES',
+          },
+        ]}
         onConfirm={handleConfirmDeleteSupplier}
-        onCancel={() => setSupplierToDelete(null)}
       />
     </div>
   );
