@@ -77,6 +77,27 @@ export const ScratchWarehouseManager: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, storeId]);
 
+  /**
+   * Ξαναδιαβάζει όταν η καρτέλα ξαναγίνεται ορατή.
+   *
+   * Ένα πακέτο φεύγει από την αποθήκη όταν το ανοίξει το ταμείο - σε άλλη
+   * οθόνη, συχνά σε άλλη καρτέλα του browser. Χωρίς αυτό, η αποθήκη
+   * εξακολουθεί να δείχνει στο ράφι κάτι που μόλις βγήκε στον πάγκο, και η
+   * αξία που διαβάζει κανείς είναι η χθεσινή.
+   */
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, storeId]);
+
   const game = useMemo(
     () => games.find((g) => g.gameNo === gameNo.padStart(GAME_NO_LENGTH, '0')) ?? null,
     [games, gameNo]

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.ts';
 import { packPieces, packValue } from '../lib/scratchBarcode.ts';
+import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 
 /**
  * Η αποθήκη των σκρατς: τι παρελήφθη, τι περιμένει, τι βγήκε.
@@ -167,30 +168,46 @@ export async function receivePack(input: ReceivePackInput): Promise<WarehousePac
 
 /** Βγαίνει στον πάγκο. Φεύγει από την αξία αποθήκης τη στιγμή που φεύγει. */
 export async function movePackToStore(packId: string, shiftId?: string | null): Promise<void> {
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from(TABLE)
-    .update({
-      status: 'IN_STORE',
-      moved_at: new Date().toISOString(),
-      moved_shift_id: shiftId ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(
+      {
+        status: 'IN_STORE',
+        moved_at: new Date().toISOString(),
+        moved_shift_id: shiftId ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { count: 'exact' }
+    )
     .eq('id', packId)
     .eq('status', 'IN_WAREHOUSE');
   if (error) throw error;
+  // Ένα UPDATE που η RLS φιλτράρει γυρίζει 204 χωρίς σφάλμα - το έχουμε
+  // πληρώσει αλλού σε αυτό το έργο. Εδώ θα σήμαινε πακέτο ανοιγμένο στον
+  // πάγκο που η αποθήκη εξακολουθεί να το μετράει στο ράφι.
+  const problem = rowsWrittenProblem(count);
+  if (problem) {
+    throw new Error('Το πακέτο δεν μεταφέρθηκε — ίσως το πήρε ήδη άλλη βάρδια. Ανανεώστε τη λίστα.');
+  }
 }
 
 /** Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί. */
 export async function withdrawPack(packId: string, reason: string): Promise<void> {
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from(TABLE)
-    .update({
-      status: 'WITHDRAWN',
-      withdrawn_at: new Date().toISOString(),
-      withdrawn_reason: reason || null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(
+      {
+        status: 'WITHDRAWN',
+        withdrawn_at: new Date().toISOString(),
+        withdrawn_reason: reason || null,
+        updated_at: new Date().toISOString(),
+      },
+      { count: 'exact' }
+    )
     .eq('id', packId)
     .eq('status', 'IN_WAREHOUSE');
   if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Το πακέτο δεν αποσύρθηκε — ίσως έχει ήδη βγει στο μαγαζί. Ανανεώστε τη λίστα.');
+  }
 }

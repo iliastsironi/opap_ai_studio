@@ -1394,6 +1394,20 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'].includes(r.code)
   ) || permissions.includes('*');
 
+  /**
+   * Στενότερος κύκλος από το canEditLockedFields, και μόνο για ένα πεδίο:
+   * το αρχικό νούμερο ενός νέου πακέτου.
+   *
+   * Από αυτό μετριέται κάθε πώληση του πακέτου μέχρι να τελειώσει. Ο
+   * υπεύθυνος καταστήματος ανοίγει πακέτα - αυτό είναι καθημερινή δουλειά -
+   * αλλά το σημείο από το οποίο μετράνε τα λεφτά το ορίζει η διοίκηση. Με
+   * την αποθήκη δεν χρειάζεται καν να οριστεί: ένα καινούριο πακέτο ξεκινά
+   * από το μηδέν και το μέγεθός του το ξέρει η γραμμή.
+   */
+  const canEditPackStart =
+    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code)) ||
+    permissions.includes('*');
+
   const [editingRowId, setEditingRowId] = React.useState<string | null>(null);
   const [managerOverrideEnabled, setManagerOverrideEnabled] = useState(false);
   const [showRulesInfo, setShowRulesInfo] = useState(false);
@@ -3083,19 +3097,22 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 min="0"
                 value={newPackStartNo}
                 onChange={(e) => setNewPackStartNo(e.target.value)}
-                disabled={!canEditLockedFields}
+                disabled={!canEditPackStart}
                 className={`w-full px-3 py-2 border-2 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500 ${
-                  canEditLockedFields
+                  canEditPackStart
                     ? 'border-indigo-300'
                     : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
                 }`}
                 placeholder="0"
-                autoFocus={canEditLockedFields}
+                autoFocus={canEditPackStart}
               />
-              {!canEditLockedFields && (
+              {!canEditPackStart && (
                 <p className="text-micro text-amber-700 mt-1 flex items-start gap-1">
                   <Lock aria-hidden="true" className="w-3 h-3 shrink-0 mt-0.5" />
-                  <span>Το αρχικό νούμερο το ορίζει ο υπεύθυνος. Άνοιξε κανονικά το πακέτο — θα το συμπληρώσει εκείνος.</span>
+                  <span>
+                    Ένα καινούριο πακέτο ξεκινά από το μηδέν. Το νούμερο αυτό το αλλάζει μόνο η
+                    διοίκηση — από εδώ μετράει κάθε πώληση του πακέτου.
+                  </span>
                 </p>
               )}
               {targetIsBundleTracked && (
