@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyEthnikoShape, isEthnikoRow, lotteryUnitLabel, canToggleBundleTracking,
-  ETHNIKO_ROW_ID, ETHNIKO_BUNDLE_PRICE, ETHNIKO_BUNDLE_SIZE, ETHNIKO_PIECE_PRICE,
+  ETHNIKO_ROW_ID, ETHNIKO_BUNDLE_PRICE,
 } from '../lib/ethnikoLottery.ts';
 
 const ethniko = (over: Record<string, unknown> = {}) => ({
@@ -10,18 +10,17 @@ const ethniko = (over: Record<string, unknown> = {}) => ({
 }) as any;
 
 describe('the shape is pinned, whatever the row arrived as', () => {
-  it('counts κομμάτια at 4 €, πέντε η πεντάδα', () => {
+  it('counts one πεντάδα at 20 €', () => {
     const [row] = applyEthnikoShape([ethniko()]);
-    expect(row.price).toBe(ETHNIKO_PIECE_PRICE);
-    expect(row.bundleSize).toBe(ETHNIKO_BUNDLE_SIZE);
-    expect(ETHNIKO_BUNDLE_PRICE).toBe(20);
+    expect(row.price).toBe(20);
+    expect(row.bundleSize).toBe(0);
   });
 
-  it('undoes the 20 € a tick the row used to carry', () => {
-    // Ο αριθμός προχωράει ανά κομμάτι, άρα ένα βήμα είναι 4 €, όχι 20 €.
-    const [row] = applyEthnikoShape([ethniko({ price: 20, bundleSize: 0 })]);
-    expect(row.price).toBe(4);
-    expect(row.bundleSize).toBe(5);
+  it('undoes the five-piece spell', () => {
+    // What lottery_bundle_default: true produced - 20 € a piece, 100 € a πεντάδα.
+    const [row] = applyEthnikoShape([ethniko({ bundleSize: 5 })]);
+    expect(row.bundleSize).toBe(0);
+    expect(row.price).toBe(ETHNIKO_BUNDLE_PRICE);
   });
 
   it('clears dual-entry figures left behind by it', () => {
@@ -31,16 +30,15 @@ describe('the shape is pinned, whatever the row arrived as', () => {
   });
 
   it('fixes a price somebody had edited away', () => {
-    const [row] = applyEthnikoShape([ethniko({ price: 7 })]);
-    expect(row.price).toBe(4);
+    const [row] = applyEthnikoShape([ethniko({ price: 4 })]);
+    expect(row.price).toBe(20);
   });
 
   it('does not check whether it is already set', () => {
     // A stale 0 from a cached catalogue would otherwise stay forever, which
     // is the fault being fixed.
     const [row] = applyEthnikoShape([ethniko({ bundleSize: 0, price: 100 })]);
-    expect(row.price).toBe(4);
-    expect(row.bundleSize).toBe(5);
+    expect(row.price).toBe(20);
   });
 
   it('leaves every other game alone', () => {
@@ -52,27 +50,19 @@ describe('the shape is pinned, whatever the row arrived as', () => {
   });
 });
 
-// Ο αριθμός μετράει κομμάτια - το είπε ο Owner κοιτώντας το ταμείο.
-//
-// Το αρχείο αυτό υποστήριζε το αντίθετο, και αυτά τα δύο tests φύλαγαν
-// εκείνη την ανάγνωση. Κρατιούνται γυρισμένα ανάποδα, με τα ίδια αληθινά
-// νούμερα, γιατί η διαφορά είναι ό,τι ξαναδιαβάζεται σε κλεισμένες βάρδιες:
-// οι 12 κινήσεις που υπάρχουν έπιαναν 500 € ως πεντάδες και πιάνουν 100 €
-// ως κομμάτια. Τα αποθηκευμένα σύνολα των βαρδιών δεν ακουμπιούνται - το
-// scratch_lotto_sales είναι στήλη, όχι υπολογισμός - οπότε αλλάζει μόνο το
-// τι δείχνει η γραμμή μέσα στην καρτέλα.
-describe('τι διαβάζει πια ένας αριθμός που υπάρχει', () => {
-  it('53 → 49 είναι τέσσερα κομμάτια, 16 €', () => {
+describe('the money already on record', () => {
+  it('still reads 80 € for 53 → 49', () => {
+    // A real August shift at store_101499. Four πεντάδες, not four pieces:
+    // modelling this as 4 €/piece with bundles of five would make it 16 €.
     const [row] = applyEthnikoShape([ethniko({ startNo: '53', endNo: '49' })]);
     const sold = Number(row.startNo) - Number(row.endNo);
     expect(sold).toBe(4);
-    expect(sold * Number(row.price)).toBe(16);
+    expect(sold * Number(row.price)).toBe(80);
   });
 
-  it('πέντε βήματα είναι μία πεντάδα, 20 €', () => {
-    const [row] = applyEthnikoShape([ethniko({ startNo: '53', endNo: '48' })]);
-    const sold = Number(row.startNo) - Number(row.endNo);
-    expect(sold * Number(row.price)).toBe(ETHNIKO_BUNDLE_PRICE);
+  it('reads 20 € for one πεντάδα', () => {
+    const [row] = applyEthnikoShape([ethniko({ startNo: '48', endNo: '47' })]);
+    expect((Number(row.startNo) - Number(row.endNo)) * Number(row.price)).toBe(20);
   });
 });
 
