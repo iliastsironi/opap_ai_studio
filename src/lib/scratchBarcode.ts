@@ -1,0 +1,111 @@
+/**
+ * Ο κωδικός ενός σκρατς, και τα τρία του κομμάτια.
+ *
+ *   0157  3301482  014
+ *   └─┬─┘ └──┬──┘ └┬─┘
+ *     │      │     └── αριθμός δελτίου μέσα στο πακέτο (000 έως N-1)
+ *     │      └──────── μοναδικός κωδικός πακέτου
+ *     └─────────────── αριθμός παιχνιδιού, σταθερός πανελλαδικά
+ *
+ * Δεκατέσσερα ψηφία συνολικά. Ο σαρωτής τα δίνει μαζεμένα· ο χειριστής τα
+ * γράφει σε δύο βήματα, πρώτα το παιχνίδι και μετά το πακέτο. Και οι δύο
+ * δρόμοι περνούν από εδώ, ώστε να μην υπάρχουν δύο αναγνώσεις του ίδιου
+ * κωδικού που μπορούν να διαφωνήσουν.
+ *
+ * Το δελτίο δεν αποθηκεύεται. Είναι το σημείο μέσα στο πακέτο και το
+ * μετράει ήδη το ταμείο· κρατώντας το εδώ θα υπήρχαν δύο απαντήσεις στο
+ * «πόσα πουλήθηκαν», που είναι ακριβώς ο τρόπος που δύο σημαίες για την
+ * ίδια ερώτηση καταλήγουν να διαφωνούν.
+ */
+
+export const GAME_NO_LENGTH = 4;
+export const PACK_CODE_LENGTH = 7;
+export const TICKET_NO_LENGTH = 3;
+export const BARCODE_LENGTH = GAME_NO_LENGTH + PACK_CODE_LENGTH + TICKET_NO_LENGTH;
+
+export interface ScannedBarcode {
+  gameNo: string;
+  packCode: string;
+  /** null όταν σκαναρίστηκε μόνο το παιχνίδι και το πακέτο, χωρίς δελτίο. */
+  ticketNo: string | null;
+}
+
+export interface BarcodeReading {
+  parts: ScannedBarcode | null;
+  /** Τι λείπει ή τι περισσεύει, στα ελληνικά. null όταν διαβάστηκε. */
+  problem: string | null;
+}
+
+/** Μόνο ψηφία. Ο σαρωτής βάζει κενά και παύλες, το χέρι επίσης. */
+export function digitsOnly(raw: unknown): string {
+  return String(raw ?? '').replace(/\D/g, '');
+}
+
+/**
+ * Διαβάζει ό,τι μπήκε στο πεδίο.
+ *
+ * Δέχεται 11 ψηφία (παιχνίδι + πακέτο) ή 14 (με το δελτίο). Τα 11 είναι ό,τι
+ * γράφει ο χειριστής στα δύο βήματα· τα 14 είναι ό,τι δίνει ο σαρωτής.
+ */
+export function readBarcode(raw: unknown): BarcodeReading {
+  const digits = digitsOnly(raw);
+  if (digits === '') return { parts: null, problem: 'Γράψτε ή σκανάρετε τον κωδικό.' };
+
+  const short = GAME_NO_LENGTH + PACK_CODE_LENGTH;
+  if (digits.length !== short && digits.length !== BARCODE_LENGTH) {
+    return {
+      parts: null,
+      problem:
+        `Χρειάζονται ${short} ψηφία (παιχνίδι + πακέτο) ή ${BARCODE_LENGTH} με τον αριθμό ` +
+        `δελτίου — έχετε ${digits.length}.`,
+    };
+  }
+
+  return {
+    parts: {
+      gameNo: digits.slice(0, GAME_NO_LENGTH),
+      packCode: digits.slice(GAME_NO_LENGTH, short),
+      ticketNo: digits.length === BARCODE_LENGTH ? digits.slice(short) : null,
+    },
+    problem: null,
+  };
+}
+
+export function isValidGameNo(value: unknown): boolean {
+  return new RegExp(`^\\d{${GAME_NO_LENGTH}}$`).test(digitsOnly(value));
+}
+
+export function isValidPackCode(value: unknown): boolean {
+  return new RegExp(`^\\d{${PACK_CODE_LENGTH}}$`).test(digitsOnly(value));
+}
+
+/**
+ * Πόσα δελτία έχει ένα πακέτο.
+ *
+ * Ο κανόνας είναι 300 € η ονομαστική αξία, άρα 300/τιμή δελτία - αλλά ΔΕΝ
+ * ισχύει παντού. Το 7ΑΡΙ Χ50 έχει 15 δελτία και αξία 750 €, και ο κανόνας
+ * θα έδινε 6. Γι' αυτό ο κατάλογος κρατάει pack_pieces: όπου υπάρχει,
+ * νικάει, και ο κανόνας μένει για τα υπόλοιπα.
+ *
+ * null όταν η τιμή δεν διαιρεί τα 300 και δεν έχει δηλωθεί μέγεθος: δεν
+ * ορίζεται πακέτο, και ένα επινοημένο θα χρέωνε δελτία που δεν υπήρξαν.
+ */
+export const PACKAGE_FACE_VALUE = 300;
+
+export function packPieces(price: unknown, declaredPieces?: unknown): number | null {
+  const declared = Number(declaredPieces);
+  if (Number.isFinite(declared) && declared > 0) return Math.floor(declared);
+
+  const p = Number(price);
+  if (!Number.isFinite(p) || p <= 0) return null;
+  const pieces = PACKAGE_FACE_VALUE / p;
+  return Number.isInteger(pieces) ? pieces : null;
+}
+
+/** Τι αξίζει ένα πακέτο. Δελτία × τιμή - όχι σταθερά 300 €. */
+export function packValue(price: unknown, declaredPieces?: unknown): number {
+  const pieces = packPieces(price, declaredPieces);
+  const p = Number(price);
+  if (pieces === null || !Number.isFinite(p)) return 0;
+  return Math.round(pieces * p * 100) / 100;
+}

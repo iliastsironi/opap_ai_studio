@@ -16,6 +16,7 @@ import {
   Truck,
   BookOpen,
   Sparkles,
+  Boxes,
   Landmark,
   Calendar,
   X
@@ -60,6 +61,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
       { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
       { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
+      { id: 'scratch_warehouse', label: 'Αποθήκη Σκρατς', icon: Boxes, perm: 'scratch_warehouse.view' },
       { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
       { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
     ],

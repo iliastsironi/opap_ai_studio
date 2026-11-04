@@ -10,6 +10,7 @@ import { lazyWithRetry, clearChunkReloadFlag } from './lib/lazyWithRetry.ts';
 const ExpensesManager = lazyWithRetry(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
 const IncidentsManager = lazyWithRetry(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
 const NationalLotteryManager = lazyWithRetry(() => import('./components/national-lottery/NationalLotteryManager.tsx').then((m) => ({ default: m.NationalLotteryManager })));
+const ScratchWarehouseManager = lazyWithRetry(() => import('./components/warehouse/ScratchWarehouseManager.tsx').then((m) => ({ default: m.ScratchWarehouseManager })));
 const ReportsManager = lazyWithRetry(() => import('./components/modules/ReportsManager.tsx').then((m) => ({ default: m.ReportsManager })));
 const RosterManager = lazyWithRetry(() => import('./components/modules/RosterManager.tsx').then((m) => ({ default: m.RosterManager })));
 const DashboardOverview = lazyWithRetry(() => import('./components/admin/DashboardOverview.tsx').then((m) => ({ default: m.DashboardOverview })));
@@ -42,6 +43,7 @@ const TAB_PERMISSIONS: Record<string, string> = {
   suppliers: 'suppliers.view',
   incidents: 'incidents.view',
   national_lottery: 'national_lottery.view',
+  scratch_warehouse: 'scratch_warehouse.view',
   reports: 'reports.view',
   roster: 'roster.view',
   instructions: 'shifts.view',
@@ -94,6 +96,8 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
       return <IncidentsManager />;
     case 'national_lottery':
       return <NationalLotteryManager />;
+    case 'scratch_warehouse':
+      return <ScratchWarehouseManager />;
     case 'reports':
       return <ReportsManager onNavigate={setCurrentTab} />;
     case 'roster':

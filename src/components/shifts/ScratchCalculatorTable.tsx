@@ -78,6 +78,10 @@ export interface ScratchTicketRow {
    * are kept here and added to whatever the current pack has sold since.
    */
   closedPackQty?: number;
+  /** Τα πρώτα 4 ψηφία του barcode. Χωρίς αυτόν το παιχνίδι δεν μπαίνει στην αποθήκη (0065). */
+  gameNo?: string;
+  /** Δελτία ανά πακέτο, όταν δεν ισχύει ο κανόνας 300/τιμή. Το 7ΑΡΙ Χ50 είναι 15. */
+  packPieces?: number;
   /** The codes of the packs closed this shift, oldest first. */
   closedPackCodes?: string[];
   /**

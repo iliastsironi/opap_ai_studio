@@ -44,6 +44,7 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_shifts.view', code: 'shifts.view', module: 'Shifts', description: 'Προβολή ενότητας Βαρδιών & Ταμείου' },
   { id: 'perm_expenses.view', code: 'expenses.view', module: 'Expenses', description: 'Προβολή ενότητας Εξόδων' },
   { id: 'perm_suppliers.view', code: 'suppliers.view', module: 'Suppliers', description: 'Προβολή ενότητας Προμηθευτών' },
+  { id: 'perm_scratch_warehouse.view', code: 'scratch_warehouse.view', module: 'Store', description: 'Αποθήκη Σκρατς - παραλαβή, μεταφορά στο μαγαζί, απόσυρση' },
   // Managers and owners only, per UAT. Mirrored by incidents_select in
   // 0022_scope_shift_visibility.sql, which is auth_is_elevated() - so
   // SHIFT_SUPERVISOR loses this too, or it would open to a list RLS keeps
@@ -108,6 +109,10 @@ const BASE_ROLE_PERMISSIONS: Record<string, string[]> = {
     'dashboard.view', 'shifts.view', 'expenses.view', 'suppliers.view',
     'incidents.view', 'reports.view',
     'national_lottery.view', 'national_lottery.collect', 'national_lottery.manage', 'national_lottery.reverse',
+    // Ίδιος κύκλος με το auth_is_elevated() της βάσης, που δέχεται
+    // STORE_MANAGER. Ο EMPLOYEE δεν το έχει, και η βάση θα τον αρνιόταν
+    // έτσι κι αλλιώς - κουμπί που αποτυγχάνει πάντα διαβάζεται ως βλάβη.
+    'scratch_warehouse.view',
     'roster.view', 'roster.manage',
     'employee_charges.manage',
   ],

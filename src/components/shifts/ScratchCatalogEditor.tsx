@@ -195,6 +195,8 @@ export const ScratchCatalogEditor: React.FC<{
               <th className="py-2 pr-2 w-28">Κατηγορία</th>
               <th className="py-2 pr-2 w-24">Τιμή (€)</th>
               <th className="py-2 pr-2 w-24">Πακέτο</th>
+              <th className="py-2 pr-2 w-24" title="Τα πρώτα 4 ψηφία του barcode">Αρ. παιχν.</th>
+              <th className="py-2 pr-2 w-24" title="Δελτία ανά πακέτο, όταν δεν ισχύει ο κανόνας 300/τιμή">Δελτία</th>
               <th className="py-2 pr-2 w-20">Πίσω</th>
               <th className="py-2 w-10" />
             </tr>
@@ -279,6 +281,42 @@ export const ScratchCatalogEditor: React.FC<{
                     title="Τεμάχια ανά πακέτο (π.χ. 5 για πεντάδα). Κενό για μεμονωμένα."
                     aria-label={`Τεμάχια ανά πακέτο για ${row.name || "το παιχνίδι"}`}
                     onChange={(next) => update(index, { bundleSize: next > 1 ? next : undefined })}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right"
+                  />
+                </td>
+                {/* Ο αριθμός παιχνιδιού: ό,τι σκανάρεται πρώτο στην αποθήκη.
+                    Κενό σημαίνει «δεν μπαίνει στην αποθήκη», που είναι σωστό
+                    για ένα παιχνίδι χωρίς πανελλαδικό αριθμό. */}
+                <td className="py-2 pr-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={row.gameNo ?? ''}
+                    disabled={!canEdit}
+                    placeholder="—"
+                    title="Τα πρώτα 4 ψηφία του barcode. Κενό = δεν μπαίνει στην αποθήκη."
+                    aria-label={`Αριθμός παιχνιδιού για ${row.name || 'το παιχνίδι'}`}
+                    onChange={(e) =>
+                      update(index, {
+                        gameNo: e.target.value.replace(/\D/g, '').slice(0, 4) || undefined,
+                      })
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-center tracking-widest"
+                  />
+                </td>
+                {/* Δελτία ανά πακέτο. Κενό = ο κανόνας 300/τιμή. Το 7ΑΡΙ Χ50
+                    είναι η μόνη εξαίρεση σήμερα: 15 δελτία, 750 €. */}
+                <td className="py-2 pr-2">
+                  <NumericField
+                    min={0}
+                    decimals={0}
+                    value={row.packPieces ?? 0}
+                    disabled={!canEdit}
+                    placeholder="—"
+                    title="Δελτία ανά πακέτο. Κενό = 300 € / τιμή."
+                    aria-label={`Δελτία ανά πακέτο για ${row.name || 'το παιχνίδι'}`}
+                    onChange={(next) => update(index, { packPieces: next > 0 ? next : undefined })}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right"
                   />
                 </td>

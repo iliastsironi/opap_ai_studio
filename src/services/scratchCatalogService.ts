@@ -32,6 +32,8 @@ interface CatalogRow {
   bundle_size: number | null;
   back_side_enabled: boolean;
   sort_order: number;
+  game_no: string | null;
+  pack_pieces: number | null;
 }
 
 const toTicketRow = (r: CatalogRow): ScratchTicketRow => ({
@@ -43,6 +45,8 @@ const toTicketRow = (r: CatalogRow): ScratchTicketRow => ({
   startNo: '',
   endNo: '',
   ...(r.bundle_size ? { bundleSize: r.bundle_size } : {}),
+  ...(r.game_no ? { gameNo: String(r.game_no).trim() } : {}),
+  ...(r.pack_pieces ? { packPieces: r.pack_pieces } : {}),
   backSideEnabled: r.back_side_enabled,
 });
 
@@ -148,6 +152,13 @@ export async function saveScratchCatalog(
     category: row.category || 'Σκρατς',
     price: Number(row.price) || 0,
     bundle_size: row.bundleSize && row.bundleSize > 1 ? row.bundleSize : null,
+    // Ο αριθμός παιχνιδιού είναι ό,τι σκανάρεται πρώτο. Κενό σημαίνει «αυτό
+    // το παιχνίδι δεν μπαίνει στην αποθήκη» - σωστό για κάτι που δεν έχει
+    // πανελλαδικό αριθμό, και ειλικρινέστερο από έναν επινοημένο.
+    game_no: /^\d{4}$/.test(String(row.gameNo ?? '').trim())
+      ? String(row.gameNo).trim()
+      : null,
+    pack_pieces: row.packPieces && row.packPieces > 0 ? row.packPieces : null,
     back_side_enabled: row.backSideEnabled !== false,
     sort_order: index,
     is_active: true,
