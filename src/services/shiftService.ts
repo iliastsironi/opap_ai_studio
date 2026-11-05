@@ -161,6 +161,15 @@ export interface DayOpeningSnapshot {
    * reads as none and leaves the old behaviour in place.
    */
   topups_today?: number | null;
+  /**
+   * Οι τύποι των βαρδιών που έχει ήδη η μέρα, κατά σειρά ανοίγματος (0069).
+   *
+   * Για να προτείνει η οθόνη ανοίγματος ποια βάρδια είναι αυτή, αντί να
+   * ξεκινά πάντα στο «Πρωινή» και να γράφει η μέρα δύο πρωινές. Undefined
+   * όσο δεν έχει τρέξει το 0069, που διαβάζεται ως «δεν ξέρουμε» και αφήνει
+   * την παλιά συμπεριφορά - δες lib/shiftTypeOptions.ts.
+   */
+  shift_types_today?: string[] | null;
 }
 
 /**

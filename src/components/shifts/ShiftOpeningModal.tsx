@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Play, AlertCircle, CheckCircle2, RefreshCw, Info, Lock, Sparkles, ArrowRight, Building2, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
@@ -16,7 +16,7 @@ import {
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
-import { shiftTypeOptions, resolveShiftType } from '../../lib/shiftTypeOptions.ts';
+import { shiftTypeOptions, resolveShiftType, nextShiftType } from '../../lib/shiftTypeOptions.ts';
 import { splitLocalDateTime, joinLocalDateTime, normalizeTime24 } from '../../lib/shiftDateTime.ts';
 import { fetchUsersFromFirestore } from '../../services/userService.ts';
 import { calculateBanknotesAndCoins, roundCurrency } from '../../services/financialCalculator.ts';
@@ -74,6 +74,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       const now = localDateTimeValue(new Date());
       setOpenedAt(now);
       setOpenedAtTime(splitLocalDateTime(now).time);
+      shiftTypeTouched.current = false;
     }
   }, [isOpen]);
 
@@ -100,6 +101,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // midnight behind the operator's back.
   const [openedAtTime, setOpenedAtTime] = useState<string>('');
   const [shiftType, setShiftType] = useState<ShiftType>('MORNING');
+  // Μόλις το διαλέξει κάποιος με το χέρι, η πρόταση παύει.
+  //
+  // Το effect που φορτώνει το κατάστημα ξανατρέχει σε κάθε αλλαγή της ώρας
+  // έναρξης. Χωρίς αυτό, όποιος διάλεγε «Ειδική» και μετά διόρθωνε την ώρα
+  // θα έβλεπε την επιλογή του να γυρίζει πίσω από μόνη της - και η οθόνη θα
+  // έγραφε βάρδια άλλη από αυτή που δείχνει το πεδίο.
+  const shiftTypeTouched = useRef(false);
   const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
   // The store's configured starting float. Defaults match what this screen
@@ -255,9 +263,41 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         // from the previous store has to come back to something it offers -
         // otherwise the select renders blank and writes a type the store does
         // not run.
-        setShiftType((current) => resolveShiftType(current, perDay));
         setPreviousShift(prev);
         const todaySnapshot = today.status === 'FOUND' ? today.snapshot : null;
+
+        // Ποια βάρδια είναι αυτή.
+        //
+        // Η οθόνη ξεκινούσε πάντα στο «Πρωινή», και στην παράδοση κανείς δεν
+        // το άλλαζε: η μέρα έγραφε δύο πρωινές και κάθε αναφορά ανά βάρδια
+        // έδειχνε μια πρωινή με διπλάσιο τζίρο και μια βραδινή που δεν
+        // υπάρχει. Τώρα η πρώτη της μέρας προτείνεται πρωινή και η επόμενη
+        // βραδινή - αλλά μόνο όσο δεν το έχει αγγίξει κάποιος, και μόνο αν
+        // η βάση όντως απάντησε ποιες έχει η μέρα (0069). Χωρίς απάντηση
+        // δεν μαντεύει: μένει στο resolveShiftType, που είναι ό,τι έκανε
+        // πάντα.
+        //
+        // Το resolveShiftType μένει για την άλλη περίπτωση: αλλαγή σε
+        // κατάστημα που δεν τρέχει την επιλεγμένη βάρδια.
+        //
+        // Οι τρεις απαντήσεις του shift_day_opening είναι τρεις διαφορετικές
+        // καταστάσεις και δεν επιτρέπεται να μοιάζουν: «βρήκα τη μέρα» δίνει
+        // τις βάρδιές της, «δεν έχει βάρδιες» δίνει άδειο - δηλαδή πρωινή,
+        // που είναι το σωστό όταν αλλάζεις σε μαγαζί που δεν έχει ανοίξει
+        // ακόμα - και «απέτυχε» δεν δίνει τίποτα, γιατί μια αποτυχία δεν
+        // είναι φρέσκια μέρα. Αυτό το μάθημα το έχει πληρώσει ήδη το
+        // fetchDayOpening.
+        const typesToday =
+          today.status === 'FOUND'
+            ? todaySnapshot?.shift_types_today
+            : today.status === 'NO_SHIFT_TODAY'
+            ? []
+            : undefined;
+        setShiftType((current) =>
+          !shiftTypeTouched.current && Array.isArray(typesToday)
+            ? nextShiftType(typesToday, perDay)
+            : resolveShiftType(current, perDay)
+        );
         setDayOpening(todaySnapshot);
         setDayOpeningError(today.status === 'FAILED' ? today.message : null);
 
@@ -855,7 +895,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <select
                   id="opening-shift-type"
                   value={shiftType}
-                  onChange={(e) => setShiftType(e.target.value as ShiftType)}
+                  onChange={(e) => {
+                    shiftTypeTouched.current = true;
+                    setShiftType(e.target.value as ShiftType);
+                  }}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   {/* From the store's own shifts_per_day. The «(Αυτόματο)»
