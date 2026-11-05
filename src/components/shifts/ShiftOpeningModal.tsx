@@ -509,7 +509,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         canContinueDay
           ? continueDayScratchInventory(
               dayOpening!.scratch_ticket_items ?? undefined,
-              baseCatalog as any
+              baseCatalog as any,
+              // Η κατάσταση των πακέτων έρχεται από τη βάρδια που μόλις
+              // έκλεισε: αν εκείνη τελείωσε πακέτο και άνοιξε καινούριο,
+              // μόνο αυτή ξέρει ποιο είναι στον πάγκο και πόση ουρά άφησε.
+              declaredRows
             )
           : carryOverScratchInventory(
               declaredRows || getLatestStoreScratchInventory(targetStoreId),

@@ -368,23 +368,64 @@ export function carryOverScratchInventory(
 // Doing it this way keeps one copy of the catalogue merging, the custom-item
 // handling and the back-side mirroring rather than a second near-identical
 // loop that would drift from the first.
+/**
+ * Η επόμενη βάρδια της ΙΔΙΑΣ ημέρας, που μετράει από το άνοιγμα της ημέρας.
+ *
+ * Χτιζόταν από τις γραμμές του ανοίγματος της ημέρας και έχανε ό,τι είχε
+ * κάνει η προηγούμενη βάρδια με τα πακέτα. Αν η πρωινή τελείωσε ένα πακέτο
+ * και άνοιξε καινούριο, η ουρά του παλιού - που το carryOverScratchInventory
+ * κρατάει στο closedPackQty - μηδενιζόταν, και ο κωδικός πακέτου έμενε
+ * αυτός του ανοίγματος ενώ στον πάγκο ήταν πια άλλο πακέτο.
+ *
+ * Στα δεδομένα: 15/10, 7ΑΡΙ, η πρωινή είχε closedPackQty 1 και η επόμενη 0.
+ * Ένα δελτίο εκεί, γιατί είναι δοκιμαστικά· σε πραγματικό πακέτο 2 € είναι
+ * 144 δελτία, 288 €, που εξαφανίζονται από το σύνολο της ημέρας.
+ *
+ * Η κατάσταση των πακέτων έρχεται πια από την ΠΡΟΗΓΟΥΜΕΝΗ βάρδια, όχι από
+ * το άνοιγμα της ημέρας. Όταν δεν άλλαξε πακέτο οι δύο ταυτίζονται - η
+ * προηγούμενη ξεκίνησε κι αυτή από το άνοιγμα της ημέρας - οπότε δεν
+ * αλλάζει τίποτα· όταν άλλαξε, μόνο η προηγούμενη το ξέρει.
+ *
+ * Το packHistory μένει κενό όπως πάντα: η βραδινή δεν αναιρεί πακέτο που
+ * άνοιξε η πρωινή. Άρα η κληρονομημένη ουρά δεν αφαιρείται κατά λάθος.
+ */
 export function continueDayScratchInventory(
   dayRows?: ScratchTicketRow[] | any[],
-  baseCatalog: ScratchTicketRow[] = getSavedScratchCatalog()
+  baseCatalog: ScratchTicketRow[] = getSavedScratchCatalog(),
+  previousRows?: ScratchTicketRow[] | any[] | null
 ): ScratchTicketRow[] {
-  if (!dayRows || !Array.isArray(dayRows) || dayRows.length === 0) {
+  const source =
+    Array.isArray(previousRows) && previousRows.length > 0 ? previousRows : dayRows;
+
+  if (!source || !Array.isArray(source) || source.length === 0) {
     return carryOverScratchInventory(undefined, baseCatalog);
   }
 
-  const asOpening = dayRows.map((r: any) => ({
+  const asOpening = source.map((r: any) => ({
     ...r,
-    // Μπροστά counts down from where the day started.
+    // Μπροστά counts down from where this row's current pack started.
     endNo: r.startNo,
-    // Πίσω mirrors it: the day's locked baseline.
+    // Πίσω mirrors it: the locked baseline of that same pack.
     backStartNo: r.backEndNo,
   }));
 
-  return carryOverScratchInventory(asOpening, baseCatalog);
+  const carried = carryOverScratchInventory(asOpening, baseCatalog);
+
+  // Το carryOverScratchInventory μηδενίζει την ουρά επίτηδες - μια ΝΕΑ μέρα
+  // ξεκινά δικό της μέτρημα. Μέσα στην ίδια μέρα όμως τα νούμερα είναι
+  // σωρευτικά, οπότε η ουρά των πακέτων που τελείωσαν σήμερα πρέπει να
+  // μείνει μέσα.
+  const tailById = new Map<string, { qty: number; codes: string[] }>();
+  for (const r of source as any[]) {
+    const qty = Math.max(0, Number(r?.closedPackQty) || 0);
+    const codes = (r?.closedPackCodes ?? []).filter(Boolean);
+    if (qty > 0 || codes.length > 0) tailById.set(String(r?.id), { qty, codes });
+  }
+
+  return carried.map((row) => {
+    const tail = tailById.get(String(row.id));
+    return tail ? { ...row, closedPackQty: tail.qty, closedPackCodes: [...tail.codes] } : row;
+  });
 }
 
 export function saveLatestStoreScratchInventory(storeId: string, rows: ScratchTicketRow[]): void {
