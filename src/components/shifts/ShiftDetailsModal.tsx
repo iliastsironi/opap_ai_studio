@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { canDeleteShift, deleteShiftLabel } from '../../lib/shiftDeletePermission.ts';
 import {
   CheckCircle2,
@@ -108,6 +108,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+    // Αδειάζει ΠΡΙΝ ζητήσει. Χωρίς αυτό, όσο κατεβαίνουν τα καινούρια, η
+    // οθόνη δείχνει τα έξοδα της ΠΡΟΗΓΟΥΜΕΝΗΣ βάρδιας κάτω από το όνομα
+    // αυτής - δηλαδή λάθος νούμερα, όχι κενό.
+    setShiftExpenses([]);
     if (!shift?.id) return undefined;
     fetchShiftReconciliationExpenses(shift.id)
       .then((rows) => { if (!cancelled) setShiftExpenses(rows ?? []); })
@@ -117,6 +121,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+    setPostedCredits([]);
     if (!shift?.id) return undefined;
     fetchShiftCustomerCredits(shift.id)
       .then((rows) => { if (!cancelled) setPostedCredits(rows ?? []); })
@@ -130,6 +135,48 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [approveSucceeded, setApproveSucceeded] = useState(false);
   const [reopenSucceededMsg, setReopenSucceededMsg] = useState<string | null>(null);
+
+  /**
+   * Ό,τι αφορά ΑΥΤΗ τη βάρδια φεύγει μόλις αλλάξει η βάρδια.
+   *
+   * Το «Η βάρδια εγκρίθηκε» έσβηνε μόνο όταν το έκλεινες. Το παράθυρο όμως
+   * δεν ξεστήνεται ανάμεσα σε δύο βάρδιες - αλλάζει μόνο το prop - οπότε
+   * εγκρίνεις τη μία, πατάς την επόμενη, και το μήνυμα είναι ακόμα εκεί
+   * πάνω από μια βάρδια που δεν ενέκρινε κανείς. Το ίδιο και η
+   * επιβεβαίωση έγκρισης: μισοανοιγμένη για τη μία, θα ρωτούσε για την
+   * άλλη.
+   *
+   * Τα δεδομένα τα ξαναφέρνουν τα effect από πάνω· εδώ είναι μόνο ό,τι
+   * είναι κατάσταση της ΟΘΟΝΗΣ και δεν έχει ποιος να το καθαρίσει.
+   */
+  /**
+   * Το χρονόμετρο που κλείνει μόνο του το παράθυρο μετά την επιτυχία.
+   *
+   * Κρατιέται για να ΑΚΥΡΩΝΕΤΑΙ. Είναι 900ms: εγκρίνεις, πατάς αμέσως την
+   * επόμενη βάρδια, και το χρονόμετρο της προηγούμενης χτυπάει πάνω στη νέα
+   * και την κλείνει. Το παράθυρο δεν ξεστήνεται ανάμεσά τους, οπότε δεν
+   * υπήρχε τίποτα να το σταματήσει.
+   */
+  const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeAfterSuccess = () => {
+    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+    autoCloseTimer.current = setTimeout(() => onClose(), SUCCESS_MODAL_CLOSE_MS);
+  };
+
+  useEffect(() => {
+    setShowApproveConfirm(false);
+    setApproveSucceeded(false);
+    setReopenSucceededMsg(null);
+    if (autoCloseTimer.current) {
+      clearTimeout(autoCloseTimer.current);
+      autoCloseTimer.current = null;
+    }
+  }, [shift?.id]);
+
+  // Και στο ξεστήσιμο, για να μην καλεί onClose σε παράθυρο που έφυγε.
+  useEffect(() => () => {
+    if (autoCloseTimer.current) clearTimeout(autoCloseTimer.current);
+  }, []);
 
 
   const isManagerOrOwner =
@@ -159,6 +206,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+    setDayCollection([]);
     if (!shift?.id || !isManagerOrOwner) return undefined;
     fetchDayCollection(shift.id)
       .then((rows) => { if (!cancelled) setDayCollection(rows); })
@@ -200,7 +248,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       setShowApproveConfirm(false);
       setApproveSucceeded(true);
       onRefresh();
-      setTimeout(() => onClose(), SUCCESS_MODAL_CLOSE_MS);
+      closeAfterSuccess();
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την έγκριση βάρδιας');
       setShowApproveConfirm(false);
@@ -231,7 +279,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
         actionType === 'CORRECTION' ? 'Το αίτημα διόρθωσης στάλθηκε' : 'Η βάρδια ανοίχθηκε ξανά'
       );
       onRefresh();
-      setTimeout(() => onClose(), SUCCESS_MODAL_CLOSE_MS);
+      closeAfterSuccess();
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την υποβολή αιτήματος διόρθωσης');
     } finally {
