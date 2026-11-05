@@ -29,6 +29,11 @@ export interface ConfirmDestructiveModalProps {
   /** Μια ακόμα απόφαση, όταν υπάρχει (π.χ. οι χρεώσεις πελατών). */
   choice?: React.ReactNode;
   /**
+   * Λείπει απάντηση που ζητάει το `choice`. Το κουμπί μένει κλειστό όσο
+   * ισχύει: μια οριστική πράξη δεν φεύγει με μισή απόφαση.
+   */
+  confirmBlocked?: boolean;
+  /**
    * Γιατί ΑΥΤΗ η διαγραφή βαραίνει περισσότερο από μια συνηθισμένη.
    *
    * null όταν δεν βαραίνει. Μια προειδοποίηση που εμφανίζεται πάντα παύει
@@ -47,7 +52,7 @@ const FATE_STYLE: Record<string, { chip: string; word: string }> = {
 };
 
 export const ConfirmDestructiveModal: React.FC<ConfirmDestructiveModalProps> = ({
-  isOpen, onClose, what, lines = [], choice, warning, onConfirm, confirmLabel = 'Οριστική διαγραφή',
+  isOpen, onClose, what, lines = [], choice, confirmBlocked = false, warning, onConfirm, confirmLabel = 'Οριστική διαγραφή',
 }) => {
   const { user } = useAuth();
   const [password, setPassword] = useState('');
@@ -112,7 +117,7 @@ export const ConfirmDestructiveModal: React.FC<ConfirmDestructiveModalProps> = (
           </button>
           <button
             type="button"
-            disabled={busy || (!alreadyVerified && password.trim() === '')}
+            disabled={busy || confirmBlocked || (!alreadyVerified && password.trim() === '')}
             onClick={run}
             className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >

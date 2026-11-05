@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  creditDispositionNote, deletionLines, needsCreditChoice,
+  creditChoiceMissing, creditDispositionNote, deletionLines, needsCreditChoice,
   type ShiftDeletionCounts,
 } from '../lib/shiftDeletion.ts';
 
@@ -74,5 +74,48 @@ describe('τα πακέτα της αποθήκης', () => {
 
   it('καμία γραμμή όταν δεν είχε πάρει πακέτα', () => {
     expect(deletionLines(counts(), 'KEEP')).toEqual([]);
+  });
+});
+
+describe('η επιλογή για τις χρεώσεις δεν έχει προεπιλογή', () => {
+  const withCredits = counts({ customerCredits: 10, customerCreditTotal: 457 });
+  const without = counts({ customerCredits: 0, customerCreditTotal: 0 });
+
+  it('blocks the delete while the question is unanswered', () => {
+    // 5/11/2026: έφυγαν 20 βάρδιες με προεπιλεγμένο «Να μείνουν» και 10
+    // χρεώσεις έμειναν στους πελάτες χωρίς να λέει τίποτα από πού ήρθαν.
+    expect(creditChoiceMissing(withCredits, null)).toBe(true);
+    expect(creditChoiceMissing(withCredits, 'KEEP')).toBe(false);
+    expect(creditChoiceMissing(withCredits, 'DELETE')).toBe(false);
+  });
+
+  it('does not ask when there is nothing to decide', () => {
+    expect(creditChoiceMissing(without, null)).toBe(false);
+  });
+
+  it('blocks while the counts are still being read', () => {
+    // Άγνωστο δεν είναι «κανένα»: όσο δεν ξέρουμε αν υπάρχουν χρεώσεις, η
+    // οριστική πράξη δεν φεύγει.
+    expect(creditChoiceMissing(null, null)).toBe(true);
+    expect(creditChoiceMissing(null, 'DELETE')).toBe(true);
+  });
+
+  it('says what is still missing instead of pretending a default', () => {
+    const note = creditDispositionNote(withCredits, null);
+    expect(note).toContain('διαλέξτε');
+    expect(note).not.toContain('Διατηρήθηκαν');
+    expect(note).not.toContain('Διαγράφηκαν');
+  });
+
+  it('marks the credits line as undecided rather than kept', () => {
+    const line = deletionLines(withCredits, null).find((l) => l.label === 'Χρεώσεις πελατών')!;
+    expect(line.detail).toContain('διαλέξτε');
+    expect(line.detail).not.toContain('παραμένει στο τεφτέρι');
+  });
+
+  it('agrees with needsCreditChoice, which is the same question', () => {
+    for (const c of [withCredits, without]) {
+      expect(creditChoiceMissing(c, null)).toBe(needsCreditChoice(c));
+    }
   });
 });

@@ -41,8 +41,8 @@ import {
   canDeleteShift, closedShiftWarning, deleteShiftLabel,
 } from '../../lib/shiftDeletePermission.ts';
 import {
-  creditDispositionNote, deletionLines, needsCreditChoice,
-  type CreditDisposition, type ShiftDeletionCounts,
+  creditChoiceMissing, creditDispositionNote, deletionLines, needsCreditChoice,
+  type CreditChoice, type CreditDisposition, type ShiftDeletionCounts,
 } from '../../lib/shiftDeletion.ts';
 import { IconButton } from '../ui/IconButton.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -202,11 +202,15 @@ export const ShiftsManager: React.FC = () => {
   /** Τι κρέμεται από τη βάρδια, διαβασμένο από τη βάση όταν ανοίγει το παράθυρο. */
   const [deletionCounts, setDeletionCounts] = useState<ShiftDeletionCounts | null>(null);
   /**
-   * Προεπιλογή «κράτα το χρέος»: είναι η σημερινή συμπεριφορά της βάσης
-   * (ON DELETE SET NULL) και η μόνη από τις δύο που δεν χάνει χρήματα αν
-   * κανείς δεν διαβάσει την ερώτηση.
+   * Καμία προεπιλογή. Η προηγούμενη ήταν «κράτα το χρέος», με το σκεπτικό
+   * ότι δεν χάνει χρήματα αν δεν διαβάσει κανείς την ερώτηση - δες
+   * lib/shiftDeletion.ts για το γιατί αυτό ήταν λάθος και τι κόστισε.
+   *
+   * Μηδενίζεται σε κάθε άνοιγμα: μια απάντηση που δόθηκε για ΑΛΛΗ βάρδια
+   * δεν μετράει για αυτήν, και σε μαζικό καθάρισμα είναι ακριβώς έτσι που
+   * θα περνούσε η δεύτερη και η τρίτη χωρίς να τη δει κανείς.
    */
-  const [creditDisposition, setCreditDisposition] = useState<CreditDisposition>('KEEP');
+  const [creditDisposition, setCreditDisposition] = useState<CreditChoice>(null);
 
   const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
 
@@ -217,6 +221,11 @@ export const ShiftsManager: React.FC = () => {
     try {
       // Πρώτα οι χρεώσεις, μετά η βάρδια. Το ξένο κλειδί είναι SET NULL:
       // μόλις φύγει η βάρδια, δεν υπάρχει πια τρόπος να βρεθούν.
+      // Το κουμπί είναι ήδη κλειστό χωρίς απάντηση, αλλά ο κανόνας μπαίνει
+      // και εδώ: η πράξη είναι οριστική και δεν στηρίζεται σε ένα disabled.
+      if (creditChoiceMissing(deletionCounts, creditDisposition)) {
+        throw new Error('Διαλέξτε πρώτα τι θα γίνει με τις χρεώσεις πελατών αυτής της βάρδιας.');
+      }
       if (creditDisposition === 'DELETE') {
         await deleteShiftCustomerCredits(shiftToDel.id);
       }
@@ -248,9 +257,13 @@ export const ShiftsManager: React.FC = () => {
   // Τι κρέμεται από τη βάρδια - διαβάζεται όταν ανοίγει το παράθυρο, ώστε
   // να λέει τι υπάρχει τώρα και όχι τι είχε φορτωθεί στη λίστα.
   useEffect(() => {
+    // Και στους δύο κλάδους. Αν μηδενιζόταν μόνο στο κλείσιμο, όποιος
+    // πήγαινε από βάρδια σε βάρδια χωρίς να κλείσει το παράθυρο θα κουβαλούσε
+    // την απάντηση της προηγούμενης - που είναι ακριβώς το σενάριο του
+    // μαζικού καθαρίσματος.
+    setCreditDisposition(null);
     if (!shiftToDelete) {
       setDeletionCounts(null);
-      setCreditDisposition('KEEP');
       return;
     }
     let cancelled = false;
@@ -1361,6 +1374,7 @@ export const ShiftsManager: React.FC = () => {
         onClose={() => {
           setShiftToDelete(null);
           setDeleteShiftError(null);
+          setCreditDisposition(null);
         }}
         what={
           shiftToDelete ? (
@@ -1373,6 +1387,7 @@ export const ShiftsManager: React.FC = () => {
         }
         warning={shiftToDelete ? closedShiftWarning(shiftToDelete.status) : null}
         lines={deletionCounts ? deletionLines(deletionCounts, creditDisposition) : []}
+        confirmBlocked={creditChoiceMissing(deletionCounts, creditDisposition)}
         choice={
           deletionCounts === null ? (
             <p className="text-micro text-slate-500">Καταμέτρηση όσων κρέμονται από τη βάρδια…</p>

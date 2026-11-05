@@ -26,6 +26,21 @@ import { formatCurrency } from './formatters.ts';
 /** Τι γίνονται οι χρεώσεις πελατών της βάρδιας. */
 export type CreditDisposition = 'DELETE' | 'KEEP';
 
+/**
+ * Και η τρίτη κατάσταση: δεν έχει απαντήσει ακόμα κανείς.
+ *
+ * Το παράθυρο ξεκινούσε με προεπιλεγμένο το «Να μείνουν», με το σκεπτικό
+ * ότι είναι το ασφαλές αν δεν διαβάσει κανείς την ερώτηση. Δεν είναι: δεν
+ * χάνει το ΠΟΣΟ, χάνει την ΠΡΟΕΛΕΥΣΗ, και αυτό είναι χειρότερο γιατί είναι
+ * αόρατο. Το χρέος μένει στον πελάτη, η βάρδια έχει φύγει, και δεν υπάρχει
+ * πια τρόπος να βρεθεί από πού ήρθε - το ξένο κλειδί είναι SET NULL. Στις
+ * 5/11/2026 έφυγαν έτσι 20 βάρδιες και 10 χρεώσεις έμειναν ανεξήγητες.
+ *
+ * Ο Owner είχε ζητήσει «να ρωτάει κάθε φορά». Μια προεπιλογή δεν ρωτάει -
+ * απαντάει για λογαριασμό σου και σε βάζει να το προσέξεις.
+ */
+export type CreditChoice = CreditDisposition | null;
+
 export interface ShiftDeletionCounts {
   /** Έξοδα της βάρδιας. Φεύγουν πάντα (CASCADE). */
   expenses: number;
@@ -60,7 +75,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  */
 export function deletionLines(
   counts: ShiftDeletionCounts,
-  disposition: CreditDisposition
+  disposition: CreditChoice
 ): DeletionLine[] {
   const lines: DeletionLine[] = [];
 
@@ -86,7 +101,11 @@ export function deletionLines(
       detail:
         `${plural(counts.customerCredits, 'εγγραφή', 'εγγραφές')} · ` +
         `${formatCurrency(counts.customerCreditTotal)}` +
-        (disposition === 'KEEP' ? ' — το χρέος παραμένει στο τεφτέρι' : ''),
+        (disposition === null
+          ? ' — διαλέξτε παρακάτω τι θα τις γίνει'
+          : disposition === 'KEEP'
+          ? ' — το χρέος παραμένει στο τεφτέρι'
+          : ''),
       fate: disposition === 'DELETE' ? 'GOES' : 'DETACHES',
     });
   }
@@ -133,10 +152,30 @@ export function needsCreditChoice(counts: ShiftDeletionCounts): boolean {
  */
 export function creditDispositionNote(
   counts: ShiftDeletionCounts,
-  disposition: CreditDisposition
+  disposition: CreditChoice
 ): string {
   if (counts.customerCredits === 0) return 'Καμία χρέωση πελάτη.';
+  if (disposition === null) {
+    return `${counts.customerCredits} χρεώσεις πελατών (${formatCurrency(counts.customerCreditTotal)})`
+      + ' — διαλέξτε μία από τις δύο για να συνεχίσετε.';
+  }
   return disposition === 'DELETE'
     ? `Διαγράφηκαν ${counts.customerCredits} χρεώσεις πελατών (${formatCurrency(counts.customerCreditTotal)}).`
     : `Διατηρήθηκαν ${counts.customerCredits} χρεώσεις πελατών (${formatCurrency(counts.customerCreditTotal)}) ως χρέος.`;
+}
+
+/**
+ * Αν λείπει απάντηση που χρειάζεται, ώστε το κουμπί να μην πατιέται.
+ *
+ * Το φράγμα ζει εδώ και όχι μέσα στο παράθυρο, γιατί είναι ο ίδιος κανόνας
+ * με το needsCreditChoice και πρέπει να απαντά το ίδιο πράγμα - δύο σημεία
+ * που κρίνουν «χρειάζεται επιλογή;» αλλιώς είναι ακριβώς ο τρόπος με τον
+ * οποίο ξαναγλιστράει.
+ */
+export function creditChoiceMissing(
+  counts: ShiftDeletionCounts | null,
+  disposition: CreditChoice
+): boolean {
+  if (!counts) return true;
+  return needsCreditChoice(counts) && disposition === null;
 }
