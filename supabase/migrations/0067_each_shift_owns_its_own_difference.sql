@@ -165,27 +165,50 @@ END;
 $$;
 
 -- ============================================================
--- 4. Οι υπάρχουσες βάρδιες
+-- 4. Οι υπάρχουσες βάρδιες: υπολογίζονται, δεν ξαναγράφονται
 -- ============================================================
--- Συμπληρώνονται οι δύο νέες στήλες. Το discrepancy ΔΕΝ αγγίζεται, οπότε
--- καμία αναφορά και καμία εγκεκριμένη βάρδια δεν αλλάζει νούμερο.
+-- Η πρώτη εκδοχή αυτού του αρχείου γέμιζε τις δύο στήλες με UPDATE και
+-- σταμάτησε στο 42501: το trg_shift_immutability κλειδώνει τις
+-- SUBMITTED/APPROVED, και στο SQL Editor το auth.uid() είναι NULL, οπότε
+-- το auth_is_elevated() βγάζει false και κλειδώνει και τον ίδιο τον
+-- διαχειριστή.
 --
--- Οι χρεώσεις που έχουν ήδη γίνει μένουν επίσης ως έχουν: δεν ξαναγράφονται
--- αναδρομικά ποσά που κάποιος ίσως έχει ήδη πληρώσει. Από εδώ και πέρα
--- υπολογίζονται στη δική της.
-UPDATE shifts s
-SET    discrepancy_baseline = b.base,
-       shift_discrepancy    = ROUND(COALESCE(s.discrepancy, 0) - b.base, 2)
-FROM  (SELECT x.id, shift_discrepancy_baseline(x.*) AS base FROM shifts x) b
-WHERE  s.id = b.id
-  AND (s.shift_discrepancy IS NULL OR s.discrepancy_baseline IS NULL);
+-- Η απάντηση δεν είναι να ξεκλειδώσει. Το κλείδωμα υπάρχει ακριβώς για να
+-- μη γράφει κανείς σε κλεισμένα οικονομικά στοιχεία από το SQL Editor, και
+-- μια migration που το σβήνει για να περάσει είναι η migration που θα
+-- αντιγραφεί την επόμενη φορά που κάτι δεν περνάει.
+--
+-- Δεν χρειάζεται καν εγγραφή. Οι δύο στήλες είναι παράγωγες: η view τις
+-- βγάζει για ΚΑΘΕ βάρδια, και για τις παλιές δίνει ακριβώς ό,τι θα έδινε
+-- το backfill. Οι νέες τις αποθηκεύουν κανονικά μέσω του trigger, και η
+-- χρέωση πέφτει πίσω στο discrepancy όπου λείπουν - γι' αυτό το COALESCE
+-- παραπάνω.
+CREATE OR REPLACE VIEW shift_discrepancy_breakdown AS
+SELECT s.id,
+       s.organization_id,
+       s.store_id,
+       s.register_id,
+       (s.opened_at AT TIME ZONE 'Europe/Athens')::date AS shift_date,
+       s.opened_at,
+       s.opened_by_user_name,
+       s.status,
+       s.discrepancy                                   AS cumulative_discrepancy,
+       COALESCE(s.discrepancy_baseline,
+                shift_discrepancy_baseline(s.*))       AS baseline,
+       COALESCE(s.shift_discrepancy,
+                ROUND(COALESCE(s.discrepancy, 0)
+                      - shift_discrepancy_baseline(s.*), 2)) AS own_discrepancy,
+       s.discrepancy_threshold
+FROM   shifts s;
 
-SELECT (opened_at AT TIME ZONE 'Europe/Athens')::date AS "ημέρα",
+GRANT SELECT ON shift_discrepancy_breakdown TO authenticated;
+
+SELECT shift_date AS "ημέρα",
        opened_by_user_name AS "υπάλληλος",
-       discrepancy AS "σωρευτική",
-       discrepancy_baseline AS "βάση",
-       shift_discrepancy AS "δική της"
-FROM   shifts
+       cumulative_discrepancy AS "σωρευτική",
+       baseline AS "βάση",
+       own_discrepancy AS "δική της"
+FROM   shift_discrepancy_breakdown
 WHERE  status IN ('SUBMITTED','APPROVED')
 ORDER  BY opened_at DESC
 LIMIT  12;
