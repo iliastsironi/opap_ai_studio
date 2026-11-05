@@ -286,9 +286,27 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * balance, which is why every day in the live data that has a top-up shows
    * it on both shifts - and the P&L, which sums them, reported double.
    */
+  /** Οι προσαυξήσεις ΟΛΗΣ της ημέρας, όπως τις βλέπει η βάση τώρα. */
+  const [dayTopUps, setDayTopUps] = useState(0);
+
+  /**
+   * Όση προσαύξηση έκανε η ημέρα πριν από αυτή τη βάρδια, διαβασμένη ξανά.
+   *
+   * Το inherited_topups είναι στιγμιότυπο της ώρας που ΑΝΟΙΞΕ η βάρδια. Αν
+   * η πρωινή καταχωρήσει την προσαύξησή της αφού άνοιξε η απογευματινή -
+   * και αυτό είναι ο κανόνας, όχι η εξαίρεση, γιατί το ποσό φτάνει στη
+   * βάση όταν αποθηκεύσει η πρωινή - η απογευματινή δεν τη μαθαίνει ποτέ.
+   * Μένει με μηδέν, και το ταμείο της διαβάζει λιγότερο κατά όλο το ποσό.
+   *
+   * Οπότε ξαναρωτιέται η ημέρα στο κλείσιμο, και κρατιέται το μεγαλύτερο
+   * από τα δύο. Αφαιρείται η ΔΙΚΗ της προσαύξηση, γιατί το topups_today τις
+   * αθροίζει όλες της ημέρας - χωρίς αυτό, μια βάρδια θα κληρονομούσε τον
+   * εαυτό της.
+   */
   const inheritedTopUps = Math.max(
     0,
-    safeNum((shift.custom_field_values as any)?.inherited_topups)
+    safeNum((shift.custom_field_values as any)?.inherited_topups),
+    roundCurrency(dayTopUps - topUpTotal)
   );
 
   // Notes, coins, this shift's own top-ups, and any προσαύξηση the day made
@@ -546,6 +564,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           ? null
           : handover?.scratch_ticket_items ?? null) as any[] | null;
         const daySnapshot = day && (day as any).status === 'FOUND' ? (day as any).snapshot : null;
+        // Ξαναδιαβασμένη εδώ, όχι μόνο από το στιγμιότυπο του ανοίγματος.
+        setDayTopUps(Math.max(0, safeNum((daySnapshot as any)?.topups_today)));
         const seed = seedRowsFor({
           dayOpeningRows: daySnapshot?.scratch_ticket_items ?? null,
           dayFirstOpenedAt: daySnapshot?.opened_at ?? null,
