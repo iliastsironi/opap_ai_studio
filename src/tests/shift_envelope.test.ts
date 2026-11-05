@@ -65,7 +65,8 @@ describe('what goes in the envelope', () => {
 
   it('survives empty figures rather than reporting NaN', () => {
     expect(calculateEnvelope({ countedNotes: null, floatNotes: undefined })).toEqual({
-      amount: 0, retained: 0, totalOut: 0, settlement: 0, coinHandover: 0,
+      amount: 0, retained: 0, retainedNotes: 0, retainedCoins: 0,
+      totalOut: 0, settlement: 0, coinHandover: 0,
       carriedCoinHandover: 0, handedOver: 0, isShort: false,
     });
   });

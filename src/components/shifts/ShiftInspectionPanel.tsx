@@ -4,7 +4,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  InspectionLine, lineFinding, summariseInspection,
+  InspectionLine, lineFinding, summariseInspection, inspectionHandover,
 } from '../../lib/shiftInspection.ts';
 
 /**
@@ -23,6 +23,78 @@ import {
  * Skipping is a first-class choice, not a hidden one, because the Owner made
  * it one: the button says what it costs the person pressing it.
  */
+/**
+ * Τα παραδοτέα, σε μεγάλα γράμματα.
+ *
+ * Ο πίνακας έδειχνε γραμμή-γραμμή τι δηλώθηκε και κανένα σύνολο, οπότε για
+ * να μάθει κανείς τι παραλαμβάνει έπρεπε να προσθέσει στο μυαλό του πριν
+ * καν αρχίσει να μετράει. Μπαίνει σε δύο σημεία επίτηδες: πάνω από τον
+ * πίνακα όταν κάνεις την επιθεώρηση, και μέσα στο πλαίσιο όταν την
+ * προσπεράσεις - γιατί αν την προσπεράσεις, τα νούμερα αυτά είναι ΑΚΡΙΒΩΣ
+ * ό,τι μόλις αποδέχτηκες, και ήταν το μόνο σημείο που δεν τα έλεγε.
+ *
+ * Χαρτονομίσματα και κέρματα χωριστά - δες lib/shiftInspection.ts για το
+ * γιατί τα σκρατς μετρούν γραμμές και όχι αξία.
+ */
+export const InspectionHandoverSummary: React.FC<{
+  lines: InspectionLine[];
+  tone?: 'indigo' | 'amber';
+}> = ({ lines, tone = 'indigo' }) => {
+  const h = useMemo(() => inspectionHandover(lines), [lines]);
+  const frame = tone === 'amber'
+    ? 'bg-amber-100/60 border-amber-300'
+    : 'bg-white/80 border-indigo-200';
+
+  return (
+    <div className={`rounded-xl border p-2.5 ${frame}`}>
+      <span className="text-micro font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+        Παραλαμβάνετε
+      </span>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <span className="text-micro text-slate-500 block">Χαρτονομίσματα</span>
+          <span className="text-lg font-black font-mono text-slate-900 block leading-tight">
+            {formatCurrency(h.notes)}
+          </span>
+        </div>
+        <div>
+          <span className="text-micro text-slate-500 block">Κέρματα</span>
+          <span className="text-lg font-black font-mono text-slate-900 block leading-tight">
+            {formatCurrency(h.coins)}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-slate-300/70">
+        <span className="text-micro font-black uppercase tracking-wider text-slate-600">
+          Σύνολο μετρητών
+        </span>
+        <span className="text-sm font-black font-mono text-slate-900">
+          {formatCurrency(h.money)}
+        </span>
+      </div>
+      {h.ticketLines > 0 && (
+        <p className="text-micro text-slate-600 mt-1.5 font-medium">
+          {/* Τα λαχεία έχουν αξία γιατί το νούμερό τους είναι απόθεμα· τα
+              σκρατς μόνο γραμμές, γιατί το δικό τους είναι θέση σε πακέτο. */}
+          {h.lotteryUnits > 0 && (
+            <>
+              Λαχεία: <strong className="font-mono">{h.lotteryUnits}</strong> τεμάχια
+              (<strong className="font-mono">{formatCurrency(h.lotteryValue)}</strong>)
+              {h.scratchLines > 0 ? ' · ' : ''}
+            </>
+          )}
+          {h.scratchLines > 0 && (
+            <>
+              Σκρατς: <strong className="font-mono">{h.scratchLines}</strong>{' '}
+              {h.scratchLines === 1 ? 'γραμμή' : 'γραμμές'} προς έλεγχο
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  );
+};
+
 export const ShiftInspectionPanel: React.FC<{
   previousOperatorName: string;
   lines: InspectionLine[];
@@ -60,13 +132,18 @@ export const ShiftInspectionPanel: React.FC<{
     return (
       <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-2.5">
         <SkipForward className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <div>
+        <div className="min-w-0 flex-1">
           <span className="font-bold block">{toGreekUpper('Η Επιθεωρηση Προσπεραστηκε')}</span>
           <span className="text-micro font-medium block mt-0.5">
             Αποδέχεστε το ταμείο και τα λαχεία όπως τα παρέδωσε ο/η{' '}
             {previousOperatorName}. Τυχόν διαφορά που βρεθεί αργότερα δεν θα χρεωθεί
             σε εκείνον/εκείνη.
           </span>
+          {/* Ό,τι μόλις αποδέχτηκες, σε νούμερα. Χωρίς αυτό το μόνο που
+              έβλεπε κανείς ήταν ότι «προσπεράστηκε». */}
+          <div className="mt-2">
+            <InspectionHandoverSummary lines={lines} tone="amber" />
+          </div>
         </div>
       </div>
     );
@@ -95,6 +172,10 @@ export const ShiftInspectionPanel: React.FC<{
           Μετράτε βάρδια που δουλέψατε εσείς. Καταγράφεται ως αυτο-καταμέτρηση.
         </p>
       )}
+
+      {/* Η προεπισκόπηση πριν τις γραμμές: πρώτα το μεγάλο νούμερο, μετά η
+          δουλειά. */}
+      <InspectionHandoverSummary lines={lines} />
 
       {sections.map((section) => {
         const sectionLines = lines.filter((l) => section.kind.includes(l.kind));

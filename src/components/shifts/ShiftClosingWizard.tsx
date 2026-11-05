@@ -3807,51 +3807,70 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               <span className="text-xs font-black uppercase tracking-wider block text-slate-700">
                 Φάκελος Παράδοσης
               </span>
-              {/* The envelope alone: the notes above the float. Whatever
-                  else travels with it is listed underneath as its own
-                  figure, because the person receiving them counts them
-                  separately - a cup of coins is not banknotes. */}
-              <p
-                className={`text-3xl font-black mt-1 font-mono ${
-                  envelope.isShort ? 'text-rose-800' : 'text-indigo-900'
-                }`}
-              >
-                {formatCurrency(envelope.amount)}
-              </p>
-              <p className="text-micro text-slate-500">
-                Χαρτονομίσματα ταμείου − πάγιο κεφάλαιο
-              </p>
+              {/* Χαρτονομίσματα αριστερά, κέρματα δεξιά, σύνολο από κάτω.
+                  Ήταν ένα μεγάλο νούμερο με τα κέρματα σε ψιλή γραμμή από
+                  κάτω, και τα κέρματα είναι ξεχωριστό πράγμα: μετριούνται
+                  χωριστά, ταξιδεύουν σε κύπελλο δίπλα στον φάκελο και
+                  παραλαμβάνονται χωριστά. Δύο στήλες, γιατί είναι δύο
+                  δέματα. */}
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="p-2.5 rounded-xl bg-white/70 border border-indigo-200">
+                  <span className="text-micro font-black uppercase tracking-wider text-slate-500 block">
+                    Χαρτονομίσματα
+                  </span>
+                  <span
+                    className={`text-2xl font-black font-mono block leading-tight ${
+                      envelope.isShort ? 'text-rose-800' : 'text-indigo-900'
+                    }`}
+                  >
+                    {formatCurrency(envelope.amount)}
+                  </span>
+                  <span className="text-micro text-slate-500">ταμείο − πάγιο κεφάλαιο</span>
+                </div>
+                <div
+                  className={`p-2.5 rounded-xl border ${
+                    envelope.coinHandover > 0
+                      ? 'bg-amber-50 border-amber-300'
+                      : 'bg-white/70 border-indigo-200'
+                  }`}
+                >
+                  <span className="text-micro font-black uppercase tracking-wider text-slate-500 block">
+                    Κέρματα
+                  </span>
+                  <span
+                    className={`text-2xl font-black font-mono block leading-tight ${
+                      envelope.coinHandover > 0 ? 'text-amber-900' : 'text-slate-400'
+                    }`}
+                  >
+                    {formatCurrency(envelope.coinHandover)}
+                  </span>
+                  <span className="text-micro text-slate-500">
+                    {envelope.coinHandover > 0 ? 'κύπελλο δίπλα στον φάκελο' : 'δεν παραδίδονται κέρματα'}
+                  </span>
+                </div>
+              </div>
 
-              {(totalSafeDrops(safeDrops) > 0 || envelope.coinHandover > 0 || envelope.settlement > 0) && (
-                <div className="mt-2 pt-2 border-t border-indigo-200/70 space-y-1">
-                  {totalSafeDrops(safeDrops) > 0 && (
-                    <div className="flex items-center justify-between gap-2 text-micro">
-                      <span className="font-bold text-slate-700">Χρηματοκιβώτιο (safe drop)</span>
-                      <span className="font-mono font-black text-slate-900">
-                        {formatCurrency(totalSafeDrops(safeDrops))}
-                      </span>
-                    </div>
-                  )}
-                  {envelope.coinHandover > 0 && (
-                    <div className="flex items-center justify-between gap-2 text-micro">
-                      <span className="font-bold text-amber-900">Παράδοση κερμάτων</span>
-                      <span className="font-mono font-black text-amber-900">
-                        {formatCurrency(envelope.coinHandover)}
-                      </span>
-                    </div>
-                  )}
-                  {envelope.settlement > 0 && (
-                    <div className="flex items-center justify-between gap-2 text-micro">
-                      <span className="font-bold text-emerald-800">
-                        Εξόφληση απόκλισης — εκτός εισπράξεων
-                      </span>
-                      <span className="font-mono font-black text-emerald-800">
-                        {formatCurrency(envelope.settlement)}
-                      </span>
-                    </div>
-                  )}
+              {envelope.settlement > 0 && (
+                <div className="flex items-center justify-between gap-2 text-micro mt-2 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <span className="font-bold text-emerald-800">
+                    Εξόφληση απόκλισης — εκτός εισπράξεων
+                  </span>
+                  <span className="font-mono font-black text-emerald-800">
+                    {formatCurrency(envelope.settlement)}
+                  </span>
                 </div>
               )}
+
+              {/* Το νούμερο που μετράει αυτός που παραλαμβάνει: ό,τι του
+                  δίνεται στο χέρι, όλα μαζί. */}
+              <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t-2 border-indigo-300">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  Σύνολο παράδοσης
+                </span>
+                <span className="text-xl font-black font-mono text-indigo-950">
+                  {formatCurrency(envelope.handedOver)}
+                </span>
+              </div>
 
               <div className="text-micro mt-2 space-y-0.5 text-slate-600">
                 {envelope.isShort ? (
@@ -3860,9 +3879,25 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     κεφάλαιο ({formatCurrency(safeNum(openingNotesAmount) + topUpTotal + inheritedTopUps)}).
                   </p>
                 ) : (
+                  /* Δύο ποσά, όχι ένα άθροισμα. «Μένουν 1.250,80» είναι σωστό
+                     και άχρηστο για όποιον θα τα μετρήσει το πρωί. */
+                  <p className="font-semibold text-slate-700">
+                    Μένουν στο συρτάρι:{' '}
+                    <span className="font-mono font-black text-slate-900">
+                      {formatCurrency(envelope.retainedNotes)}
+                    </span>{' '}
+                    χαρτονομίσματα και{' '}
+                    <span className="font-mono font-black text-slate-900">
+                      {formatCurrency(envelope.retainedCoins)}
+                    </span>{' '}
+                    κέρματα.
+                  </p>
+                )}
+                {totalSafeDrops(safeDrops) > 0 && (
                   <p>
-                    Μένουν {formatCurrency(envelope.retained)} στο συρτάρι — το πάγιο
-                    σε χαρτονομίσματα και όλα τα κέρματα.
+                    Στο χρηματοκιβώτιο είχαν μπει{' '}
+                    {formatCurrency(totalSafeDrops(safeDrops))} μέσα στη βάρδια — εκτός
+                    φακέλου.
                   </p>
                 )}
                 {envelope.carriedCoinHandover > 0 && (

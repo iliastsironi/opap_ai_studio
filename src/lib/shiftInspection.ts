@@ -123,3 +123,68 @@ export function summariseInspection(lines: InspectionLine[]): InspectionSummary 
 export function inspectionStatusFor(summary: InspectionSummary): 'OK' | 'FLAGGED' {
   return summary.shortfall > 0 ? 'FLAGGED' : 'OK';
 }
+
+/**
+ * Τα παραδοτέα: τι ακριβώς παραλαμβάνει ο επόμενος, σε αριθμούς.
+ *
+ * Ο πίνακας της επιθεώρησης δείχνει γραμμή-γραμμή τι δηλώθηκε, αλλά όχι
+ * ΣΥΝΟΛΟ. Όποιος ανοίγει το ταμείο θέλει πρώτα το μεγάλο νούμερο - πόσα
+ * χαρτονομίσματα, πόσα κέρματα - και μετά τις γραμμές. Χωρίς αυτό έπρεπε
+ * να τις προσθέσει στο μυαλό του πριν καν αρχίσει να μετράει.
+ *
+ * Χαρτονομίσματα και κέρματα μένουν ΧΩΡΙΣΤΑ και εδώ, για τον ίδιο λόγο που
+ * χωρίζουν στον φάκελο: μετριούνται χωριστά και λείπουν χωριστά.
+ *
+ * Τα εισιτήρια δεν αθροίζονται σε μία αξία, και αυτό είναι σκόπιμο. Στα
+ * λαχεία το `expected` είναι ΑΠΟΘΕΜΑ - πόσα απομένουν - οπότε πλήθος επί
+ * τιμή είναι πραγματική αξία. Στα σκρατς είναι ΑΥΞΩΝ ΑΡΙΘΜΟΣ μέσα στο
+ * πακέτο, δηλαδή θέση και όχι ποσότητα· να το πολλαπλασιάσεις επί την τιμή
+ * δίνει νούμερο που μοιάζει με ευρώ και δεν είναι τίποτα. Γι' αυτό τα
+ * σκρατς μετρούν μόνο γραμμές προς έλεγχο.
+ */
+export interface InspectionHandover {
+  /** Χαρτονομίσματα που δηλώθηκαν. */
+  notes: number;
+  /** Κέρματα που δηλώθηκαν. */
+  coins: number;
+  /** notes + coins - τα μετρητά του συρταριού. */
+  money: number;
+  /** Λαχεία: τεμάχια που απομένουν και η αξία τους. */
+  lotteryUnits: number;
+  lotteryValue: number;
+  /** Σκρατς: γραμμές προς έλεγχο. ΟΧΙ τεμάχια - δες παραπάνω. */
+  scratchLines: number;
+  /** Όλες οι γραμμές εισιτηρίων, σκρατς και λαχεία μαζί. */
+  ticketLines: number;
+}
+
+export function inspectionHandover(lines: InspectionLine[]): InspectionHandover {
+  let notes = 0, coins = 0, lotteryUnits = 0, lotteryValue = 0, scratchLines = 0;
+
+  for (const line of lines ?? []) {
+    const expected = num(line.expected);
+    switch (line.kind) {
+      case 'CASH':
+        notes = round2(notes + expected);
+        break;
+      case 'COINS':
+        coins = round2(coins + expected);
+        break;
+      case 'LOTTERY':
+        lotteryUnits += Math.max(0, Math.round(expected));
+        lotteryValue = round2(lotteryValue + Math.max(0, expected) * Math.max(0, num(line.unitPrice)));
+        break;
+      case 'SCRATCH':
+        scratchLines += 1;
+        break;
+    }
+  }
+
+  return {
+    notes, coins,
+    money: round2(notes + coins),
+    lotteryUnits, lotteryValue,
+    scratchLines,
+    ticketLines: scratchLines + (lines ?? []).filter((l) => l.kind === 'LOTTERY').length,
+  };
+}

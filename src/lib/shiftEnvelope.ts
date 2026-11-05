@@ -85,6 +85,16 @@ export interface Envelope {
   amount: number;
   /** Stays in the drawer for the next shift. */
   retained: number;
+  /**
+   * Τα δύο μισά του `retained`, χωριστά.
+   *
+   * «Μένουν 1.250,80 € στο συρτάρι» είναι σωστό και άχρηστο: ο επόμενος
+   * θέλει να ξέρει ότι θα βρει 1.000 € σε χαρτονομίσματα και 250,80 € σε
+   * κέρματα, γιατί αυτά είναι δύο διαφορετικά πράγματα που μετριούνται
+   * χωριστά και χάνονται χωριστά. Ένα άθροισμα τα κρύβει και τα δύο.
+   */
+  retainedNotes: number;
+  retainedCoins: number;
   /** Everything that left the till this shift, safe drops included. */
   totalOut: number;
   /** The settlement cash riding along with the envelope, if any. */
@@ -123,6 +133,8 @@ export function calculateEnvelope(input: EnvelopeInput): Envelope {
     // Whatever notes the float keeps, plus every coin in the drawer - the
     // change the next shift works with.
     retained: round2(Math.min(notes, floatNotes) + coins),
+    retainedNotes: round2(Math.min(notes, floatNotes)),
+    retainedCoins: round2(coins),
     // The settlement is deliberately OUT of totalOut, which answers "what
     // did this till produce". Counting it there would inflate the takings by
     // the exact amount the shortage already removed from them.
