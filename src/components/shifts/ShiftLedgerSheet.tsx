@@ -121,6 +121,24 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   const [floatAdd2, setFloatAdd2] = useState<string>(
     String(shift.custom_field_values?.opening_topup_2 ?? shift.starting_addition_2 ?? 0)
   );
+  /**
+   * Η προσαύξηση που έκανε προηγούμενη βάρδια της ίδιας ημέρας.
+   *
+   * Λείπει από τα δύο πεδία παραπάνω επίτηδες: εκείνα κρατάνε ό,τι
+   * πρόσθεσε Η ΙΔΙΑ η βάρδια, και το 0047 τα χώρισε ακριβώς για να μη
+   * μετρηθεί η ίδια προσαύξηση δύο φορές στο P&L.
+   *
+   * Αλλά είναι στο συρτάρι, και το ταμείο τη μετράει στο αρχικό του
+   * (openingCashTotal στο ShiftClosingWizard). Χωρίς αυτήν, αυτή η καρτέλα
+   * έδειχνε αρχικό μικρότερο κατά όλο το ποσό - και επομένως άλλη απόκλιση
+   * από εκείνη που είδε ο υπάλληλος. Είναι η οθόνη που διαβάζει ο
+   * επιθεωρητής, οπότε δύο αριθμοί για το ίδιο ταμείο είναι το χειρότερο
+   * σημείο για να διαφωνούν.
+   */
+  const inheritedTopUps = Math.max(
+    0,
+    Number((shift.custom_field_values as any)?.inherited_topups) || 0
+  );
 
   // Coin & Banknote Denominations
   const [coinsCount, setCoinsCount] = useState<Record<string, number>>({
@@ -256,7 +274,8 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   );
 
   const floatTotal = roundCurrency(
-    safeNum(floatCashNotes) + safeNum(floatCoins) + safeNum(floatAdd1) + safeNum(floatAdd2)
+    safeNum(floatCashNotes) + safeNum(floatCoins) + safeNum(floatAdd1) + safeNum(floatAdd2) +
+    inheritedTopUps
   );
 
   const coinsTotal = roundCurrency(

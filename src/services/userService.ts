@@ -1,6 +1,7 @@
 import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
 import { User, Role, UserStoreAssignment } from '../types/index.ts';
 import { ASSIGNABLE_ROLES } from '../lib/rbac.ts';
+import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 
 const USERS_TABLE = 'users';
 
@@ -105,13 +106,29 @@ export async function fetchStoreAssignmentsByUser(orgId: string): Promise<Record
   return byUser;
 }
 
+/**
+ * Αλλάζει στοιχεία χρήστη - ρόλο και κατάσταση περιλαμβανομένων.
+ *
+ * Ελέγχεται ότι όντως γράφτηκε. Ένα UPDATE που η RLS φιλτράρει γυρίζει 204
+ * χωρίς σφάλμα, οπότε «αποθηκεύτηκε» μπορεί να σημαίνει ότι δεν έγινε
+ * τίποτα - το έχει πληρώσει ήδη αυτό το έργο αλλού. Εδώ θα σήμαινε ότι
+ * κάποιος νομίζει πως αφαίρεσε δικαιώματα και δεν τα αφαίρεσε.
+ *
+ * Το φίλτρο είναι μόνο το id, οπότε μηδέν γραμμές δεν είναι ποτέ νόμιμη
+ * κατάσταση: ή η RLS αρνήθηκε, ή ο χρήστης δεν υπάρχει πια.
+ */
 export async function updateUserInFirestore(userId: string, updateData: any): Promise<void> {
   try {
-    const { error } = await supabase.from(USERS_TABLE).update(cleanData({
+    const { error, count } = await supabase.from(USERS_TABLE).update(cleanData({
       ...updateData,
       updated_at: new Date().toISOString(),
-    })).eq('id', userId);
+    }), { count: 'exact' }).eq('id', userId);
     if (error) throw error;
+    if (rowsWrittenProblem(count)) {
+      throw new Error(
+        'Ο χρήστης δεν ενημερώθηκε — είτε δεν έχετε δικαίωμα, είτε ο λογαριασμός δεν υπάρχει πια.'
+      );
+    }
   } catch (error) {
     await handleSupabaseError(error, OperationType.UPDATE, `${USERS_TABLE}/${userId}`);
     throw error;
