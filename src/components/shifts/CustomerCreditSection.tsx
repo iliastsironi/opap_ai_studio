@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { debtBeforeLine } from '../../lib/creditRunningDebt.ts';
 import {
   UserCheck,
   Plus,
@@ -297,8 +298,24 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
             const amount = Number(cred.amount) || 0;
             const isGranted = cred.type === 'GRANTED' || !cred.type;
 
-            let validationResult = customerObj
-              ? validateCustomerCreditGrant(customerObj, amount, tierConfigs)
+            // Η οφειλή όπως είναι ΤΩΡΑ, μαζί με τις γραμμές που μόλις
+            // γράφτηκαν από πάνω. Η βάση δεν τις ξέρει - αποθηκεύονται στο
+            // κλείσιμο - οπότε ο πελάτης που έφερε τα λεφτά στην ίδια
+            // βάρδια εμφανιζόταν ακόμα να χρωστάει και μπλοκαριζόταν.
+            const liveDebt = customerObj
+              ? debtBeforeLine(customerCredits as any[], idx, customerObj.current_debt || 0)
+              : 0;
+
+            // Ο πελάτης όπως τον βλέπει αυτή η γραμμή. Αντίγραφο, όχι
+            // μετάλλαξη: η λίστα customers είναι κοινή για όλες τις γραμμές
+            // και αλλάζοντάς την, η επόμενη θα διάβαζε την οφειλή της
+            // προηγούμενης.
+            const customerHere = customerObj
+              ? { ...customerObj, current_debt: liveDebt }
+              : null;
+
+            let validationResult = customerHere
+              ? validateCustomerCreditGrant(customerHere, amount, tierConfigs)
               : null;
 
             const isOverLimit =
@@ -515,7 +532,17 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       </span>
 
                       <span className="text-micro text-slate-600 font-semibold">
-                        Τρέχουσα Οφειλή: <strong className="font-mono text-slate-900">{formatCurrency(customerObj.current_debt || 0)}</strong>
+                        Τρέχουσα Οφειλή:{' '}
+                        <strong className="font-mono text-slate-900">{formatCurrency(liveDebt)}</strong>
+                        {Math.abs(liveDebt - (customerObj.current_debt || 0)) > 0.005 && (
+                          /* Από πού προκύπτει, όταν διαφέρει από τη βάση: αλλιώς
+                             δύο γραμμές της ίδιας οθόνης δείχνουν δύο νούμερα
+                             για τον ίδιο πελάτη και κανένα δεν εξηγεί το άλλο. */
+                          <span className="text-micro text-slate-500 font-medium">
+                            {' '}(στη βάση {formatCurrency(customerObj.current_debt || 0)}, με τις
+                            γραμμές αυτής της βάρδιας)
+                          </span>
+                        )}
                       </span>
 
                       {!tierConfigs[customerObj.tier]?.isUnlimited && (
@@ -539,11 +566,11 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                       <div className="text-micro font-mono font-bold">
                         {isGranted ? (
                           <span className={isOverLimit ? 'text-rose-700 font-black' : 'text-amber-900'}>
-                            Νέο Σύνολο Οφειλής: {formatCurrency((customerObj.current_debt || 0) + amount)}
+                            Νέο Σύνολο Οφειλής: {formatCurrency(liveDebt + amount)}
                           </span>
                         ) : (
                           <span className="text-emerald-800 font-black">
-                            Νέο Υπόλοιπο μετά την Είσπραξη: {formatCurrency(Math.max(0, (customerObj.current_debt || 0) - amount))}
+                            Νέο Υπόλοιπο μετά την Είσπραξη: {formatCurrency(Math.max(0, liveDebt - amount))}
                           </span>
                         )}
                       </div>
