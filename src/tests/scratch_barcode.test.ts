@@ -3,7 +3,7 @@ import {
   BARCODE_LENGTH, isValidGameNo, isValidPackCode, packPieces, packValue, readBarcode,
 } from '../lib/scratchBarcode.ts';
 import {
-  getPackagePieceCount, getPackageMaxNumber,
+  getPackagePieceCount, getPackageMaxNumber, validateScratchRow,
 } from '../components/shifts/ScratchCalculatorTable.tsx';
 
 describe('ο κωδικός σπάει στα τρία', () => {
@@ -107,5 +107,42 @@ describe('το ταμείο και η αποθήκη μετράνε το ίδι�
   it('η αξία του πακέτου ακολουθεί τα δελτία, όχι τα 300', () => {
     expect(packValue(50, 15)).toBe(750);
     expect(packValue(50)).toBe(300);
+  });
+});
+
+describe('οι προειδοποιήσεις του Χ50 μετράνε το δικό του πακέτο', () => {
+  const x50 = (over: Record<string, unknown> = {}) => ({
+    id: 'x50', name: '7ΑΡΙ Χ50', category: 'Σκρατς', price: 50,
+    packPieces: 15, startNo: '4', endNo: '', backStartNo: '', backEndNo: '',
+    saleBundles: '', salePieces: '', manualQty: '', ...over,
+  }) as any;
+
+  const warnings = (row: any) =>
+    validateScratchRow(row).errors.filter((e) => e.severity === 'warning').map((e) => e.message);
+
+  it('δεν φωνάζει για αξία μέσα στο πακέτο', () => {
+    // Η οθόνη του Owner: 4 → 17, 13 τεμάχια, 650 €. Το πακέτο αξίζει 750,
+    // οπότε δεν ξεπεράστηκε τίποτα - αλλά ο έλεγχος συγκρινόταν ακόμα με
+    // τη σταθερά των 300 και φώναζε από τα 350 και πάνω.
+    const w = warnings(x50({ startNo: '0', endNo: '13' }));
+    expect(w.filter((m) => m.includes('αξία'))).toEqual([]);
+  });
+
+  it('φωνάζει μόνο πάνω από τα 750 του πακέτου', () => {
+    const w = warnings(x50({ startNo: '0', endNo: '16' }));
+    expect(w.some((m) => m.includes('αξία') && m.includes('750'))).toBe(true);
+  });
+
+  it('δεν λέει πια ότι το όριο βγαίνει από την τιμή', () => {
+    // «000-015 για παιχνίδι των 50€»: το όριο βγαίνει από τον κατάλογο, και
+    // το 015 δεν είναι αριθμός δελτίου - τα δελτία είναι 000 έως 014.
+    const w = warnings(x50({ endNo: '17' }));
+    expect(w.some((m) => m.includes('15 δελτία'))).toBe(true);
+    expect(w.some((m) => m.includes('000-') || m.includes('παιχνίδι των'))).toBe(false);
+  });
+
+  it('ένα παιχνίδι χωρίς δηλωμένο μέγεθος κρατάει τον κανόνα των 300', () => {
+    const w = warnings(x50({ price: 10, packPieces: undefined, startNo: '0', endNo: '31' }));
+    expect(w.some((m) => m.includes('30 δελτία'))).toBe(true);
   });
 });

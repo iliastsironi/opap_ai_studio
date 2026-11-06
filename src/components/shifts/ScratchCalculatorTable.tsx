@@ -1281,17 +1281,24 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
   const backEnd = row.backEndNo?.trim() ? parseInt(row.backEndNo, 10) : (pieceCount ?? null);
 
   if (pieceCount !== null) {
+    // «000-015 για παιχνίδι των 50€» έλεγε δύο αναλήθειες μαζί: το όριο δεν
+    // βγαίνει πια από την τιμή - το Χ50 έχει 15 δελτία επειδή το λέει ο
+    // κατάλογος, όχι επειδή 300/50 - και το 015 δεν είναι αριθμός δελτίου.
+    // Τα δελτία είναι 000 έως 014· το 15 είναι η ΘΕΣΗ αφού πουληθεί και το
+    // τελευταίο. Το μήνυμα λέει τώρα το πλήθος, που είναι αυτό που ξέρει ο
+    // χειριστής.
+    const limit = `${pieceCount} δελτία`;
     if (frontEnd !== null && (frontEnd < 0 || frontEnd > pieceCount)) {
-      warn(`Το Μπροστά - Τελικό (${row.endNo}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Μπροστά - Τελικό (${row.endNo}) ξεπερνά τα ${limit} του πακέτου.`);
     }
     if (frontStart < 0 || frontStart > pieceCount) {
-      warn(`Το Μπροστά - Αρχικό (${row.startNo || '000'}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Μπροστά - Αρχικό (${row.startNo || '000'}) ξεπερνά τα ${limit} του πακέτου.`);
     }
     if (backStart !== null && (backStart < 0 || backStart > pieceCount)) {
-      warn(`Το Πίσω - Αρχικό (${row.backStartNo}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Πίσω - Αρχικό (${row.backStartNo}) ξεπερνά τα ${limit} του πακέτου.`);
     }
     if (backEnd !== null && (backEnd < 0 || backEnd > pieceCount)) {
-      warn(`Το Πίσω - Τελικό (${formatTicketNumber(backEnd)}) ξεπερνά το συνηθισμένο 000-${formatTicketNumber(pieceCount)} για παιχνίδι των ${row.price}€.`);
+      warn(`Το Πίσω - Τελικό (${formatTicketNumber(backEnd)}) ξεπερνά τα ${limit} του πακέτου.`);
     }
   }
 
@@ -1316,9 +1323,16 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
     if (totalQty > pieceCount) {
       warn(`Το συνολικό πλήθος πωλημένων τεμαχίων (${totalQty}) ξεπερνά τα συνηθισμένα ${pieceCount} τεμάχια του πακέτου.`);
     }
+    // Η αξία ΑΥΤΟΥ του πακέτου, όχι τα 300 €.
+    //
+    // Αυτό έμεινε πίσω όταν διορθώθηκε το μέγεθος: το πλήθος μετρούσε πια
+    // σωστά 15 δελτία, αλλά η αξία συγκρινόταν ακόμα με τη σταθερά - οπότε
+    // το Χ50 προειδοποιούσε στα 350 €, ενώ το πακέτο του αξίζει 750. Ο
+    // χειριστής έβλεπε «ξεπερνάς το πακέτο» ενώ ήταν στη μέση του.
+    const packWorth = pieceCount * (row.price || 0);
     const totalValue = totalQty * (row.price || 0);
-    if (totalValue > PACKAGE_FACE_VALUE) {
-      warn(`Η συνολική αξία πωλήσεων (${formatCurrency(totalValue)}) ξεπερνά τα συνηθισμένα ${PACKAGE_FACE_VALUE}€ ανά πακέτο.`);
+    if (totalValue > packWorth) {
+      warn(`Η συνολική αξία πωλήσεων (${formatCurrency(totalValue)}) ξεπερνά τα ${formatCurrency(packWorth)} του πακέτου.`);
     }
   }
 
