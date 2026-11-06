@@ -31,14 +31,24 @@ const FLOOR = 3;
 const CAP = 10;
 
 /** How few tickets must be left before this game is worth flagging. */
-export function warnBelow(price: number | null | undefined): number | null {
-  const pieces = packPieceCount(price);
+export function warnBelow(
+  price: number | null | undefined,
+  declaredPieces?: unknown
+): number | null {
+  const pieces = packPieceCount(price, declaredPieces);
   if (pieces === null) return null;
   return Math.min(CAP, Math.max(FLOOR, Math.round(pieces / 10)));
 }
 
 export interface PackRow {
   price?: number | null;
+  /**
+   * Δελτία ανά πακέτο από τον κατάλογο, όπου ο κανόνας των 300 € δεν ισχύει.
+   *
+   * Χωρίς αυτό το Χ50 υπολογιζόταν 300/50 = 6 δελτία, οπότε με το πακέτο
+   * στη θέση 4 η οθόνη έλεγε «Τελειώνει — 2 δελτία» ενώ απέμεναν 11.
+   */
+  packPieces?: number | null;
   /** Where the pack was when the shift found it. */
   startNo?: unknown;
   /** Where it is now, when the shift has counted. */
@@ -57,7 +67,7 @@ const position = (row: PackRow): number | null => {
 
 /** Tickets still on the shelf in this row's pack, or null when unknowable. */
 export function piecesRemaining(row: PackRow): number | null {
-  const pieces = packPieceCount(row.price);
+  const pieces = packPieceCount(row.price, row.packPieces);
   if (pieces === null) return null;
   const at = position(row);
   if (at === null) return null;
@@ -79,7 +89,7 @@ export interface PackWarning {
  * it changes what somebody does.
  */
 export function packWarning(row: PackRow): PackWarning | null {
-  const threshold = warnBelow(row.price);
+  const threshold = warnBelow(row.price, row.packPieces);
   const remaining = piecesRemaining(row);
   if (threshold === null || remaining === null) return null;
 

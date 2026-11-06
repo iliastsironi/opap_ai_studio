@@ -978,7 +978,7 @@ export function displayedRowCount(
  */
 export function tailSoldOnNewPack(row: ScratchTicketRow | null | undefined): number | null {
   if (row && isLotteryRow(row)) return 0;
-  return piecesLeftInPack(row?.price, row?.startNo);
+  return piecesLeftInPack(row?.price, row?.startNo, row?.packPieces);
 }
 
 /**
@@ -2220,7 +2220,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     never has to be guessed at. */}
                                 {rowPackWarning && !isLottery && (
                                   <span
-                                    title={`Το πακέτο κρατάει ${packPieceCount(row.price) ?? '—'} δελτία· προειδοποίηση στα ${rowPackWarning.threshold}.`}
+                                    title={`Το πακέτο κρατάει ${packPieceCount(row.price, row.packPieces) ?? '—'} δελτία· προειδοποίηση στα ${rowPackWarning.threshold}.`}
                                     className={`text-micro font-black px-1.5 py-0.5 rounded-full border whitespace-nowrap ${
                                       rowPackWarning.state === 'finished'
                                         ? 'bg-rose-100 text-rose-800 border-rose-300'

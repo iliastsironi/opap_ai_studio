@@ -82,3 +82,29 @@ describe('the warning itself', () => {
     expect(packWarning({ price: 20, startNo: '11', endNo: '' })).toBeNull();
   });
 });
+
+describe('το Χ50 κρίνεται από το δικό του πακέτο', () => {
+  it('δεν λέει «τελειώνει» με 11 δελτία ακόμα μέσα', () => {
+    // Ο Owner: «είναι στο 4 και λέει τελειώνει, απομένουν 2 ακόμα». Το
+    // 300/50 = 6 έδινε 6 − 4 = 2. Το πακέτο έχει 15: 15 − 4 = 11.
+    expect(packWarning({ price: 50, packPieces: 15, startNo: '4' })).toBeNull();
+    expect(piecesRemaining({ price: 50, packPieces: 15, startNo: '4' })).toBe(11);
+  });
+
+  it('λέει «τελειώνει» στο σωστό σημείο του πακέτου των 15', () => {
+    // Κατώφλι: min(10, max(3, round(15/10))) = 3.
+    expect(warnBelow(50, 15)).toBe(3);
+    expect(packWarning({ price: 50, packPieces: 15, startNo: '12' }))
+      .toEqual({ state: 'ending', remaining: 3, threshold: 3 });
+  });
+
+  it('λέει «τελείωσε» μόνο στο 15, όχι στο 6', () => {
+    expect(packWarning({ price: 50, packPieces: 15, startNo: '6' })).toBeNull();
+    expect(packWarning({ price: 50, packPieces: 15, startNo: '15' })?.state).toBe('finished');
+  });
+
+  it('χωρίς δηλωμένο μέγεθος κρατάει τον κανόνα των 300', () => {
+    expect(piecesRemaining({ price: 50, startNo: '4' })).toBe(2);
+    expect(piecesRemaining({ price: 10, startNo: '4' })).toBe(26);
+  });
+});

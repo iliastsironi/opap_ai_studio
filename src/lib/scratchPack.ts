@@ -18,15 +18,25 @@
  * still on the shelf, not one that was sold.
  */
 
-/** A pack's face value in euro - what every OPAP scratch pack is worth. */
-export const PACKAGE_FACE_VALUE = 300;
+import { PACKAGE_FACE_VALUE, packPieces } from './scratchBarcode.ts';
 
-/** How many tickets a pack of this game holds, or null if the price is non-standard. */
-export function packPieceCount(price: number | null | undefined): number | null {
-  const p = Number(price);
-  if (!Number.isFinite(p) || p <= 0) return null;
-  const pieces = PACKAGE_FACE_VALUE / p;
-  return Number.isInteger(pieces) ? pieces : null;
+export { PACKAGE_FACE_VALUE };
+
+/**
+ * Πόσα δελτία κρατάει το πακέτο αυτού του παιχνιδιού.
+ *
+ * Ήταν το ΤΡΙΤΟ αντίγραφο του κανόνα των 300 € στο έργο, και το τελευταίο
+ * που έμεινε να δίνει 6 δελτία στο Χ50 αντί για 15: από εδώ περνάει το
+ * «Τελειώνει — 2 δελτία» που είδε ο Owner με το πακέτο στη θέση 4.
+ *
+ * Δεν υπολογίζει πια τίποτα - ρωτάει το lib/scratchBarcode.ts, όπου ο
+ * κανόνας ζει μία φορά και το δηλωμένο μέγεθος του καταλόγου νικάει.
+ */
+export function packPieceCount(
+  price: number | null | undefined,
+  declaredPieces?: unknown
+): number | null {
+  return packPieces(price, declaredPieces);
 }
 
 /**
@@ -38,9 +48,10 @@ export function packPieceCount(price: number | null | undefined): number | null 
  */
 export function piecesLeftInPack(
   price: number | null | undefined,
-  startNo: string | number | null | undefined
+  startNo: string | number | null | undefined,
+  declaredPieces?: unknown
 ): number | null {
-  const pieces = packPieceCount(price);
+  const pieces = packPieceCount(price, declaredPieces);
   if (pieces === null) return null;
 
   const start = typeof startNo === 'number' ? startNo : parseInt(String(startNo ?? '').trim(), 10);
