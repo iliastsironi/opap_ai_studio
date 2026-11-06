@@ -1698,13 +1698,38 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   // Debounced Silent Autosave Effect to prevent ANY data loss
   const isInitialMount = useRef(true);
+  /**
+   * Σταματάει το πρόχειρο μόλις ξεκινήσει η οριστική υποβολή.
+   *
+   * Ο Owner: «σε μερικές βάρδιες κάνω οριστική υποβολή και δεν την κλείνει·
+   * ξαναμπαίνω, την ξανακάνω, και τότε κλείνει».
+   *
+   * Το πρόχειρο είναι debounced στα 800ms και γράφει ΚΑΙ το status. Αν είχε
+   * ξεκινήσει χρονόμετρο λίγο πριν - και ξεκινάει σε κάθε αλλαγή, ακόμα και
+   * σε ανανέωση που απλώς ξαναφτιάχνει τους πίνακες - τότε η σειρά γίνεται:
+   *
+   *   υποβολή → status = SUBMITTED
+   *   800ms   → πρόχειρο → status = DRAFT_CLOSING
+   *
+   * και η βάρδια ξανανοίγει πίσω από την πλάτη του χειριστή. Τη δεύτερη
+   * φορά δεν εκκρεμεί χρονόμετρο, γι' αυτό «δουλεύει».
+   *
+   * Μένει ref και όχι state: πρέπει να ισχύει ΑΜΕΣΩΣ, μέσα στο ίδιο κλικ,
+   * όχι στο επόμενο render.
+   */
+  const submitStarted = useRef(false);
+
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
+    if (submitStarted.current) return;
 
     const timer = setTimeout(async () => {
+      // Ξαναελέγχεται ΜΕΣΑ στο χρονόμετρο: η υποβολή μπορεί να ξεκίνησε
+      // αφού προγραμματίστηκε αυτό εδώ, που είναι ακριβώς το σενάριο.
+      if (submitStarted.current) return;
       try {
         const payload = buildCurrentPayload('DRAFT_CLOSING');
         if (typeof window !== 'undefined') {
@@ -1953,6 +1978,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const handleSubmitShift = async () => {
     setError(null);
     setIsSubmitting(true);
+    // Πριν από οτιδήποτε άλλο: από εδώ και πέρα κανένα πρόχειρο δεν γράφει.
+    submitStarted.current = true;
 
     try {
       const submitPayload = buildCurrentPayload('SUBMITTED');
@@ -1996,6 +2023,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     } catch (err: any) {
       setError(err.message || 'Σφάλμα κατά την υποβολή βάρδιας');
       setShowSubmitConfirm(false);
+      // Η υποβολή δεν έγινε, άρα η βάρδια δουλεύεται ακόμα. Το πρόχειρο
+      // ξαναζωντανεύει: μια αποτυχημένη υποβολή που αφήνει πίσω της ταμείο
+      // που δεν αποθηκεύει είναι χειρότερη από την ίδια την αποτυχία - και
+      // οι υποβολές ΟΝΤΩΣ απέτυχαν όσο ζούσε το λάθος του 0067.
+      submitStarted.current = false;
     } finally {
       setIsSubmitting(false);
     }
