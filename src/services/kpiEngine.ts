@@ -38,8 +38,21 @@ export function computeDynamicFinancials(input: DynamicKpiEngineInput): DynamicF
   const employeeMap: Record<string, EmployeeKPI> = {};
 
   shifts.forEach((shift) => {
-    const empId = shift.closed_by_user_id || shift.opened_by_user_id || 'emp_default';
-    const empName = shift.closed_by_user_name || shift.opened_by_user_name || 'Εργαζόμενος';
+    // Ο ΧΕΙΡΙΣΤΗΣ, όχι όποιος πάτησε υποβολή.
+    //
+    // Ο Owner: «ο Περικλής Βέττας έκανε την καταχώρηση αλλά δεν ήταν ο
+    // εργαζόμενος». Ο πίνακας του χρέωνε 51 βάρδιες - δηλαδή όλες - γιατί
+    // διάβαζε πρώτα το closed_by, που είναι όποιος υπέβαλε τη φόρμα. Στα
+    // δεδομένα οι πραγματικοί χειριστές είναι Τυλιγάδας 23, Κουτρομάνος 24,
+    // Χριστοδούλου 8, Βέττας 1, και η οθόνη τους έδειχνε όλους ως έναν.
+    //
+    // Το opened_by_user_id ΕΙΝΑΙ ο χειριστής: η οθόνη ανοίγματος αφήνει
+    // όποιον μπορεί να ενεργεί για το κατάστημα να ορίσει ποιος δουλεύει,
+    // και γράφει εκεί αυτή την επιλογή. Το closed_by μένει μόνο ως έσχατη
+    // εφεδρεία, για βάρδια χωρίς χειριστή - και τότε είναι η μόνη ένδειξη
+    // που υπάρχει, όχι η προτιμώμενη.
+    const empId = shift.opened_by_user_id || shift.closed_by_user_id || 'emp_default';
+    const empName = shift.opened_by_user_name || shift.closed_by_user_name || 'Εργαζόμενος';
 
     if (!employeeMap[empId]) {
       employeeMap[empId] = {

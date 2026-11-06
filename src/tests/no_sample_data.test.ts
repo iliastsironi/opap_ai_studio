@@ -218,3 +218,47 @@ describe('no screen falls back to a specific real tenant', () => {
     expect(offenders("'store_opap_01'")).toEqual([]);
   });
 });
+
+describe('οι δείκτες μετράνε τον χειριστή, όχι όποιον υπέβαλε', () => {
+  it('χρεώνει τη βάρδια σε αυτόν που τη δούλεψε', () => {
+    // Ο Owner: «ο Περικλής Βέττας έκανε την καταχώρηση αλλά δεν ήταν ο
+    // εργαζόμενος». Ο πίνακας του έδειχνε 51 βάρδιες - όλες όσες είχε
+    // περάσει ο ίδιος στο σύστημα για λογαριασμό άλλων.
+    const result = computeDynamicFinancials({
+      shifts: [
+        shift({
+          id: 's1', shift_type: 'MORNING',
+          opened_by_user_id: 'u_tyligadas', opened_by_user_name: 'Γιώργος Τυλιγάδας',
+          closed_by_user_id: 'u_periklis', closed_by_user_name: 'Periklis Vettas',
+        }),
+        shift({
+          id: 's2', shift_type: 'NIGHT',
+          opened_by_user_id: 'u_koutromanos', opened_by_user_name: 'Γιώργος Κουτρομάνος',
+          closed_by_user_id: 'u_periklis', closed_by_user_name: 'Periklis Vettas',
+        }),
+      ],
+      vltReconciliations: [],
+    });
+
+    const names = result.employeeKpis.map((e) => e.employeeName).sort();
+    expect(names).toEqual(['Γιώργος Κουτρομάνος', 'Γιώργος Τυλιγάδας']);
+    expect(result.employeeKpis.every((e) => e.totalShifts === 1)).toBe(true);
+    expect(names).not.toContain('Periklis Vettas');
+  });
+
+  it('πέφτει πίσω σε όποιον υπέβαλε μόνο όταν λείπει χειριστής', () => {
+    // Μία ένδειξη είναι καλύτερη από καμία - αλλά είναι η εφεδρεία, όχι η
+    // προτίμηση.
+    const result = computeDynamicFinancials({
+      shifts: [
+        shift({
+          id: 's3', shift_type: 'MORNING',
+          opened_by_user_id: undefined as any, opened_by_user_name: undefined as any,
+          closed_by_user_id: 'u_periklis', closed_by_user_name: 'Periklis Vettas',
+        }),
+      ],
+      vltReconciliations: [],
+    });
+    expect(result.employeeKpis.map((e) => e.employeeName)).toEqual(['Periklis Vettas']);
+  });
+});
