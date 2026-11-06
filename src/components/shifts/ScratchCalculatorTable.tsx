@@ -17,6 +17,10 @@ import {
   AlertTriangle,
   Settings2,
 } from 'lucide-react';
+import {
+  PACKAGE_FACE_VALUE,
+  packPieces as packPiecesFor,
+} from '../../lib/scratchBarcode.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
@@ -254,8 +258,8 @@ export function carryOverScratchInventory(
   previousRows?: ScratchTicketRow[] | any[],
   baseCatalog: ScratchTicketRow[] = getSavedScratchCatalog()
 ): ScratchTicketRow[] {
-  const suggestedBackEnd = (price: number): string => {
-    const maxNo = getPackageMaxNumber(price);
+  const suggestedBackEnd = (price: number, declaredPieces?: unknown): string => {
+    const maxNo = getPackageMaxNumber(price, declaredPieces);
     return maxNo === null ? '' : formatTicketNumber(maxNo);
   };
 
@@ -264,7 +268,7 @@ export function carryOverScratchInventory(
       ...r,
       startNo: r.startNo || '',
       endNo: '',
-      backEndNo: r.backEndNo || suggestedBackEnd(r.price),
+      backEndNo: r.backEndNo || suggestedBackEnd(r.price, r.packPieces),
       backStartNo: '',
       saleBundles: '',
       salePieces: '',
@@ -288,7 +292,7 @@ export function carryOverScratchInventory(
         ? String(prev.backStartNo).trim()
         : prev.backEndNo && String(prev.backEndNo).trim() !== ''
         ? String(prev.backEndNo).trim()
-        : suggestedBackEnd(Number(prev.price) || base.price);
+        : suggestedBackEnd(Number(prev.price) || base.price, base.packPieces ?? (prev as any).packPieces);
 
         // The pack carries over; what was sold off it does not. A new shift
         // starts its own count, and its own undo history - the morning must
@@ -309,7 +313,7 @@ export function carryOverScratchInventory(
         packHistory: [],
       });
     } else {
-      result.push({ ...base, endNo: '', backEndNo: base.backEndNo || suggestedBackEnd(base.price), backStartNo: '', saleBundles: '', salePieces: '' });
+      result.push({ ...base, endNo: '', backEndNo: base.backEndNo || suggestedBackEnd(base.price, base.packPieces), backStartNo: '', saleBundles: '', salePieces: '' });
     }
   }
 
@@ -325,7 +329,7 @@ export function carryOverScratchInventory(
         ? String(prev.backStartNo).trim()
         : prev.backEndNo && String(prev.backEndNo).trim() !== ''
         ? String(prev.backEndNo).trim()
-        : suggestedBackEnd(Number(prev.price) || 5);
+        : suggestedBackEnd(Number(prev.price) || 5, (prev as any).packPieces);
       result.push({
         id: prev.id,
         name: prev.name,
@@ -1045,20 +1049,23 @@ export function validateBundleSaleEntry(row: ScratchTicketRow): BundleSaleValida
   return { errors, isValid: errors.length === 0, soldPieces };
 }
 
-// 300 EUR total face value per full package (000-299 for a 1EUR game, etc.).
-// Only meaningful for prices that divide 300 evenly - a custom/non-standard
-// game price (e.g. 7EUR) has no defined package size, so bound-checking is
-// skipped for it entirely, same as today's total absence of bound-checking.
-const PACKAGE_FACE_VALUE = 300;
+// Ο κανόνας των 300 € ζει ΜΟΝΟ στο lib/scratchBarcode.ts.
+//
+// Εδώ υπήρχε δεύτερο αντίγραφο, και δεχόταν σκέτη τιμή: 300/50 = 6 δελτία,
+// πακέτο 300 €. Το 7ΑΡΙ Χ50 όμως έχει 15 δελτία και αξία 750 € - ο
+// κατάλογος το κρατάει στο pack_pieces και η αποθήκη το διάβαζε σωστά, ενώ
+// το ταμείο δίπλα της μετρούσε 6. Δύο σημεία, μία ερώτηση, δύο απαντήσεις.
+//
+// Τώρα υπάρχει μία, και δέχεται ΚΑΙ το δηλωμένο μέγεθος. Κάθε κλήση περνάει
+// το row.packPieces· όπου λείπει, ισχύει ο κανόνας όπως πάντα.
+export { PACKAGE_FACE_VALUE };
 
-export function getPackagePieceCount(price: number): number | null {
-  if (!price || price <= 0) return null;
-  const pieces = PACKAGE_FACE_VALUE / price;
-  return Number.isInteger(pieces) ? pieces : null;
+export function getPackagePieceCount(price: number, declaredPieces?: unknown): number | null {
+  return packPiecesFor(price, declaredPieces);
 }
 
-export function getPackageMaxNumber(price: number): number | null {
-  const pieces = getPackagePieceCount(price);
+export function getPackageMaxNumber(price: number, declaredPieces?: unknown): number | null {
+  const pieces = getPackagePieceCount(price, declaredPieces);
   return pieces === null ? null : pieces - 1;
 }
 
@@ -1267,7 +1274,7 @@ export function validateScratchRow(row: ScratchTicketRow): ScratchRowValidationR
     return { errors, isValid: errors.every((e) => e.severity !== 'error') };
   }
 
-  const pieceCount = getPackagePieceCount(row.price);
+  const pieceCount = getPackagePieceCount(row.price, row.packPieces);
   const frontStart = row.startNo?.trim() ? parseInt(row.startNo, 10) : 0;
   const frontEnd = row.endNo?.trim() ? parseInt(row.endNo, 10) : null;
   const backStart = row.backStartNo?.trim() ? parseInt(row.backStartNo, 10) : null;
@@ -2713,7 +2720,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                         ? '0'
                                         : String(standingOrderPieces(standing, row.bundleSize))
                                     );
-                                    const maxNo = getPackageMaxNumber(row.price);
+                                    const maxNo = getPackageMaxNumber(row.price, row.packPieces);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
                                   }}
                                 />

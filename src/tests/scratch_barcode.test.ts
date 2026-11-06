@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   BARCODE_LENGTH, isValidGameNo, isValidPackCode, packPieces, packValue, readBarcode,
 } from '../lib/scratchBarcode.ts';
+import {
+  getPackagePieceCount, getPackageMaxNumber,
+} from '../components/shifts/ScratchCalculatorTable.tsx';
 
 describe('ο κωδικός σπάει στα τρία', () => {
   it('ο σαρωτής δίνει 14 ψηφία', () => {
@@ -71,5 +74,38 @@ describe('πόσα δελτία έχει ένα πακέτο', () => {
 
   it('κάθε κανονικό πακέτο αξίζει 300 €', () => {
     for (const price of [1, 2, 3, 5, 10, 20]) expect(packValue(price)).toBe(300);
+  });
+});
+
+describe('το ταμείο και η αποθήκη μετράνε το ίδιο πακέτο', () => {
+  it('δίνει 15 δελτία στο Χ50, όχι 6', () => {
+    // Ο Owner: «το σκρατς χ50€ στο ταμείο νομίζει ότι κάνει 300 και το
+    // μετράει για 6τμχ, κάνει 750€ και είναι 15τμ». Ο κατάλογος το κρατούσε
+    // σωστά και η αποθήκη το διάβαζε· το ταμείο είχε δικό του αντίγραφο του
+    // κανόνα που δεχόταν μόνο τιμή.
+    expect(getPackagePieceCount(50, 15)).toBe(15);
+    expect(getPackageMaxNumber(50, 15)).toBe(14);
+  });
+
+  it('συμφωνεί με την αποθήκη σε κάθε παιχνίδι του καταλόγου', () => {
+    // Μία υλοποίηση, δύο ονόματα. Αν ξαναχωρίσουν, σκάει εδώ.
+    const catalogue: Array<[number, number | undefined]> = [
+      [50, 15], [50, undefined], [20, undefined], [10, undefined],
+      [5, undefined], [3, undefined], [2, undefined], [1, undefined], [7, undefined],
+    ];
+    for (const [price, declared] of catalogue) {
+      expect(getPackagePieceCount(price, declared)).toBe(packPieces(price, declared));
+    }
+  });
+
+  it('κρατάει τον κανόνα των 300 όπου δεν έχει δηλωθεί μέγεθος', () => {
+    expect(getPackagePieceCount(50)).toBe(6);
+    expect(getPackagePieceCount(10)).toBe(30);
+    expect(getPackagePieceCount(7)).toBeNull();
+  });
+
+  it('η αξία του πακέτου ακολουθεί τα δελτία, όχι τα 300', () => {
+    expect(packValue(50, 15)).toBe(750);
+    expect(packValue(50)).toBe(300);
   });
 });
