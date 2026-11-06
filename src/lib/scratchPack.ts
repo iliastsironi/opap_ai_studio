@@ -63,15 +63,18 @@ export function piecesLeftInPack(
 }
 
 /**
- * A pack code as the warehouse will know it: exactly seven digits.
+ * A pack code as the warehouse knows it: exactly seven digits.
  *
- * Checked now even though the warehouse does not exist yet. A mistyped code
- * recorded today is a pack nobody can trace tomorrow, and the shape is the
- * only thing that can be checked without the stock list.
+ * Δεύτερος ορισμός του ίδιου κανόνα, και ΔΕΝ συμφωνούσε με τον πρώτο. Αυτός
+ * έκανε μόνο trim· το lib/scratchBarcode πετάει κάθε μη-ψηφίο. Ένας κωδικός
+ * «123-4567» - όπως τον δίνει ένας σαρωτής με διαχωριστικό, ή όπως τον
+ * γράφει ένα χέρι - ήταν έγκυρος στην αποθήκη και άκυρος στο ταμείο.
+ *
+ * Παραδόξως το normalizePackCode από κάτω έκανε ήδη το σωστό: έκοβε τα
+ * μη-ψηφία. Ο έλεγχος και η κανονικοποίηση του ΙΔΙΟΥ πεδίου διαφωνούσαν
+ * μεταξύ τους μέσα στο ίδιο αρχείο.
  */
-export function isValidPackCode(code: string | null | undefined): boolean {
-  return /^\d{7}$/.test(String(code ?? '').trim());
-}
+export { isValidPackCode } from './scratchBarcode.ts';
 
 export function normalizePackCode(code: string | null | undefined): string {
   return String(code ?? '').replace(/\D/g, '').slice(0, 7);

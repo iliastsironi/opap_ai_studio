@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { packPieces, packValue, PACKAGE_FACE_VALUE } from '../lib/scratchBarcode.ts';
-import { packPieceCount, piecesLeftInPack } from '../lib/scratchPack.ts';
+import {
+  packPieceCount, piecesLeftInPack,
+  isValidPackCode as isValidFromPack, normalizePackCode,
+} from '../lib/scratchPack.ts';
+import { isValidPackCode as isValidFromBarcode } from '../lib/scratchBarcode.ts';
 import { warnBelow, piecesRemaining } from '../lib/scratchPackWarning.ts';
 import { packProgress } from '../lib/packProgress.ts';
 import { getPackagePieceCount } from '../components/shifts/ScratchCalculatorTable.tsx';
@@ -63,5 +67,23 @@ describe('κάθε δρόμος προς το μέγεθος πακέτου δί
     // Το 300 δεν είναι η αξία ΚΑΘΕ πακέτου - μόνο όσων ακολουθούν τον κανόνα.
     expect(packValue(50, 15)).toBe(750);
     expect(packValue(2)).toBe(300);
+  });
+});
+
+describe('«έγκυρος κωδικός πακέτου» έχει κι αυτό μία απάντηση', () => {
+  it('τα δύο σημεία συμφωνούν σε κάθε μορφή', () => {
+    // Διαφωνούσαν: ο ένας έκανε trim, ο άλλος πετούσε τα μη-ψηφία. Ένας
+    // κωδικός με παύλα ήταν έγκυρος στην αποθήκη και άκυρος στο ταμείο.
+    for (const v of ['1234567', ' 1234567 ', '123-4567', '12 34567', '123456', '12345678', '', null]) {
+      expect(isValidFromPack(v as any)).toBe(isValidFromBarcode(v as any));
+    }
+  });
+
+  it('ο έλεγχος συμφωνεί με την κανονικοποίηση του ίδιου πεδίου', () => {
+    // Ό,τι περνάει τον έλεγχο πρέπει να κανονικοποιείται σε επτά ψηφία, και
+    // ό,τι κανονικοποιείται σε επτά ψηφία πρέπει να περνάει τον έλεγχο.
+    for (const v of ['1234567', '123-4567', '12 34567', ' 1234567 ', '123456', 'abc']) {
+      expect(isValidFromPack(v)).toBe(normalizePackCode(v).length === 7);
+    }
   });
 });
