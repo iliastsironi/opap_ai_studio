@@ -4,6 +4,8 @@ import {
   PnlDayGrid,
   PnlStore,
   PnlStoreSheet,
+  PnlTotals,
+  PnlUnitRow,
   monthLabel,
   weekdayLabel,
 } from '../lib/pnlEngine.ts';
@@ -71,8 +73,9 @@ function buildSummarySheet(result: MonthlyPnlResult): XLSX.WorkSheet {
   const sheet = new Sheet();
   sheet.add([`Profit & Loss — ${monthLabel(result.month)}`]);
   sheet.add(['Κατάστημα', 'Τζίρος', 'Έξοδα Ημέρας', 'Πάγια Έξοδα', 'Μισθοδοσία', 'Έξοδα Εταιρίας', 'Δάνεια', 'Κέρδη προ Φόρων']);
-  const firstRow = sheet.nextRow;
-  for (const unit of result.units.filter((u) => u.hasActivity)) {
+
+  const active = result.units.filter((u) => u.hasActivity);
+  const addUnit = (unit: PnlUnitRow): void => {
     const r = sheet.nextRow;
     sheet.add([
       unit.label,
@@ -84,7 +87,25 @@ function buildSummarySheet(result: MonthlyPnlResult): XLSX.WorkSheet {
       null,
       formula(`B${r}-C${r}-D${r}-E${r}`, unit.result),
     ]);
-  }
+  };
+  const addSubtotal = (label: string, from: number, to: number, totals: PnlTotals): number =>
+    sheet.add([
+      label,
+      formula(`SUM(B${from}:B${to})`, totals.revenue),
+      formula(`SUM(C${from}:C${to})`, totals.dailyExpenses),
+      formula(`SUM(D${from}:D${to})`, totals.fixedCosts),
+      formula(`SUM(E${from}:E${to})`, totals.payroll),
+      null,
+      null,
+      formula(`SUM(H${from}:H${to})`, totals.result),
+    ]);
+
+  // Πρακτορείο πρώτα, με όλα τα έξοδα εταιρίας και τα δάνεια από κάτω του.
+  sheet.add(['ΠΡΑΚΤΟΡΕΙΟ']);
+  const agencyFirst = sheet.nextRow;
+  for (const unit of active.filter((u) => u.unit === 'STORE')) addUnit(unit);
+  const agencyLast = sheet.nextRow - 1;
+  const agencySubtotal = addSubtotal('Σύνολο καταστημάτων', agencyFirst, agencyLast, result.agency);
   const companyRow = sheet.nextRow;
   sheet.add([
     'Εταιρία (Έξοδα & Δάνεια)',
@@ -96,17 +117,53 @@ function buildSummarySheet(result: MonthlyPnlResult): XLSX.WorkSheet {
     money(result.loans),
     formula(`-F${companyRow}-G${companyRow}`, -round2(result.companyExpenses + result.loans)),
   ]);
-  const lastRow = sheet.nextRow - 1;
-  const totals = [
-    result.storesTotal.revenue,
-    result.storesTotal.dailyExpenses,
-    result.storesTotal.fixedCosts,
-    result.storesTotal.payroll,
-    result.companyExpenses,
-    result.loans,
-    result.netResult,
-  ];
-  sheet.add(['ΣΥΝΟΛΟ', ...totals.map((value, i) => formula(`SUM(${col(i + 1)}${firstRow}:${col(i + 1)}${lastRow})`, value))]);
+
+  // Χωρίς καφέ, το καθαρό του πρακτορείου ΕΙΝΑΙ το σύνολο: μία γραμμή, όχι
+  // δύο ίδιοι αριθμοί τη μία κάτω από την άλλη.
+  if (!result.hasFnb) {
+    sheet.add([
+      'ΣΥΝΟΛΟ',
+      formula(`B${agencySubtotal}`, result.agency.revenue),
+      formula(`C${agencySubtotal}`, result.agency.dailyExpenses),
+      formula(`D${agencySubtotal}`, result.agency.fixedCosts),
+      formula(`E${agencySubtotal}`, result.agency.payroll),
+      formula(`F${companyRow}`, result.companyExpenses),
+      formula(`G${companyRow}`, result.loans),
+      formula(`H${agencySubtotal}+H${companyRow}`, result.netResult),
+    ]);
+    return sheet.build([34, 14, 14, 14, 14, 14, 14, 16]);
+  }
+
+  const agencyNetRow = sheet.nextRow;
+  sheet.add([
+    'ΚΑΘΑΡΟ ΠΡΑΚΤΟΡΕΙΟΥ',
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    formula(`H${agencySubtotal}+H${companyRow}`, result.agencyNet),
+  ]);
+
+  // Καφές: κρατάει μόνο ό,τι ξόδεψε και πλήρωσε ο ίδιος, άρα το σύνολό του
+  // είναι και το καθαρό του.
+  sheet.add(['ΚΑΦΕ (F&B)']);
+  const fnbFirst = sheet.nextRow;
+  for (const unit of active.filter((u) => u.unit === 'FNB')) addUnit(unit);
+  const fnbLast = sheet.nextRow - 1;
+  const fnbNetRow = addSubtotal('ΚΑΘΑΡΟ ΚΑΦΕ', fnbFirst, fnbLast, result.fnb);
+
+  sheet.add([
+    'ΣΥΝΟΛΟ (ΠΡΑΚΤΟΡΕΙΟ + ΚΑΦΕ)',
+    formula(`B${agencySubtotal}+B${fnbNetRow}`, result.storesTotal.revenue),
+    formula(`C${agencySubtotal}+C${fnbNetRow}`, result.storesTotal.dailyExpenses),
+    formula(`D${agencySubtotal}+D${fnbNetRow}`, result.storesTotal.fixedCosts),
+    formula(`E${agencySubtotal}+E${fnbNetRow}`, result.storesTotal.payroll),
+    formula(`F${companyRow}`, result.companyExpenses),
+    formula(`G${companyRow}`, result.loans),
+    formula(`H${agencyNetRow}+H${fnbNetRow}`, result.netResult),
+  ]);
   return sheet.build([34, 14, 14, 14, 14, 14, 14, 16]);
 }
 

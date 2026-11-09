@@ -95,12 +95,20 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
     }
   };
 
-  const figures: Array<[string, number | undefined]> = [
-    ['Τζίρος', storeUnit?.revenue],
-    ['Έξοδα ημέρας', storeUnit?.dailyExpenses],
-    ['Πάγια', storeUnit?.fixedCosts],
-    ['Μισθοδοσία', storeUnit?.payroll],
-    ['Αποτέλεσμα', storeUnit?.result],
+  // Το πρακτορείο και ο καφές στις ΙΔΙΕΣ στήλες. Ήταν ένα dl για το μαγαζί
+  // και μια πρόταση τρεχούμενου κειμένου για το F&B από κάτω - δύο
+  // επιχειρήσεις σε δύο διαφορετικές μορφές, που δεν συγκρίνονται με το μάτι.
+  const sideRows: Array<{ label: string; unit: typeof storeUnit }> = [
+    { label: 'Πρακτορείο', unit: storeUnit },
+    ...(fnbUnit ? [{ label: 'Καφέ (F&B)', unit: fnbUnit }] : []),
+  ];
+  const SIDE_COLUMNS = ['Τζίρος', 'Έξοδα ημέρας', 'Πάγια', 'Μισθοδοσία', 'Αποτέλεσμα'] as const;
+  const sideFigures = (unit: typeof storeUnit): number[] => [
+    unit?.revenue ?? 0,
+    unit?.dailyExpenses ?? 0,
+    unit?.fixedCosts ?? 0,
+    unit?.payroll ?? 0,
+    unit?.result ?? 0,
   ];
 
   return (
@@ -131,28 +139,47 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
               })}
             </select>
           </div>
-          <dl className="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-2 tabular-nums">
-            {figures.map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-xs font-bold text-slate-500">{label}</dt>
-                <dd
-                  className={`text-base font-black ${
-                    label === 'Αποτέλεσμα' ? ((value ?? 0) < 0 ? 'text-rose-700' : 'text-emerald-700') : 'text-slate-900'
-                  }`}
-                >
-                  {formatCurrency(value ?? 0)}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <table className="text-sm tabular-nums">
+              <thead>
+                <tr className="text-xs font-bold text-slate-500">
+                  <th />
+                  {SIDE_COLUMNS.map((column) => (
+                    <th key={column} className="px-3 pb-1 text-right font-bold whitespace-nowrap">
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sideRows.map(({ label, unit }) => {
+                  const values = sideFigures(unit);
+                  return (
+                    <tr key={label}>
+                      <th scope="row" className="pr-4 py-1.5 text-left text-xs font-bold text-slate-500 whitespace-nowrap">
+                        {label}
+                      </th>
+                      {values.map((value, index) => (
+                        <td
+                          key={SIDE_COLUMNS[index]}
+                          className={`px-3 py-1.5 text-right text-base font-black whitespace-nowrap ${
+                            index === values.length - 1 ? (value < 0 ? 'text-rose-700' : 'text-emerald-700') : 'text-slate-900'
+                          }`}
+                        >
+                          {formatCurrency(value)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
         {fnbUnit && (
-          <p className="text-sm text-slate-600 border-t border-slate-100 pt-3 tabular-nums">
-            <span className="font-bold text-slate-800">F&B:</span> τζίρος {formatCurrency(fnbUnit.revenue)} · έξοδα{' '}
-            {formatCurrency(fnbUnit.dailyExpenses)} · μισθοδοσία {formatCurrency(fnbUnit.payroll)} ·{' '}
-            <span className={`font-black ${fnbUnit.result < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-              αποτέλεσμα {formatCurrency(fnbUnit.result)}
-            </span>
+          <p className="text-xs text-slate-500 border-t border-slate-100 pt-3">
+            Τα πάγια του καταστήματος (ενοίκιο, ενέργεια) μένουν ακέραια στο πρακτορείο· ο καφές κρατάει μόνο τις δικές του αγορές και τη
+            δική του μισθοδοσία.
           </p>
         )}
       </div>

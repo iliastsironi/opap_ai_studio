@@ -47,7 +47,15 @@ import { VltReconciliationRecord } from '../../data/pnlData.ts';
 import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
-import { athensDateKey, currentMonthKey, monthLabel, shiftMonthKey, totalCosts } from '../../lib/pnlEngine.ts';
+import {
+  MonthlyPnlResult,
+  athensDateKey,
+  costsOf,
+  currentMonthKey,
+  monthLabel,
+  shiftMonthKey,
+  totalCosts,
+} from '../../lib/pnlEngine.ts';
 import { buildShiftDailySeries } from '../../lib/shiftDailySeries.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 import { IconButton } from '../ui/IconButton.tsx';
@@ -58,6 +66,46 @@ import { useMonthlyPnl } from '../pnl/useMonthlyPnl.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 
 type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
+
+// Εύρος επισκόπησης: όλα, μόνο το πρακτορείο, μόνο ο καφές, ή ένα κατάστημα.
+const SCOPE_ALL = 'ALL';
+const SCOPE_AGENCY = 'AGENCY';
+const SCOPE_FNB = 'FNB';
+
+/** Εύρος ενός συγκεκριμένου καταστήματος - ό,τι δεν είναι μία από τις τρεις όψεις. */
+const isStoreScope = (scope: string): boolean => scope !== SCOPE_ALL && scope !== SCOPE_AGENCY && scope !== SCOPE_FNB;
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+const sumOf = (values: number[]): number => round2(values.reduce((acc, value) => acc + value, 0));
+
+/**
+ * Τζίρος, κόστος και αποτέλεσμα για ένα εύρος - μία απάντηση, εδώ.
+ *
+ * Το πρακτορείο σηκώνει τα έξοδα εταιρίας και τα δάνεια, ο καφές μόνο τα δικά
+ * του: ίδιος κανόνας με τη Σύνοψη του P&L, ώστε «πόσο βγάζει το πρακτορείο»
+ * να μη δίνει δύο διαφορετικά νούμερα σε δύο οθόνες.
+ *
+ * Ένα μεμονωμένο κατάστημα δεν κρατάει εταιρικά - δεν ανήκουν σε κανένα ένα
+ * μαγαζί - και αθροίζει ΟΛΕΣ του τις μονάδες: το 101499 έχει και F&B που τον
+ * Αύγουστο κουβαλάει +3.511,59, και πετώντας το το μαγαζί δείχνει φτωχότερο.
+ */
+function scopedFigures(pnl: MonthlyPnlResult | null, scope: string): { revenue: number; costs: number; result: number } {
+  if (!pnl) return { revenue: 0, costs: 0, result: 0 };
+  if (scope === SCOPE_ALL) return { revenue: pnl.storesTotal.revenue, costs: totalCosts(pnl), result: pnl.netResult };
+  if (scope === SCOPE_AGENCY)
+    return {
+      revenue: pnl.agency.revenue,
+      costs: round2(costsOf(pnl.agency) + pnl.companyExpenses + pnl.loans),
+      result: pnl.agencyNet,
+    };
+  if (scope === SCOPE_FNB) return { revenue: pnl.fnb.revenue, costs: costsOf(pnl.fnb), result: pnl.fnbNet };
+  const units = pnl.units.filter((u) => u.storeId === scope);
+  return {
+    revenue: sumOf(units.map((u) => u.revenue)),
+    costs: sumOf(units.map((u) => u.dailyExpenses + u.fixedCosts + u.payroll)),
+    result: sumOf(units.map((u) => u.result)),
+  };
+}
 
 // Literal strings, never interpolated: these reach the DOM as inline styles,
 // but keeping them as plain constants matches how Badge.tsx handles the same
@@ -159,7 +207,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const [overviewMonth, setOverviewMonth] = useState(() => currentMonthKey());
   // 'ALL' is the company: every store plus corporate costs and loans. A single
   // store shows its own trading only - company costs belong to no one store.
-  const [overviewScope, setOverviewScope] = useState<string>('ALL');
+  const [overviewScope, setOverviewScope] = useState<string>(SCOPE_ALL);
   // Empty means «no range asked for»: the chart then shows the most recent
   // recorded days rather than nothing, which is the useful default on a blank
   // overview.
@@ -196,26 +244,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
 
   // Everything below is derived from the single monthly result the engine
   // already returns - result.stores[] is per store - so the scope selector
-  // costs no extra query.
-  // ALL of a store's units, not just its STORE one: 101499 also has an F&B unit
-  // carrying +3.511,59 in August, and dropping it would understate the store.
-  const scopedUnits =
-    overviewScope === 'ALL' ? [] : (overviewPnl?.units ?? []).filter((u) => u.storeId === overviewScope);
-  const sumUnits = (pick: (u: (typeof scopedUnits)[number]) => number) =>
-    scopedUnits.reduce((a, u) => a + pick(u), 0);
-
-  const scopedRevenue =
-    overviewScope === 'ALL' ? overviewPnl?.storesTotal.revenue ?? 0 : sumUnits((u) => u.revenue);
-  // A single store carries no company costs or loans - those belong to no one
-  // store - so its costs are only what it spent itself.
-  const scopedCosts =
-    overviewScope === 'ALL'
-      ? overviewPnl
-        ? totalCosts(overviewPnl)
-        : 0
-      : sumUnits((u) => u.dailyExpenses + u.fixedCosts + u.payroll);
-  const scopedResult =
-    overviewScope === 'ALL' ? overviewPnl?.netResult ?? 0 : sumUnits((u) => u.result);
+  // costs no extra query. Ο κανόνας του εύρους ζει στο scopedFigures.
+  const { revenue: scopedRevenue, costs: scopedCosts, result: scopedResult } = scopedFigures(overviewPnl, overviewScope);
 
   // «—», never 0%. A month with no commissions entered has no margin, which is
   // a different thing from a margin of zero, and showing 0% would make a
@@ -224,7 +254,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
 
   const costMixData = overviewPnl
     ? [
-        { name: 'Έξοδα Ημέρας & F&B', value: overviewPnl.storesTotal.dailyExpenses, color: '#ef4444' },
+        { name: 'Έξοδα Ημέρας (πρακτορείο)', value: overviewPnl.agency.dailyExpenses, color: '#ef4444' },
+        { name: 'Αγορές Καφέ (F&B)', value: overviewPnl.fnb.dailyExpenses, color: '#fb923c' },
         { name: 'Πάγια Καταστημάτων', value: overviewPnl.storesTotal.fixedCosts, color: '#f59e0b' },
         { name: 'Μισθοδοσία', value: overviewPnl.storesTotal.payroll, color: '#8b5cf6' },
         { name: 'Έξοδα Εταιρίας', value: overviewPnl.companyExpenses, color: '#3b82f6' },
@@ -243,7 +274,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   // same month and scope as everything else and costs no extra query.
   const supplierData = (() => {
     const sheets = (overviewPnl?.stores ?? []).filter(
-      (sheet) => overviewScope === 'ALL' || sheet.store.id === overviewScope
+      (sheet) => !isStoreScope(overviewScope) || sheet.store.id === overviewScope
     );
     // Keyed case-insensitively, because the same supplier gets typed both ways:
     // August has «OSTRIA» and «Ostria» as separate columns for one business.
@@ -251,7 +282,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
     // they stay apart rather than this guessing at spelling mistakes.
     const totals = new Map<string, { label: string; value: number }>();
     for (const sheet of sheets) {
-      for (const grid of [sheet.dailyExpenses, sheet.fnb?.expenses]) {
+      const grids =
+        overviewScope === SCOPE_AGENCY
+          ? [sheet.dailyExpenses]
+          : overviewScope === SCOPE_FNB
+            ? [sheet.fnb?.expenses]
+            : [sheet.dailyExpenses, sheet.fnb?.expenses];
+      for (const grid of grids) {
         if (!grid) continue;
         for (const [supplier, amount] of Object.entries(grid.columnTotals)) {
           if (!amount) continue;
@@ -437,7 +474,9 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   onChange={(e) => setOverviewScope(e.target.value)}
                   className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
                 >
-                  <option value="ALL">Σύνολο Εταιρείας</option>
+                  <option value={SCOPE_ALL}>Σύνολο Εταιρείας</option>
+                  <option value={SCOPE_AGENCY}>Μόνο Πρακτορείο</option>
+                  {(overviewPnl?.hasFnb || overviewScope === SCOPE_FNB) && <option value={SCOPE_FNB}>Μόνο Καφέ (F&B)</option>}
                   {stores.map((st) => (
                     <option key={st.id} value={st.id}>{st.name}</option>
                   ))}
@@ -465,7 +504,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   iconClass="bg-indigo-50 text-indigo-600 border-indigo-100/80"
                   footer={
                     <>
-                      <span>Προμήθειες και F&B</span>
+                      <span>
+                        {overviewScope === SCOPE_AGENCY
+                          ? 'Προμήθειες, χωρίς τον καφέ'
+                          : overviewScope === SCOPE_FNB
+                            ? 'Πωλήσεις καφέ, μετρητά και κάρτα'
+                            : 'Προμήθειες και F&B'}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setActiveTab('PNL')}
@@ -485,9 +530,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   iconClass="bg-rose-50 text-rose-600 border-rose-100/80"
                   footer={
                     <span>
-                      {overviewScope === 'ALL'
+                      {overviewScope === SCOPE_ALL
                         ? 'Ημέρας, πάγια, μισθοδοσία, εταιρίας και δάνεια'
-                        : 'Ημέρας, πάγια και μισθοδοσία — χωρίς εταιρικά'}
+                        : overviewScope === SCOPE_AGENCY
+                          ? 'Ημέρας, πάγια, μισθοδοσία, εταιρίας και δάνεια — χωρίς τον καφέ'
+                          : overviewScope === SCOPE_FNB
+                            ? 'Αγορές και μισθοδοσία του καφέ — χωρίς πάγια και εταιρικά'
+                            : 'Ημέρας, πάγια και μισθοδοσία — χωρίς εταιρικά'}
                     </span>
                   }
                 />
@@ -503,7 +552,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   }
                   footer={
                     <span>
-                      {overviewScope === 'ALL' ? 'Τζίρος − έξοδα, μετά τα εταιρικά' : 'Τζίρος − έξοδα καταστήματος'}
+                      {overviewScope === SCOPE_ALL
+                        ? 'Τζίρος − έξοδα, μετά τα εταιρικά'
+                        : overviewScope === SCOPE_AGENCY
+                          ? 'Προμήθειες − έξοδα πρακτορείου, μετά τα εταιρικά'
+                          : overviewScope === SCOPE_FNB
+                            ? 'Τζίρος καφέ − δικά του έξοδα'
+                            : 'Τζίρος − έξοδα καταστήματος'}
                     </span>
                   }
                 />
@@ -639,7 +694,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     <PieIcon className="w-4 h-4 text-purple-600" />
                     <span>Κατανομή Εξόδων (Cost Mix)</span>
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{monthLabel(overviewMonth)} · από το Οικονομικό P&L</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{monthLabel(overviewMonth)} · όλη η εταιρία, από το Οικονομικό P&L</p>
                 </div>
 
                 {hasCosts ? (
@@ -722,9 +777,13 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {monthLabel(overviewMonth)} ·{' '}
-                    {overviewScope === 'ALL'
+                    {overviewScope === SCOPE_ALL
                       ? 'Σύνολο Εταιρείας'
-                      : stores.find((st) => st.id === overviewScope)?.name ?? ''}
+                      : overviewScope === SCOPE_AGENCY
+                        ? 'Μόνο Πρακτορείο'
+                        : overviewScope === SCOPE_FNB
+                          ? 'Μόνο Καφέ (F&B)'
+                          : stores.find((st) => st.id === overviewScope)?.name ?? ''}
                   </p>
                 </div>
                 <span className="text-sm font-black font-mono tabular-nums text-slate-900">

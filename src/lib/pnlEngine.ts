@@ -311,6 +311,32 @@ export interface MonthlyPnlResult {
   month: string;
   days: string[];
   units: PnlUnitRow[];
+  /**
+   * Το πρακτορείο μόνο: οι γραμμές ΚΑΤΑΣΤΗΜΑ όλων των μαγαζιών μαζί.
+   *
+   * Υπήρχε μόνο το storesTotal, που έσμιγε πρακτορείο και καφέ σε ένα νούμερο:
+   * ο Αύγουστος έδειχνε ένα «σύνολο καταστημάτων» -4.371,79 € μέσα στο οποίο
+   * ο καφές έβγαζε +3.511,59 € και το πρακτορείο -7.883,38 €. Δύο
+   * επιχειρήσεις με αντίθετο πρόσημο, ένας αριθμός, καμία απόφαση.
+   */
+  agency: PnlTotals;
+  /** Ο καφές μόνο: οι γραμμές F&B όλων των μαγαζιών μαζί. */
+  fnb: PnlTotals;
+  /** Υπάρχει καφές αυτόν τον μήνα; Μία απάντηση, εδώ, για κάθε οθόνη. */
+  hasFnb: boolean;
+  /**
+   * Καθαρό του πρακτορείου: κρατάει ΟΛΑ τα έξοδα εταιρίας και τα δάνεια.
+   *
+   * ΕΦΚΑ ιδιοκτητών, εφορία, ΕΝΦΙΑ, δόση του play - είναι γενικά έξοδα της
+   * εταιρίας του πρακτορείου, όχι της καφετέριας. Μαζί με τα πάγια (ενοίκιο,
+   * ενέργεια), που ήδη χρεώνονται ακέραια στη γραμμή ΚΑΤΑΣΤΗΜΑ, σημαίνει ότι
+   * ο καφές δεν επιβαρύνεται με μερίδα στέγης: το λέει η οθόνη από κάτω, για
+   * να μη διαβαστεί το περιθώριό του ως καθαρό κέρδος.
+   */
+  agencyNet: number;
+  /** Καθαρό του καφέ: ό,τι πούλησε μείον ό,τι ξόδεψε και πλήρωσε ο ίδιος. */
+  fnbNet: number;
+  /** Πρακτορείο + καφές. Το κρατάει η μηχανή για ό,τι διαβάζει ακόμη το σύνολο. */
   storesTotal: PnlTotals;
   companyFixed: number;
   companyDaily: number;
@@ -429,6 +455,29 @@ function buildDayGrid(days: string[], items: Array<{ date: string; column: strin
     columnTotals,
     total: sum(Object.values(columnTotals)),
   };
+}
+
+function totalsOf(rows: PnlUnitRow[]): PnlTotals {
+  return {
+    revenue: sum(rows.map((r) => r.revenue)),
+    dailyExpenses: sum(rows.map((r) => r.dailyExpenses)),
+    fixedCosts: sum(rows.map((r) => r.fixedCosts)),
+    payroll: sum(rows.map((r) => r.payroll)),
+    result: sum(rows.map((r) => r.result)),
+  };
+}
+
+const addTotals = (a: PnlTotals, b: PnlTotals): PnlTotals => ({
+  revenue: round2(a.revenue + b.revenue),
+  dailyExpenses: round2(a.dailyExpenses + b.dailyExpenses),
+  fixedCosts: round2(a.fixedCosts + b.fixedCosts),
+  payroll: round2(a.payroll + b.payroll),
+  result: round2(a.result + b.result),
+});
+
+/** What a side spent on itself: ημέρας + πάγια + μισθοδοσία, no company costs. */
+export function costsOf(totals: PnlTotals): number {
+  return sum([totals.dailyExpenses, totals.fixedCosts, totals.payroll]);
 }
 
 function makeUnit(
@@ -700,24 +749,30 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
   const loans = sum(loanRows.map((c) => c.amount));
   const companyExpenses = round2(companyFixed + companyDailyGrid.total);
 
-  const storesTotal: PnlTotals = {
-    revenue: sum(units.map((u) => u.revenue)),
-    dailyExpenses: sum(units.map((u) => u.dailyExpenses)),
-    fixedCosts: sum(units.map((u) => u.fixedCosts)),
-    payroll: sum(units.map((u) => u.payroll)),
-    result: sum(units.map((u) => u.result)),
-  };
+  // Each side first, the sum derived from them - never computed twice. If the
+  // two halves on screen did not add up to the bottom line under them, the
+  // Owner would have to pick which to believe.
+  const agency = totalsOf(units.filter((u) => u.unit === 'STORE'));
+  const fnbTotals = totalsOf(units.filter((u) => u.unit === 'FNB'));
+  const storesTotal = addTotals(agency, fnbTotals);
+  const agencyNet = round2(agency.result - companyExpenses - loans);
+  const fnbNet = fnbTotals.result;
 
   return {
     month,
     days,
     units,
+    agency,
+    fnb: fnbTotals,
+    hasFnb: units.some((u) => u.unit === 'FNB'),
+    agencyNet,
+    fnbNet,
     storesTotal,
     companyFixed,
     companyDaily: companyDailyGrid.total,
     companyExpenses,
     loans,
-    netResult: round2(storesTotal.result - companyExpenses - loans),
+    netResult: round2(agencyNet + fnbNet),
     stores: sheets,
     payroll: payrollGroups,
     payrollTotal: sum(payrollGroups.map((g) => g.total)),
@@ -735,6 +790,5 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
 
 // Everything subtracted from Τζίρος on the way to the bottom line.
 export function totalCosts(result: MonthlyPnlResult): number {
-  const { storesTotal } = result;
-  return sum([storesTotal.dailyExpenses, storesTotal.fixedCosts, storesTotal.payroll, result.companyExpenses, result.loans]);
+  return sum([costsOf(result.storesTotal), result.companyExpenses, result.loans]);
 }

@@ -13,6 +13,7 @@ import {
   PnlShift,
   PnlStore,
   totalCosts,
+  costsOf,
 } from '../lib/pnlEngine.ts';
 import * as XLSX from 'xlsx';
 import { buildMonthlyPnlWorkbook, monthlyPnlFileName } from '../services/pnlExcelExport.ts';
@@ -22,6 +23,8 @@ const STORES: PnlStore[] = [
   { id: 'store_101498', code: '101498', name: '101498 Allwyn Store', storeType: 'OPAP_AGENCY' },
   { id: 'store_401070', code: '401070', name: '401070 Allwyn Play', storeType: 'PLAY_STORE' },
 ];
+
+const sumOf = (values: number[]): number => Math.round(values.reduce((a, v) => a + v, 0) * 100) / 100;
 
 let seq = 0;
 const expense = (storeId: string, date: string, recipient: string, amount: number, category = 'EXPENSES_GP'): PnlExpense => ({
@@ -180,6 +183,41 @@ describe('computeMonthlyPnl reproduces the August 2026 workbook', () => {
     expect(pnl.loans).toBeCloseTo(2634, 2);
     expect(pnl.netResult).toBeCloseTo(-13040.7, 2);
     expect(pnl.storesTotal.revenue - totalCosts(pnl)).toBeCloseTo(pnl.netResult, 2);
+  });
+
+  it('keeps the agency and the café apart, each with its own bottom line', () => {
+    // Ο Αύγουστος είναι ο λόγος που χρειάζεται ο διαχωρισμός: το πρακτορείο
+    // έχασε 16.552,29 και ο καφές έβγαλε 3.511,59. Ένα νούμερο -13.040,70
+    // λέει ότι «ο μήνας πήγε άσχημα» και κρύβει ότι η μία από τις δύο
+    // δουλειές ήταν κερδοφόρα.
+    expect(pnl.agency.revenue).toBeCloseTo(1063.1, 2);
+    expect(pnl.agency.result).toBeCloseTo(-7883.38, 2);
+    expect(pnl.agencyNet).toBeCloseTo(-16552.29, 2);
+    expect(pnl.fnb.revenue).toBeCloseTo(6791.8, 2);
+    expect(pnl.fnb.result).toBeCloseTo(3511.59, 2);
+    expect(pnl.fnbNet).toBeCloseTo(3511.59, 2);
+    expect(pnl.hasFnb).toBe(true);
+
+    // Ο καφές δεν σηκώνει πάγια ούτε έξοδα εταιρίας - η οθόνη το γράφει,
+    // και αν αλλάξει ποτέ ο κανόνας, πέφτει εδώ.
+    expect(pnl.fnb.fixedCosts).toBe(0);
+  });
+
+  it('the two sides add up to the one bottom line', () => {
+    // Αν τα δύο μισά της οθόνης δεν έκαναν το σύνολο κάτω τους, ο Owner θα
+    // έπρεπε να διαλέξει ποιο να πιστέψει.
+    expect(pnl.agencyNet + pnl.fnbNet).toBeCloseTo(pnl.netResult, 2);
+    expect(pnl.agency.revenue + pnl.fnb.revenue).toBeCloseTo(pnl.storesTotal.revenue, 2);
+    expect(pnl.agency.result + pnl.fnb.result).toBeCloseTo(pnl.storesTotal.result, 2);
+    expect(costsOf(pnl.agency) + costsOf(pnl.fnb)).toBeCloseTo(costsOf(pnl.storesTotal), 2);
+
+    // Και το ίδιο πρέπει να ισχύει γραμμή προς γραμμή: κάθε μονάδα ανήκει
+    // σε ΜΙΑ από τις δύο πλευρές, σε καμία άλλη και σε καμία δύο φορές.
+    const store = pnl.units.filter((u) => u.unit === 'STORE');
+    const fnb = pnl.units.filter((u) => u.unit === 'FNB');
+    expect(store.length + fnb.length).toBe(pnl.units.length);
+    expect(sumOf(store.map((u) => u.result))).toBeCloseTo(pnl.agency.result, 2);
+    expect(sumOf(fnb.map((u) => u.result))).toBeCloseTo(pnl.fnb.result, 2);
   });
 
   it('reconciles each unit, which is what the store-scoped cards show', () => {
@@ -383,9 +421,24 @@ describe('P&L_MMYY.xlsx export', () => {
     expect(checked).toBeGreaterThan(100);
   });
 
-  it('ends the summary sheet on the real bottom line', () => {
+  it('keeps the two sides apart on the summary sheet, and ends on their sum', () => {
     const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets['P&L'], { header: 1 });
-    const total = rows.find((row) => row[0] === 'ΣΥΝΟΛΟ')!;
-    expect(total[7]).toBeCloseTo(-13040.7, 2);
+    const bottomLine = (label: string): number => {
+      const row = rows.find((r) => r[0] === label);
+      expect(row, `λείπει η γραμμή «${label}»`).toBeDefined();
+      return Number(row![7]);
+    };
+
+    // Ο λογιστής πρέπει να βλέπει τις δύο δουλειές χωριστά στο ίδιο φύλλο:
+    // ο Αύγουστος είναι -16.552,29 το πρακτορείο και +3.511,59 ο καφές.
+    expect(bottomLine('ΚΑΘΑΡΟ ΠΡΑΚΤΟΡΕΙΟΥ')).toBeCloseTo(-16552.29, 2);
+    expect(bottomLine('ΚΑΘΑΡΟ ΚΑΦΕ')).toBeCloseTo(3511.59, 2);
+    expect(bottomLine('ΣΥΝΟΛΟ (ΠΡΑΚΤΟΡΕΙΟ + ΚΑΦΕ)')).toBeCloseTo(-13040.7, 2);
+
+    // Και οι γραμμές του καφέ δεν στέκονται μέσα στο πρακτορείο.
+    const indexOf = (label: string) => rows.findIndex((r) => r[0] === label);
+    expect(indexOf('ΠΡΑΚΤΟΡΕΙΟ')).toBeLessThan(indexOf('ΚΑΘΑΡΟ ΠΡΑΚΤΟΡΕΙΟΥ'));
+    expect(indexOf('ΚΑΘΑΡΟ ΠΡΑΚΤΟΡΕΙΟΥ')).toBeLessThan(indexOf('ΚΑΦΕ (F&B)'));
+    expect(indexOf('ΚΑΦΕ (F&B)')).toBeLessThan(indexOf('ΚΑΘΑΡΟ ΚΑΦΕ'));
   });
 });
