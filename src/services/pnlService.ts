@@ -1,5 +1,12 @@
 import { supabase, handleSupabaseError, OperationType } from './supabase.ts';
 import {
+  BUILTIN_EXPENSE_CATEGORIES,
+  ExpenseCategoryDef,
+  ExpenseSide,
+  expenseCategoryKey,
+  sortCategories,
+} from '../lib/expenseCategories.ts';
+import {
   MonthlyPnlInput,
   PnlCommissionEntry,
   PnlCompanyCost,
@@ -26,6 +33,7 @@ const COMPANY_COSTS_TABLE = 'corporate_expenses';
 const COMPANY_DAILY_TABLE = 'company_daily_expenses';
 const FNB_DAYS_TABLE = 'pnl_fnb_daily_income';
 const EXPENSES_TABLE = 'shift_expenses';
+const CATEGORIES_TABLE = 'expense_categories';
 const SHIFTS_TABLE = 'shifts';
 const VLT_TABLE = 'vlt_reconciliations';
 
@@ -148,7 +156,7 @@ export async function fetchMonthlyPnlInput(orgId: string, month: string, stores:
   const shiftsFrom = new Date(Date.parse(`${first}T00:00:00Z`) - DAY_MS).toISOString();
   const shiftsTo = new Date(Date.parse(`${monthPeriod(shiftMonthKey(month, 1))}T00:00:00Z`) + DAY_MS).toISOString();
 
-  const [commissions, fixedCosts, payroll, companyCosts, companyDaily, expenses, shifts, fnbManualDays, vltCounts] =
+  const [commissions, fixedCosts, payroll, companyCosts, companyDaily, expenses, shifts, fnbManualDays, vltCounts, expenseCategories] =
     await Promise.all([
       list(
         COMMISSIONS_TABLE,
@@ -204,9 +212,89 @@ export async function fetchMonthlyPnlInput(orgId: string, month: string, stores:
           .lte('date', last),
         toVltCount
       ),
+      // Η πλευρά κάθε κατηγορίας - χωρίς αυτήν το P&L δεν ξέρει ποιο έξοδο
+      // είναι του καφέ και ποιο του πρακτορείου.
+      fetchExpenseCategories(orgId),
     ]);
 
-  return { month, stores, commissions, fixedCosts, payroll, companyCosts, companyDaily, expenses, shifts, fnbManualDays, vltCounts };
+  return {
+    month,
+    stores,
+    commissions,
+    fixedCosts,
+    payroll,
+    companyCosts,
+    companyDaily,
+    expenses,
+    shifts,
+    fnbManualDays,
+    vltCounts,
+    expenseCategories,
+  };
+}
+
+// ------------------------------------------------------------------
+// Κατηγορίες εξόδων
+// ------------------------------------------------------------------
+
+const toCategory = (r: any): ExpenseCategoryDef => ({
+  id: r.id,
+  key: r.key,
+  label: r.label,
+  side: r.side === 'FNB' ? 'FNB' : 'AGENCY',
+  sortOrder: Number(r.sort_order) || 0,
+  isActive: r.is_active !== false,
+  isBuiltin: r.is_builtin === true,
+});
+
+/**
+ * Οι κατηγορίες του οργανισμού, ή οι ενσωματωμένες αν δεν υπάρχει καμία.
+ *
+ * Το fallback δεν είναι ευγένεια: ένας οργανισμός που δεν έτρεξε ακόμη το
+ * 0074 θα έμενε χωρίς καμία κατηγορία, και η φόρμα εξόδων θα ήταν ένα άδειο
+ * dropdown που δεν σώζει τίποτα.
+ */
+export async function fetchExpenseCategories(orgId: string): Promise<ExpenseCategoryDef[]> {
+  const rows = await list(
+    CATEGORIES_TABLE,
+    supabase.from(CATEGORIES_TABLE).select('*').eq('organization_id', orgId).order('sort_order'),
+    toCategory
+  ).catch(() => [] as ExpenseCategoryDef[]);
+  return rows.length > 0 ? sortCategories(rows) : BUILTIN_EXPENSE_CATEGORIES;
+}
+
+export async function createExpenseCategory(
+  orgId: string,
+  label: string,
+  side: ExpenseSide,
+  existingKeys: string[]
+): Promise<ExpenseCategoryDef> {
+  const trimmed = label.trim();
+  const payload = {
+    organization_id: orgId,
+    key: expenseCategoryKey(trimmed, existingKeys),
+    label: trimmed,
+    side,
+    sort_order: 500,
+    is_active: true,
+    is_builtin: false,
+  };
+  const { data, error } = await supabase.from(CATEGORIES_TABLE).insert(payload).select('*').single();
+  if (error) throw new Error(error.message);
+  return toCategory(data);
+}
+
+/** Μετονομασία, αλλαγή πλευράς, απόσυρση. Το key δεν αλλάζει ποτέ. */
+export async function updateExpenseCategory(
+  id: string,
+  patch: { label?: string; side?: ExpenseSide; isActive?: boolean }
+): Promise<void> {
+  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.label !== undefined) payload.label = patch.label.trim();
+  if (patch.side !== undefined) payload.side = patch.side;
+  if (patch.isActive !== undefined) payload.is_active = patch.isActive;
+  const { error } = await supabase.from(CATEGORIES_TABLE).update(payload).eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 // ------------------------------------------------------------------

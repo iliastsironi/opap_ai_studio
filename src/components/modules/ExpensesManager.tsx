@@ -14,7 +14,9 @@ import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount, MAX_LABEL_LENGTH, MAX_NOTE
 import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
-import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
+import { presetsForCategory, suppliersForCategory, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
+import { useExpenseCategories } from './useExpenseCategories.ts';
+import { NewExpenseCategoryModal } from './NewExpenseCategoryModal.tsx';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { StoreTransfersPanel } from './StoreTransfersPanel.tsx';
 
@@ -78,6 +80,8 @@ export const ExpensesManager: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
+  const { categories, options: categoryOptions, reload: reloadCategories } = useExpenseCategories(orgId);
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
 
   const loadExpenses = async () => {
     setLoading(true);
@@ -731,15 +735,27 @@ export const ExpensesManager: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="expense-category" className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <label htmlFor="expense-category" className="block text-slate-700 font-semibold">Κατηγορία</label>
+                    {/* Η δημιουργία ζει δίπλα στο πεδίο, όχι σε οθόνη
+                        ρυθμίσεων: τη στιγμή που λείπει μια κατηγορία είναι
+                        ακριβώς η στιγμή που κάποιος καταχωρεί το έξοδο. */}
+                    <button
+                      type="button"
+                      onClick={() => setNewCategoryOpen(true)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                    >
+                      + Νέα κατηγορία
+                    </button>
+                  </div>
                   <select
                     id="expense-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                   >
-                    {EXPENSE_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
+                    {categoryOptions.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
                     ))}
                   </select>
                 </div>
@@ -896,6 +912,20 @@ export const ExpensesManager: React.FC = () => {
         ]}
         onConfirm={handleDeleteExpense}
       />
+
+      {newCategoryOpen && (
+        <NewExpenseCategoryModal
+          orgId={orgId}
+          existing={categories}
+          onClose={() => setNewCategoryOpen(false)}
+          onCreated={(created) => {
+            // Επιλέγεται αμέσως: κάποιος που μόλις την έφτιαξε, την έφτιαξε
+            // για το έξοδο που γράφει αυτή τη στιγμή.
+            setCategory(created.key);
+            void reloadCategories();
+          }}
+        />
+      )}
     </div>
   );
 };

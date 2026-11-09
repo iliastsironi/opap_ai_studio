@@ -190,7 +190,8 @@ import { updateShiftInFirestore } from '../../services/shiftService.ts';
 import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
 import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
-import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORIES, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
+import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
+import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
 import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
@@ -230,6 +231,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   onSubmitted,
 }) => {
   const { token, roles, permissions, user, organization, isLoading: isAuthLoading } = useAuth();
+  const { options: expenseCategoryOptions } = useExpenseCategories(shift.organization_id || organization?.id);
   const canManage =
     roles.some(
       (r) =>
@@ -3190,8 +3192,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                             These used to be written out here, in the Έξοδα screen
                             and in the P&L modal, with different labels and a
                             different order in each. */}
-                        {EXPENSE_CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>{c.label}</option>
+                        {/* Οι κατηγορίες του οργανισμού, όπως τις όρισε ο
+                            ιδιοκτήτης. Μία λίστα για κάθε οθόνη - ήταν
+                            γραμμένες χωριστά εδώ, στα Έξοδα και στο P&L, με
+                            άλλες ετικέτες και άλλη σειρά στην καθεμιά. */}
+                        {expenseCategoryOptions.map((c) => (
+                          <option key={c.key} value={c.key}>{c.label}</option>
                         ))}
                       </select>
                     </div>

@@ -38,7 +38,9 @@ import {
   updateSupplierOrderStatusInFirestore,
 } from '../../services/supplierService.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
-import { EXPENSE_CATEGORIES, normalizeSupplierCategory } from '../../lib/expenseSuppliers.ts';
+import { normalizeSupplierCategory } from '../../lib/expenseSuppliers.ts';
+import { BUILTIN_EXPENSE_CATEGORIES } from '../../lib/expenseCategories.ts';
+import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 
 /**
@@ -48,7 +50,9 @@ import { NumericField } from '../ui/NumericField.tsx';
  * and asking it twice in different words is what let the registry and the
  * books disagree.
  */
-const CATEGORY_OPTIONS = EXPENSE_CATEGORIES;
+// Οι ενσωματωμένες, ως σπόρος της ετικετοποίησης παρακάτω. Οι επιλογές που
+// βλέπει ο χρήστης έρχονται ζωντανά από τον οργανισμό του.
+const BUILTIN_LABELS = BUILTIN_EXPENSE_CATEGORIES;
 
 /**
  * For display only, and deliberately wider than the options above: a row
@@ -56,7 +60,7 @@ const CATEGORY_OPTIONS = EXPENSE_CATEGORIES;
  * raw key to whoever opens it would be worse than a stale label.
  */
 const CATEGORY_LABELS: Record<string, string> = {
-  ...Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label])),
+  ...Object.fromEntries(BUILTIN_LABELS.map((c) => [c.key, c.label])),
   OPAP_SERVICES: 'Υπηρεσίες ΟΠΑΠ & Τερματικά',
   BEVERAGES_FNB: 'Αναψυκτικά, Καφέδες & Τρόφιμα (FnB)',
   OFFICE_CONSUMABLES: 'Γραφική Ύλη & Αναλώσιμα',
@@ -66,6 +70,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export const SuppliersManager: React.FC = () => {
   const { organization } = useAuth();
   const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
+  const { options: categoryOptions } = useExpenseCategories(orgId);
 
   // Navigation Tab State
   const [activeTab, setActiveTab] = useState<'suppliers' | 'orders'>('suppliers');
@@ -480,7 +485,7 @@ export const SuppliersManager: React.FC = () => {
                 className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-colors cursor-pointer"
               >
                 <option value="ALL">Όλες οι Κατηγορίες ({suppliers.length})</option>
-                {CATEGORY_OPTIONS.map(({ value: catKey, label }) => (
+                {categoryOptions.map(({ key: catKey, label }) => (
                   <option key={catKey} value={catKey}>
                     {label}
                   </option>
@@ -1176,7 +1181,7 @@ export const SuppliersManager: React.FC = () => {
                     onChange={(e) => setFormCategory(e.target.value as Supplier['category'])}
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
                   >
-                    {CATEGORY_OPTIONS.map(({ value: catKey, label }) => (
+                    {categoryOptions.map(({ key: catKey, label }) => (
                       <option key={catKey} value={catKey}>
                         {label}
                       </option>

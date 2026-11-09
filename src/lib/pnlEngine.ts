@@ -2,12 +2,13 @@
 // store (plus F&B when it had activity), company costs and loans below it,
 // one bottom line. Pure - the whole month is reproducible from plain data.
 
+import { ExpenseCategoryDef, FNB_EXPENSE_CATEGORY, isFnbCategory } from './expenseCategories.ts';
 import { isTransferCategory } from './storeTransfer.ts';
 
 export type PnlUnit = 'STORE' | 'FNB';
 export type PnlCompanyCostKind = 'FIXED' | 'LOAN';
 
-export const FNB_EXPENSE_CATEGORY = 'EXPENSES_FNB';
+export { FNB_EXPENSE_CATEGORY };
 export const NO_SUPPLIER_LABEL = 'Χωρίς προμηθευτή';
 
 // The three legal entities that actually pay the commissions, as they appear
@@ -202,6 +203,13 @@ export interface MonthlyPnlInput {
   shifts: PnlShift[];
   fnbManualDays: PnlFnbManualDay[];
   vltCounts: PnlVltCount[];
+  /**
+   * Οι κατηγορίες εξόδων του οργανισμού, καθεμιά με την πλευρά της.
+   *
+   * Χωρίς αυτές, η μηχανή πέφτει πίσω στη μοναδική ιστορική κατηγορία του
+   * καφέ - ό,τι ίσχυε πριν ο ιδιοκτήτης μπορεί να φτιάχνει δικές του.
+   */
+  expenseCategories?: ExpenseCategoryDef[];
 }
 
 // ------------------------------------------------------------------
@@ -529,6 +537,7 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
     .map((shift) => ({ ...shift, day: athensDateKey(shift.openedAt) }))
     .filter((shift) => inMonth(shift.day));
   const fnbManualDays = input.fnbManualDays.filter((d) => inMonth(d.day));
+  const isFnb = (category: string) => isFnbCategory(category, input.expenseCategories);
   const vltCounts = input.vltCounts.filter((v) => inMonth(v.date));
 
   // Money attached to a store the list doesn't know about must still count.
@@ -591,8 +600,10 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
       .filter((e) => e.storeId === store.id)
       .filter((e) => !isTransferCategory(e.category));
     const toGridItem = (e: PnlExpense) => ({ date: e.date, column: e.recipient.trim() || NO_SUPPLIER_LABEL, amount: e.amount });
-    const dailyExpenses = buildDayGrid(days, storeExpenses.filter((e) => e.category !== FNB_EXPENSE_CATEGORY).map(toGridItem));
-    const fnbExpenses = buildDayGrid(days, storeExpenses.filter((e) => e.category === FNB_EXPENSE_CATEGORY).map(toGridItem));
+    // Ποια πλευρά πληρώνει το κάθε έξοδο το λέει η κατηγορία του, και η
+    // ερώτηση απαντιέται σε ένα σημείο - στο isFnbCategory.
+    const dailyExpenses = buildDayGrid(days, storeExpenses.filter((e) => !isFnb(e.category)).map(toGridItem));
+    const fnbExpenses = buildDayGrid(days, storeExpenses.filter((e) => isFnb(e.category)).map(toGridItem));
 
     // F&B income: a day's shift F&B wins over a manual row, so a day is never counted twice.
     const storeShifts = shifts.filter((s) => s.storeId === store.id);

@@ -20,6 +20,8 @@
  *     every fresh row - it meant the common case never filtered at all.
  */
 
+import { BUILTIN_EXPENSE_CATEGORIES } from './expenseCategories.ts';
+
 export type ExpenseCategory =
   | 'EXPENSES_GP'
   | 'EXPENSES_FNB'
@@ -41,15 +43,16 @@ export type ExpenseCategory =
  * The «(ΓΠ)» suffix is kept because it says something true: those five are
  * sub-kinds of Γενικά Πληρωμών, which is why ΓΠ itself is the general bucket.
  */
-export const EXPENSE_CATEGORIES: Array<{ value: ExpenseCategory; label: string }> = [
-  { value: 'EXPENSES_GP', label: 'Έξοδα ΓΠ (Γενικά Πληρωμών)' },
-  { value: 'EXPENSES_FNB', label: 'Έξοδα FnB (Κυλικείο)' },
-  { value: 'SUPPLIES', label: 'Αναλώσιμα / Χαρτί (ΓΠ)' },
-  { value: 'UTILITIES', label: 'Λογαριασμοί / ΔΕΗ (ΓΠ)' },
-  { value: 'CLEANING', label: 'Καθαριότητα (ΓΠ)' },
-  { value: 'MAINTENANCE', label: 'Συντήρηση / Βλάβες (ΓΠ)' },
-  { value: 'OTHER', label: 'Λοιπά Έξοδα (ΓΠ)' },
-];
+/**
+ * Από το 0074 οι κατηγορίες ζουν σε πίνακα ανά οργανισμό και ο ιδιοκτήτης
+ * προσθέτει δικές του. Αυτή η λίστα δεν είναι πια η αλήθεια - είναι
+ * ΠΑΡΑΓΩΓΗ των ενσωματωμένων, για τα προκαθορισμένα ζεύγη προμηθευτή και
+ * κατηγορίας παρακάτω. Γραμμένη ξανά εδώ θα ήταν δεύτερη απάντηση στο «ποιες
+ * κατηγορίες υπάρχουν», και θα αποκλίνανε με την πρώτη μετονομασία.
+ */
+export const EXPENSE_CATEGORIES: Array<{ value: ExpenseCategory; label: string }> = BUILTIN_EXPENSE_CATEGORIES.map(
+  (c) => ({ value: c.key as ExpenseCategory, label: c.label })
+);
 
 export const EXPENSE_CATEGORY_KEYS: ExpenseCategory[] = EXPENSE_CATEGORIES.map((c) => c.value);
 
