@@ -71,6 +71,9 @@ describe('the categories the forms offer', () => {
     // missing here is a row whose list does not exist.
     expect(EXPENSE_CATEGORY_KEYS).toEqual([
       'EXPENSES_GP', 'EXPENSES_FNB', 'SUPPLIES', 'UTILITIES', 'CLEANING', 'MAINTENANCE', 'OTHER',
+      // Πληρώνεται από το ταμείο σαν κάθε άλλο έξοδο, αλλά στο P&L βαραίνει
+      // την εταιρία και όχι το μαγαζί - βλ. lib/expenseCategories.ts.
+      'EXPENSES_COMPANY',
     ]);
   });
 

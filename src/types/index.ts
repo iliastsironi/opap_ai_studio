@@ -70,7 +70,12 @@ export interface Supplier {
   // question: which category does this supplier get paid from. The four old
   // names are still read for a row written before the migration - see
   // expenseCategoryOfSupplier in lib/expenseSuppliers.ts.
-  category: 'EXPENSES_GP' | 'EXPENSES_FNB' | 'SUPPLIES' | 'UTILITIES' | 'CLEANING' | 'MAINTENANCE' | 'OTHER';
+  //
+  // Not a union any more: since 0074 the vocabulary lives in the
+  // expense_categories table and the owner adds his own. Spelling the
+  // values out here would be a second list to keep in step with the first,
+  // and the first one changes without a deploy.
+  category: string;
   balance: number;
   notes?: string;
   is_active: boolean;

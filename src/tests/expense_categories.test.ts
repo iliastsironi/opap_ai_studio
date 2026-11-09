@@ -113,6 +113,38 @@ describe('κατηγορίες εξόδων που ορίζει ο ιδιοκτ�
     expect(pnl.fnb.dailyExpenses).toBeCloseTo(55, 2);
   });
 
+  it('ένα έξοδο εταιρίας φεύγει από το μαγαζί και πάει στα εταιρικά', () => {
+    // Η παγίδα που λύνει το COMPANY: ένα ΕΦΚΑ γράφεται πάντα σε κάποιο
+    // κατάστημα, αλλά δεν το βαραίνει. Πρέπει να βγει από τα Έξοδα Ημέρας
+    // του και να προσγειωθεί στα εταιρικά - ούτε διπλά, ούτε πουθενά.
+    const categories = [...BUILTIN_EXPENSE_CATEGORIES];
+    const pnl = computeMonthlyPnl(month([expense('EXPENSES_COMPANY', 300), expense('EXPENSES_GP', 50)], categories));
+
+    expect(pnl.agency.dailyExpenses).toBeCloseTo(50, 2);
+    expect(pnl.fnb.dailyExpenses).toBeCloseTo(0, 2);
+    expect(pnl.companyDaily).toBeCloseTo(300, 2);
+    expect(pnl.companyExpenses).toBeCloseTo(300, 2);
+
+    // Και φαίνεται: αν έλειπε από το πλέγμα, θα ήταν χρήματα που
+    // εξαφανίστηκαν από την οθόνη.
+    expect(pnl.company.daily.total).toBeCloseTo(300, 2);
+    expect(pnl.company.dailyEntries.some((d) => d.amount === 300)).toBe(true);
+  });
+
+  it('το έξοδο εταιρίας μετράει μία φορά, στο καθαρό του πρακτορείου', () => {
+    const categories = [...BUILTIN_EXPENSE_CATEGORIES];
+    const withCompany = computeMonthlyPnl(month([expense('EXPENSES_COMPANY', 300)], categories));
+    const asStore = computeMonthlyPnl(month([expense('EXPENSES_GP', 300)], categories));
+
+    // Ίδιο ποσό, ίδια τελική γραμμή - αλλάζει μόνο ο κουβάς.
+    expect(withCompany.netResult).toBeCloseTo(asStore.netResult, 2);
+    expect(withCompany.agencyNet).toBeCloseTo(asStore.agencyNet, 2);
+    expect(withCompany.fnbNet).toBeCloseTo(asStore.fnbNet, 2);
+    // Αλλά το μαγαζί δεν το κουβαλάει.
+    expect(withCompany.agency.dailyExpenses).toBeCloseTo(0, 2);
+    expect(asStore.agency.dailyExpenses).toBeCloseTo(300, 2);
+  });
+
   it('το key βγαίνει λατινικό, σταθερό και μοναδικό', () => {
     expect(expenseCategoryKey('Ποτά & Αναψυκτικά')).toBe('CUSTOM_POTA_ANAPSYKTIKA');
     expect(expenseCategoryKey('Λογιστής')).toBe('CUSTOM_LOGISTIS');

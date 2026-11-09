@@ -44,7 +44,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('EXPENSES_GP');
   const { options } = useExpenseCategories(orgId);
-  const storeCategories = options.filter((c) => c.side !== 'FNB');
+  const storeCategories = options.filter((c) => c.side === 'AGENCY');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

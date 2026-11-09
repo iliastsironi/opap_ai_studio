@@ -16,7 +16,17 @@
 
 import { stripGreekAccents } from './greekTypography.ts';
 
-export type ExpenseSide = 'AGENCY' | 'FNB';
+/**
+ * Ποιος πληρώνει.
+ *
+ * COMPANY δεν είναι τρίτη «δουλειά» - είναι η παραδοχή ότι κάποια έξοδα δεν
+ * ανήκουν σε κανένα μαγαζί: ΕΦΚΑ, ΙΚΑ, εφορία. Χωρίς αυτό, ένα τέτοιο
+ * έξοδο καταχωρημένο από την οθόνη εξόδων θα φόρτωνε τα «Έξοδα Ημέρας» του
+ * καταστήματος που έτυχε να είναι επιλεγμένο, ενώ το ίδιο έξοδο γραμμένο
+ * στο tab «Έξοδα Εταιρίας» θα πήγαινε αλλού. Ίδια ερώτηση, δύο απαντήσεις,
+ * ανάλογα με το πού στεκόταν κανείς όταν το έγραψε.
+ */
+export type ExpenseSide = 'AGENCY' | 'FNB' | 'COMPANY';
 
 export interface ExpenseCategoryDef {
   id?: string;
@@ -45,10 +55,14 @@ export const BUILTIN_EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
   { key: 'CLEANING', label: 'Καθαριότητα (ΓΠ)', side: 'AGENCY', sortOrder: 50, isActive: true, isBuiltin: true },
   { key: 'MAINTENANCE', label: 'Συντήρηση / Βλάβες (ΓΠ)', side: 'AGENCY', sortOrder: 60, isActive: true, isBuiltin: true },
   { key: 'OTHER', label: 'Λοιπά Έξοδα (ΓΠ)', side: 'AGENCY', sortOrder: 70, isActive: true, isBuiltin: true },
+  { key: 'EXPENSES_COMPANY', label: 'Έξοδα Εταιρίας (ΕΦΚΑ, ΙΚΑ, εφορία)', side: 'COMPANY', sortOrder: 80, isActive: true, isBuiltin: true },
 ];
 
 /** Η μία κατηγορία του καφέ που υπήρχε πριν τον πίνακα. */
 export const FNB_EXPENSE_CATEGORY = 'EXPENSES_FNB';
+
+/** Η ενσωματωμένη κατηγορία για ό,τι πληρώνει η εταιρία, όχι το μαγαζί. */
+export const COMPANY_EXPENSE_CATEGORY = 'EXPENSES_COMPANY';
 
 export const sortCategories = (list: readonly ExpenseCategoryDef[]): ExpenseCategoryDef[] =>
   [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, 'el'));
@@ -76,6 +90,20 @@ export function isFnbCategory(category: unknown, categories?: readonly ExpenseCa
   const key = String(category ?? '');
   const match = categories?.find((c) => c.key === key);
   return match ? match.side === 'FNB' : key === FNB_EXPENSE_CATEGORY;
+}
+
+/**
+ * Το πληρώνει η εταιρία, όχι το κατάστημα;
+ *
+ * Όπως και το isFnbCategory, η ΜΟΝΗ απάντηση. Ένα τέτοιο έξοδο φεύγει από
+ * τα Έξοδα Ημέρας του μαγαζιού και προσγειώνεται στα Έξοδα Εταιρίας - που
+ * χρεώνονται ολόκληρα στο πρακτορείο. Τα χρήματα δεν διπλομετρώνται και
+ * δεν χάνονται· αλλάζουν κουβά.
+ */
+export function isCompanyCategory(category: unknown, categories?: readonly ExpenseCategoryDef[]): boolean {
+  const key = String(category ?? '');
+  const match = categories?.find((c) => c.key === key);
+  return match ? match.side === 'COMPANY' : key === COMPANY_EXPENSE_CATEGORY;
 }
 
 /** Τα keys που ανήκουν στον καφέ - η μορφή που θέλει η μηχανή του P&L. */

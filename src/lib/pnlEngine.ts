@@ -2,7 +2,7 @@
 // store (plus F&B when it had activity), company costs and loans below it,
 // one bottom line. Pure - the whole month is reproducible from plain data.
 
-import { ExpenseCategoryDef, FNB_EXPENSE_CATEGORY, isFnbCategory } from './expenseCategories.ts';
+import { ExpenseCategoryDef, FNB_EXPENSE_CATEGORY, isCompanyCategory, isFnbCategory } from './expenseCategories.ts';
 import { isTransferCategory } from './storeTransfer.ts';
 
 export type PnlUnit = 'STORE' | 'FNB';
@@ -538,6 +538,17 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
     .filter((shift) => inMonth(shift.day));
   const fnbManualDays = input.fnbManualDays.filter((d) => inMonth(d.day));
   const isFnb = (category: string) => isFnbCategory(category, input.expenseCategories);
+  const isCompany = (category: string) => isCompanyCategory(category, input.expenseCategories);
+
+  /**
+   * Έξοδα γραμμένα σε κατάστημα που όμως τα πληρώνει η εταιρία.
+   *
+   * Το ΕΦΚΑ που πληρώθηκε από το ταμείο είναι μετρητά που έφυγαν από το
+   * συρτάρι - η βάρδια πρέπει να το μετρήσει, και το μετράει. Αλλά στο P&L
+   * δεν βαραίνει το μαγαζί: βγαίνει από τα Έξοδα Ημέρας του και μπαίνει στα
+   * Έξοδα Εταιρίας, που χρεώνονται ολόκληρα στο πρακτορείο.
+   */
+  const companyFromStores = expenses.filter((e) => !isTransferCategory(e.category) && isCompany(e.category));
   const vltCounts = input.vltCounts.filter((v) => inMonth(v.date));
 
   // Money attached to a store the list doesn't know about must still count.
@@ -598,7 +609,10 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
     // there is a 2.000 € one on 8/9 alone.
     const storeExpenses = expenses
       .filter((e) => e.storeId === store.id)
-      .filter((e) => !isTransferCategory(e.category));
+      .filter((e) => !isTransferCategory(e.category))
+      // Τα εταιρικά φεύγουν από το μαγαζί εντελώς - ούτε στα Έξοδα Ημέρας
+      // του ούτε στου καφέ. Τα μαζεύει το companyFromStores παραπάνω.
+      .filter((e) => !isCompany(e.category));
     const toGridItem = (e: PnlExpense) => ({ date: e.date, column: e.recipient.trim() || NO_SUPPLIER_LABEL, amount: e.amount });
     // Ποια πλευρά πληρώνει το κάθε έξοδο το λέει η κατηγορία του, και η
     // ερώτηση απαντιέται σε ένα σημείο - στο isFnbCategory.
@@ -763,10 +777,14 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
   const loanRows = companyCosts
     .filter((c) => c.kind === 'LOAN')
     .sort((a, b) => byDefaultOrder(DEFAULT_LOAN_LINES)(a.name, b.name));
-  const companyDailyGrid = buildDayGrid(
-    days,
-    companyDaily.map((d) => ({ date: d.expenseDate, column: d.payee.trim() || NO_SUPPLIER_LABEL, amount: d.amount }))
-  );
+  // Δύο πηγές, ένα πλέγμα: όσα γράφτηκαν στο tab «Έξοδα Εταιρίας» και όσα
+  // γράφτηκαν από την οθόνη εξόδων με εταιρική κατηγορία. Αν τα δεύτερα δεν
+  // εμφανίζονταν εδώ, θα είχαν φύγει από το μαγαζί και δεν θα είχαν
+  // προσγειωθεί πουθενά - χρήματα που εξαφανίζονται από την οθόνη.
+  const companyDailyGrid = buildDayGrid(days, [
+    ...companyDaily.map((d) => ({ date: d.expenseDate, column: d.payee.trim() || NO_SUPPLIER_LABEL, amount: d.amount })),
+    ...companyFromStores.map((e) => ({ date: e.date, column: e.recipient.trim() || NO_SUPPLIER_LABEL, amount: e.amount })),
+  ]);
   const companyFixed = sum(companyFixedRows.map((c) => c.amount));
   const loans = sum(loanRows.map((c) => c.amount));
   const companyExpenses = round2(companyFixed + companyDailyGrid.total);
@@ -804,7 +822,10 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
       loans: loanRows,
       loansTotal: loans,
       daily: companyDailyGrid,
-      dailyEntries: [...companyDaily].sort((a, b) => b.expenseDate.localeCompare(a.expenseDate)),
+      dailyEntries: [
+        ...companyDaily,
+        ...companyFromStores.map((e) => ({ id: e.id, expenseDate: e.date, payee: e.recipient, amount: e.amount, note: null })),
+      ].sort((a, b) => b.expenseDate.localeCompare(a.expenseDate)),
     },
     warnings,
   };

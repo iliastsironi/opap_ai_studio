@@ -29,7 +29,8 @@ export type ExpenseCategory =
   | 'CLEANING'
   | 'MAINTENANCE'
   | 'UTILITIES'
-  | 'OTHER';
+  | 'OTHER'
+  | 'EXPENSES_COMPANY';
 
 /**
  * The categories an expense can be filed under - one list, for every screen.

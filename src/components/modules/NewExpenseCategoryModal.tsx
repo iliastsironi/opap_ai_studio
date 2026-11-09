@@ -81,11 +81,12 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
 
         <fieldset>
           <legend className="block text-xs font-bold text-slate-600 mb-1">Σε ποια δουλειά ανήκει</legend>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {(
               [
                 ['AGENCY', 'Πρακτορείο'],
                 ['FNB', 'Καφές (F&B)'],
+                ['COMPANY', 'Εταιρία'],
               ] as Array<[ExpenseSide, string]>
             ).map(([value, text]) => (
               <label
@@ -107,7 +108,8 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
             ))}
           </div>
           <p className="text-micro text-slate-500 mt-1.5">
-            Καθορίζει σε ποια από τις δύο κερδοφορίες μετράνε τα έξοδα αυτής της κατηγορίας στο P&L. Αλλάζει αργότερα.
+            Καθορίζει πού μετράνε τα έξοδα αυτής της κατηγορίας στο P&L. <strong>Εταιρία</strong> για ΕΦΚΑ, ΙΚΑ, εφορία: δεν
+            βαραίνουν κανένα μαγαζί, πάνε στα Έξοδα Εταιρίας. Αλλάζει αργότερα.
           </p>
         </fieldset>
 
