@@ -48,14 +48,20 @@ import { DailyAggregationView } from '../shifts/DailyAggregationView.tsx';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import {
-  MonthlyPnlResult,
   athensDateKey,
-  costsOf,
   currentMonthKey,
   monthLabel,
   shiftMonthKey,
-  totalCosts,
 } from '../../lib/pnlEngine.ts';
+import {
+  CostMixKey,
+  SCOPE_AGENCY,
+  SCOPE_ALL,
+  SCOPE_FNB,
+  scopeRule,
+  scopedCostMix,
+  scopedFigures,
+} from '../../lib/reportScope.ts';
 import { buildShiftDailySeries } from '../../lib/shiftDailySeries.ts';
 import { pickNum, safeNum } from '../../services/financialCalculator.ts';
 import { IconButton } from '../ui/IconButton.tsx';
@@ -67,45 +73,18 @@ import { NumericField } from '../ui/NumericField.tsx';
 
 type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
 
-// Εύρος επισκόπησης: όλα, μόνο το πρακτορείο, μόνο ο καφές, ή ένα κατάστημα.
-const SCOPE_ALL = 'ALL';
-const SCOPE_AGENCY = 'AGENCY';
-const SCOPE_FNB = 'FNB';
+// Ο κανόνας του εύρους - ποιο κατάστημα, ποια πλευρά, ποιος σηκώνει τα
+// εταιρικά - ζει στο reportScope.ts, και τον διαβάζουν και οι τρεις κάρτες.
 
-/** Εύρος ενός συγκεκριμένου καταστήματος - ό,τι δεν είναι μία από τις τρεις όψεις. */
-const isStoreScope = (scope: string): boolean => scope !== SCOPE_ALL && scope !== SCOPE_AGENCY && scope !== SCOPE_FNB;
-
-const round2 = (value: number): number => Math.round(value * 100) / 100;
-const sumOf = (values: number[]): number => round2(values.reduce((acc, value) => acc + value, 0));
-
-/**
- * Τζίρος, κόστος και αποτέλεσμα για ένα εύρος - μία απάντηση, εδώ.
- *
- * Το πρακτορείο σηκώνει τα έξοδα εταιρίας και τα δάνεια, ο καφές μόνο τα δικά
- * του: ίδιος κανόνας με τη Σύνοψη του P&L, ώστε «πόσο βγάζει το πρακτορείο»
- * να μη δίνει δύο διαφορετικά νούμερα σε δύο οθόνες.
- *
- * Ένα μεμονωμένο κατάστημα δεν κρατάει εταιρικά - δεν ανήκουν σε κανένα ένα
- * μαγαζί - και αθροίζει ΟΛΕΣ του τις μονάδες: το 101499 έχει και F&B που τον
- * Αύγουστο κουβαλάει +3.511,59, και πετώντας το το μαγαζί δείχνει φτωχότερο.
- */
-function scopedFigures(pnl: MonthlyPnlResult | null, scope: string): { revenue: number; costs: number; result: number } {
-  if (!pnl) return { revenue: 0, costs: 0, result: 0 };
-  if (scope === SCOPE_ALL) return { revenue: pnl.storesTotal.revenue, costs: totalCosts(pnl), result: pnl.netResult };
-  if (scope === SCOPE_AGENCY)
-    return {
-      revenue: pnl.agency.revenue,
-      costs: round2(costsOf(pnl.agency) + pnl.companyExpenses + pnl.loans),
-      result: pnl.agencyNet,
-    };
-  if (scope === SCOPE_FNB) return { revenue: pnl.fnb.revenue, costs: costsOf(pnl.fnb), result: pnl.fnbNet };
-  const units = pnl.units.filter((u) => u.storeId === scope);
-  return {
-    revenue: sumOf(units.map((u) => u.revenue)),
-    costs: sumOf(units.map((u) => u.dailyExpenses + u.fixedCosts + u.payroll)),
-    result: sumOf(units.map((u) => u.result)),
-  };
-}
+/** Ετικέτα και χρώμα για κάθε γραμμή του Cost Mix. Τα ποσά τα δίνει το εύρος. */
+const COST_MIX_META: Record<CostMixKey, { label: string; color: string }> = {
+  AGENCY_DAILY: { label: 'Έξοδα Ημέρας (πρακτορείο)', color: '#ef4444' },
+  FNB_DAILY: { label: 'Αγορές Καφέ (F&B)', color: '#fb923c' },
+  FIXED: { label: 'Πάγια Καταστημάτων', color: '#f59e0b' },
+  PAYROLL: { label: 'Μισθοδοσία', color: '#8b5cf6' },
+  COMPANY: { label: 'Έξοδα Εταιρίας', color: '#3b82f6' },
+  LOANS: { label: 'Δάνεια', color: '#64748b' },
+};
 
 // Literal strings, never interpolated: these reach the DOM as inline styles,
 // but keeping them as plain constants matches how Badge.tsx handles the same
@@ -244,23 +223,35 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
 
   // Everything below is derived from the single monthly result the engine
   // already returns - result.stores[] is per store - so the scope selector
-  // costs no extra query. Ο κανόνας του εύρους ζει στο scopedFigures.
+  // costs no extra query. Ο κανόνας του εύρους ζει στο reportScope.ts.
   const { revenue: scopedRevenue, costs: scopedCosts, result: scopedResult } = scopedFigures(overviewPnl, overviewScope);
+
+  // Πώς λέγεται το εύρος - μία φορά, και το γράφουν και οι δύο κάρτες πιο
+  // κάτω. Όταν η κάθε μία το έλεγε αλλιώς, το Cost Mix έγραφε «όλη η εταιρία»
+  // ενώ ο χρήστης κοίταζε ένα κατάστημα.
+  const scopeLabel = (() => {
+    if (overviewScope === SCOPE_ALL) return 'όλη η εταιρία';
+    if (overviewScope === SCOPE_AGENCY) return 'μόνο το πρακτορείο';
+    if (overviewScope === SCOPE_FNB) return 'μόνο ο καφές (F&B)';
+    const name = stores.find((st) => st.id === overviewScope)?.name ?? 'κατάστημα';
+    // Το «(πρακτορείο)» μπαίνει μόνο όταν υπάρχει καφές να μπερδευτεί μαζί του.
+    return overviewPnl?.hasFnb ? `${name} (πρακτορείο)` : name;
+  })();
 
   // «—», never 0%. A month with no commissions entered has no margin, which is
   // a different thing from a margin of zero, and showing 0% would make a
   // missing Allwyn report look like a terrible month.
   const profitabilityLabel = scopedRevenue > 0 ? percentLabel(scopedResult / scopedRevenue) : '—';
 
+  // Ακολουθεί το εύρος, όπως και το πλακίδιο «Έξοδα»: τα δύο μαζί αθροίζουν
+  // στο ίδιο νούμερο. Όσο το ντόνατ έδειχνε πάντα όλη την εταιρία, με εύρος
+  // ένα κατάστημα η οθόνη έδινε δύο απαντήσεις στην ίδια ερώτηση.
   const costMixData = overviewPnl
-    ? [
-        { name: 'Έξοδα Ημέρας (πρακτορείο)', value: overviewPnl.agency.dailyExpenses, color: '#ef4444' },
-        { name: 'Αγορές Καφέ (F&B)', value: overviewPnl.fnb.dailyExpenses, color: '#fb923c' },
-        { name: 'Πάγια Καταστημάτων', value: overviewPnl.storesTotal.fixedCosts, color: '#f59e0b' },
-        { name: 'Μισθοδοσία', value: overviewPnl.storesTotal.payroll, color: '#8b5cf6' },
-        { name: 'Έξοδα Εταιρίας', value: overviewPnl.companyExpenses, color: '#3b82f6' },
-        { name: 'Δάνεια', value: overviewPnl.loans, color: '#64748b' },
-      ]
+    ? scopedCostMix(overviewPnl, overviewScope).map((slice) => ({
+        name: COST_MIX_META[slice.key].label,
+        value: slice.value,
+        color: COST_MIX_META[slice.key].color,
+      }))
     : [];
   // Where the money actually went, by supplier.
   //
@@ -273,8 +264,9 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   // Built from the day grids the engine already produces, so it respects the
   // same month and scope as everything else and costs no extra query.
   const supplierData = (() => {
+    const rule = scopeRule(overviewScope);
     const sheets = (overviewPnl?.stores ?? []).filter(
-      (sheet) => !isStoreScope(overviewScope) || sheet.store.id === overviewScope
+      (sheet) => rule.storeId === null || sheet.store.id === rule.storeId
     );
     // Keyed case-insensitively, because the same supplier gets typed both ways:
     // August has «OSTRIA» and «Ostria» as separate columns for one business.
@@ -282,12 +274,12 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
     // they stay apart rather than this guessing at spelling mistakes.
     const totals = new Map<string, { label: string; value: number }>();
     for (const sheet of sheets) {
-      const grids =
-        overviewScope === SCOPE_AGENCY
-          ? [sheet.dailyExpenses]
-          : overviewScope === SCOPE_FNB
-            ? [sheet.fnb?.expenses]
-            : [sheet.dailyExpenses, sheet.fnb?.expenses];
+      // Ο ίδιος κανόνας με τα πλακίδια και το Cost Mix: με εύρος κατάστημα
+      // μπαίνουν μόνο οι προμηθευτές του πρακτορείου, όχι η κάβα του καφέ.
+      const grids = [
+        rule.sides.includes('STORE') ? sheet.dailyExpenses : undefined,
+        rule.sides.includes('FNB') ? sheet.fnb?.expenses : undefined,
+      ];
       for (const grid of grids) {
         if (!grid) continue;
         for (const [supplier, amount] of Object.entries(grid.columnTotals)) {
@@ -505,11 +497,11 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   footer={
                     <>
                       <span>
-                        {overviewScope === SCOPE_AGENCY
-                          ? 'Προμήθειες, χωρίς τον καφέ'
+                        {overviewScope === SCOPE_ALL
+                          ? 'Προμήθειες και F&B'
                           : overviewScope === SCOPE_FNB
                             ? 'Πωλήσεις καφέ, μετρητά και κάρτα'
-                            : 'Προμήθειες και F&B'}
+                            : 'Προμήθειες, χωρίς τον καφέ'}
                       </span>
                       <button
                         type="button"
@@ -536,7 +528,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                           ? 'Ημέρας, πάγια, μισθοδοσία, εταιρίας και δάνεια — χωρίς τον καφέ'
                           : overviewScope === SCOPE_FNB
                             ? 'Αγορές και μισθοδοσία του καφέ — χωρίς πάγια και εταιρικά'
-                            : 'Ημέρας, πάγια και μισθοδοσία — χωρίς εταιρικά'}
+                            : 'Ημέρας, πάγια και μισθοδοσία του πρακτορείου — χωρίς καφέ και εταιρικά'}
                     </span>
                   }
                 />
@@ -558,7 +550,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                           ? 'Προμήθειες − έξοδα πρακτορείου, μετά τα εταιρικά'
                           : overviewScope === SCOPE_FNB
                             ? 'Τζίρος καφέ − δικά του έξοδα'
-                            : 'Τζίρος − έξοδα καταστήματος'}
+                            : 'Προμήθειες − έξοδα πρακτορείου, χωρίς τα εταιρικά'}
                     </span>
                   }
                 />
@@ -694,7 +686,9 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     <PieIcon className="w-4 h-4 text-purple-600" />
                     <span>Κατανομή Εξόδων (Cost Mix)</span>
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{monthLabel(overviewMonth)} · όλη η εταιρία, από το Οικονομικό P&L</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {monthLabel(overviewMonth)} · {scopeLabel} · από το Οικονομικό P&L
+                  </p>
                 </div>
 
                 {hasCosts ? (
@@ -776,14 +770,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     <span>Έξοδα ανά Προμηθευτή</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {monthLabel(overviewMonth)} ·{' '}
-                    {overviewScope === SCOPE_ALL
-                      ? 'Σύνολο Εταιρείας'
-                      : overviewScope === SCOPE_AGENCY
-                        ? 'Μόνο Πρακτορείο'
-                        : overviewScope === SCOPE_FNB
-                          ? 'Μόνο Καφέ (F&B)'
-                          : stores.find((st) => st.id === overviewScope)?.name ?? ''}
+                    {monthLabel(overviewMonth)} · {scopeLabel}
                   </p>
                 </div>
                 <span className="text-sm font-black font-mono tabular-nums text-slate-900">
