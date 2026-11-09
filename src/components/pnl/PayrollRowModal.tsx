@@ -41,6 +41,7 @@ const inputClass =
 export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month, stores, row, users, onClose, onSave }) => {
   const [storeId, setStoreId] = useState('');
   const [unit, setUnit] = useState<PnlUnit>('STORE');
+  const [dualRole, setDualRole] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [iban, setIban] = useState('');
@@ -54,6 +55,7 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
     if (!isOpen) return;
     setStoreId(row?.storeId ?? stores[0]?.id ?? '');
     setUnit(row?.unit ?? 'STORE');
+    setDualRole(row?.dualRole === true);
     setName(row?.name ?? '');
     setEmail(row?.email ?? '');
     setIban(row?.iban ?? '');
@@ -69,6 +71,7 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
     id: row?.id,
     storeId,
     unit,
+    dualRole,
     period: monthPeriod(month),
     name,
     userId: userId || null,
@@ -149,12 +152,30 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
           </div>
           <div>
             <label htmlFor="payroll-unit" className="block text-xs font-bold text-slate-600 mb-1">
-              Μονάδα
+              Πού χρεώνεται ο μισθός
             </label>
             <select id="payroll-unit" value={unit} onChange={(e) => setUnit(e.target.value as PnlUnit)} className={inputClass}>
-              <option value="STORE">Κατάστημα</option>
-              <option value="FNB">F&B</option>
+              <option value="STORE">Πρακτορείο</option>
+              <option value="FNB">Καφές (F&B)</option>
             </select>
+            {/* Ο διττός ρόλος είναι ΣΤΟΙΧΕΙΟ, όχι μοίρασμα: ο μισθός πάει
+                ολόκληρος εδώ. Το ποσοστό επιμερισμού απορρίφθηκε ρητά, και
+                μια τσεκαρισμένη επιλογή που μετακινεί σιωπηλά χρήματα θα
+                ήταν ακριβώς το είδος κρυφού κανόνα που κυνηγάμε όλη μέρα. */}
+            <label className="mt-2 flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dualRole}
+                onChange={(e) => setDualRole(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span className="text-xs font-bold text-slate-700">
+                Διττός ρόλος — καλύπτει και πρακτορείο και καφέ
+                <span className="block font-normal text-micro text-slate-500">
+                  Καταγράφεται μόνο. Ο μισθός χρεώνεται ολόκληρος παραπάνω.
+                </span>
+              </span>
+            </label>
           </div>
           <div>
             <label htmlFor="payroll-name" className="block text-xs font-bold text-slate-600 mb-1">

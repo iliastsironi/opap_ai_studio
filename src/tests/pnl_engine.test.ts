@@ -220,6 +220,35 @@ describe('computeMonthlyPnl reproduces the August 2026 workbook', () => {
     expect(sumOf(fnb.map((u) => u.result))).toBeCloseTo(pnl.fnb.result, 2);
   });
 
+  it('a dual role is recorded, and moves no money', () => {
+    // Ο Owner ζήτησε να γράφουμε πού εργάζεται ο καθένας, «ή και διττό
+    // ρόλο». Το ποσοστό επιμερισμού ρωτήθηκε και απορρίφθηκε, οπότε ο
+    // διττός ρόλος είναι ΣΤΟΙΧΕΙΟ: η σημαία δεν επιτρέπεται να μετακινήσει
+    // ούτε ένα ευρώ. Αν κάποτε μπει επιμερισμός, πέφτει αυτό το test και
+    // η απόφαση παίρνεται ρητά αντί να συμβεί σιωπηλά.
+    const withoutFlag = computeMonthlyPnl({
+      ...AUGUST_2026,
+      payroll: [payrollRow('store_101499', 'FNB', 'Κάποιος', { baseSalary: 900 })],
+    });
+    const withFlag = computeMonthlyPnl({
+      ...AUGUST_2026,
+      payroll: [payrollRow('store_101499', 'FNB', 'Κάποιος', { baseSalary: 900, dualRole: true })],
+    });
+
+    expect(withFlag.fnb.payroll).toBeCloseTo(withoutFlag.fnb.payroll, 2);
+    expect(withFlag.agency.payroll).toBeCloseTo(withoutFlag.agency.payroll, 2);
+    expect(withFlag.netResult).toBeCloseTo(withoutFlag.netResult, 2);
+
+    // Ολόκληρος ο μισθός κάθεται στη μονάδα που επιλέχθηκε, και οι δύο
+    // πλευρές εξακολουθούν να κάνουν το σύνολο.
+    expect(withFlag.fnb.payroll).toBeCloseTo(900, 2);
+    expect(withFlag.agency.payroll).toBeCloseTo(0, 2);
+    expect(withFlag.agency.payroll + withFlag.fnb.payroll).toBeCloseTo(withFlag.payrollTotal, 2);
+
+    // Και η σημαία φτάνει στην οθόνη, που είναι όλο το νόημά της.
+    expect(withFlag.payroll[0].rows[0].dualRole).toBe(true);
+  });
+
   it('reconciles each unit, which is what the store-scoped cards show', () => {
     // Αναφορές → Επισκόπηση scoped to one store sums that store's units and
     // puts Τζίρος, Κόστος and Αποτέλεσμα on three cards side by side, with

@@ -114,6 +114,17 @@ export interface PnlPayrollRow {
   /** The account whose till this person works, when they have one. */
   userId?: string | null;
   /**
+   * Καλύπτει και πρακτορείο και καφέ.
+   *
+   * ΚΑΤΑΓΡΑΦΗ ΜΟΝΟ - δεν μοιράζει τίποτα. Το ποσοστό επιμερισμού ρωτήθηκε
+   * και απορρίφθηκε ρητά («δε μας νοιάζει»), οπότε ο μισθός χρεώνεται
+   * ολόκληρος στο unit που επιλέχθηκε και agency.payroll + fnb.payroll
+   * παραμένει ίσο με το σύνολο. Αν μπει ποτέ πραγματικός επιμερισμός, θα
+   * είναι άλλη στήλη και άλλη απόφαση: ένα boolean δεν γίνεται σιωπηλά
+   * ποσοστό.
+   */
+  dualRole?: boolean;
+  /**
    * Unpaid till shortages for that account, all months together.
    *
    * Reported BESIDE «Χέρι», never inside it: payrollCashInHand() deliberately

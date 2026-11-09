@@ -144,6 +144,14 @@ export const PayrollSheet: React.FC<PayrollSheetProps> = ({ result, orgId, onCha
                         <tr key={row.id ?? `${group.key}:${row.name}`}>
                           <td className="px-3 py-2 whitespace-nowrap">
                             <span className="font-bold text-slate-900">{row.name}</span>
+                            {row.dualRole && (
+                              <span
+                                className="ml-1.5 align-middle px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-black"
+                                title="Καλύπτει και πρακτορείο και καφέ. Ο μισθός χρεώνεται ολόκληρος στη μονάδα της ομάδας."
+                              >
+                                ΔΙΤΤΟΣ
+                              </span>
+                            )}
                             {row.email && <span className="block text-[11px] text-slate-500">{row.email}</span>}
                           </td>
                           <td className={cell}>{amount(row.baseSalary)}</td>
