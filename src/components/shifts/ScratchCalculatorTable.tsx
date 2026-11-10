@@ -42,7 +42,7 @@ import {
 } from '../../lib/lotteryUnits.ts';
 import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
 import {
-  handoverProblem, packsForGame, warehouseGoverns, type HandoverPack,
+  handoverChoices, handoverProblem, warehouseGoverns, type HandoverPack,
 } from '../../lib/warehouseHandover.ts';
 import {
   canReturnUnsold,
@@ -1705,7 +1705,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     // ήδη ανοίξει στον πάγκο ένα πακέτο που η αποθήκη λέει ότι κάθεται.
     const governed = warehouseGoverns(warehouseInUse, isLotteryRow(target));
     const fromWarehouse = governed
-      ? packsForGame(warehousePacks, target.id).find((p) => p.id === selectedPackId)
+      ? handoverChoices(warehousePacks, target.id).ready.find((p) => p.id === selectedPackId)
       : undefined;
 
     if (governed) {
@@ -1774,7 +1774,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       `Θα αφαιρεθούν ${last.addedQty} δελτία από την πώληση και οι αριθμοί ` +
       `θα επιστρέψουν όπως ήταν (αρχικό ${last.previous.startNo || '-'}` +
       `, τελικό ${last.previous.endNo || '-'}).` +
-      (governed ? `\n\nΤο πακέτο θα επιστρέψει στην αποθήκη.` : '');
+      (governed ? `\n\nΤο πακέτο θα γυρίσει στα «προς παράδοση» — παραδομένο, αλλά όχι ανοιγμένο.` : '');
     if (!window.confirm(message)) return;
 
     // Η αποθήκη πρώτα, όπως και στο άνοιγμα. Αν η επιστροφή αποτύχει, δεν
@@ -1784,7 +1784,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       try {
         await onPackReturned(target.id, last.code);
       } catch (err: any) {
-        window.alert(err?.message ?? 'Το πακέτο δεν επέστρεψε στην αποθήκη. Η αναίρεση ακυρώθηκε.');
+        window.alert(err?.message ?? 'Το πακέτο δεν γύρισε στα «προς παράδοση». Η αναίρεση ακυρώθηκε.');
         return;
       }
     }
@@ -3014,8 +3014,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         // πακέτο. Μέχρι τότε το παράθυρο δουλεύει όπως πάντα - αλλιώς το
         // ταμείο θα σταματούσε απόψε για μια καταχώρηση που θέλει μέρες.
         const governed = warehouseGoverns(warehouseInUse, targetIsLottery);
-        const available = governed ? packsForGame(warehousePacks, targetRow?.id) : [];
-        const warehouseIssue = governed ? handoverProblem(available, selectedPackId) : null;
+        // Παραδομένα και στο ράφι χωριστά: μόνο τα πρώτα ανοίγουν, τα
+        // δεύτερα εξηγούν την άδεια λίστα.
+        const { ready: available, waiting: onShelf } = governed
+          ? handoverChoices(warehousePacks, targetRow?.id)
+          : { ready: [] as HandoverPack[], waiting: [] as HandoverPack[] };
+        const warehouseIssue = governed ? handoverProblem(available, onShelf, selectedPackId) : null;
         const codeOk = governed
           ? warehouseIssue === null
           : isValidDeliveryId(targetIsLottery, newPackCode);
@@ -3059,12 +3063,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
             {/* The code first: it is the only thing that ties this pack to the
                 stock list, and it is asked for before anything is changed. */}
             {governed ? (
-              /* Ο κωδικός δεν γράφεται πια: διαλέγεται από την αποθήκη και
-                 το πακέτο μεταφέρεται τη στιγμή που ανοίγει. Παλαιότερο
-                 πρώτο, γιατί αυτό πλησιάζει τις 90 ημέρες. */
+              /* Ο κωδικός δεν γράφεται πια: διαλέγεται από τα πακέτα που
+                 ΠΑΡΑΔΟΘΗΚΑΝ στο κατάστημα, και περνάει στο μαγαζί τη
+                 στιγμή που ανοίγει. Παλαιότερο πρώτο, γιατί αυτό
+                 πλησιάζει τις 90 ημέρες. */
               <div>
                 <label htmlFor="new-pack-pick" className="block text-xs font-bold text-slate-700 mb-1">
-                  Πακέτο από την αποθήκη <span className="text-rose-600">*</span>
+                  Παραλαβή πακέτου <span className="text-rose-600">*</span>
                 </label>
                 {available.length === 0 ? (
                   <p className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
@@ -3081,16 +3086,18 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                       <option value="">— διαλέξτε —</option>
                       {available.map((pack) => (
                         <option key={pack.id} value={pack.id}>
-                          {pack.pack_code} · παρελήφθη{' '}
+                          {pack.pack_code} · παραλαβή{' '}
                           {new Date(`${pack.received_at}T00:00:00`).toLocaleDateString('el-GR')}
                         </option>
                       ))}
                     </select>
                     <p className="text-micro text-slate-500 mt-1">
                       {available.length === 1
-                        ? 'Ένα πακέτο στην αποθήκη.'
-                        : `${available.length} πακέτα στην αποθήκη — παλαιότερο πρώτο.`}{' '}
-                      Μεταφέρεται στο μαγαζί μόλις ανοίξει.
+                        ? 'Ένα πακέτο παραδομένο.'
+                        : `${available.length} παραδομένα πακέτα — παλαιότερο πρώτο.`}{' '}
+                      Περνάει στα «στο μαγαζί» μόλις το παραλάβετε.
+                      {onShelf.length > 0 &&
+                        ` Άλλα ${onShelf.length} περιμένουν στην αποθήκη.`}
                     </p>
                   </>
                 )}

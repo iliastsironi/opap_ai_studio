@@ -206,7 +206,7 @@ import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  fetchWarehousePacks, movePackToStore, returnPackToWarehouse, storeUsesWarehouse,
+  fetchPacksForTill, movePackToStore, returnPackToWarehouse, storeUsesWarehouse,
   type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 
@@ -635,7 +635,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     let cancelled = false;
     const orgId = shift.organization_id || organization!.id;
     Promise.all([
-      fetchWarehousePacks(orgId, shift.store_id),
+      // Παραδομένα ΚΑΙ στο ράφι: το παράθυρο ανοίγει μόνο τα πρώτα, αλλά
+      // χρειάζεται τα δεύτερα για να πει «υπάρχει, δεν σου παραδόθηκε».
+      fetchPacksForTill(orgId, shift.store_id),
       storeUsesWarehouse(orgId, shift.store_id),
     ])
       .then(([packs, inUse]) => {
@@ -2719,7 +2721,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   // Ξαναδιαβάζεται αντί να μπει πίσω στη λίστα από μνήμη: το
                   // πακέτο μπορεί να έχει αναιρεθεί μετά από επαναφόρτωση,
                   // οπότε δεν υπάρχει τίποτα αποθηκευμένο να ξαναμπεί.
-                  setWarehousePacks(await fetchWarehousePacks(orgId, shift.store_id));
+                  setWarehousePacks(await fetchPacksForTill(orgId, shift.store_id));
                 }}
               />
 

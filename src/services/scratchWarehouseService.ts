@@ -14,7 +14,22 @@ import type { ProgressRow } from '../lib/packProgress.ts';
 
 const TABLE = 'scratch_warehouse_packs';
 
-export type PackStatus = 'IN_WAREHOUSE' | 'IN_STORE' | 'WITHDRAWN';
+/**
+ * Πού βρίσκεται ένα πακέτο.
+ *
+ *   IN_WAREHOUSE      στην αποθήκη, στο ράφι
+ *   PENDING_DELIVERY  παραδόθηκε στο κατάστημα, δεν άνοιξε ακόμα
+ *   IN_STORE          το άνοιξε το ταμείο, πουλάει
+ *   WITHDRAWN         επέστρεψε στον ΟΠΑΠ
+ *
+ * Η μεσαία προστέθηκε στο 0076. Χωρίς αυτήν, το «άνοιγμα νέου πακέτου»
+ * πρόσφερε στον υπάλληλο ολόκληρη την αποθήκη για να διαλέξει το πακέτο
+ * που κρατούσε στο χέρι.
+ */
+export type PackStatus = 'IN_WAREHOUSE' | 'PENDING_DELIVERY' | 'IN_STORE' | 'WITHDRAWN';
+
+/** Οι θέσεις ενός πακέτου που δεν έχει ανοίξει - απόθεμα, όπου κι αν κάθεται. */
+export const UNOPENED_STATUSES: PackStatus[] = ['IN_WAREHOUSE', 'PENDING_DELIVERY'];
 
 export interface WarehousePack {
   id: string;
@@ -28,6 +43,9 @@ export interface WarehousePack {
   unit_price: number;
   received_at: string;
   status: PackStatus;
+  /** Πότε το παρέδωσε ο αντμιν στο κατάστημα. */
+  delivered_at: string | null;
+  /** Πότε το άνοιξε το ταμείο - άλλο γεγονός, άλλη ώρα. */
   moved_at: string | null;
   moved_shift_id: string | null;
   withdrawn_at: string | null;
@@ -85,10 +103,17 @@ export async function fetchWarehouseGames(
   return games;
 }
 
+/**
+ * Τα πακέτα του καταστήματος στις θέσεις που ζητήθηκαν.
+ *
+ * Οι θέσεις δηλώνονται πάντα. Υπήρχε προεπιλογή ['IN_WAREHOUSE'], και με
+ * τέσσερις θέσεις αντί για τρεις μια παραλειμμένη παράμετρος θα έδινε
+ * σιωπηλά το ράφι σε κάποιον που ρωτούσε τι έχει παραδοθεί.
+ */
 export async function fetchWarehousePacks(
   orgId: string,
   storeId: string,
-  statuses: PackStatus[] = ['IN_WAREHOUSE']
+  statuses: PackStatus[]
 ): Promise<WarehousePack[]> {
   const { data, error } = await supabase
     .from(TABLE)
@@ -163,6 +188,19 @@ export async function fetchPackPositions(
   return byCode;
 }
 
+/**
+ * Ό,τι χρειάζεται το ταμείο για να ανοίξει πακέτο.
+ *
+ * Και οι δύο θέσεις του απούλητου, όχι μόνο το παραδομένο: τα παραδομένα
+ * είναι αυτά που προσφέρονται, αλλά χωρίς τα υπόλοιπα η οθόνη δεν μπορεί
+ * να ξεχωρίσει το «δεν σου παρέδωσε κανείς αυτό το παιχνίδι» από το «δεν
+ * υπάρχει πουθενά» - και το πρώτο είναι ένα κλικ του αντμιν, το δεύτερο
+ * παραγγελία στον ΟΠΑΠ.
+ */
+export async function fetchPacksForTill(orgId: string, storeId: string): Promise<WarehousePack[]> {
+  return fetchWarehousePacks(orgId, storeId, UNOPENED_STATUSES);
+}
+
 export interface ReceivePackInput {
   orgId: string;
   storeId: string;
@@ -211,7 +249,58 @@ export async function receivePack(input: ReceivePackInput): Promise<WarehousePac
   return data as WarehousePack;
 }
 
-/** Βγαίνει στον πάγκο. Φεύγει από την αξία αποθήκης τη στιγμή που φεύγει. */
+/**
+ * Ο αντμιν το παραδίδει στο κατάστημα.
+ *
+ * Το πακέτο φεύγει από το ράφι αλλά δεν έχει ανοίξει: από εδώ και πέρα
+ * είναι το μόνο που προσφέρεται στο ταμείο για αυτό το παιχνίδι. Μένει
+ * απόθεμα - τα 90 ημέρες τρέχουν, η απόσυρση και η διόρθωση ισχύουν - και
+ * γι' αυτό η αξία του δεν λείπει από καμία οθόνη.
+ */
+export async function deliverPackToStore(packId: string): Promise<void> {
+  const now = new Date().toISOString();
+  const { error, count } = await supabase
+    .from(TABLE)
+    .update({ status: 'PENDING_DELIVERY', delivered_at: now, updated_at: now }, { count: 'exact' })
+    .eq('id', packId)
+    .eq('status', 'IN_WAREHOUSE');
+  if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Το πακέτο δεν παραδόθηκε — ίσως το πρόλαβε κάποιος. Ανανεώστε τη λίστα.');
+  }
+}
+
+/**
+ * Πίσω στο ράφι - η παράδοση πατήθηκε σε λάθος πακέτο.
+ *
+ * Υπάρχει επειδή η παράδοση είναι ένα κλικ πάνω σε μια λίστα 42 πακέτων.
+ * Μια πόρτα χωρίς επιστροφή θα άφηνε τον αντμιν με δύο κακές επιλογές:
+ * να αφήσει το λάθος όπως είναι, ή να πει στον υπάλληλο να «παραλάβει»
+ * κάτι που δεν πήρε ποτέ στα χέρια του.
+ */
+export async function cancelDelivery(packId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from(TABLE)
+    .update(
+      { status: 'IN_WAREHOUSE', delivered_at: null, updated_at: new Date().toISOString() },
+      { count: 'exact' }
+    )
+    .eq('id', packId)
+    .eq('status', 'PENDING_DELIVERY');
+  if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Η παράδοση δεν ακυρώθηκε — ίσως το πακέτο άνοιξε ήδη στο ταμείο.');
+  }
+}
+
+/**
+ * Ο υπάλληλος το παραλαμβάνει και το ανοίγει στον πάγκο.
+ *
+ * Μόνο από το «προς παράδοση». Πριν το 0076 έβγαινε κατευθείαν από το
+ * ράφι, που σήμαινε ότι το ταμείο μπορούσε να ανοίξει πακέτο το οποίο
+ * καθόταν ακόμα στην αποθήκη - ένα κλικ, και η αποθήκη χρωστούσε 300 €
+ * που κανείς δεν είχε κουβαλήσει.
+ */
 export async function movePackToStore(packId: string, shiftId?: string | null): Promise<void> {
   const { error, count } = await supabase
     .from(TABLE)
@@ -225,23 +314,30 @@ export async function movePackToStore(packId: string, shiftId?: string | null): 
       { count: 'exact' }
     )
     .eq('id', packId)
-    .eq('status', 'IN_WAREHOUSE');
+    .eq('status', 'PENDING_DELIVERY');
   if (error) throw error;
   // Ένα UPDATE που η RLS φιλτράρει γυρίζει 204 χωρίς σφάλμα - το έχουμε
   // πληρώσει αλλού σε αυτό το έργο. Εδώ θα σήμαινε πακέτο ανοιγμένο στον
   // πάγκο που η αποθήκη εξακολουθεί να το μετράει στο ράφι.
   const problem = rowsWrittenProblem(count);
   if (problem) {
-    throw new Error('Το πακέτο δεν μεταφέρθηκε — ίσως το πήρε ήδη άλλη βάρδια. Ανανεώστε τη λίστα.');
+    throw new Error(
+      'Το πακέτο δεν παραλήφθηκε — ίσως το άνοιξε ήδη άλλη βάρδια, ή ακυρώθηκε η παράδοσή του. Ανανεώστε τη λίστα.'
+    );
   }
 }
 
 /**
- * Ξαναβάζει στο ράφι ένα πακέτο που αναιρέθηκε στο ταμείο.
+ * Αναιρεί την παραλαβή ενός πακέτου στο ταμείο.
  *
- * Το άνοιγμα το βγάζει από την αποθήκη· η αναίρεση πρέπει να το γυρίζει,
+ * Το άνοιγμα το βγάζει από το απόθεμα· η αναίρεση πρέπει να το γυρίζει,
  * αλλιώς μένει IN_STORE για πάντα ενώ κανείς δεν το πούλησε - και η αξία
- * αποθήκης λείπει 300 € που βρίσκονται ακόμα στο ράφι.
+ * αποθήκης λείπει 300 € που βρίσκονται ακόμα στο μαγαζί.
+ *
+ * Γυρίζει στο «προς παράδοση» και όχι στο ράφι: το πακέτο είναι ΦΥΣΙΚΑ
+ * στο μαγαζί, παραδομένο, και μια επιστροφή στο ράφι θα έλεγε ψέματα για
+ * το πού βρίσκεται - ο αντμιν θα το έβλεπε στην αποθήκη και θα το
+ * παρέδιδε δεύτερη φορά.
  *
  * Ψάχνει με catalog_code ΚΑΙ pack_code: ο κωδικός πακέτου δεν είναι
  * μοναδικός από μόνος του. Στην αποθήκη του Owner το 1234567 υπάρχει ήδη
@@ -259,7 +355,7 @@ export async function returnPackToWarehouse(
     .from(TABLE)
     .update(
       {
-        status: 'IN_WAREHOUSE',
+        status: 'PENDING_DELIVERY',
         moved_at: null,
         moved_shift_id: null,
         updated_at: new Date().toISOString(),
@@ -274,7 +370,7 @@ export async function returnPackToWarehouse(
   if (error) throw error;
   if (rowsWrittenProblem(count)) {
     throw new Error(
-      `Το πακέτο ${packCode} δεν επέστρεψε στην αποθήκη — ίσως δεν είχε έρθει από εκεί.`
+      `Το πακέτο ${packCode} δεν επέστρεψε — ίσως δεν είχε έρθει από την αποθήκη.`
     );
   }
 }
@@ -296,7 +392,9 @@ export async function returnPacksFromShift(shiftId: string): Promise<number> {
   const { data, error } = await supabase
     .from(TABLE)
     .update({
-      status: 'IN_WAREHOUSE',
+      // Παραδομένα, όπως και στην αναίρεση: η βάρδια έφυγε, το πακέτο δεν
+      // μετακινήθηκε από το μαγαζί.
+      status: 'PENDING_DELIVERY',
       moved_at: null,
       moved_shift_id: null,
       updated_at: new Date().toISOString(),
@@ -320,7 +418,7 @@ export async function countPacksFromShift(shiftId: string): Promise<number> {
 }
 
 /**
- * Ξαναβάζει στο ράφι ένα πακέτο που βγήκε αλλά δεν πούλησε τίποτα.
+ * Αναιρεί την παραλαβή ενός πακέτου που δεν πούλησε τίποτα.
  *
  * Η διέξοδος για ό,τι ξέφυγε: πακέτο που έμεινε ορφανό από διαγραμμένη
  * βάρδια, λάθος κλικ, ή οποιοδήποτε κενό δεν έχει βρεθεί ακόμα. Ο έλεγχος
@@ -331,14 +429,14 @@ export async function returnPackById(packId: string): Promise<void> {
   const { error, count } = await supabase
     .from(TABLE)
     .update(
-      { status: 'IN_WAREHOUSE', moved_at: null, moved_shift_id: null, updated_at: new Date().toISOString() },
+      { status: 'PENDING_DELIVERY', moved_at: null, moved_shift_id: null, updated_at: new Date().toISOString() },
       { count: 'exact' }
     )
     .eq('id', packId)
     .eq('status', 'IN_STORE');
   if (error) throw error;
   if (rowsWrittenProblem(count)) {
-    throw new Error('Το πακέτο δεν επέστρεψε — ίσως κάποιος το πρόλαβε. Ανανεώστε τη λίστα.');
+    throw new Error('Η παραλαβή δεν αναιρέθηκε — ίσως κάποιος το πρόλαβε. Ανανεώστε τη λίστα.');
   }
 }
 
@@ -353,11 +451,15 @@ export interface CorrectPackInput {
 /**
  * Διορθώνει πακέτο που καταχωρήθηκε λάθος.
  *
- * Μόνο όσο είναι στο ράφι. Από τη στιγμή που βγαίνει στον πάγκο, ο κωδικός
- * του είναι γραμμένος μέσα στις γραμμές των βαρδιών - αλλάζοντάς τον εδώ, η
- * πρόοδος πώλησης δεν θα έβρισκε πια το πακέτο της και το ταμείο θα
- * κρατούσε έναν κωδικό που η αποθήκη δεν έχει. Το .eq('status',
- * 'IN_WAREHOUSE') το επιβάλλει στη βάση και όχι μόνο στην οθόνη.
+ * Μόνο όσο δεν έχει ανοίξει - στο ράφι ή παραδομένο. Από τη στιγμή που
+ * βγαίνει στον πάγκο, ο κωδικός του είναι γραμμένος μέσα στις γραμμές των
+ * βαρδιών - αλλάζοντάς τον εδώ, η πρόοδος πώλησης δεν θα έβρισκε πια το
+ * πακέτο της και το ταμείο θα κρατούσε έναν κωδικό που η αποθήκη δεν έχει.
+ * Το .in('status', ...) το επιβάλλει στη βάση και όχι μόνο στην οθόνη.
+ *
+ * Η παράδοση δεν κλείνει τη διόρθωση: ο λάθος κωδικός φαίνεται συνήθως
+ * ΤΗ ΣΤΙΓΜΗ που κάποιος κρατάει το πακέτο στο χέρι και το συγκρίνει με
+ * την οθόνη, δηλαδή ακριβώς αφού παραδοθεί.
  *
  * Το παιχνίδι μπορεί να αλλάξει κι αυτό: σκαναρισμένος λάθος 4ψήφιος είναι
  * το ίδιο εύκολο λάθος με λάθος κωδικό. Μαζί του αλλάζουν δελτία και τιμή,
@@ -380,7 +482,7 @@ export async function correctPack(input: CorrectPackInput): Promise<void> {
       { count: 'exact' }
     )
     .eq('id', input.packId)
-    .eq('status', 'IN_WAREHOUSE');
+    .in('status', UNOPENED_STATUSES);
 
   if (error) {
     if ((error as any).code === '23505') {
@@ -389,11 +491,17 @@ export async function correctPack(input: CorrectPackInput): Promise<void> {
     throw error;
   }
   if (rowsWrittenProblem(count)) {
-    throw new Error('Το πακέτο δεν διορθώθηκε — ίσως έχει ήδη βγει στο μαγαζί.');
+    throw new Error('Το πακέτο δεν διορθώθηκε — ίσως το άνοιξε ήδη το ταμείο.');
   }
 }
 
-/** Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί. */
+/**
+ * Επιστρέφει στον ΟΠΑΠ. Φεύγει από την αποθήκη χωρίς να πουληθεί.
+ *
+ * Και από το «προς παράδοση»: οι 90 ημέρες μετράνε από την παραλαβή και
+ * δεν σταματάνε επειδή το πακέτο πήγε στον πάγκο. Ένα ληγμένο πακέτο που
+ * κάθεται παραδομένο πρέπει να μπορεί να αποσυρθεί από εκεί που είναι.
+ */
 export async function withdrawPack(packId: string, reason: string): Promise<void> {
   const { error, count } = await supabase
     .from(TABLE)
@@ -407,9 +515,9 @@ export async function withdrawPack(packId: string, reason: string): Promise<void
       { count: 'exact' }
     )
     .eq('id', packId)
-    .eq('status', 'IN_WAREHOUSE');
+    .in('status', UNOPENED_STATUSES);
   if (error) throw error;
   if (rowsWrittenProblem(count)) {
-    throw new Error('Το πακέτο δεν αποσύρθηκε — ίσως έχει ήδη βγει στο μαγαζί. Ανανεώστε τη λίστα.');
+    throw new Error('Το πακέτο δεν αποσύρθηκε — ίσως το άνοιξε ήδη το ταμείο. Ανανεώστε τη λίστα.');
   }
 }

@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Undo2,
+  AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Truck, Undo2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  correctPack, fetchPackPositions, fetchWarehouseGames, fetchWarehousePacks, receivePack,
-  returnPackById, withdrawPack,
+  cancelDelivery, correctPack, deliverPackToStore, fetchPackPositions, fetchWarehouseGames,
+  fetchWarehousePacks, receivePack, returnPackById, withdrawPack,
   type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
@@ -26,6 +26,16 @@ import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
  *
  * Ξεχωριστή ανά κατάστημα, οπότε η οθόνη απαιτεί επιλεγμένο κατάστημα αντί
  * να δείχνει ένα άθροισμα που δεν αντιστοιχεί σε κανένα ράφι.
+ *
+ * Τέσσερις θέσεις, και η σειρά τους είναι η διαδρομή ενός πακέτου:
+ *
+ *   ΣΤΗΝ ΑΠΟΘΗΚΗ → ΠΡΟΣ ΠΑΡΑΔΟΣΗ → ΣΤΟ ΜΑΓΑΖΙ → ΑΠΟΣΥΡΜΕΝΑ
+ *
+ * Ο αντμιν πατάει «Παράδοση» για τα πακέτα που κουβαλάει στο μαγαζί· ο
+ * υπάλληλος βλέπει στο ταμείο ΜΟΝΟ αυτά, και η παραλαβή είναι το άνοιγμα
+ * του πακέτου. Το απούλητο απόθεμα είναι οι δύο πρώτες θέσεις μαζί, γι'
+ * αυτό και οι δύο μετρητές πάνω δεξιά - ένα πακέτο που παραδόθηκε δεν
+ * πουλήθηκε, και η αξία του δεν επιτρέπεται να φύγει από την οθόνη.
  */
 
 type SortKey = 'received_at' | 'game_no';
@@ -118,6 +128,30 @@ export const ScratchWarehouseManager: React.FC = () => {
     }
   };
 
+  /**
+   * Μια πράξη πάνω σε ένα πακέτο: τρέχει, ξαναδιαβάζει, και λέει τι πήγε
+   * λάθος αντί να μην κάνει τίποτα.
+   *
+   * Το packId κρατιέται όσο τρέχει, ώστε το κουμπί της γραμμής να μπορεί
+   * να κλειδώσει - δύο κλικ «Παράδοση» στο ίδιο πακέτο είναι το πρώτο
+   * πράγμα που κάνει κανείς όταν ο διακομιστής αργήσει ένα δευτερόλεπτο.
+   */
+  const [busyPackId, setBusyPackId] = useState<string | null>(null);
+
+  const act = async (pack: WarehousePack, what: (id: string) => Promise<void>) => {
+    setBusyPackId(pack.id);
+    setProblem(null);
+    setDone(null);
+    try {
+      await what(pack.id);
+      await load();
+    } catch (err: any) {
+      setProblem(err?.message ?? 'Η ενέργεια απέτυχε.');
+    } finally {
+      setBusyPackId(null);
+    }
+  };
+
   const load = async () => {
     if (!orgId || !storeId) return;
     setLoading(true);
@@ -129,7 +163,9 @@ export const ScratchWarehouseManager: React.FC = () => {
         // μόνο τι απέμεινε. Ένα πακέτο που εξαφανίζεται από την οθόνη τη
         // στιγμή που βγαίνει στον πάγκο δεν αφήνει τίποτα να κοιτάξει
         // κανείς όταν αναρωτηθεί πού πήγε.
-        fetchWarehousePacks(orgId, storeId, ['IN_WAREHOUSE', 'IN_STORE', 'WITHDRAWN']),
+        fetchWarehousePacks(orgId, storeId, [
+          'IN_WAREHOUSE', 'PENDING_DELIVERY', 'IN_STORE', 'WITHDRAWN',
+        ]),
         // Η πρόοδος των πακέτων που τρέχουν. Αποτυχία εδώ δεν κρύβει την
         // αποθήκη: χωρίς θέσεις, η στήλη λέει απλώς «βγήκε στο μαγαζί».
         fetchPackPositions(orgId, storeId).catch(() => ({})),
@@ -175,18 +211,23 @@ export const ScratchWarehouseManager: React.FC = () => {
     [games, gameNo]
   );
 
-  /** Μόνο ό,τι είναι στο ράφι. Ένα πακέτο στον πάγκο δεν είναι απόθεμα. */
+  /** Στο ράφι. Ένα πακέτο στον πάγκο δεν είναι απόθεμα αποθήκης. */
   const shelf = useMemo(() => packs.filter((p) => p.status === 'IN_WAREHOUSE'), [packs]);
+  /** Παραδομένα: έφυγαν από το ράφι, δεν άνοιξαν. Απούλητα, αλλά αλλού. */
+  const pending = useMemo(() => packs.filter((p) => p.status === 'PENDING_DELIVERY'), [packs]);
+  /** Ό,τι δεν έχει ανοίξει - αυτό που μετράει το ρολόι των 90 ημερών. */
+  const unopened = useMemo(() => [...shelf, ...pending], [shelf, pending]);
 
   const counts = useMemo(
     () => ({
       IN_WAREHOUSE: shelf.length,
+      PENDING_DELIVERY: pending.length,
       IN_STORE: packs.filter(
         (p) => p.status === 'IN_STORE' && packProgress(positions[p.pack_code], p.pieces).remaining > 0
       ).length,
       WITHDRAWN: packs.filter((p) => p.status === 'WITHDRAWN').length,
     }),
-    [packs, shelf, positions]
+    [packs, shelf, pending, positions]
   );
 
   const finished = useMemo(
@@ -198,14 +239,26 @@ export const ScratchWarehouseManager: React.FC = () => {
     [packs, positions]
   );
 
-  const totals = useMemo(() => {
-    const value = shelf.reduce((t, p) => t + (Number(p.pieces) || 0) * (Number(p.unit_price) || 0), 0);
-    return { value: Math.round(value * 100) / 100, count: shelf.length };
-  }, [shelf]);
+  const valueOf = (list: ReadonlyArray<WarehousePack>) =>
+    Math.round(
+      list.reduce((t, p) => t + (Number(p.pieces) || 0) * (Number(p.unit_price) || 0), 0) * 100
+    ) / 100;
 
-  // Το ρολόι λήξης αφορά μόνο ό,τι κάθεται. Ένα πακέτο που πουλήθηκε δεν
-  // λήγει, και μια ειδοποίηση γι' αυτό θα έκρυβε όσες μετράνε.
-  const aging = useMemo(() => summariseAging(shelf), [shelf]);
+  const totals = useMemo(
+    () => ({
+      shelfValue: valueOf(shelf),
+      shelfCount: shelf.length,
+      pendingValue: valueOf(pending),
+      pendingCount: pending.length,
+    }),
+    [shelf, pending]
+  );
+
+  // Το ρολόι λήξης αφορά ό,τι δεν έχει ανοίξει, όπου κι αν κάθεται. Ένα
+  // πακέτο που πουλήθηκε δεν λήγει - αλλά ένα παραδομένο που κανείς δεν
+  // άνοιξε λήγει κανονικά, και πριν το 0076 η ειδοποίηση θα το έχανε τη
+  // στιγμή που ο αντμιν το κουβαλούσε στο μαγαζί.
+  const aging = useMemo(() => summariseAging(unopened), [unopened]);
 
   const visible = useMemo(() => {
     const needle = digitsOnly(search) || search.trim().toLowerCase();
@@ -297,20 +350,42 @@ export const ScratchWarehouseManager: React.FC = () => {
             Αποθήκη Σκρατς
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Προς πώληση, αλλά όχι ακόμα στο μαγαζί — {currentStore?.name ?? storeId}
+            Προς πώληση, αλλά όχι ακόμα ανοιγμένα — {currentStore?.name ?? storeId}
           </p>
           <p className="text-micro text-slate-400 mt-0.5">
-            Ένα πακέτο φεύγει από εδώ μόνο όταν το ανοίξει το ταμείο, ή αν αποσυρθεί.
+            Παραδίδετε εσείς· το ταμείο βλέπει μόνο ό,τι παραδόθηκε και το ανοίγει.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="px-4 py-2 rounded-xl bg-slate-900 text-white">
-            <p className="text-micro font-bold text-slate-400">{toGreekUpper('Αξια αποθηκης')}</p>
-            <p className="text-base font-black font-mono">{formatCurrency(totals.value)}</p>
+            <p className="text-micro font-bold text-slate-400">{toGreekUpper('Στην αποθηκη')}</p>
+            <p className="text-base font-black font-mono">{formatCurrency(totals.shelfValue)}</p>
+            <p className="text-micro text-slate-400">
+              {totals.shelfCount} {totals.shelfCount === 1 ? 'πακέτο' : 'πακέτα'}
+            </p>
           </div>
-          <div className="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200">
-            <p className="text-micro font-bold text-slate-500">{toGreekUpper('Πακετα')}</p>
-            <p className="text-base font-black font-mono text-slate-900">{totals.count}</p>
+          {/* Δικό του πλακίδιο, όχι άθροισμα με το πάνω: ένα πακέτο που
+              παραδόθηκε δεν πουλήθηκε, και αν η αξία του απλώς έφευγε από
+              την «αξία αποθήκης» θα ήταν 300 € που εξαφανίζονται από την
+              οθόνη με ένα κλικ. */}
+          <div
+            className={`px-4 py-2 rounded-xl border ${
+              totals.pendingCount > 0
+                ? 'bg-indigo-50 border-indigo-200'
+                : 'bg-slate-100 border-slate-200'
+            }`}
+          >
+            <p className="text-micro font-bold text-slate-500">{toGreekUpper('Προς παραδοση')}</p>
+            <p
+              className={`text-base font-black font-mono ${
+                totals.pendingCount > 0 ? 'text-indigo-900' : 'text-slate-900'
+              }`}
+            >
+              {formatCurrency(totals.pendingValue)}
+            </p>
+            <p className="text-micro text-slate-500">
+              {totals.pendingCount} {totals.pendingCount === 1 ? 'πακέτο' : 'πακέτα'}
+            </p>
           </div>
         </div>
       </div>
@@ -328,7 +403,7 @@ export const ScratchWarehouseManager: React.FC = () => {
             {aging.critical > 0 && (
               <p>
                 {aging.critical} {aging.critical === 1 ? 'πακέτο έληξε' : 'πακέτα έληξαν'} —{' '}
-                {formatCurrency(aging.criticalValue)} στο ράφι. Αποσύρετέ τα.
+                {formatCurrency(aging.criticalValue)} απούλητα. Αποσύρετέ τα.
               </p>
             )}
             {aging.warning > 0 && (
@@ -438,7 +513,8 @@ export const ScratchWarehouseManager: React.FC = () => {
         <div className="px-3 pt-3 flex items-center gap-1.5 flex-wrap">
           {(
             [
-              ['IN_WAREHOUSE', 'Στο ράφι'],
+              ['IN_WAREHOUSE', 'Στην αποθήκη'],
+              ['PENDING_DELIVERY', 'Προς παράδοση'],
               ['IN_STORE', 'Στο μαγαζί'],
               ['WITHDRAWN', 'Αποσυρμένα'],
             ] as Array<[PackStatus, string]>
@@ -503,9 +579,11 @@ export const ScratchWarehouseManager: React.FC = () => {
             {search.trim()
               ? 'Κανένα πακέτο δεν ταιριάζει.'
               : statusFilter === 'IN_WAREHOUSE'
-              ? 'Κανένα πακέτο στο ράφι.'
+              ? 'Κανένα πακέτο στην αποθήκη.'
+              : statusFilter === 'PENDING_DELIVERY'
+              ? 'Κανένα πακέτο προς παράδοση. Πατήστε «Παράδοση στο κατάστημα» σε ό,τι κουβαλάτε στο μαγαζί.'
               : statusFilter === 'IN_STORE'
-              ? 'Κανένα πακέτο δεν έχει βγει στο μαγαζί.'
+              ? 'Κανένα πακέτο δεν έχει ανοίξει στο μαγαζί.'
               : 'Κανένα αποσυρμένο πακέτο.'}
           </p>
         ) : (
@@ -521,6 +599,8 @@ export const ScratchWarehouseManager: React.FC = () => {
                       ? 'Προοδος πωλησης'
                       : statusFilter === 'WITHDRAWN'
                       ? 'Αποσυρση'
+                      : statusFilter === 'PENDING_DELIVERY'
+                      ? 'Παραδοθηκε'
                       : 'Στην αποθηκη'
                   )}
                 </th>
@@ -548,13 +628,23 @@ export const ScratchWarehouseManager: React.FC = () => {
                       {new Date(`${pack.received_at}T00:00:00`).toLocaleDateString('el-GR')}
                     </td>
                     <td className="p-2.5">
-                      {pack.status === 'IN_WAREHOUSE' ? (
+                      {pack.status === 'IN_WAREHOUSE' || pack.status === 'PENDING_DELIVERY' ? (
                         <span
                           className={`font-bold ${
                             tone === 'CRITICAL' ? 'text-rose-700' : tone === 'WARNING' ? 'text-amber-700' : 'text-slate-600'
                           }`}
                         >
                           {label ?? `${days} ${days === 1 ? 'ημέρα' : 'ημέρες'}`}
+                          {/* Οι 90 ημέρες μετράνε από την παραλαβή· η ώρα
+                              της παράδοσης απαντά σε άλλη ερώτηση - πόσο
+                              κάθεται παραδομένο και κανείς δεν το ανοίγει. */}
+                          {pack.status === 'PENDING_DELIVERY' && (
+                            <span className="block text-micro text-slate-400 font-semibold">
+                              {pack.delivered_at
+                                ? `παραδόθηκε ${new Date(pack.delivered_at).toLocaleString('el-GR')}`
+                                : 'παραδομένο'}
+                            </span>
+                          )}
                         </span>
                       ) : (
                         <span className="text-slate-600 block min-w-[170px]">
@@ -604,37 +694,62 @@ export const ScratchWarehouseManager: React.FC = () => {
                     </td>
                     <td className="p-2.5">
                       <div className="flex items-center justify-end gap-1.5">
-                        {pack.status === 'IN_STORE' ? (
+                        {pack.status === 'WITHDRAWN' ? (
+                          <span className="text-micro text-slate-400">—</span>
+                        ) : pack.status === 'IN_STORE' ? (
                           /* Διέξοδος για ό,τι ξέφυγε: πακέτο ορφανό από
                              διαγραμμένη βάρδια, λάθος κλικ, ή κενό που δεν
                              έχει βρεθεί ακόμα. Μόνο όσο δεν έχει πουλήσει
                              τίποτα - ένα πακέτο με πωλήσεις πάνω του δεν
-                             «γυρίζει στο ράφι», έχει αρχίσει να υπάρχει
-                             στα λεφτά της ημέρας. */
+                             ξεανοίγει, έχει αρχίσει να υπάρχει στα λεφτά
+                             της ημέρας.
+
+                             Γυρίζει στα «προς παράδοση» και όχι στο ράφι:
+                             το πακέτο είναι στο μαγαζί, και ο αντμιν που
+                             το έβλεπε στην αποθήκη θα το παρέδιδε δεύτερη
+                             φορά. */
                           packProgress(positions[pack.pack_code], pack.pieces).sold === 0 ? (
                             <button
                               type="button"
-                              onClick={async () => {
-                                try {
-                                  await returnPackById(pack.id);
-                                  await load();
-                                } catch (err: any) {
-                                  setProblem(err?.message ?? 'Η επιστροφή απέτυχε.');
-                                }
-                              }}
-                              title="Δεν έχει πουλήσει τίποτα — επιστροφή στο ράφι"
-                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-micro cursor-pointer flex items-center gap-1"
+                              disabled={busyPackId === pack.id}
+                              onClick={() => act(pack, returnPackById)}
+                              title="Δεν έχει πουλήσει τίποτα — αναίρεση της παραλαβής"
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-micro cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Undo2 className="w-3 h-3" />
-                              Πίσω στο ράφι
+                              Αναίρεση παραλαβής
                             </button>
                           ) : (
                             <span className="text-micro text-slate-400">πουλάει</span>
                           )
-                        ) : pack.status !== 'IN_WAREHOUSE' ? (
-                          <span className="text-micro text-slate-400">—</span>
                         ) : (
                         <>
+                        {/* Η πράξη του αντμιν: ένα κλικ πάνω στο πακέτο που
+                            κουβαλάει στο μαγαζί. Από εκεί και πέρα είναι το
+                            μόνο που βλέπει το ταμείο για το παιχνίδι του. */}
+                        {pack.status === 'IN_WAREHOUSE' ? (
+                          <button
+                            type="button"
+                            disabled={busyPackId === pack.id}
+                            onClick={() => act(pack, deliverPackToStore)}
+                            title="Το ταμείο θα μπορεί να το παραλάβει — και μόνο αυτό"
+                            className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-micro cursor-pointer flex items-center gap-1 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Truck className="w-3 h-3 shrink-0" />
+                            {busyPackId === pack.id ? 'Παράδοση…' : 'Παράδοση στο κατάστημα'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busyPackId === pack.id}
+                            onClick={() => act(pack, cancelDelivery)}
+                            title="Πατήθηκε σε λάθος πακέτο — πίσω στην αποθήκη"
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-micro cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Undo2 className="w-3 h-3" />
+                            Ακύρωση παράδοσης
+                          </button>
+                        )}
                         {canCorrect && (
                           <button
                             type="button"
@@ -703,8 +818,8 @@ export const ScratchWarehouseManager: React.FC = () => {
         >
           <div className="space-y-3">
             <p className="text-micro text-slate-500">
-              Διορθώνεται μόνο όσο το πακέτο είναι στο ράφι. Μόλις βγει στο μαγαζί, ο κωδικός του
-              είναι γραμμένος μέσα στις βάρδιες.
+              Διορθώνεται όσο το πακέτο δεν έχει ανοίξει — στην αποθήκη ή παραδομένο. Μόλις το
+              παραλάβει το ταμείο, ο κωδικός του είναι γραμμένος μέσα στις βάρδιες.
             </p>
 
             <div>
@@ -782,7 +897,8 @@ export const ScratchWarehouseManager: React.FC = () => {
         }
         lines={[
           {
-            label: 'Αξία αποθήκης',
+            label:
+              toWithdraw?.status === 'PENDING_DELIVERY' ? 'Αξία προς παράδοση' : 'Αξία αποθήκης',
             detail: toWithdraw
               ? `μειώνεται κατά ${formatCurrency(toWithdraw.pieces * toWithdraw.unit_price)}`
               : '',
