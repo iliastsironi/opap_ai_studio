@@ -135,6 +135,31 @@ export async function fetchScratchCatalogForEditing(
   return { rows: getSavedScratchCatalog(), fromDatabase: false };
 }
 
+/**
+ * Γράφει τον αρχικό κατάλογο ενός καινούριου καταστήματος.
+ *
+ * Τα ίδια παιχνίδια που βλέπει κάθε άλλο μαγαζί, με τους πανελλαδικούς
+ * αριθμούς τους - δηλαδή με αποθήκη που δουλεύει από την πρώτη μέρα. Ο
+ * ιδιοκτήτης τα αλλάζει όποτε θέλει από τη Διαμόρφωση· αυτό είναι ο σπόρος,
+ * όχι απόφαση.
+ *
+ * Δεν γράφει τίποτα αν το κατάστημα έχει ήδη κατάλογο: καλείται στη
+ * δημιουργία, αλλά μια δεύτερη κλήση δεν επιτρέπεται να σβήσει δουλειά.
+ */
+export async function seedScratchCatalogForStore(orgId: string, storeId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('code')
+    .eq('organization_id', orgId)
+    .eq('store_id', storeId)
+    .limit(1);
+  if (error) throw error;
+  if ((data ?? []).length > 0) return false;
+
+  await saveScratchCatalog(orgId, storeId, DEFAULT_SCRATCH_PRESETS.map((r) => ({ ...r })));
+  return true;
+}
+
 export async function saveScratchCatalog(
   orgId: string,
   storeId: string | null,

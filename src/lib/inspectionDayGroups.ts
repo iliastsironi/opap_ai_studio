@@ -140,3 +140,52 @@ export function shiftTypeLabel(type: string | undefined): string {
 export function registerLabel(registerId: string): string {
   return registerId === 'REG-01' ? 'Ταμείο 1' : registerId;
 }
+
+/**
+ * Ένα πλαίσιο ανά μαγαζί.
+ *
+ * Με επιλεγμένα «Όλα τα Καταστήματα», οι κάρτες των ημερών έρχονταν
+ * ανακατεμένες: Λαμία Δευτέρα, Στυλίδα Δευτέρα, Λαμία Κυριακή. Η ταξινόμηση
+ * ήταν σωστή - νεότερη μέρα πρώτα - αλλά απαντούσε σε άλλη ερώτηση από
+ * αυτήν που κάνει κανείς κοιτάζοντας τη συνολική εικόνα, που είναι «τι
+ * εκκρεμεί σε ΚΑΘΕ μαγαζί».
+ *
+ * Τα μαγαζιά μπαίνουν αλφαβητικά και όχι κατά ημερομηνία: η σειρά τους δεν
+ * πρέπει να χοροπηδάει επειδή κάποιο έκλεισε βάρδια αργότερα. Μέσα σε κάθε
+ * μαγαζί η σειρά των ημερών μένει ως έχει, νεότερη πρώτη.
+ */
+export interface InspectionStoreSection<T extends GroupableShift = GroupableShift> {
+  storeId: string;
+  storeName: string;
+  days: InspectionDayGroup<T>[];
+  /** Πόσες βάρδιες εκκρεμούν σε αυτό το μαγαζί, σε όλες τις ημέρες του. */
+  shiftCount: number;
+  /** Το καθαρό των αποκλίσεών τους - ένα νούμερο ανά μαγαζί. */
+  totalDiscrepancy: number;
+}
+
+export function groupDaysByStore<T extends GroupableShift>(
+  days: InspectionDayGroup<T>[] | null | undefined
+): InspectionStoreSection<T>[] {
+  const buckets = new Map<string, InspectionDayGroup<T>[]>();
+  for (const day of days ?? []) {
+    const bucket = buckets.get(day.storeId);
+    if (bucket) bucket.push(day);
+    else buckets.set(day.storeId, [day]);
+  }
+
+  const sections: InspectionStoreSection<T>[] = [];
+  for (const [storeId, bucket] of buckets) {
+    sections.push({
+      storeId,
+      storeName: bucket[0].storeName,
+      days: bucket,
+      shiftCount: bucket.reduce((total, d) => total + d.shifts.length, 0),
+      totalDiscrepancy: round2(bucket.reduce((total, d) => total + d.totalDiscrepancy, 0)),
+    });
+  }
+
+  return sections.sort(
+    (a, b) => compareGreek(a.storeName, b.storeName) || a.storeId.localeCompare(b.storeId)
+  );
+}

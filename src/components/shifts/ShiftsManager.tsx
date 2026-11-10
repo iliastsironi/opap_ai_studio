@@ -33,6 +33,7 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
+  Store as StoreIcon,
   Wallet,
   X,
 } from 'lucide-react';
@@ -97,6 +98,7 @@ import { discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { whoAndWhen } from '../../lib/shiftWhoWhen.ts';
 import {
   dayLabel,
+  groupDaysByStore,
   groupShiftsByDay,
   registerLabel,
   shiftTypeLabel,
@@ -412,6 +414,21 @@ export const ShiftsManager: React.FC = () => {
     [pendingApprovalShifts]
   );
 
+  /**
+   * Οι ίδιες κάρτες, μαζεμένες ανά μαγαζί.
+   *
+   * Στη συνολική εικόνα έρχονταν ανακατεμένες - Λαμία Δευτέρα, Στυλίδα
+   * Δευτέρα, Λαμία Κυριακή - γιατί η ταξινόμηση είναι κατά ημέρα. Σωστή
+   * σειρά, λάθος ερώτηση: κοιτάζοντας όλα τα μαγαζιά μαζί, αυτό που ρωτάει
+   * κανείς είναι τι εκκρεμεί σε ΚΑΘΕ ένα.
+   */
+  const pendingApprovalStores = useMemo(
+    () => groupDaysByStore(pendingApprovalDays),
+    [pendingApprovalDays]
+  );
+  /** Με ένα μόνο μαγαζί, ένα πλαίσιο γύρω από τα πάντα δεν ξεχωρίζει τίποτα. */
+  const splitByStore = pendingApprovalStores.length > 1;
+
   // If active closing wizard is open
   if (wizardShift) {
     return (
@@ -681,8 +698,11 @@ export const ShiftsManager: React.FC = () => {
                   inspected on its own. Two columns at most - every shift
                   inside carries its own button, so three columns crushes
                   them at tablet width. */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-3.5 pt-1">
-                {pendingApprovalDays.map((day) => (
+              {(() => {
+                /* Η κάρτα μιας ημέρας, γραμμένη μία φορά. Παρακάτω
+                   σερβίρεται είτε σκέτη (ένα μαγαζί) είτε μέσα στο
+                   πλαίσιο του μαγαζιού της (πολλά). */
+                const renderDay = (day: typeof pendingApprovalDays[number]) => (
                   <div
                     key={day.key}
                     className="transition bg-white rounded-xl border border-amber-200 shadow-2xs hover:shadow-xs overflow-hidden"
@@ -831,8 +851,62 @@ export const ShiftsManager: React.FC = () => {
                       })}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+
+                /* One card per day: the day's tills together, each still
+                   inspected on its own. Two columns at most - every shift
+                   inside carries its own button, so three columns crushes
+                   them at tablet width. */
+                const grid = (days: typeof pendingApprovalDays) => (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-3.5">
+                    {days.map(renderDay)}
+                  </div>
+                );
+
+                if (!splitByStore) return <div className="pt-1">{grid(pendingApprovalDays)}</div>;
+
+                return (
+                  <div className="space-y-3.5 pt-1">
+                    {pendingApprovalStores.map((section) => (
+                      <section
+                        key={section.storeId}
+                        className="rounded-2xl border-2 border-amber-200/80 bg-white/60 p-3 sm:p-3.5 space-y-3"
+                        aria-label={`Εκκρεμείς βάρδιες — ${section.storeName}`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <StoreIcon aria-hidden="true" className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <h4 className="font-black text-slate-900 text-xs sm:text-sm truncate">
+                              {section.storeName || section.storeId}
+                            </h4>
+                            <span className="text-micro font-black px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-900 whitespace-nowrap shrink-0">
+                              {section.shiftCount}{' '}
+                              {toGreekUpper(section.shiftCount === 1 ? 'Βαρδια' : 'Βαρδιες')}
+                            </span>
+                          </div>
+                          {/* Το καθαρό του μαγαζιού, ώστε να φαίνεται ποιο
+                              θέλει προσοχή πριν ανοίξει κάρτα. */}
+                          <span className="text-micro font-bold text-slate-500 shrink-0">
+                            {toGreekUpper('Καθαρη αποκλιση')}{' '}
+                            <span
+                              className={`font-black font-mono ml-1 ${
+                                Math.abs(section.totalDiscrepancy) < 0.005
+                                  ? 'text-slate-700'
+                                  : section.totalDiscrepancy < 0
+                                  ? 'text-rose-700'
+                                  : 'text-emerald-700'
+                              }`}
+                            >
+                              {formatCurrency(section.totalDiscrepancy, { showSign: true })}
+                            </span>
+                          </span>
+                        </div>
+                        {grid(section.days)}
+                      </section>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

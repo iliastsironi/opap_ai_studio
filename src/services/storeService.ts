@@ -1,4 +1,5 @@
 import { supabase, handleSupabaseError, OperationType, cleanData } from './supabase.ts';
+import { seedScratchCatalogForStore } from './scratchCatalogService.ts';
 import { Store, Department } from '../types/index.ts';
 
 const STORES_TABLE = 'stores';
@@ -39,6 +40,24 @@ export async function createStoreInFirestore(storeData: Omit<Store, 'id'>): Prom
     };
     const { error } = await supabase.from(STORES_TABLE).insert(cleanData(newStore));
     if (error) throw error;
+
+    // Το μαγαζί γεννιέται με τον κατάλογό του, άρα και με αποθήκη.
+    //
+    // Μέχρι τώρα ο κατάλογος γραφόταν την πρώτη φορά που κάποιος άνοιγε τη
+    // Διαμόρφωση και πατούσε αποθήκευση. Όσο δεν το έκανε κανείς, ο πίνακας
+    // δεν είχε ούτε μία γραμμή για αυτό το μαγαζί - και η «Καταχώρηση
+    // παραλαβής» διαβάζει ΑΠΟ ΤΟΝ ΠΙΝΑΚΑ. Άρα κάθε σκανάρισμα απαντούσε
+    // «Άγνωστος αριθμός παιχνιδιού», κανένα πακέτο δεν μπορούσε να μπει,
+    // και η αποθήκη δεν αναλάμβανε ποτέ: ένα μαγαζί χωρίς αποθήκη, χωρίς
+    // να το έχει επιλέξει κανείς.
+    //
+    // Δεν ρίχνει ποτέ τη δημιουργία. Το μαγαζί είναι η εγγραφή που μετράει·
+    // ένας κατάλογος που δεν γράφτηκε τώρα γράφεται με την πρώτη
+    // αποθήκευση στη Διαμόρφωση, όπως γινόταν πάντα.
+    await seedScratchCatalogForStore(newStore.organization_id, newId).catch((err) =>
+      console.warn('[storeService] could not seed the scratch catalogue for the new store:', err)
+    );
+
     return newStore;
   } catch (error) {
     await handleSupabaseError(error, OperationType.CREATE, STORES_TABLE);
