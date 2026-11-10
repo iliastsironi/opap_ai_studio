@@ -132,32 +132,50 @@ export interface ScratchTicketRow {
   kind?: 'SCRATCH' | 'LOTTERY';
 }
 
+/**
+ * Ο σπόρος του καταλόγου κάθε νέου καταστήματος.
+ *
+ * ΟΙ ΑΡΙΘΜΟΙ ΠΑΙΧΝΙΔΙΟΥ ΕΙΝΑΙ ΕΔΩ, και όχι μόνο σε ένα migration. Είναι τα
+ * πρώτα τέσσερα ψηφία του barcode, σταθερά πανελλαδικά: το ίδιο 0157 είναι
+ * η ΓΑΤΑ 2 € σε κάθε πρακτορείο της χώρας. Το 0065 τα έγραψε με ένα UPDATE
+ * πάνω στα καταστήματα που υπήρχαν τότε, και έτσι κάθε κατάστημα που
+ * δημιουργήθηκε μετά γεννήθηκε χωρίς αυτά.
+ *
+ * Το αποτέλεσμα δεν ήταν «λείπει μια στήλη»: χωρίς αριθμό παιχνιδιού δεν
+ * σκανάρεται τίποτα, κάθε παραλαβή απαντούσε «Άγνωστος αριθμός
+ * παιχνιδιού», κανένα πακέτο δεν μπορούσε να καταχωρηθεί - και η αποθήκη
+ * αναλαμβάνει μόλις μπει το πρώτο πακέτο, οπότε ούτε αυτό γινόταν. Η
+ * Στυλίδα είχε και τα δεκαέξι παιχνίδια της και καμία αποθήκη.
+ *
+ * Τα λαχεία δεν παίρνουν αριθμό: δεν έχουν πακέτα 300 €, έχουν παραλαβή
+ * ανά κλήρωση, και ένας επινοημένος αριθμός θα τα έβαζε στην αποθήκη.
+ */
 export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   // Σκρατς 1 €
-  { id: 'scr_1_seria', name: 'ΚΕΡΔΗ ΣΤΗ ΣΕΙΡΑ', category: 'Σκρατς 1€', price: 1, startNo: '', endNo: '' },
+  { id: 'scr_1_seria', name: 'ΚΕΡΔΗ ΣΤΗ ΣΕΙΡΑ', category: 'Σκρατς 1€', price: 1, gameNo: '0151', startNo: '', endNo: '' },
 
   // Σκρατς 2 €
-  { id: 'scr_2_7ari', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2, startNo: '', endNo: '' },
-  { id: 'scr_2_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 2€', price: 2, startNo: '', endNo: '' },
-  { id: 'scr_2_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 2€', price: 2, startNo: '', endNo: '' },
+  { id: 'scr_2_7ari', name: '7ΑΡΙ', category: 'Σκρατς 2€', price: 2, gameNo: '0152', startNo: '', endNo: '' },
+  { id: 'scr_2_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 2€', price: 2, gameNo: '0157', startNo: '', endNo: '' },
+  { id: 'scr_2_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 2€', price: 2, gameNo: '0161', startNo: '', endNo: '' },
 
   // Σκρατς 3 €
-  { id: 'scr_3_kerasia', name: 'ΜΑΓ ΚΕΡΑΣΙΑ', category: 'Σκρατς 3€', price: 3, startNo: '', endNo: '' },
+  { id: 'scr_3_kerasia', name: 'ΜΑΓ ΚΕΡΑΣΙΑ', category: 'Σκρατς 3€', price: 3, gameNo: '0156', startNo: '', endNo: '' },
 
   // Σκρατς 5 €
-  { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '' },
-  { id: 'scr_5_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '' },
-  { id: 'scr_5_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '' },
+  { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, gameNo: '0153', startNo: '', endNo: '' },
+  { id: 'scr_5_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 5€', price: 5, gameNo: '0158', startNo: '', endNo: '' },
+  { id: 'scr_5_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 5€', price: 5, gameNo: '0162', startNo: '', endNo: '' },
 
   // Σκρατς 10 €
-  { id: 'scr_10_x50', name: 'Χ50', category: 'Σκρατς 10€', price: 10, startNo: '', endNo: '' },
-  { id: 'scr_10_7ari', name: '7ΑΡΙ', category: 'Σκρατς 10€', price: 10, startNo: '', endNo: '' },
-  { id: 'scr_10_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 10€', price: 10, startNo: '', endNo: '' },
-  { id: 'scr_10_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 10€', price: 10, startNo: '', endNo: '' },
+  { id: 'scr_10_x50', name: 'Χ50', category: 'Σκρατς 10€', price: 10, gameNo: '0150', startNo: '', endNo: '' },
+  { id: 'scr_10_7ari', name: '7ΑΡΙ', category: 'Σκρατς 10€', price: 10, gameNo: '0154', startNo: '', endNo: '' },
+  { id: 'scr_10_gata', name: 'ΓΑΤΑ', category: 'Σκρατς 10€', price: 10, gameNo: '0159', startNo: '', endNo: '' },
+  { id: 'scr_10_24mines', name: '24 ΜΗΝΕΣ', category: 'Σκρατς 10€', price: 10, gameNo: '0163', startNo: '', endNo: '' },
 
   // Σκρατς 20 €
-  { id: 'scr_20_7ari_x20', name: '7ΑΡΙ Χ20', category: 'Σκρατς 20€', price: 20, startNo: '', endNo: '' },
-  { id: 'scr_20_gata_x20', name: 'ΓΑΤΑ Χ20', category: 'Σκρατς 20€', price: 20, startNo: '', endNo: '' },
+  { id: 'scr_20_7ari_x20', name: '7ΑΡΙ Χ20', category: 'Σκρατς 20€', price: 20, gameNo: '0155', startNo: '', endNo: '' },
+  { id: 'scr_20_gata_x20', name: 'ΓΑΤΑ Χ20', category: 'Σκρατς 20€', price: 20, gameNo: '0160', startNo: '', endNo: '' },
 
   // Λαχεία & Ειδικές Εκδόσεις
   // price is PER PIECE for a bundle-tracked row (see isBundleTrackedRow) -

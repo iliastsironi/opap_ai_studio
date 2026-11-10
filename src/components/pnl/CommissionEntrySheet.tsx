@@ -21,6 +21,18 @@ const key = (storeId: string, entity: string) => `${storeId}::${entity}`;
 // ζητήσει νούμερο που η αναφορά δεν θα δείξει.
 const entitiesOf = (storeType: unknown) => commissionLinesFor(String(storeType ?? ''));
 
+/**
+ * Τι έχει ήδη καταχωρηθεί για αυτό το κατάστημα αυτόν τον μήνα.
+ *
+ * Η οθόνη γέμιζε τα κουτάκια και δεν έλεγε τίποτα άλλο, οπότε ένας μήνας
+ * ήδη περασμένος φαινόταν ίδιος με έναν άδειο - και «Αποθήκευση» διαβαζόταν
+ * σαν «καταχώρηση δεύτερης φοράς». Είναι διόρθωση, και το λέει.
+ */
+interface Recorded {
+  has: boolean;
+  total: number;
+}
+
 export const CommissionEntrySheet: React.FC = () => {
   const { user, organization } = useAuth();
   const { stores } = useTenant();
@@ -53,6 +65,15 @@ export const CommissionEntrySheet: React.FC = () => {
   useEffect(() => {
     setSaved(null);
   }, [month]);
+
+  /** Από το ίδιο υπολογισμένο φύλλο που γεμίζει και τα κουτάκια. */
+  const recordedFor = (storeId: string): Recorded => {
+    const sheet = data?.result.stores.find((s) => s.store.id === storeId);
+    return {
+      has: (sheet?.commissions.batches.length ?? 0) > 0,
+      total: sheet?.commissions.total ?? 0,
+    };
+  };
 
   const storeTotal = (storeId: string, storeType: unknown) =>
     entitiesOf(storeType).reduce((sum, e) => sum + (parseMoney(draft[key(storeId, e)] ?? '') ?? 0), 0);
@@ -162,12 +183,25 @@ export const CommissionEntrySheet: React.FC = () => {
         {stores.map((store) => {
           const entities = entitiesOf(store.store_type);
           const invalid = storeHasInvalid(store.id, store.store_type);
+          const recorded = recordedFor(store.id);
           return (
             <div key={store.id} className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-3">
               <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
                 <h3 className="text-xs font-black text-slate-900 truncate">{store.name}</h3>
                 <span className="text-micro font-mono text-slate-500 shrink-0">{store.code}</span>
               </div>
+
+              {/* Καταχωρημένο ή όχι: η διαφορά ανάμεσα στο «γράφω» και στο
+                  «διορθώνω», που μέχρι τώρα δεν φαινόταν πουθενά. */}
+              {recorded.has ? (
+                <p className="text-micro font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                  Καταχωρημένο: {formatCurrency(recorded.total)} — η αποθήκευση το διορθώνει, δεν προσθέτει.
+                </p>
+              ) : (
+                <p className="text-micro font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                  Δεν έχει καταχωρηθεί report για αυτόν τον μήνα.
+                </p>
+              )}
 
               {/* MoneyInput carries its label only as aria-label, because it was
                   built for table cells where the column header names it. Here
@@ -217,7 +251,9 @@ export const CommissionEntrySheet: React.FC = () => {
                     className="transition px-3 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs inline-flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    {savingStore === store.id ? 'Αποθήκευση…' : toGreekUpper('Αποθηκευση')}
+                    {savingStore === store.id
+                      ? 'Αποθήκευση…'
+                      : toGreekUpper(recorded.has ? 'Διορθωση' : 'Αποθηκευση')}
                   </button>
                 </div>
               </div>
