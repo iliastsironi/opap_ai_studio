@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { seedScratchCatalogForStore } from '../../services/scratchCatalogService.ts';
 import { Building2, Store as StoreIcon, Layers, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { supabase, cleanData } from '../../services/supabase.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -74,6 +75,17 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
         };
         const { error: storeError } = await supabase.from('stores').upsert(cleanData(newStore));
         if (storeError) throw storeError;
+
+        // Ο κατάλογος του μαγαζιού, άρα και η αποθήκη του, από το πρώτο
+        // λεπτό - όπως και στο «Καταστήματα & Τμήματα».
+        //
+        // Αυτή η οθόνη γράφει στον πίνακα κατευθείαν αντί να περάσει από
+        // το createStoreInFirestore, οπότε δεν πήρε τον σπόρο μαζί του. Ένα
+        // μαγαζί φτιαγμένο από εδώ θα γεννιόταν χωρίς αριθμούς παιχνιδιού,
+        // δηλαδή χωρίς να μπορεί να καταχωρήσει ούτε ένα πακέτο.
+        await seedScratchCatalogForStore(orgId, storeId).catch((err) =>
+          console.warn('[onboarding] could not seed the scratch catalogue:', err)
+        );
       }
 
       await refreshUser();
