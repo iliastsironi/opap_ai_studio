@@ -1276,7 +1276,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           })()}
 
           {activeTab === 'SHEET' && (
-            <ShiftLedgerSheet shift={shift} readOnly={true} />
+            <ShiftLedgerSheet shift={shift} readOnly={true} carriedCoinHandover={carriedCoins} />
           )}
 
           {activeTab === 'SUMMARY' && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { auditCountedCash } from '../../lib/countedCashAudit.ts';
 import {
   Calculator,
   Coins,
@@ -62,6 +63,15 @@ interface ShiftLedgerSheetProps {
   template?: ShiftTemplateConfig;
   readOnly?: boolean;
   onValuesChange?: (updatedValues: Record<string, any>) => void;
+  /**
+   * Κέρματα που παρέδωσε ΝΩΡΙΤΕΡΑ σήμερα άλλη βάρδια.
+   *
+   * Είναι μέσα στο counted_cash αυτής εδώ, αλλά όχι μέσα στα κοψίματά της -
+   * γι' αυτό η γραμμή «Χαρτονομίσματα + Κέρματα» έβγαζε άλλο νούμερο από
+   * το σύνολο δίπλα της. Ο ιδιοκτήτης: «τα κέρματα αυτά δεν φαίνονται
+   * κάπου, παρόλο που γράφει ότι μεταφέρθηκαν από το πρωινό ταμείο».
+   */
+  carriedCoinHandover?: number;
 }
 
 export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
@@ -69,6 +79,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   template,
   readOnly = true,
   onValuesChange,
+  carriedCoinHandover = 0,
 }) => {
   // Store details & Header
   const storeName = shift.store_name || shift.store_code || 'OPAP Agency';
@@ -814,9 +825,38 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
                 <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
                 <div>
                   <span className="font-bold text-slate-800 block">Μετρητά & Κέρματα στο Ταμείο</span>
-                  <span className="text-micro text-slate-500 font-mono">
-                    Χαρτονομίσματα ({formatCurrency(banknotesTotal)}) + Κέρματα ({formatCurrency(coinsTotal)})
-                  </span>
+                  {/* Κάθε κομμάτι του συνόλου, ονομαστικά. Η γραμμή έγραφε
+                      «Χαρτονομίσματα + Κέρματα» και δίπλα ένα σύνολο που
+                      ήταν ΜΕΓΑΛΥΤΕΡΟ από το άθροισμά τους, όταν η μέρα
+                      είχε στείλει κύπελλο νωρίτερα: 5.800 + 291 δίπλα στα
+                      6.116, με τα 25 € πουθενά. */}
+                  {(() => {
+                    const audit = auditCountedCash({
+                      notes: banknotesTotal,
+                      coins: coinsTotal,
+                      ownHandover: shift.coin_handover,
+                      carriedToday: carriedCoinHandover,
+                      stored: shift.counted_cash,
+                    });
+                    const shown = audit.lines.filter(
+                      (l) => l.key !== 'UNEXPLAINED' && (!l.onlyWhenSet || Math.abs(l.amount) > 0.005)
+                    );
+                    return (
+                      <>
+                        <span className="text-micro text-slate-500 font-mono">
+                          {shown
+                            .map((l) => `${l.label} (${formatCurrency(l.amount)})`)
+                            .join(' + ')}
+                        </span>
+                        {!audit.balances && (
+                          <span className="block text-micro font-bold text-rose-600">
+                            Αδικαιολόγητη διαφορά {formatCurrency(audit.unexplained, { showSign: true })}
+                            {' '}— οι γραμμές δίνουν {formatCurrency(audit.computed)}.
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <span className="font-bold font-mono text-slate-900">
