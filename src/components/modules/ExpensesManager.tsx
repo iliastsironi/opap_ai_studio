@@ -16,14 +16,34 @@ import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { presetsForCategory, suppliersForCategory, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
 import { useExpenseCategories } from './useExpenseCategories.ts';
+import { COMPANY_EXPENSE_CATEGORY, isCompanyCategory } from '../../lib/expenseCategories.ts';
+import {
+  addCompanyDailyExpense,
+  deleteCompanyDailyExpense,
+  fetchCompanyDailyExpenses,
+} from '../../services/pnlService.ts';
 import { NewExpenseCategoryModal } from './NewExpenseCategoryModal.tsx';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { StoreTransfersPanel } from './StoreTransfersPanel.tsx';
 
+/**
+ * Μια γραμμή αυτής της οθόνης - από όποιον πίνακα κι αν ήρθε.
+ *
+ * Τα έξοδα καταστήματος ζουν στο shift_expenses, που έχει ΥΠΟΧΡΕΩΤΙΚΟ
+ * store_id. Τα έξοδα εταιρίας ζουν στο company_daily_expenses, που δεν έχει
+ * στήλη καταστήματος καθόλου - γι' αυτό και είναι «ανεξάρτητα από μαγαζί».
+ *
+ * Η οθόνη τα δείχνει μαζί, γιατί ο ιδιοκτήτης τα γράφει στο ίδιο σημείο· η
+ * σήμανση λέει σε ποιον πίνακα να πάει μια διαγραφή. Χωρίς αυτήν, ένα
+ * έξοδο εταιρίας θα ζητούσε διαγραφή από το shift_expenses και δεν θα
+ * έσβηνε ποτέ - θα ξαναεμφανιζόταν στο επόμενο φόρτωμα.
+ */
+type ScreenExpense = ExpenseRecord & { isCompany?: boolean };
+
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
   const { user, organization, hasPermission } = useAuth();
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [expenses, setExpenses] = useState<ScreenExpense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Dating an expense to another day is the Owner's, not the counter's: it
   // moves money between months and so between P&L figures that have already
@@ -73,7 +93,7 @@ export const ExpensesManager: React.FC = () => {
   const [expenseDate, setExpenseDate] = useState(() => athensDateKey(new Date().toISOString()));
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string } | null>(null);
+  const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string; isCompany?: boolean } | null>(null);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -81,14 +101,52 @@ export const ExpensesManager: React.FC = () => {
 
   const orgId = organization!.id; // guaranteed by ProtectedLayout's organisation guard
   const { categories, options: categoryOptions, reload: reloadCategories } = useExpenseCategories(orgId);
+  /**
+   * Γράφεται αυτό το έξοδο στην εταιρία αντί για το μαγαζί;
+   *
+   * Η πλευρά της κατηγορίας το αποφασίζει, όχι το όνομά της - μια δική του
+   * κατηγορία «ΕΦΚΑ δόσεις» με πλευρά COMPANY πάει κι αυτή στην εταιρία.
+   */
+  const isCompanyEntry = isCompanyCategory(category, categories);
+  /**
+   * Με ποια κατηγορία εμφανίζεται ένα έξοδο εταιρίας στη λίστα.
+   *
+   * Ο πίνακας της εταιρίας δεν κρατάει κατηγορία - δεν τη χρειάζεται, κάθε
+   * γραμμή του είναι εξ ορισμού εταιρική. Η οθόνη όμως δείχνει μια στήλη
+   * κατηγορίας, οπότε δανείζεται τη δική του κατηγορία εταιρίας: τη δική
+   * του αν τη μετονόμασε, αλλιώς την ενσωματωμένη.
+   */
+  const companyCategoryKey =
+    categories.find((c) => c.side === 'COMPANY')?.key ?? COMPANY_EXPENSE_CATEGORY;
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
 
   const loadExpenses = async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const records = await fetchExpensesFromFirestore(orgId, selectedStoreId);
-      setExpenses(records);
+      // Δύο πηγές, μία λίστα. Τα εταιρικά δεν περνάνε από το φίλτρο
+      // καταστήματος επειδή δεν ανήκουν σε κανένα - αλλάζεις μαγαζί και
+      // είναι ακόμα εκεί, που είναι ακριβώς το νόημά τους.
+      const [records, company] = await Promise.all([
+        fetchExpensesFromFirestore(orgId, selectedStoreId),
+        fetchCompanyDailyExpenses(orgId).catch(() => []),
+      ]);
+      const companyRows: ScreenExpense[] = company.map((c) => ({
+        id: c.id,
+        organization_id: orgId,
+        // Δεν υπάρχει μαγαζί να γραφτεί εδώ, και δεν εφευρίσκουμε ένα.
+        store_id: '',
+        category: companyCategoryKey,
+        amount: c.amount,
+        payment_method: 'CASH',
+        recipient: c.payee,
+        notes: c.note || undefined,
+        date: c.expenseDate,
+        isCompany: true,
+      })) as ScreenExpense[];
+      setExpenses(
+        [...records, ...companyRows].sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      );
     } catch (e: any) {
       console.error(e);
       setLoadError(e.message || 'Αποτυχία φόρτωσης εξόδων');
@@ -181,22 +239,40 @@ export const ExpensesManager: React.FC = () => {
     setSubmitting(true);
     setCreateError(null);
     try {
-      await createAndSyncShiftExpense(
-        {
-          organization_id: orgId,
-          store_id: targetStoreId,
-          category,
+      if (isCompanyEntry) {
+        // Ανεξάρτητο από μαγαζί, γιατί ο πίνακας δεν έχει μαγαζί.
+        //
+        // Μέχρι τώρα γραφόταν στο shift_expenses κάτω από ό,τι κατάστημα
+        // ήταν επιλεγμένο, και το P&L το ξανατραβούσε από εκεί στα
+        // εταιρικά. Λειτουργούσε, αλλά το ίδιο έξοδο «ανήκε» σε ένα μαγαζί
+        // που δεν το πλήρωσε - και κάθε οθόνη που διάβαζε τα έξοδα του
+        // μαγαζιού το έβλεπε.
+        await addCompanyDailyExpense({
+          orgId,
+          expenseDate: expenseDate || athensDateKey(new Date().toISOString()),
+          payee: finalRecipient,
           amount: amountCheck.value,
-          payment_method: paymentMethod,
-          recipient: finalRecipient,
-          created_by_user_id: user?.id,
-          created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
-          receipt_number: receiptNumber || undefined,
-          notes: notes || undefined,
-          date: expenseDate || undefined,
-        },
-        activeShift
-      );
+          note: notes || undefined,
+          userId: user?.id,
+        });
+      } else {
+        await createAndSyncShiftExpense(
+          {
+            organization_id: orgId,
+            store_id: targetStoreId,
+            category,
+            amount: amountCheck.value,
+            payment_method: paymentMethod,
+            recipient: finalRecipient,
+            created_by_user_id: user?.id,
+            created_by_user_name: user ? `${user.first_name} ${user.last_name}` : 'Υπάλληλος',
+            receipt_number: receiptNumber || undefined,
+            notes: notes || undefined,
+            date: expenseDate || undefined,
+          },
+          activeShift
+        );
+      }
 
       // Registering a hand-typed recipient as a supplier now happens inside
       // createAndSyncShiftExpense, so it covers expenses entered during a
@@ -228,12 +304,16 @@ export const ExpensesManager: React.FC = () => {
     setIsDeletingExpense(true);
     setDeleteError(null);
     try {
-      await deleteAndSyncShiftExpense({
-        id,
-        organization_id: orgId,
-        store_id: expenseToDelete.storeId,
-        shift_id: expenseToDelete.shiftId,
-      });
+      if (expenseToDelete.isCompany) {
+        await deleteCompanyDailyExpense(id);
+      } else {
+        await deleteAndSyncShiftExpense({
+          id,
+          organization_id: orgId,
+          store_id: expenseToDelete.storeId,
+          shift_id: expenseToDelete.shiftId,
+        });
+      }
 
       await loadExpenses();
       setExpenseToDelete(null);
@@ -622,7 +702,9 @@ export const ExpensesManager: React.FC = () => {
                     <td className="px-4 py-3 text-right font-extrabold text-rose-600">
                       -{formatCurrency(exp.amount)}
                     </td>
-                    <td className="px-4 py-3 font-mono text-micro text-slate-600">{exp.payment_method}</td>
+                    <td className="px-4 py-3 font-mono text-micro text-slate-600">
+                      {exp.isCompany ? '—' : exp.payment_method}
+                    </td>
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
                       <IconButton
@@ -631,7 +713,7 @@ export const ExpensesManager: React.FC = () => {
                         tone="danger"
                         onClick={() => {
                           setDeleteError(null);
-                          setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id });
+                          setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id, isCompany: exp.isCompany });
                         }}
                         className="ml-auto"
                       />
@@ -696,21 +778,38 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               )}
 
-              <div>
-                <label htmlFor="expense-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
-                <select
-                  id="expense-store"
-                  value={targetStoreId}
-                  onChange={(e) => setTargetStoreId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
-                >
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isCompanyEntry ? (
+                /* Δεν ρωτάμε κάτι που δεν ισχύει. Ένα έξοδο εταιρίας δεν
+                   έχει μαγαζί - το dropdown εδώ ζητούσε μια απάντηση που
+                   μετά αποθηκευόταν και διάβαζε λάθος σε κάθε αναφορά
+                   καταστήματος. */
+                <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-100 flex items-start space-x-2">
+                  <Building2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="text-micro leading-tight">
+                    <p className="font-bold text-blue-950">Έξοδο εταιρίας — χωρίς κατάστημα</p>
+                    <p className="text-blue-800 mt-0.5">
+                      Δεν χρεώνεται σε μαγαζί και δεν περνάει σε καμία βάρδια. Γράφεται στα
+                      «Έξοδα Εταιρίας» του Οικονομικού.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="expense-store" className="block text-slate-700 font-semibold mb-1">Κατάστημα</label>
+                  <select
+                    id="expense-store"
+                    value={targetStoreId}
+                    onChange={(e) => setTargetStoreId(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
+                  >
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Active Shift Indicator */}
               <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2">
@@ -772,6 +871,10 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Το βιβλίο της εταιρίας δεν κρατάει τρόπο πληρωμής, και
+                    ένα πεδίο που συμπληρώνεται και πετιέται είναι χειρότερο
+                    από ένα πεδίο που λείπει. */}
+                {!isCompanyEntry && (
                 <div>
                   <label htmlFor="expense-payment-method" className="block text-slate-700 font-semibold mb-1">Τρόπος Πληρωμής</label>
                   <select
@@ -785,6 +888,7 @@ export const ExpensesManager: React.FC = () => {
                     <option value="CREDIT">Πίστωση</option>
                   </select>
                 </div>
+                )}
                 <div>
                   <label htmlFor="expense-date" className="block text-slate-700 font-semibold mb-1">
                     Ημερομηνία

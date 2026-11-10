@@ -9,8 +9,27 @@ export interface ExpectedCashInput {
   cancellations?: number | string | null;
   pame_stoixima?: number | string | null;
   pame_stoixima_balance?: number | string | null;
+  /**
+   * Το υπόλοιπο ταμείου Ιπποδρόμου, όπως το γράφει η αναφορά.
+   *
+   * Signed exactly like the Πάμε Στοίχημα balance beside it: a shop that took
+   * in more than it paid out reports a positive figure, one that paid out a
+   * winning ticket reports a negative one.
+   */
+  ippodromos?: number | string | null;
+  ippodromos_balance?: number | string | null;
   vlts_cash_in?: number | string | null;
   vlts_cash_out?: number | string | null;
+  /**
+   * Το καθαρό των VLT, για όποιον το κρατάει έτσι.
+   *
+   * The closing types the two legs; the ledger sheet carries the net the
+   * closing stored. resolveVltNet below already knew how to read either, so
+   * both screens ask it rather than each doing its own subtraction - which is
+   * how `in - out` got written five times and flipped the sign of every
+   * payout.
+   */
+  vlts_net?: number | string | null;
   scratch_lotto_sales?: number | string | null;
   tora_pos?: number | string | null;
   clever_point?: number | string | null;
@@ -101,7 +120,7 @@ export function calculateCountedCash(
 /**
   Calculates the expected revenue / cash requirement for shift closing.
   Formula requested:
-  Αναμενόμενο = (Αριθμοπαιχνίδια ΟΠΑΠ - OPAP Payouts) + Scratch & Λαχεία + TORA DIRECT + Cleverpoint + VLTs Cash-In + VLTs Cash-Out + FnB
+  Αναμενόμενο = (Αριθμοπαιχνίδια ΟΠΑΠ - OPAP Payouts) + Scratch & Λαχεία + TORA DIRECT + Cleverpoint + Ιππόδρομος + Πάμε Στοίχημα + VLTs Cash-In + VLTs Cash-Out + FnB
  */
 /**
  * How much of the cafe's takings is actually in the drawer.
@@ -161,12 +180,29 @@ export function calculateExpectedCash(input: ExpectedCashInput): number {
   const scratch = safeNum(input.scratch_lotto_sales);
   const tora = safeNum(input.tora_pos);
   const clever = safeNum(input.clever_point);
-  const vltsIn = safeNum(input.vlts_cash_in);
-  const vltsOut = safeNum(input.vlts_cash_out);
+  const vlts = resolveVltNet(input);
   const pameStoixima = safeNum(input.pame_stoixima) || safeNum(input.pame_stoixima_balance);
+  // Ο ιππόδρομος, που έλειπε.
+  //
+  // The field had been there since 0001: the operator types the Ιππόδρομος
+  // balance, the shift stores it, the receipt prints it, and the ΟΠΑΠ gross
+  // on the closing screen adds it in. This formula never did - so a shift
+  // wrote TWO ΟΠΑΠ totals, `opap_net_sales` with the ιππόδρομος and
+  // `expected_cash` without it, and the discrepancy was measured against the
+  // one that was missing it.
+  //
+  // Nobody had hit it: of the 80 shifts in the live data exactly one carries
+  // a non-zero ιππόδρομος - the new Στυλίδα shop's first close, 10 €, which
+  // came up «+10,05 € πλεόνασμα» on a till that was five cents out. Lamia
+  // and the PLAY hall have recorded 0,00 every single shift, which is why the
+  // store that had been running for a month never showed it.
+  //
+  // `pickNum`, not `||`, because a real 0 is an answer: a shift that counted
+  // the Ιππόδρομος and found it flat must not fall through to the alias.
+  const ippodromos = pickNum(input.ippodromos, input.ippodromos_balance);
   const fnb = resolveFnbCash(input);
 
-  const expected = arithmoNet + scratch + tora + clever + vltsIn + vltsOut + pameStoixima + fnb;
+  const expected = arithmoNet + scratch + tora + clever + ippodromos + vlts + pameStoixima + fnb;
   return roundCurrency(expected);
 }
 

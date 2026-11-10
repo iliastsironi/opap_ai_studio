@@ -35,7 +35,7 @@ import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
-import { isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import {
   byCustomer,
@@ -130,7 +130,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   }, [shift?.id]);
 
   const ownExpenses = shiftExpenses.filter(
-    (e) => !isCarriedExpense(e as any, shift?.id ?? '', shift?.opened_at)
+    (e) => !isCarriedExpense(e as any, shift?.id ?? '')
   );
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [approveSucceeded, setApproveSucceeded] = useState(false);
@@ -1313,9 +1313,18 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               reconciliation counts the whole day's, so a
                               manager reading this should see which ones this
                               operator entered and which they inherited. */}
-                          {isCarriedExpense(exp, shift.id, shift.opened_at) && (
+                          {expenseOrigin(exp, shift.id) === 'OTHER_SHIFT' && (
                             <span className="ml-2 text-micro font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-full">
                               άλλη βάρδια της ημέρας
+                            </span>
+                          )}
+                          {/* Δεν ήρθε από άλλη βάρδια - δεν γράφτηκε σε
+                              καμία. Η παλιά ετικέτα το έλεγε «άλλη βάρδια
+                              της ημέρας» και στην πρώτη βάρδια της ημέρας
+                              αυτό ήταν απλώς ψέμα. */}
+                          {expenseOrigin(exp, shift.id) === 'NO_SHIFT' && (
+                            <span className="ml-2 text-micro font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-full">
+                              εκτός βάρδιας
                             </span>
                           )}
                         </div>

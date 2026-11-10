@@ -28,6 +28,23 @@ import { stripGreekAccents } from './greekTypography.ts';
  */
 export type ExpenseSide = 'AGENCY' | 'FNB' | 'COMPANY';
 
+/**
+ * Η πλευρά μιας κατηγορίας, όπως τη γράφει η βάση.
+ *
+ * Υπήρχε ως ένα ternary δύο δρόμων μέσα στον mapper - `side === 'FNB' ? 'FNB'
+ * : 'AGENCY'` - γραμμένο όταν οι πλευρές ήταν όντως δύο. Το 0075 πρόσθεσε
+ * την τρίτη στη ΒΑΣΗ και το ternary την ισοπέδωσε: κάθε «Έξοδο Εταιρίας»
+ * γύριζε ως AGENCY, οπότε το isCompanyCategory έλεγε ΟΧΙ για τη μοναδική
+ * κατηγορία που υπάρχει γι' αυτό, το P&L δεν το έβγαζε ποτέ από το μαγαζί,
+ * και ο ΕΦΚΑ χρεωνόταν στο πρακτορείο που έτυχε να είναι επιλεγμένο.
+ *
+ * Μία συνάρτηση, ώστε μια τέταρτη πλευρά να έχει ένα σημείο να προστεθεί
+ * αντί για ένα ternary να ξεχαστεί.
+ */
+export function normalizeExpenseSide(value: unknown): ExpenseSide {
+  return value === 'FNB' || value === 'COMPANY' ? value : 'AGENCY';
+}
+
 export interface ExpenseCategoryDef {
   id?: string;
   /** Ό,τι αποθηκεύεται στο shift_expenses.category. Δεν αλλάζει ποτέ. */

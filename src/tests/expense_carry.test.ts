@@ -1,43 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { isCarriedExpense } from '../lib/expenseCarry.ts';
+import { expenseOrigin, isCarriedExpense } from '../lib/expenseCarry.ts';
+import { tillExpensesOnly } from '../components/shifts/ShiftClosingWizard.tsx';
+import type { ExpenseCategoryDef } from '../lib/expenseCategories.ts';
 
 const SHIFT = 'evening';
-const OPENED = '2026-09-01T13:00:00Z';
 
-describe('which of the day’s expenses this shift inherited', () => {
-  it('inherits one tied to an earlier shift', () => {
-    // The case that was costing money: the morning's expenses arrived from
-    // the server and were discarded, so the evening reconciled without them
-    // and its till came out over by exactly their amount.
-    expect(isCarriedExpense({ shift_id: 'morning' }, SHIFT, OPENED)).toBe(true);
+describe('ποια έξοδα της ημέρας μπορεί να αλλάξει αυτή η βάρδια', () => {
+  it('δεν αγγίζει ό,τι κατέγραψε άλλη βάρδια', () => {
+    // Η περίπτωση που κόστιζε χρήματα: τα έξοδα της πρωινής έφταναν από τον
+    // server και πετιόνταν, οπότε η βραδινή συμφωνούσε χωρίς αυτά και το
+    // ταμείο της έβγαινε πλεόνασμα ακριβώς κατά το ποσό τους.
+    expect(expenseOrigin({ shift_id: 'morning' }, SHIFT)).toBe('OTHER_SHIFT');
+    expect(isCarriedExpense({ shift_id: 'morning' }, SHIFT)).toBe(true);
   });
 
-  it('keeps its own as its own', () => {
-    expect(isCarriedExpense({ shift_id: SHIFT }, SHIFT, OPENED)).toBe(false);
+  it('κρατάει δικό της ό,τι έγραψε η ίδια', () => {
+    expect(expenseOrigin({ shift_id: SHIFT }, SHIFT)).toBe('OWN');
+    expect(isCarriedExpense({ shift_id: SHIFT }, SHIFT)).toBe(false);
   });
 
-  it('inherits an untied one entered before it opened', () => {
-    // What the Έξοδα screen produces when somebody records a purchase with
-    // no shift open. Counting it as this shift's own would let the operator
-    // edit a figure from hours before they arrived.
-    expect(isCarriedExpense(
-      { shift_id: null, created_at: '2026-09-01T09:30:00Z' }, SHIFT, OPENED
-    )).toBe(true);
+  it('ένα έξοδο χωρίς βάρδια δεν είναι δικό καμιάς - και δεν αλλάζει εδώ', () => {
+    // Ο ιδιοκτήτης: «τα είχε μη επεξεργάσιμα, τώρα τα εμφανίζει
+    // επεξεργάσιμα, δεν το θέλουμε αυτό».
+    expect(expenseOrigin({ shift_id: null }, SHIFT)).toBe('NO_SHIFT');
+    expect(isCarriedExpense({ shift_id: null }, SHIFT)).toBe(true);
+    expect(isCarriedExpense({}, SHIFT)).toBe(true);
   });
 
-  it('keeps an untied one entered during it', () => {
-    expect(isCarriedExpense(
-      { shift_id: null, created_at: '2026-09-01T15:45:00Z' }, SHIFT, OPENED
-    )).toBe(false);
+  it('δεν ρωτάει πότε πληκτρολογήθηκε, γιατί η απάντηση είναι άσχετη', () => {
+    // Αυτό έσπασε: ο παλιός κανόνας διάβαζε το created_at σαν ώρα της
+    // αγοράς. Σε αυτό το πρακτορείο η μέρα γράφεται αργότερα - τα έξοδα
+    // της 19ης Οκτωβρίου καταχωρήθηκαν στις 5 Νοεμβρίου - οπότε ΚΑΘΕ
+    // ασύνδετο έξοδο έβγαινε «γραμμένο αφού άνοιξε η βάρδια», δηλαδή δικό
+    // της και επεξεργάσιμο, και στις ΔΥΟ βάρδιες της ημέρας.
+    const typedLongAfter = { shift_id: null, created_at: '2026-11-05T20:50:00Z' } as any;
+    const typedLongBefore = { shift_id: null, created_at: '2026-10-01T06:00:00Z' } as any;
+    expect(isCarriedExpense(typedLongAfter, SHIFT)).toBe(true);
+    expect(isCarriedExpense(typedLongBefore, SHIFT)).toBe(true);
   });
 
-  it('treats an unusable timestamp as this shift’s own, never as locked', () => {
-    // Wrong in the editable direction on purpose: an operator who can still
-    // correct a figure is better off than one staring at a locked row that
-    // nobody owns.
-    expect(isCarriedExpense({ shift_id: null, created_at: null }, SHIFT, OPENED)).toBe(false);
-    expect(isCarriedExpense({ shift_id: null, created_at: 'όχι ημερομηνία' }, SHIFT, OPENED)).toBe(false);
-    expect(isCarriedExpense({ shift_id: null, created_at: OPENED }, SHIFT, null)).toBe(false);
+  it('η ίδια βάρδια δεν μπορεί να πάρει έξοδο που δεν έγραψε, όσο κι αν μοιάζει', () => {
+    // Δύο βάρδιες που άνοιξαν με δέκα λεπτά διαφορά - έτσι μπαίνει μια μέρα
+    // αναδρομικά - δεν μπορούν να διεκδικήσουν και οι δύο το ίδιο έξοδο.
+    const expense = { shift_id: null } as any;
+    expect(isCarriedExpense(expense, 'morning')).toBe(true);
+    expect(isCarriedExpense(expense, 'evening')).toBe(true);
   });
 });
 
@@ -61,5 +68,50 @@ describe('which day an expense is filed under', () => {
 
   it('falls back to today when no shift is open', () => {
     expect(expenseDate(undefined, undefined, '2026-10-19')).toBe('2026-10-19');
+  });
+});
+
+// ---------------------------------------------------------------------
+// Τα έξοδα εταιρίας δεν περνάνε από κανένα ταμείο.
+// ---------------------------------------------------------------------
+describe('τι έχει δουλειά σε ένα ταμείο', () => {
+  const categories: ExpenseCategoryDef[] = [
+    { key: 'EXPENSES_GP', label: 'Έξοδα ΓΠ', side: 'AGENCY', sortOrder: 10, isActive: true, isBuiltin: true },
+    { key: 'EXPENSES_FNB', label: 'Έξοδα FnB', side: 'FNB', sortOrder: 20, isActive: true, isBuiltin: true },
+    { key: 'EXPENSES_COMPANY', label: 'Έξοδα Εταιρίας', side: 'COMPANY', sortOrder: 80, isActive: true, isBuiltin: true },
+    { key: 'CUSTOM_EFKA', label: 'ΕΦΚΑ δόσεις', side: 'COMPANY', sortOrder: 90, isActive: true, isBuiltin: false },
+  ];
+
+  const day = [
+    { id: 'a', category: 'EXPENSES_GP', amount: 40 },
+    { id: 'b', category: 'EXPENSES_FNB', amount: 250 },
+    { id: 'c', category: 'EXPENSES_COMPANY', amount: 1200 },
+    { id: 'd', category: 'CUSTOM_EFKA', amount: 830 },
+  ];
+
+  it('αφήνει έξω τα έξοδα εταιρίας, ενσωματωμένα και δικά του', () => {
+    expect(tillExpensesOnly(day, categories).map((e) => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('το ταμείο δεν χρεώνεται ΕΦΚΑ', () => {
+    const charged = tillExpensesOnly(day, categories).reduce((a, e) => a + e.amount, 0);
+    expect(charged).toBe(290);
+    // Χωρίς τον κανόνα, το ίδιο συρτάρι θα έβγαινε 2.030 € κοντά.
+    expect(day.reduce((a, e) => a + e.amount, 0) - charged).toBe(2030);
+  });
+
+  it('η πλευρά το αποφασίζει, όχι το όνομα της κατηγορίας', () => {
+    // Μια δική του κατηγορία με πλευρά AGENCY μένει στο ταμείο, όσο κι αν
+    // το όνομά της μοιάζει εταιρικό.
+    const withAgencyRent: ExpenseCategoryDef[] = [
+      ...categories,
+      { key: 'CUSTOM_PAGIA', label: 'Πάγια Έξοδα', side: 'AGENCY', sortOrder: 95, isActive: true, isBuiltin: false },
+    ];
+    const rows = [{ id: 'r', category: 'CUSTOM_PAGIA', amount: 2072 }];
+    expect(tillExpensesOnly(rows, withAgencyRent).map((e) => e.id)).toEqual(['r']);
+  });
+
+  it('χωρίς λίστα κατηγοριών, η ενσωματωμένη εταιρική φεύγει ούτως ή άλλως', () => {
+    expect(tillExpensesOnly(day, []).map((e) => e.id)).toEqual(['a', 'b', 'd']);
   });
 });

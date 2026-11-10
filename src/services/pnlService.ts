@@ -4,6 +4,7 @@ import {
   ExpenseCategoryDef,
   ExpenseSide,
   expenseCategoryKey,
+  normalizeExpenseSide,
   sortCategories,
 } from '../lib/expenseCategories.ts';
 import {
@@ -241,7 +242,7 @@ const toCategory = (r: any): ExpenseCategoryDef => ({
   id: r.id,
   key: r.key,
   label: r.label,
-  side: r.side === 'FNB' ? 'FNB' : 'AGENCY',
+  side: normalizeExpenseSide(r.side),
   sortOrder: Number(r.sort_order) || 0,
   isActive: r.is_active !== false,
   isBuiltin: r.is_builtin === true,
@@ -689,6 +690,25 @@ export async function addCompanyDailyExpense(params: {
       note: params.note?.trim() || null,
       created_by_user_id: params.userId ?? null,
     })
+  );
+}
+
+/**
+ * Τα έξοδα εταιρίας, όπως τα διαβάζει η οθόνη «Έξοδα & Δαπάνες».
+ *
+ * Ο ιδιοκτήτης: «τα έξοδα εταιρείας πρέπει να είναι ανεξάρτητα από μαγαζί».
+ * Ζουν εδώ ακριβώς γι' αυτό - ο πίνακας δεν ΕΧΕΙ στήλη καταστήματος - οπότε
+ * δεν φιλτράρονται ανά μαγαζί: όποιο κι αν είναι επιλεγμένο, είναι τα ίδια.
+ */
+export async function fetchCompanyDailyExpenses(orgId: string): Promise<PnlCompanyDailyExpense[]> {
+  return list(
+    COMPANY_DAILY_TABLE,
+    supabase
+      .from(COMPANY_DAILY_TABLE)
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('expense_date', { ascending: false }),
+    toCompanyDaily
   );
 }
 

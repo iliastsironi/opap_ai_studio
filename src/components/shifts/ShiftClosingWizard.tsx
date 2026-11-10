@@ -182,7 +182,7 @@ import {
 } from '../../services/financialCalculator.ts';
 import { CashDenominationCounter } from './CashDenominationCounter.tsx';
 import { CarriedOverSummary } from './CarriedOverSummary.tsx';
-import { isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { NO_SHIFT_CARRY, expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { duplicateGroups } from '../../lib/duplicateExpense.ts';
 import { creditTotals } from '../../lib/creditTotals.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
@@ -192,6 +192,7 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
+import { ExpenseCategoryDef, isCompanyCategory, isFnbCategory } from '../../lib/expenseCategories.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
 import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
@@ -225,13 +226,46 @@ function getLocalDraft(shiftId?: string): any {
   }
 }
 
+/**
+ * Ποια έξοδα έχουν δουλειά σε ένα ταμείο.
+ *
+ * Ο ιδιοκτήτης: «τα έξοδα που θα μετράνε στη βάρδια θα είναι μόνο αυτά που
+ * θα περνάνε από τη βάρδια». Ένα έξοδο εταιρίας - ΕΦΚΑ, ΙΚΑ, εφορία - δεν
+ * πέρασε ποτέ από το συρτάρι κανενός. Το κατάστημα κάτω από το οποίο είναι
+ * γραμμένο είναι απλώς ό,τι ήταν επιλεγμένο όταν το πληκτρολόγησε κάποιος.
+ *
+ * Μία συνάρτηση, δύο θέσεις: η λίστα που βλέπει ο υπάλληλος και τα σύνολα
+ * που χρεώνουν το ταμείο του. Αν τις χώριζα, ένα έξοδο θα μπορούσε να
+ * κρύβεται από την οθόνη και να χρεώνεται ούτως ή άλλως - το χειρότερο
+ * είδος λάθους, γιατί δεν υπάρχει τίποτα στην οθόνη να το δείξει.
+ */
+export function tillExpensesOnly<T extends { category?: string | null }>(
+  expenses: readonly T[],
+  categories: readonly ExpenseCategoryDef[]
+): T[] {
+  return expenses.filter((e) => !isCompanyCategory(e.category, categories));
+}
+
 export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   shift,
   onBack,
   onSubmitted,
 }) => {
   const { token, roles, permissions, user, organization, isLoading: isAuthLoading } = useAuth();
-  const { options: expenseCategoryOptions } = useExpenseCategories(shift.organization_id || organization?.id);
+  const { categories: expenseCategories, options: expenseCategoryOptions } =
+    useExpenseCategories(shift.organization_id || organization?.id);
+  /**
+   * Οι κατηγορίες που ΜΠΟΡΕΙ να προσφέρει ένα ταμείο.
+   *
+   * Ο ιδιοκτήτης: «τα έξοδα εταιρείας πρέπει να είναι ανεξάρτητα από
+   * μαγαζί, και να μην περνάει στη βάρδια». Ένα έξοδο εταιρίας - ΕΦΚΑ,
+   * ΙΚΑ, εφορία - δεν πληρώθηκε ποτέ από αυτό το συρτάρι, οπότε δεν έχει
+   * θέση ούτε στη λίστα ούτε στο dropdown: αν το πρόσφερε, ο υπάλληλος
+   * θα μπορούσε να το γράψει εδώ και θα χρέωνε το ταμείο του.
+   */
+  const tillCategoryOptions = expenseCategoryOptions.filter(
+    (c) => !isCompanyCategory(c.key, expenseCategories)
+  );
   const canManage =
     roles.some(
       (r) =>
@@ -1181,7 +1215,18 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       // The server already scopes this to the right store and day, and it is
       // the side that can be trusted to; a second opinion here can only
       // disagree with it.
-      const relevant = storeExpenses;
+      // Ό,τι γυρίζει το RPC - ΕΚΤΟΣ από τα έξοδα της εταιρίας.
+      //
+      // The RPC is scoped to a store and a day, because that is what a till
+      // reconciles against. A company expense has neither: it is the
+      // organisation's, and the shop it happened to be filed under is an
+      // accident of which store was selected when somebody typed it. Letting
+      // one through would subtract ΕΦΚΑ from an operator's drawer.
+      //
+      // Φεύγει εδώ, όχι παρακάτω: αν έμπαινε στη λίστα και κρυβόταν μόνο
+      // στην οθόνη, θα συνέχιζε να μετράει στα σύνολα - που είναι ακριβώς ο
+      // τρόπος που ένα έξοδο «δεν φαίνεται» και παρ' όλα αυτά χρεώνεται.
+      const relevant = tillExpensesOnly(storeExpenses, expenseCategories);
 
       if (relevant.length > 0) {
         setExpenses((prevExpenses) => {
@@ -1199,8 +1244,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 // what an earlier shift of the same day already recorded.
                 // Without it every pulled expense looked like this
                 // operator's, and they could edit a closed shift's figures.
-                carried_from_shift_id: isCarriedExpense(item, shift.id, shift.opened_at)
-                  ? (item.shift_id || 'earlier')
+                // Ποιος το κατέγραψε: αυτή η βάρδια, μια άλλη, ή καμία.
+                // Μόνο της ίδιας είναι δικό της να το αλλάξει.
+                carried_from_shift_id: isCarriedExpense(item, shift.id)
+                  ? (item.shift_id || NO_SHIFT_CARRY)
                   : undefined,
                 organization_id: orgId,
                 store_id: shift.store_id,
@@ -1328,18 +1375,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const opapPayoutsTotal = safeNum(arithmoPayouts) - safeNum(arithmoVouchers);
 
-  // Helper to distinguish F&B expenses from General Store expenses (ΓΠ)
-  const isFnbExpense = (category?: string) => {
-    const cat = (category || '').toUpperCase();
-    return (
-      cat === 'FNB' ||
-      cat === 'EXPENSES_FNB' ||
-      cat === 'BEVERAGES_FNB' ||
-      cat === 'BEVERAGES' ||
-      cat === 'ΚΥΛΙΚΕΙΟ' ||
-      cat === 'ΕΞΟΔΑ FNB'
-    );
-  };
+  /**
+   * Είναι του καφέ;
+   *
+   * Through the organisation's own categories, like every other screen - this
+   * used to be a list of six spellings written out here («FNB», «BEVERAGES»,
+   * «ΚΥΛΙΚΕΙΟ»), none of which any live expense has ever used. Since 0074 the
+   * Owner can name his own café category, and a hard-coded list would have
+   * filed every one of them under ΓΠ without saying so.
+   */
+  const isFnbExpense = (category?: string) => isFnbCategory(category, expenseCategories);
 
   // Calculated figures using isolated Financial Calculator service
   // Entries from earlier shifts of the same day collapse into one summary;
@@ -1353,16 +1398,31 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const duplicateExpenseWarnings = duplicateGroups(expenses as any[]);
   const [acknowledgedDuplicates, setAcknowledgedDuplicates] = useState(false);
 
-  const carriedExpenses = expenses.filter((e: any) => !!e.carried_from_shift_id);
+  // Τι επιτρέπεται να αλλάξει αυτός που κλείνει, και τι απλώς βλέπει.
+  //
+  // «Earlier» is the marker older drafts wrote for an untied expense, before
+  // it had a name of its own; both land in the same group.
+  const isUntiedCarry = (e: any) =>
+    e.carried_from_shift_id === NO_SHIFT_CARRY || e.carried_from_shift_id === 'earlier';
+  const carriedFromShifts = expenses.filter(
+    (e: any) => !!e.carried_from_shift_id && !isUntiedCarry(e)
+  );
+  const carriedWithoutShift = expenses.filter((e: any) => isUntiedCarry(e));
   const ownExpenses = expenses.filter((e: any) => !e.carried_from_shift_id);
 
-  const expensesGpCashTotal = expenses.reduce(
+  // Ό,τι πέρασε πραγματικά από αυτό το συρτάρι.
+  //
+  // «Τα έξοδα που θα μετράνε στη βάρδια θα είναι μόνο αυτά που θα περνάνε
+  // από τη βάρδια.» Ένα έξοδο εταιρίας δεν πέρασε ποτέ.
+  const tillExpenses = tillExpensesOnly(expenses, expenseCategories);
+
+  const expensesGpCashTotal = tillExpenses.reduce(
     (acc, exp) =>
       acc + (exp.payment_method !== 'CARD' && !isFnbExpense(exp.category) ? safeNum(exp.amount) : 0),
     0
   );
 
-  const expensesFnbCashTotal = expenses.reduce(
+  const expensesFnbCashTotal = tillExpenses.reduce(
     (acc, exp) =>
       acc + (exp.payment_method !== 'CARD' && isFnbExpense(exp.category) ? safeNum(exp.amount) : 0),
     0
@@ -1370,7 +1430,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
 
   const expensesCashTotal = expensesGpCashTotal + expensesFnbCashTotal;
 
-  const expensesTotal = expenses.reduce(
+  const expensesTotal = tillExpenses.reduce(
     (acc, exp) => acc + safeNum(exp.amount),
     0
   );
@@ -1407,6 +1467,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     scratch_lotto_sales: totalScratchNet,
     tora_pos: totalToraPos,
     clever_point: safeNum(cleverPointTotal),
+    // Already in the ΟΠΑΠ gross shown two panels up; it belongs in the
+    // arithmetic that gross is supposed to describe.
+    ippodromos: safeNum(ippodromosBalance),
     vlts_cash_in: safeNum(vltsIn),
     vlts_cash_out: signedVltsOut,
     // Pass all three as typed. The fallback belongs in one place, where it
@@ -3149,15 +3212,34 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
             )}
 
-            {carriedExpenses.length > 0 && (
+            {carriedFromShifts.length > 0 && (
               <div className="mb-3">
                 <CarriedOverSummary
                   title="Έξοδα από προηγούμενες βάρδιες της ημέρας"
-                  rows={carriedExpenses.map((e: any) => ({
+                  rows={carriedFromShifts.map((e: any) => ({
                     id: String(e.id),
                     label: e.description || e.category || 'Έξοδο',
                     amount: Number(e.amount) || 0,
-                    detail: e.category === 'EXPENSES_FNB' ? 'Έξοδα FnB' : 'Έξοδα ΓΠ',
+                    detail: isFnbExpense(e.category) ? 'Έξοδα FnB' : 'Έξοδα ΓΠ',
+                  }))}
+                />
+              </div>
+            )}
+
+            {/* Χωριστά, και με το όνομά τους.
+                Ένα έξοδο χωρίς βάρδια ΔΕΝ ήρθε από προηγούμενη βάρδια - στην
+                πρώτη βάρδια της ημέρας δεν υπάρχει καν προηγούμενη, και το
+                0071 το είχε ήδη πει για τις χρεώσεις πελατών. Το ταμείο
+                συμφωνεί απέναντί τους, αλλά δεν τα διεκδικεί. */}
+            {carriedWithoutShift.length > 0 && (
+              <div className="mb-3">
+                <CarriedOverSummary
+                  title="Έξοδα της ημέρας, καταχωρημένα εκτός βάρδιας"
+                  rows={carriedWithoutShift.map((e: any) => ({
+                    id: String(e.id),
+                    label: e.description || e.category || 'Έξοδο',
+                    amount: Number(e.amount) || 0,
+                    detail: `${isFnbExpense(e.category) ? 'Έξοδα FnB' : 'Έξοδα ΓΠ'} · αλλάζουν από τα «Έξοδα & Δαπάνες»`,
                   }))}
                 />
               </div>
@@ -3196,7 +3278,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                             ιδιοκτήτης. Μία λίστα για κάθε οθόνη - ήταν
                             γραμμένες χωριστά εδώ, στα Έξοδα και στο P&L, με
                             άλλες ετικέτες και άλλη σειρά στην καθεμιά. */}
-                        {expenseCategoryOptions.map((c) => (
+                        {tillCategoryOptions.map((c) => (
                           <option key={c.key} value={c.key}>{c.label}</option>
                         ))}
                       </select>

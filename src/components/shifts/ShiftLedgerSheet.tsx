@@ -23,10 +23,39 @@ import {
   Store,
 } from 'lucide-react';
 import { Shift, ShiftTemplateConfig } from '../../types/index.ts';
-import { safeNum, roundCurrency } from '../../services/financialCalculator.ts';
+import {
+  calculateExpectedCash,
+  calculateReconciliationBreakdown,
+  roundCurrency,
+  safeNum,
+} from '../../services/financialCalculator.ts';
+import { normalizeSafeDirection } from '../../lib/safeDirection.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { DEFAULT_OPAP_SHIFT_TEMPLATE } from '../../services/shiftTemplateService.ts';
 import { calculateRowQty, calculateBackRowQty, calculateRowTotal, isBundleTrackedRow, getCountingMode, hasBackSide, parseNonNegativeInt, splitPiecesIntoBundles } from './ScratchCalculatorTable.tsx';
+
+/**
+ * Το ΑΚΑΘΑΡΙΣΤΟ των σκρατς, που η καρτέλα διάβαζε λάθος.
+ *
+ * `scratch_lotto_sales` is the canonical NET - 0001 says so, and every
+ * aggregation in 0003 sums it on that understanding. This sheet read it into
+ * its «Πωλήσεις» box and then subtracted `scratch_payouts` from it again, so
+ * the Στυλίδα shift's 94 € of sales less 60 € of εξαργυρώσεις came out as
+ * −26 € instead of 34 €: the payouts taken off twice.
+ *
+ * `scratch_gross_sales` is the column that holds the gross. The fallback
+ * reconstructs it from net + payouts rather than handing the net over, so a
+ * row written before that column existed still cannot double-subtract.
+ */
+export function scratchGrossOf(shift: Partial<Shift>): number {
+  if (shift.scratch_gross_sales !== undefined && shift.scratch_gross_sales !== null) {
+    return safeNum(shift.scratch_gross_sales);
+  }
+  if (shift.scratch_sales !== undefined && shift.scratch_sales !== null) {
+    return safeNum(shift.scratch_sales);
+  }
+  return roundCurrency(safeNum(shift.scratch_lotto_sales) + safeNum(shift.scratch_payouts));
+}
 
 interface ShiftLedgerSheetProps {
   shift?: Partial<Shift>;
@@ -66,9 +95,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       : shift.shift_type || 'Βάρδια A';
 
   // SECTION 1: REPORTS (System Inputs / Calculated)
-  const [scratchSales, setScratchSales] = useState<string>(
-    String(shift.scratch_sales ?? shift.scratch_lotto_sales ?? 0)
-  );
+  const [scratchSales, setScratchSales] = useState<string>(String(scratchGrossOf(shift)));
   const [scratchPayouts, setScratchPayouts] = useState<string>(String(shift.scratch_payouts ?? 0));
 
   const [toraPos1, setToraPos1] = useState<string>(
@@ -197,7 +224,7 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
 
   // Sync state if shift prop updates externally
   useEffect(() => {
-    setScratchSales(String(shift.scratch_sales ?? shift.scratch_lotto_sales ?? 0));
+    setScratchSales(String(scratchGrossOf(shift)));
     setScratchPayouts(String(shift.scratch_payouts ?? 0));
     setToraPos1(String(shift.tora_pos1 ?? shift.tora_pos_1 ?? 0));
     setToraPos2(String(shift.tora_pos2 ?? shift.tora_pos_2 ?? 0));
@@ -262,16 +289,43 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
   );
   const fnbTotal = roundCurrency(safeNum(fnbCash) + safeNum(fnbCard));
 
-  const totalSystemRegister = roundCurrency(
-    scratchTotal +
-      toraTotal +
-      safeNum(cleverPoint) +
-      safeNum(ippodromos) +
-      safeNum(vltsCashflow) +
-      safeNum(pameStoixima) +
-      numberGamesNet +
-      fnbTotal
-  );
+  /**
+   * Μία απάντηση για κάθε ερώτημα που αφορά χρήματα.
+   *
+   * This sheet is the καρτέλα: what the Owner and the inspector open to read
+   * a shift back. It used to re-derive the till from scratch, beside the
+   * closing wizard's own arithmetic, and the two had drifted apart in four
+   * places at once - the FnB cards counted here as a report while the drawer
+   * side only ever counted the shop's POS, the ιππόδρομος counted here and
+   * nowhere in the closing, the σκρατς εξαργυρώσεις taken off twice, and the
+   * safe added whichever way it ran.
+   *
+   * So the four tiles at the top did not reconcile with one another, let
+   * alone with the figure the operator had signed off. The Owner's words for
+   * it: «κάτι παίζει με τις πράξεις δεν μπορώ να καταλάβω».
+   *
+   * It asks the same two functions the closing asks now. Any formula that
+   * belongs on this screen belongs in financialCalculator.ts, where both
+   * screens read it.
+   */
+  const totalSystemRegister = calculateExpectedCash({
+    opap_gross_sales: safeNum(numberSales),
+    opap_payouts: safeNum(numberPayouts),
+    vouchers: safeNum(numberVouchers),
+    cancellations: safeNum(numberCancellations),
+    scratch_lotto_sales: scratchTotal,
+    tora_pos: toraTotal,
+    clever_point: safeNum(cleverPoint),
+    ippodromos: safeNum(ippodromos),
+    pame_stoixima: safeNum(pameStoixima),
+    // The net, as this sheet keeps it; resolveVltNet reads either form.
+    vlts_net: safeNum(vltsCashflow),
+    // Both as stored, so the one fallback that can see the cards decides.
+    // fnbTotal above is the cup's whole turnover and stays what the FnB
+    // panel shows - it is not what the drawer should be holding.
+    fnb_cash: safeNum(fnbCash),
+    fnb_card: safeNum(fnbCard),
+  });
 
   const floatTotal = roundCurrency(
     safeNum(floatCashNotes) + safeNum(floatCoins) + safeNum(floatAdd1) + safeNum(floatAdd2) +
@@ -296,24 +350,54 @@ export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
       safeNum(notesCount['500']) * 500
   );
 
-  const totalPhysicalCash = banknotesTotal + coinsTotal > 0
-    ? banknotesTotal + coinsTotal
-    : safeNum(shift.actual_cash) || safeNum(shift.counted_cash) || 0;
+  /**
+   * Τα μετρητά που μέτρησε το ταμείο, όχι μόνο όσα έμειναν στο συρτάρι.
+   *
+   * `counted_cash` is what the closing reconciled against, and on a day the
+   * surplus κέρματα left in a cup it is deliberately MORE than the drawer:
+   * the shift carries the cup it sent out (coinHandoverCarry.ts). Twenty of
+   * the eighty live shifts are in exactly that position, so adding the
+   * denominations up here showed the inspector a till short by the cup.
+   *
+   * The denominations stay the fallback, for a shift that never stored a
+   * total - and the breakdown below still shows the notes and the coins as
+   * counted.
+   */
+  const totalPhysicalCash =
+    safeNum(shift.counted_cash) !== 0
+      ? safeNum(shift.counted_cash)
+      : banknotesTotal + coinsTotal > 0
+      ? roundCurrency(banknotesTotal + coinsTotal)
+      : safeNum(shift.actual_cash) || 0;
 
-  const totalOutflows = roundCurrency(
-    safeNum(safeDrop) +
-      safeNum(registerPos1) +
-      safeNum(registerPos2) +
-      safeNum(opapExpenses) +
-      safeNum(fnbExpenses) +
-      safeNum(creditsGranted) +
-      safeNum(customerReturns)
+  /** The same expression the «Πληρωμές με Κάρτα (POS)» row prints. */
+  const posTotal = roundCurrency(
+    savedStorePosItems && savedStorePosItems.length > 0
+      ? savedStorePosItems.reduce((acc: number, p: any) => acc + safeNum(p.amount), 0)
+      : safeNum(registerPos1) + safeNum(registerPos2)
   );
 
-  const totalCountedRegister = roundCurrency(totalPhysicalCash + totalOutflows);
+  const reconciliation = calculateReconciliationBreakdown({
+    openingCash: floatTotal,
+    countedCashInDrawer: totalPhysicalCash,
+    posSalesTotal: posTotal,
+    expensesTotal: safeNum(opapExpenses) + safeNum(fnbExpenses),
+    bankDeposits: safeNum(safeDrop),
+    safeDirection: normalizeSafeDirection((activeTemplate as any)?.safe_direction),
+    customerCreditsGranted: safeNum(creditsGranted),
+    // Εισπράξεις, not εκροές. Money a customer handed over to clear a tab
+    // walked INTO this drawer, so it comes off the count - it is not a taking
+    // of this shift. This sheet added it, and the field's name is how:
+    // «Επιστροφές» reads like something going out. On the Στυλίδα shift that
+    // put the count 586 € above the truth, twice the 293 € collected, and 51
+    // of the 80 live shifts have collections on them.
+    customerReturns: safeNum(customerReturns),
+  });
+
+  const totalCountedRegister = reconciliation.grossTotal;
   const discrepancyResult = shift.discrepancy !== undefined
     ? shift.discrepancy
-    : roundCurrency(totalCountedRegister - (totalSystemRegister + floatTotal));
+    : roundCurrency(reconciliation.netTotal - totalSystemRegister);
 
   useEffect(() => {
     if (onValuesChange && !readOnly) {

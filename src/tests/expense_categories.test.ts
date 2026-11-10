@@ -5,7 +5,9 @@ import {
   activeCategories,
   expenseCategoryKey,
   fnbCategoryKeys,
+  isCompanyCategory,
   isFnbCategory,
+  normalizeExpenseSide,
 } from '../lib/expenseCategories.ts';
 import { MonthlyPnlInput, PnlStore, computeMonthlyPnl } from '../lib/pnlEngine.ts';
 
@@ -154,5 +156,33 @@ describe('κατηγορίες εξόδων που ορίζει ο ιδιοκτ�
     // Το πρόθεμα κρατάει τις δικές του μακριά από μελλοντικές ενσωματωμένες.
     expect(expenseCategoryKey('Supplies')).toBe('CUSTOM_SUPPLIES');
     expect(BUILTIN_EXPENSE_CATEGORIES.every((c) => !c.key.startsWith('CUSTOM_'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------
+// Η τρίτη πλευρά πρέπει να επιζεί της διαδρομής από τη βάση ως την οθόνη.
+// ---------------------------------------------------------------------
+describe('η πλευρά που γράφει η βάση φτάνει ως εδώ', () => {
+  it('κρατάει και τις τρεις', () => {
+    expect(normalizeExpenseSide('AGENCY')).toBe('AGENCY');
+    expect(normalizeExpenseSide('FNB')).toBe('FNB');
+    expect(normalizeExpenseSide('COMPANY')).toBe('COMPANY');
+  });
+
+  it('ό,τι δεν αναγνωρίζει πάει στο πρακτορείο, όπως πάντα', () => {
+    expect(normalizeExpenseSide(null)).toBe('AGENCY');
+    expect(normalizeExpenseSide('ΚΑΤΙ ΑΛΛΟ')).toBe('AGENCY');
+    expect(normalizeExpenseSide(undefined)).toBe('AGENCY');
+  });
+
+  it('μια κατηγορία εταιρίας αναγνωρίζεται ως εταιρίας', () => {
+    // Αυτό έσπαγε: ο mapper ισοπέδωνε το COMPANY σε AGENCY, οπότε το
+    // isCompanyCategory έλεγε ΟΧΙ για τη μοναδική κατηγορία που υπάρχει
+    // γι' αυτόν τον σκοπό - και ο ΕΦΚΑ χρεωνόταν στο μαγαζί.
+    const fromDb = [
+      { key: 'EXPENSES_COMPANY', label: 'Έξοδα Εταιρίας', side: normalizeExpenseSide('COMPANY'), sortOrder: 80, isActive: true, isBuiltin: true },
+    ];
+    expect(isCompanyCategory('EXPENSES_COMPANY', fromDb)).toBe(true);
+    expect(isFnbCategory('EXPENSES_COMPANY', fromDb)).toBe(false);
   });
 });
