@@ -54,6 +54,16 @@ async function run(table: string, operation: OperationType, query: PromiseLike<{
   if (error) await handleSupabaseError(error, operation, table);
 }
 
+/**
+ * Οι στήλες του ux_pnl_commission_store_month_line (0024).
+ *
+ * Γραμμένες μία φορά και με αυτή τη σειρά: ο στόχος ενός ON CONFLICT πρέπει
+ * να ταιριάζει ΑΚΡΙΒΩΣ με τον μοναδικό δείκτη, αλλιώς η Postgres απαντά
+ * «there is no unique or exclusion constraint matching the ON CONFLICT
+ * specification» - δηλαδή μια δεύτερη αποτυχία στη θέση της πρώτης.
+ */
+export const COMMISSION_CONFLICT = 'organization_id,store_id,entry_date,line';
+
 const toCommission = (r: any): PnlCommissionEntry => ({
   id: r.id,
   batchId: r.batch_id,
@@ -324,9 +334,22 @@ export async function saveCommissionBatch(params: {
       note: params.note?.trim() || null,
       created_by_user_id: params.userId ?? null,
     }));
-  // Insert the new batch before removing the old one, so a failed save never loses an entry.
+  // Upsert και εδώ, και για τον ίδιο λόγο: μια διόρθωση ξαναγράφει τις ίδιες
+  // γραμμές με την ίδια ημερομηνία, που είναι ακριβώς το κλειδί του
+  // ux_pnl_commission_store_month_line. Με σκέτο insert, το «επεξεργασία
+  // καταχώρησης» έσκαγε με 23505 πριν προλάβει να σβήσει την παλιά.
+  //
+  // Η σειρά μένει ίδια - πρώτα γράφεται το νέο, μετά φεύγει το παλιό - ώστε
+  // μια αποτυχία στη μέση να μην αφήνει τον μήνα άδειο. Το σβήσιμο μετά το
+  // upsert καθαρίζει ό,τι απέμεινε με το παλιό batch: τις γραμμές που
+  // μηδενίστηκαν ή αφαιρέθηκαν, που δεν έχουν πια νέα γραμμή να τις
+  // αντικαταστήσει.
   if (rows.length > 0) {
-    await run(COMMISSIONS_TABLE, OperationType.CREATE, supabase.from(COMMISSIONS_TABLE).insert(rows));
+    await run(
+      COMMISSIONS_TABLE,
+      OperationType.WRITE,
+      supabase.from(COMMISSIONS_TABLE).upsert(rows, { onConflict: COMMISSION_CONFLICT })
+    );
   }
   if (params.replacesBatchId) {
     await deleteCommissionBatch(params.replacesBatchId);
@@ -364,28 +387,27 @@ export async function saveMonthlyCommissions(params: {
     created_by_user_id: params.userId ?? null,
   }));
 
-  // Insert the new figures first, then drop the month's older ones. Same order
-  // as saveCommissionBatch and for the same reason: a failure half way leaves a
-  // duplicate, which is visible and fixable, rather than an empty month, which
-  // looks like a store that earned nothing.
+  // ΕΝΑ upsert, πάνω στον ίδιο δείκτη που κάνει την επανακαταχώρηση
+  // διόρθωση αντί για πρόσθεση.
   //
-  // Deliberately not an upsert. ON CONFLICT needs a unique constraint to target,
-  // which ties this path to a DDL migration having been applied; doing it as
-  // insert-then-prune keeps the feature working either way.
-  // ux_pnl_commission_store_month_line (0024) is still worth having - it stops a
-  // future bug writing two figures for one entity - but is not required here.
-  await run(COMMISSIONS_TABLE, OperationType.CREATE, supabase.from(COMMISSIONS_TABLE).insert(rows));
+  // Εδώ ήταν «insert, μετά σβήσε τα παλιά», με σχόλιο που έλεγε ότι έτσι «η
+  // λειτουργία δουλεύει είτε έχει εφαρμοστεί το DDL είτε όχι». Το αντίθετο
+  // ίσχυε: ο δείκτης ΕΙΧΕ εφαρμοστεί (0024, «a deliberate duplicate insert is
+  // rejected with 23505»), οπότε το insert έσκαγε πάνω του ΠΡΙΝ προλάβει να
+  // τρέξει το σβήσιμο. Η πρώτη καταχώρηση ενός μήνα περνούσε· η δεύτερη -
+  // δηλαδή κάθε διόρθωση - γύριζε «duplicate key value violates unique
+  // constraint», και ο μήνας έμενε κλειδωμένος στο πρώτο νούμερο που
+  // γράφτηκε.
+  //
+  // Το σχόλιο από πάνω έγραφε «Upsert, not insert» από την αρχή. Ο κώδικας
+  // είχε φύγει από το σχόλιό του.
+  //
+  // Καμία ενδιάμεση κατάσταση: μία εντολή, ή γράφονται όλες οι γραμμές ή
+  // καμία. Το παλιό ζευγάρι μπορούσε να αφήσει διπλές αν έσκαγε στη μέση.
   await run(
     COMMISSIONS_TABLE,
-    OperationType.DELETE,
-    supabase
-      .from(COMMISSIONS_TABLE)
-      .delete()
-      .eq('organization_id', params.orgId)
-      .eq('store_id', params.storeId)
-      .eq('entry_date', params.entryDate)
-      .in('line', params.values.map((v) => v.line))
-      .neq('batch_id', batchId)
+    OperationType.WRITE,
+    supabase.from(COMMISSIONS_TABLE).upsert(rows, { onConflict: COMMISSION_CONFLICT })
   );
 }
 

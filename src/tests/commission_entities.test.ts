@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { COMMISSION_ENTITIES, commissionLinesFor, computeMonthlyPnl } from '../lib/pnlEngine.ts';
+import {
+  COMMISSION_ENTITIES, PLAY_COMMISSION_ENTITIES, commissionLinesFor, computeMonthlyPnl,
+} from '../lib/pnlEngine.ts';
 
 // Commissions are the top line of every figure in the Reports module, so these
 // pin the three things that would silently distort it: which entities exist,
@@ -32,38 +34,67 @@ const commission = (line: string, amount: number) => ({
 });
 
 describe('commission entities', () => {
-  it('is the three companies that actually pay, in report order', () => {
-    expect(COMMISSION_ENTITIES).toEqual(['Allwyn ΑΕ', 'Ελληνικά Λαχεία ΑΕ', 'Tora Wallet ΑΕ']);
+  it('is the companies that actually pay, in report order', () => {
+    expect(COMMISSION_ENTITIES).toEqual([
+      'Allwyn ΑΕ', 'Ελληνικά Λαχεία ΑΕ', 'Tora Wallet ΑΕ', 'Ιπποδρομίες ΑΕ',
+    ]);
   });
 
-  it('gives every store type the same three', () => {
-    // A PLAY store used to have its own three lines (ALLWYN VLTs, BONUS, ΕΠΔ CT).
-    // One monthly report per store means one set of entities everywhere; a PLAY
-    // store simply carries 0 against the two it does not trade with.
+  it('ένα Play εισπράττει μόνο από την Allwyn', () => {
+    // Αίθουσα μηχανημάτων: ούτε λαχεία, ούτε Tora, ούτε ιππόδρομος. Τρία
+    // κουτάκια που δεν γεμίζουν ποτέ - και στα δεδομένα το Play δεν έχει
+    // ούτε μία γραμμή προμήθειας.
+    expect(commissionLinesFor('PLAY_STORE')).toEqual(['Allwyn ΑΕ']);
+    expect(PLAY_COMMISSION_ENTITIES).toEqual(['Allwyn ΑΕ']);
+  });
+
+  it('ένα πρακτορείο τις παίρνει όλες — και ό,τι δεν αναγνωρίζεται μαζί του', () => {
     expect(commissionLinesFor('OPAP_AGENCY')).toEqual(COMMISSION_ENTITIES);
-    expect(commissionLinesFor('PLAY_STORE')).toEqual(COMMISSION_ENTITIES);
+    // Άγνωστος τύπος δεν γίνεται Play: το να του λείψουν τρεις γραμμές
+    // είναι χειρότερο από το να του περισσεύουν.
     expect(commissionLinesFor('anything else')).toEqual(COMMISSION_ENTITIES);
+    expect(commissionLinesFor('')).toEqual(COMMISSION_ENTITIES);
   });
 
-  it('shows all three lines even when only one was reported', () => {
+  it('μια γραμμή που ΥΠΑΡΧΕΙ σε Play φαίνεται, όσο κι αν δεν προσφέρεται', () => {
+    // Η λίστα ορίζει τι μπορείς να ΓΡΑΨΕΙΣ, όχι τι μετριέται. Παλιά Tora
+    // πάνω σε Play δεν επιτρέπεται να εξαφανιστεί από τον τζίρο.
+    const result = computeMonthlyPnl({
+      month: '2026-08',
+      stores: [{ id: 'play', code: '401070', name: 'Play', storeType: 'PLAY_STORE' }],
+      commissions: [
+        { id: 'c1', batchId: 'b1', storeId: 'play', entryDate: '2026-08-31', line: 'Allwyn ΑΕ', amount: 4000 },
+        { id: 'c2', batchId: 'b1', storeId: 'play', entryDate: '2026-08-31', line: 'Tora Wallet ΑΕ', amount: 120 },
+      ],
+      fixedCosts: [], payroll: [], companyCosts: [], companyDaily: [],
+      expenses: [], shifts: [], fnbManualDays: [], vltCounts: [],
+    } as any);
+    const sheet = result.stores.find((s) => s.store.id === 'play')!;
+    expect(sheet.commissions.lines.map((l) => l.line)).toEqual(['Allwyn ΑΕ', 'Tora Wallet ΑΕ']);
+    expect(sheet.commissions.total).toBe(4120);
+  });
+
+  it('shows all four lines even when only one was reported', () => {
     const result = emptyInput({ commissions: [commission('Allwyn ΑΕ', 1200)] });
     const sheet = result.stores.find((s) => s.store.id === 'store_a')!;
     expect(sheet.commissions.lines.map((l) => l.line)).toEqual(COMMISSION_ENTITIES);
     expect(sheet.commissions.total).toBe(1200);
-    // The two unreported entities read 0, not absent - a reader can see they
+    // The unreported entities read 0, not absent - a reader can see they
     // were considered rather than forgotten.
     expect(sheet.commissions.lines.find((l) => l.line === 'Tora Wallet ΑΕ')!.total).toBe(0);
+    expect(sheet.commissions.lines.find((l) => l.line === 'Ιπποδρομίες ΑΕ')!.total).toBe(0);
   });
 
-  it('adds the three entities into one τζίρος', () => {
+  it('adds every entity into one τζίρος', () => {
     const result = emptyInput({
       commissions: [
         commission('Allwyn ΑΕ', 1000),
         commission('Ελληνικά Λαχεία ΑΕ', 250.5),
         commission('Tora Wallet ΑΕ', 99.5),
+        commission('Ιπποδρομίες ΑΕ', 310.25),
       ],
     });
-    expect(result.storesTotal.revenue).toBe(1350);
+    expect(result.storesTotal.revenue).toBe(1660.25);
   });
 
   it('leaves a month with no report at zero revenue, which must not read as a 0% margin', () => {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Receipt, Save, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
-import { COMMISSION_ENTITIES, currentMonthKey, monthLabel, shiftMonthKey } from '../../lib/pnlEngine.ts';
+import { commissionLinesFor, currentMonthKey, monthLabel, shiftMonthKey } from '../../lib/pnlEngine.ts';
 import { monthEndDate, saveMonthlyCommissions } from '../../services/pnlService.ts';
 import { useMonthlyPnl } from './useMonthlyPnl.ts';
 import { MoneyInput, moneyInputValue, parseMoney } from './moneyInput.tsx';
@@ -14,6 +14,12 @@ import { IconButton } from '../ui/IconButton.tsx';
 // page without nesting a map inside a map.
 type Draft = Record<string, string>;
 const key = (storeId: string, entity: string) => `${storeId}::${entity}`;
+
+// Ποιες εταιρείες πληρώνουν ΑΥΤΟ το κατάστημα. Ένα Play εισπράττει μόνο από
+// την Allwyn, οπότε δεν του προσφέρονται κουτάκια που δεν θα γεμίσουν ποτέ.
+// Η απάντηση είναι μία, στη μηχανή του P&L, ώστε η φόρμα να μη μπορεί να
+// ζητήσει νούμερο που η αναφορά δεν θα δείξει.
+const entitiesOf = (storeType: unknown) => commissionLinesFor(String(storeType ?? ''));
 
 export const CommissionEntrySheet: React.FC = () => {
   const { user, organization } = useAuth();
@@ -32,7 +38,7 @@ export const CommissionEntrySheet: React.FC = () => {
   useEffect(() => {
     const next: Draft = {};
     for (const sheet of data?.result.stores ?? []) {
-      for (const entity of COMMISSION_ENTITIES) {
+      for (const entity of entitiesOf(sheet.store.storeType)) {
         const found = sheet.commissions.lines.find((l) => l.line === entity);
         next[key(sheet.store.id, entity)] = found && found.total !== 0 ? moneyInputValue(found.total) : '';
       }
@@ -48,21 +54,21 @@ export const CommissionEntrySheet: React.FC = () => {
     setSaved(null);
   }, [month]);
 
-  const storeTotal = (storeId: string) =>
-    COMMISSION_ENTITIES.reduce((sum, e) => sum + (parseMoney(draft[key(storeId, e)] ?? '') ?? 0), 0);
+  const storeTotal = (storeId: string, storeType: unknown) =>
+    entitiesOf(storeType).reduce((sum, e) => sum + (parseMoney(draft[key(storeId, e)] ?? '') ?? 0), 0);
 
   const companyTotal = useMemo(
-    () => stores.reduce((sum, s) => sum + storeTotal(s.id), 0),
+    () => stores.reduce((sum, s) => sum + storeTotal(s.id, s.store_type), 0),
     [stores, draft]
   );
 
-  const storeHasInvalid = (storeId: string) =>
-    COMMISSION_ENTITIES.some((e) => {
+  const storeHasInvalid = (storeId: string, storeType: unknown) =>
+    entitiesOf(storeType).some((e) => {
       const raw = draft[key(storeId, e)] ?? '';
       return raw.trim() !== '' && parseMoney(raw) === null;
     });
 
-  const save = async (storeId: string) => {
+  const save = async (storeId: string, storeType: unknown) => {
     setSavingStore(storeId);
     setError(null);
     setSaved(null);
@@ -71,9 +77,9 @@ export const CommissionEntrySheet: React.FC = () => {
         orgId,
         storeId,
         entryDate: monthEndDate(month),
-        // A blank field is written as 0 rather than skipped: three rows present
-        // is what marks the month as reported.
-        values: COMMISSION_ENTITIES.map((line) => ({
+        // A blank field is written as 0 rather than skipped: the rows being
+        // present is what marks the month as reported.
+        values: entitiesOf(storeType).map((line) => ({
           line,
           amount: parseMoney(draft[key(storeId, line)] ?? '') ?? 0,
         })),
@@ -154,7 +160,8 @@ export const CommissionEntrySheet: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {stores.map((store) => {
-          const invalid = storeHasInvalid(store.id);
+          const entities = entitiesOf(store.store_type);
+          const invalid = storeHasInvalid(store.id, store.store_type);
           return (
             <div key={store.id} className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-4 space-y-3">
               <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
@@ -164,10 +171,10 @@ export const CommissionEntrySheet: React.FC = () => {
 
               {/* MoneyInput carries its label only as aria-label, because it was
                   built for table cells where the column header names it. Here
-                  three different companies get three identical boxes, so the
-                  name has to be on screen. */}
+                  several companies get identical boxes, so the name has to be
+                  on screen. */}
               <div className="space-y-2.5">
-                {COMMISSION_ENTITIES.map((entity) => (
+                {entities.map((entity) => (
                   <div key={entity} className="space-y-1">
                     <label
                       htmlFor={`comm-${store.id}-${entity}`}
@@ -191,7 +198,7 @@ export const CommissionEntrySheet: React.FC = () => {
                     {toGreekUpper('Συνολο')}
                   </span>
                   <span className="text-sm font-black font-mono tabular-nums text-slate-900">
-                    {formatCurrency(storeTotal(store.id))}
+                    {formatCurrency(storeTotal(store.id, store.store_type))}
                   </span>
                 </div>
 
@@ -204,7 +211,7 @@ export const CommissionEntrySheet: React.FC = () => {
                   )}
                   <button
                     type="button"
-                    onClick={() => save(store.id)}
+                    onClick={() => save(store.id, store.store_type)}
                     disabled={savingStore === store.id || invalid}
                     title={invalid ? 'Υπάρχει πεδίο με μη έγκυρο ποσό' : undefined}
                     className="transition px-3 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs inline-flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"

@@ -11,12 +11,41 @@ export type PnlCompanyCostKind = 'FIXED' | 'LOAN';
 export { FNB_EXPENSE_CATEGORY };
 export const NO_SUPPLIER_LABEL = 'Χωρίς προμηθευτή';
 
-// The three legal entities that actually pay the commissions, as they appear
-// on the monthly report Allwyn sends. That report is the real gross profit, so
-// it is the single source of τζίρος - it replaced the eight product lines the
-// Excel workbook used (ALLWYN, HL, HR, TORA, ΕΘΝΙΚΟ, ΑΜΒ ΚΕΝΤΙΡΚΟΥ, BONUS, CP)
-// and the three a PLAY store had. See 0024_commission_entities.sql.
-export const COMMISSION_ENTITIES = ['Allwyn ΑΕ', 'Ελληνικά Λαχεία ΑΕ', 'Tora Wallet ΑΕ'];
+// The legal entities that actually pay the commissions, as they appear on the
+// monthly report Allwyn sends. That report is the real gross profit, so it is
+// the single source of τζίρος - it replaced the eight product lines the Excel
+// workbook used (ALLWYN, HL, HR, TORA, ΕΘΝΙΚΟ, ΑΜΒ ΚΕΝΤΙΡΚΟΥ, BONUS, CP) and
+// the three a PLAY store had. See 0024_commission_entities.sql.
+//
+// Οι Ιπποδρομίες προστέθηκαν τέταρτες, στο τέλος: η σειρά εδώ είναι η σειρά
+// που διαβάζονται στην οθόνη και στο Excel, και μια παρεμβολή στη μέση θα
+// άλλαζε τη θέση δύο γραμμών που ο ιδιοκτήτης ξέρει απ' έξω.
+//
+// Καμία αλλαγή στη βάση: το 0024 άφησε επίτηδες τη στήλη `line` χωρίς CHECK,
+// «the entity names are Greek text a provider may restate, and a CHECK would
+// turn a rename into a migration».
+export const COMMISSION_ENTITIES = [
+  'Allwyn ΑΕ',
+  'Ελληνικά Λαχεία ΑΕ',
+  'Tora Wallet ΑΕ',
+  'Ιπποδρομίες ΑΕ',
+];
+
+/**
+ * Τι εισπράττει ένα Play.
+ *
+ * Μόνο η Allwyn, κατ' εντολή του ιδιοκτήτη. Ένα Play είναι αίθουσα
+ * μηχανημάτων: δεν πουλάει λαχεία, δεν έχει Tora, δεν παίζει ιππόδρομο, και
+ * οι τρεις άδειες γραμμές ήταν τρία κουτάκια που κανείς δεν συμπλήρωσε ποτέ -
+ * στα δεδομένα το Play δεν έχει ούτε μία γραμμή προμήθειας.
+ *
+ * Το 0024 τα είχε ισιώσει όλα σε ένα σύνολο «ώστε ένας μήνας με ξεχασμένο
+ * νούμερο να φαίνεται διαφορετικός από έναν μήνα με πραγματικό μηδέν». Αυτό
+ * ίσχυε όσο οι γραμμές ήταν τρεις και πιθανές. Δεν ισχύει για κάτι που δεν
+ * μπορεί να συμβεί: ένα μηδέν απέναντι στις Ιπποδρομίες ενός Play δεν είναι
+ * πληροφορία, είναι θόρυβος.
+ */
+export const PLAY_COMMISSION_ENTITIES = ['Allwyn ΑΕ'];
 
 export const DEFAULT_FIXED_COST_LINES = [
   'Ένοικιο',
@@ -54,15 +83,20 @@ export const DEFAULT_COMPANY_FIXED_LINES = [
 export const DEFAULT_LOAN_LINES = ['ΔΟΣΗ play'];
 export const DEFAULT_COMPANY_PAYEES = ['Περικλής', 'Νίκος', 'Χριστίνα', 'ΑΝΑΚΑΙΝΙΣΗ', 'ΚΑΥΣΙΜΑ'];
 
-// Every store type gets the same three now. A PLAY store will usually carry a
-// figure only against Allwyn ΑΕ; the other two stay at 0 rather than being
-// hidden, so a month with a missing figure looks different from a month with a
-// real zero.
-//
-// Kept as a function although it ignores its argument: it is called per store
-// at two sites below, and changing those to a bare constant is churn.
-export function commissionLinesFor(_storeType: string): string[] {
-  return COMMISSION_ENTITIES;
+/**
+ * Ποιες γραμμές προσφέρονται σε αυτό το κατάστημα.
+ *
+ * Η συνάρτηση κρατούσε το όρισμά της χωρίς να το κοιτάει, από τότε που όλα
+ * τα καταστήματα είχαν τις ίδιες τρεις. Τώρα το κοιτάει.
+ *
+ * ΟΙ ΓΡΑΜΜΕΣ ΔΕΝ ΚΡΥΒΟΥΝ ΧΡΗΜΑΤΑ: η μηχανή παρακάτω ξεκινάει από αυτή τη
+ * λίστα αλλά προσθέτει ΚΑΘΕ γραμμή που βρίσκει στα δεδομένα, και το σύνολο
+ * αθροίζει τις εγγραφές και όχι τη λίστα. Αν κάποτε γραφτεί σε ένα Play μια
+ * προμήθεια Tora, θα φανεί και θα μετρηθεί - απλώς δεν προσφέρεται κουτάκι
+ * για να γραφτεί καινούρια.
+ */
+export function commissionLinesFor(storeType: string): string[] {
+  return storeType === 'PLAY_STORE' ? PLAY_COMMISSION_ENTITIES : COMMISSION_ENTITIES;
 }
 
 // ------------------------------------------------------------------
