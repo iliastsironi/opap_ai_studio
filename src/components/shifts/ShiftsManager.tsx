@@ -33,6 +33,7 @@ import {
   CheckCircle,
   AlertCircle,
   HelpCircle,
+  Wallet,
   X,
 } from 'lucide-react';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
@@ -40,6 +41,7 @@ import { returnPacksFromShift } from '../../services/scratchWarehouseService.ts'
 import {
   canDeleteShift, closedShiftWarning, deleteShiftLabel,
 } from '../../lib/shiftDeletePermission.ts';
+import { handsOverCash, shiftHandover } from '../../lib/shiftHandover.ts';
 import {
   creditChoiceMissing, creditDispositionNote, deletionLines, needsCreditChoice,
   type CreditChoice, type CreditDisposition, type ShiftDeletionCounts,
@@ -229,7 +231,8 @@ export const ShiftsManager: React.FC = () => {
       if (creditDisposition === 'DELETE') {
         await deleteShiftCustomerCredits(shiftToDel.id);
       }
-      // Τα πακέτα πίσω στο ράφι, ΠΡΙΝ φύγει η βάρδια. Το moved_shift_id
+      // Τα πακέτα πίσω στα «προς παράδοση», ΠΡΙΝ φύγει η βάρδια - στο
+      // μαγαζί είναι, απλώς κανείς δεν τα κρατάει πια. Το moved_shift_id
       // είναι ON DELETE SET NULL: μόλις σβηστεί η βάρδια, δεν υπάρχει πια
       // τρόπος να βρεθεί ποια πακέτα ήταν δικά της, και μένουν IN_STORE
       // ενώ καμία βάρδια δεν τα κρατάει.
@@ -755,6 +758,50 @@ export const ShiftsManager: React.FC = () => {
                                     showSign: true,
                                   })}
                                 </span>
+
+                                {/* Τα μετρητά, δίπλα στην απόκλιση.
+                                    Ο υπεύθυνος περνάει το βράδυ και η
+                                    ερώτησή του πριν ανοίξει οτιδήποτε
+                                    είναι «πόσα σηκώνω». Μέχρι τώρα το
+                                    νούμερο φαινόταν μόνο ΜΕΣΑ στην
+                                    επιθεώρηση - αφού είχε ήδη μπει.
+
+                                    Μόνο στη βραδινή: στην πρωινή δεν
+                                    παραδίδεται τίποτα σε κανέναν. */}
+                                {handsOverCash(pShift.shift_type) && (() => {
+                                  const hand = shiftHandover(pShift);
+                                  return (
+                                    <div className="mt-2">
+                                      <span className="text-micro text-slate-500 block font-bold">
+                                        {toGreekUpper('Προς παραδοση')}
+                                      </span>
+                                      <span className="font-black text-xs font-mono px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 mt-0.5 bg-slate-900 text-white border-slate-900">
+                                        <Wallet aria-hidden="true" className="w-3 h-3 text-emerald-400" />
+                                        {formatCurrency(hand.total)}
+                                      </span>
+                                      {/* Η ανάλυση μόνο όταν υπάρχει κάτι να
+                                          αναλυθεί: ένα «φάκελος X + κέρματα 0»
+                                          είναι θόρυβος σε κάθε βάρδια που δεν
+                                          έβγαλε κύπελλο - 29 στις 43 εδώ. */}
+                                      {(hand.coins > 0 || hand.settlement > 0) && (
+                                        <span className="block text-micro text-slate-500 font-semibold mt-0.5 leading-tight">
+                                          φάκελος {formatCurrency(hand.envelope)}
+                                          {hand.coins > 0 && ` + κέρματα ${formatCurrency(hand.coins)}`}
+                                          {hand.settlement > 0 && ` + εξόφληση ${formatCurrency(hand.settlement)}`}
+                                        </span>
+                                      )}
+                                      {/* Μηδέν επειδή το συρτάρι είναι κάτω
+                                          από το πάγιο δεν είναι «τίποτα να
+                                          μαζέψεις» - είναι έλλειμμα, και
+                                          διαβάζεται ίδιο χωρίς αυτή τη γραμμή. */}
+                                      {hand.isShort && (
+                                        <span className="block text-micro text-rose-600 font-bold mt-0.5 leading-tight">
+                                          το συρτάρι είναι κάτω από το πάγιο
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
