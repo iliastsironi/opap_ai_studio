@@ -31,6 +31,34 @@ export async function fetchShiftsFromFirestore(
   }
 }
 
+/**
+ * Οι τελευταίες βάρδιες ενός καταστήματος - αρκετές για να απαντηθεί το
+ * «μπορεί να ανοίξει;».
+ *
+ * Ξεχωριστό ερώτημα αντί για τη λίστα που έχει ήδη η οθόνη, επειδή εκείνη
+ * είναι φιλτραρισμένη: με φίλτρο «Εγκεκριμένες» η ανοιχτή βάρδια δεν είναι
+ * μέσα, και ο έλεγχος θα έλεγε «ελεύθερο» για ένα ταμείο που δουλεύει.
+ *
+ * Είκοσι καλύπτουν άνετα δέκα μέρες σε μαγαζί δύο βαρδιών· οι δύο κανόνες
+ * που ελέγχονται κοιτάνε σήμερα και ό,τι τρέχει τώρα.
+ */
+export async function fetchRecentShiftsAtStore(
+  orgId: string,
+  storeId: string,
+  limit = 20
+): Promise<Shift[]> {
+  if (!orgId || !storeId) return [];
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('id,store_id,register_id,status,opened_at,opened_by_user_id,opened_by_user_name')
+    .eq('organization_id', orgId)
+    .eq('store_id', storeId)
+    .order('opened_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Shift[];
+}
+
 // registerId is optional on purpose. It used to default to 'REG-01', but
 // ShiftOpeningModal creates every shift with register_id 'Ταμείο 1', so every
 // caller that omitted the argument - the double-open guard, the expenses

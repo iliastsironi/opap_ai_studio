@@ -103,9 +103,10 @@ import {
   registerLabel,
   shiftTypeLabel,
 } from '../../lib/inspectionDayGroups.ts';
+import { worksThisShift } from '../../lib/shiftOpenRules.ts';
 
 export const ShiftsManager: React.FC = () => {
-  const { token, organization, roles, hasPermission } = useAuth();
+  const { token, organization, roles, hasPermission, user } = useAuth();
   const { currentStore, stores: tenantStores, storeId, setStoreId } = useTenant();
 
   const isOwnerOrAdmin =
@@ -429,6 +430,23 @@ export const ShiftsManager: React.FC = () => {
   /** Με ένα μόνο μαγαζί, ένα πλαίσιο γύρω από τα πάντα δεν ξεχωρίζει τίποτα. */
   const splitByStore = pendingApprovalStores.length > 1;
 
+  /**
+   * Είναι ΔΙΚΗ μου αυτή η ανοιχτή βάρδια;
+   *
+   * Η ανοιχτή βάρδια ενός καταστήματος φαινόταν σε όποιον συνδεόταν, με το
+   * όνομα εκείνου που τη δούλευε και με κουμπί «Κλείσιμο» δίπλα. Από εκεί
+   * και το «μπαίνει ο κάθε υπάλληλος με το account του και σε όλους γράφει
+   * Γιώργος Κουτρομάνος»: δεν ήταν το όνομά τους, ήταν το όνομα της
+   * βάρδιας του άλλου.
+   *
+   * Μένει ορατή - ο υπεύθυνος πρέπει να ξέρει ότι το ταμείο δουλεύει, και
+   * ο επόμενος ότι δεν μπορεί να ανοίξει - αλλά διαβάζεται σαν ξένη, και
+   * μόνο όποιος μπορεί να την κλείσει βλέπει το κουμπί.
+   */
+  const activeShiftIsMine = worksThisShift(activeShift, user?.id);
+  /** Ο υπεύθυνος κλείνει και ξένη βάρδια· ο υπάλληλος μόνο τη δική του. */
+  const mayWorkActiveShift = activeShiftIsMine || canApprove;
+
   // If active closing wizard is open
   if (wizardShift) {
     return (
@@ -483,17 +501,33 @@ export const ShiftsManager: React.FC = () => {
                     title attribute - this control is the one staff hit on a
                     phone, where a tooltip does not exist. */}
                 <div className="flex flex-col items-start gap-0.5">
-                <button
-                  onClick={() => handleOpenWizard(openShifts[0])}
-                  className="transition px-3.5 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-xs whitespace-nowrap cursor-pointer"
-                  title={`Κλείσιμο ανοιχτής βάρδιας — ${openShifts[0].store_name || ''} ${openShifts[0].register_id || ''}`}
-                >
-                  <span className="w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0" />
-                  <span>{toGreekUpper('Ανοιχτη Βαρδια')}</span>
-                  <span className="font-bold opacity-80 hidden sm:inline">
-                    · {toGreekUpper('Κλεισιμο')}
+                {/* Ίδιος κανόνας με την κάρτα παρακάτω: κλείνει όποιος τη
+                    δουλεύει, ή ο υπεύθυνος. Για τους υπόλοιπους μένει
+                    ένδειξη ότι το ταμείο τρέχει - χωρίς κουμπί. */}
+                {worksThisShift(openShifts[0], user?.id) || canApprove ? (
+                  <button
+                    onClick={() => handleOpenWizard(openShifts[0])}
+                    className="transition px-3.5 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-xs whitespace-nowrap cursor-pointer"
+                    title={`Κλείσιμο ανοιχτής βάρδιας — ${openShifts[0].store_name || ''} ${openShifts[0].register_id || ''}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0" />
+                    <span>{toGreekUpper('Ανοιχτη Βαρδια')}</span>
+                    <span className="font-bold opacity-80 hidden sm:inline">
+                      · {toGreekUpper('Κλεισιμο')}
+                    </span>
+                  </button>
+                ) : (
+                  <span
+                    className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 font-black text-xs flex items-center gap-2 whitespace-nowrap"
+                    title={`Ανοιχτή βάρδια άλλου χειριστή — ${openShifts[0].store_name || ''}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                    <span>{toGreekUpper('Ανοιχτη Βαρδια')}</span>
+                    <span className="font-bold opacity-80 hidden sm:inline">
+                      · {toGreekUpper('Αλλου χειριστη')}
+                    </span>
                   </span>
-                </button>
+                )}
                 <span className="text-micro font-bold text-slate-600 font-mono pl-1 whitespace-nowrap">
                   {whoAndWhen(openShifts[0])}
                 </span>
@@ -920,10 +954,20 @@ export const ShiftsManager: React.FC = () => {
                     <Clock className="w-5 h-5 animate-pulse" />
                   </div>
                   <div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                       <span className="font-black text-xs sm:text-sm text-white tracking-wide">
-                        {toGreekUpper('Ενεργη Βαρδια σε Εξελιξη')}
+                        {toGreekUpper(
+                          activeShiftIsMine ? 'Η Βαρδια σας σε Εξελιξη' : 'Βαρδια σε Εξελιξη'
+                        )}
                       </span>
+                      {/* Ξένη βάρδια, και το λέει. Χωρίς αυτό, ο επόμενος
+                          υπάλληλος διάβαζε το όνομα του συναδέλφου του σαν
+                          δικό του. */}
+                      {!activeShiftIsMine && (
+                        <span className="px-2 py-0.5 rounded-full text-micro font-black bg-amber-400 text-slate-950">
+                          {toGreekUpper('Αλλου χειριστη')}
+                        </span>
+                      )}
                       <span className="px-2 py-0.5 rounded-full text-micro font-black bg-emerald-500 text-slate-950">
                         {toGreekUpper(activeShift.status)}
                       </span>
@@ -936,6 +980,12 @@ export const ShiftsManager: React.FC = () => {
                     <p className="text-xs text-slate-300 mt-0.5">
                       Χειριστής: {whoAndWhen(activeShift)}
                     </p>
+                    {!activeShiftIsMine && (
+                      <p className="text-micro text-amber-200 font-bold mt-1 max-w-sm leading-snug">
+                        Δεν είναι δική σας. Σε ένα μαγαζί δουλεύει ένα άτομο κάθε φορά —
+                        δεν μπορείτε να ανοίξετε άλλη όσο αυτή τρέχει.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -958,13 +1008,24 @@ export const ShiftsManager: React.FC = () => {
 
                 {/* Group 3: Action Buttons Group (md:col-span-4) */}
                 <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center justify-end gap-2">
-                  <button
-                    onClick={() => handleOpenWizard(activeShift)}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer"
-                  >
-                    <span>{toGreekUpper('Οδηγος Κλεισιματος')}</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                  {/* Το κουμπί μόνο σε όποιον τη δουλεύει, ή σε υπεύθυνο. Ο
+                      οδηγός κλεισίματος αποθηκεύει καταμέτρηση στο όνομα
+                      κάποιου άλλου· δεν είναι οθόνη για περαστικούς. */}
+                  {mayWorkActiveShift ? (
+                    <button
+                      onClick={() => handleOpenWizard(activeShift)}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center space-x-2 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span>
+                        {toGreekUpper(activeShiftIsMine ? 'Οδηγος Κλεισιματος' : 'Κλεισιμο ως Υπευθυνος')}
+                      </span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <span className="flex-1 py-2.5 px-4 rounded-xl bg-white/5 border border-white/15 text-slate-300 font-bold text-xs flex items-center justify-center text-center leading-snug">
+                      Θα την κλείσει ο χειριστής της
+                    </span>
+                  )}
 
                   {canDeleteShift(roleCodes, activeShift.status) && (
                     <button

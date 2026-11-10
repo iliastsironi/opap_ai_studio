@@ -1131,10 +1131,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       : ''
   );
 
-  const [discrepancySettlement, setDiscrepancySettlement] =
-    useState<DiscrepancySettlement | null>(
-      (shift.discrepancy_settlement as DiscrepancySettlement | null) ?? null
-    );
+  /**
+   * Πώς τακτοποιείται ένα έλλειμμα: χρέωση, και μόνο χρέωση.
+   *
+   * Ήταν επιλογή δύο δρόμων. Ο δεύτερος, η «άμεση εξόφληση», έβαζε μετρητά
+   * του χειριστή μέσα στον φάκελο - χρήματα που ταξίδευαν μαζί με τις
+   * εισπράξεις χωρίς να είναι εισπράξεις, και που κάποιος έπρεπε να
+   * ξεχωρίσει στην άλλη άκρη. Στα ζωντανά δεδομένα δεν επιλέχθηκε ποτέ:
+   * και οι 29 τακτοποιήσεις είναι χρεώσεις. Ο ιδιοκτήτης το έκοψε.
+   *
+   * Μια παλιά βάρδια που κουβαλάει PAID_CASH κρατάει ό,τι γράφτηκε τότε -
+   * το διαβάζουμε, δεν το ξαναγράφουμε.
+   */
+  const [discrepancySettlement] = useState<DiscrepancySettlement>('CHARGE');
 
   // Denominations State
   const [denominations, setDenominations] = useState<Record<string, number>>(
@@ -1552,8 +1561,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   //
   // Computed after the split because an immediate settlement travels inside
   // the same envelope and the person receiving it has to see that too.
-  const settlementCash =
-    chargeReachesOperator && discrepancySettlement === 'PAID_CASH' ? split.charged : 0;
+  // Πάντα 0 πλέον: κανένα μετρητό του χειριστή δεν μπαίνει στον φάκελο.
+  const settlementCash = 0;
   const envelope = calculateEnvelope({
     // Notes against notes. The coins stay in the drawer as the next shift's
     // change, and leave only in a cup of their own.
@@ -2296,48 +2305,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   </dl>
                 </div>
 
-                <p className="text-xs font-bold text-slate-700">Πώς θα τακτοποιηθεί;</p>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setDiscrepancySettlement('PAID_CASH')}
-                    className={`w-full text-left p-3 rounded-xl border-2 transition-colors cursor-pointer ${
-                      discrepancySettlement === 'PAID_CASH'
-                        ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <span className="block text-sm font-bold text-slate-900">
-                      Άμεση εξόφληση ({formatCurrency(split.charged)})
-                    </span>
-                    <span className="block text-xs text-slate-600 mt-0.5">
-                      Βάζετε τα χρήματα στο ταμείο τώρα. Παραδίδονται μαζί με τον φάκελο
-                      ως εξόφληση απόκλισης — δεν προσμετρώνται στις εισπράξεις.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDiscrepancySettlement('CHARGE')}
-                    className={`w-full text-left p-3 rounded-xl border-2 transition-colors cursor-pointer ${
-                      discrepancySettlement === 'CHARGE'
-                        ? 'border-indigo-500 bg-indigo-50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <span className="block text-sm font-bold text-slate-900">
-                      Αποθήκευση ελλείμματος
-                    </span>
-                    <span className="block text-xs text-slate-600 mt-0.5">
-                      Καταγράφεται ως χρέωση στο όνομά σας και παραμένει ενεργή στο
-                      ιστορικό σας μέχρι να εξοφληθεί.
-                    </span>
-                  </button>
+                {/* Μία διαδρομή, όχι δύο.
+                    Η «άμεση εξόφληση» έβγαινε κατ' εντολή του ιδιοκτήτη: τα
+                    ελλείμματα αποθηκεύονται. Έβαζε μετρητά του χειριστή
+                    μέσα στον φάκελο - χρήματα που ταξίδευαν με τις
+                    εισπράξεις χωρίς να είναι εισπράξεις - και ποτέ δεν
+                    επιλέχθηκε: και οι 29 τακτοποιήσεις στα ζωντανά δεδομένα
+                    είναι χρεώσεις. */}
+                <div className="rounded-xl border-2 border-indigo-500 bg-indigo-50 p-3">
+                  <span className="block text-sm font-bold text-slate-900">
+                    Αποθήκευση ελλείμματος
+                  </span>
+                  <span className="block text-xs text-slate-600 mt-0.5">
+                    Καταγράφεται ως χρέωση στο όνομά σας και παραμένει ενεργή στο
+                    ιστορικό σας μέχρι να εξοφληθεί. Μην βάζετε μετρητά στο ταμείο.
+                  </span>
                 </div>
-                {!discrepancySettlement && (
-                  <p className="text-xs text-slate-500">
-                    Επιλέξτε έναν από τους δύο τρόπους για να συνεχίσετε.
-                  </p>
-                )}
               </div>
             ) : discResult.isExceedingThreshold ? (
               <div className="bg-rose-50 border border-rose-300 rounded-xl p-3.5 space-y-1.5 text-xs text-rose-950">
@@ -2381,7 +2364,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         confirmLabel="Ναι, Υποβολή"
         isLoading={isSubmitting}
         loadingLabel="Υποβολή..."
-        confirmDisabled={chargeReachesOperator && !discrepancySettlement}
+        confirmDisabled={false}
         onConfirm={handleSubmitShift}
         onCancel={() => setShowSubmitConfirm(false)}
       />

@@ -99,6 +99,15 @@ export interface OpeningFloat {
    * reason.
    */
   topUpsInherited: number;
+  /**
+   * Πόσο λιγότερα χαρτονομίσματα άφησε το βράδυ από το πάγιο.
+   *
+   * 0 όταν το συρτάρι έκλεισε στο πάγιο ή πάνω από αυτό. Θετικό σημαίνει ότι
+   * η μέρα ανοίγει με λιγότερα από όσα λέει η Διαμόρφωση, και η οθόνη
+   * οφείλει να πει γιατί: ένα πάγιο που μίκρυνε χωρίς εξήγηση διαβάζεται ως
+   * λάθος της εφαρμογής, και ο επόμενος θα το ξαναγράψει στο χέρι.
+   */
+  shortfall: number;
 }
 
 const num = (v: unknown): number => {
@@ -146,6 +155,7 @@ export function resolveOpeningFloat(
       notes: num(dayOpening!.notes),
       coins: dayCoins > 0 ? dayCoins : configured.coins,
       carriedOver: true,
+      shortfall: 0,
       // Beside the other two, not inside them. It still has to be in the
       // float the shift opens on - the money is in the drawer, because the
       // envelope only ever takes what is above the float - so every caller
@@ -159,11 +169,16 @@ export function resolveOpeningFloat(
   if (!previousWasCounted(previous)) {
     // Nothing to carry. The configured float beats a zero that only means
     // «the last shift never did anything».
-    return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0 };
+    return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0, shortfall: 0 };
   }
 
   if (configured.morningCoinsCarryOver === false) {
-    return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0 };
+    return {
+      ...openOnWhatIsThere(previous!, configured),
+      coins: configured.coins,
+      carriedOver: false,
+      topUpsInherited: 0,
+    };
   }
 
   // Carrying, but only what was actually counted. A close recording zero
@@ -174,10 +189,41 @@ export function resolveOpeningFloat(
   // history behind it.
   const carriedCoins = num(previous!.coins);
   return {
-    notes: configured.notes,
+    ...openOnWhatIsThere(previous!, configured),
     coins: carriedCoins > 0 ? carriedCoins : configured.coins,
     carriedOver: false,
     // Overnight. Yesterday's top-ups left in yesterday's last envelope.
     topUpsInherited: 0,
   };
+}
+
+/**
+ * Τα χαρτονομίσματα με τα οποία ανοίγει η μέρα.
+ *
+ * Το πάγιο - εκτός αν το βράδυ άφησε λιγότερα, οπότε ανοίγει με αυτά.
+ *
+ * Ο κανόνας του ιδιοκτήτη, και στέκει στα ίδια τα λεφτά: ο φάκελος παίρνει
+ * ΜΟΝΟ ό,τι περισσεύει πάνω από το πάγιο. Αν το συρτάρι έκλεισε κάτω από
+ * αυτό, δεν έφυγε τίποτα σε φάκελο - τα λιγότερα χαρτονομίσματα είναι ακόμα
+ * μέσα. Ξεκινώντας την επόμενη μέρα από το πάγιο, η εφαρμογή θα ισχυριζόταν
+ * μετρητά που δεν υπάρχουν στο συρτάρι, και η πρώτη βάρδια θα άνοιγε με
+ * έλλειμμα ίσο με τη διαφορά.
+ *
+ * Το μηδέν ΔΕΝ χαμηλώνει το πάγιο. Ένα κλείσιμο που γράφει 0 χαρτονομίσματα
+ * δεν είναι «άδειο συρτάρι», είναι κλείσιμο που δεν ανέλυσε κοψίματα - τα
+ * ζωντανά δεδομένα έχουν ακριβώς τέτοια - και ένα μαγαζί που ανοίγει στο
+ * μηδέν δεν έχει ρέστα να δώσει. Ίδια αντιμετώπιση με τα κέρματα παραπάνω,
+ * για τον ίδιο λόγο.
+ *
+ * Τα κέρματα δεν περνάνε από εδώ: η παράδοση κερμάτων φεύγει κανονικά με
+ * τον φάκελο και δεν μπαίνει στο επόμενο ταμείο.
+ */
+function openOnWhatIsThere(
+  previous: PreviousClose,
+  configured: ConfiguredFloat
+): { notes: number; shortfall: number } {
+  const left = num(previous.notes);
+  const floatNotes = num(configured.notes);
+  if (left <= 0 || left >= floatNotes) return { notes: floatNotes, shortfall: 0 };
+  return { notes: round2(left), shortfall: round2(floatNotes - left) };
 }

@@ -11,10 +11,11 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { Shift, ShiftType, ShiftStatus } from '../../types/index.ts';
 import {
   createShiftInFirestore, fetchHandoverSnapshot, HandoverSnapshot,
-  fetchDayOpening, DayOpeningSnapshot, recordShiftInspection,
+  fetchDayOpening, DayOpeningSnapshot, recordShiftInspection, fetchRecentShiftsAtStore,
 } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
+import { openBlockedReason } from '../../lib/shiftOpenRules.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType, nextShiftType } from '../../lib/shiftTypeOptions.ts';
 import { splitLocalDateTime, joinLocalDateTime, normalizeTime24 } from '../../lib/shiftDateTime.ts';
@@ -150,6 +151,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [storeCatalog, setStoreCatalog] = useState<any[] | null>(null);
   /** How much of the day's float is a προσαύξηση made earlier today (0047). */
   const [inheritedTopUps, setInheritedTopUps] = useState(0);
+  /** Πόσο κάτω από το πάγιο άφησε τα χαρτονομίσματα το βράδυ. 0 = κανονικά. */
+  const [floatShortfall, setFloatShortfall] = useState(0);
+  /** Οι τελευταίες βάρδιες του καταστήματος, για τους κανόνες ανοίγματος. */
+  const [storeShifts, setStoreShifts] = useState<any[]>([]);
 
   // Η επιθεώρηση. Built once the previous handover and the resolved float are
   // known, because «expected» is exactly what this screen is about to write
@@ -206,6 +211,21 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     // written. Blank means now, which is what the submit handler does too.
     const shiftStartIso = (openedAt ? new Date(openedAt) : new Date()).toISOString();
     const shiftDayKey = athensDateKey(shiftStartIso);
+
+    // Οι βάρδιες του καταστήματος, για τους κανόνες ανοίγματος. Ξεχωριστό
+    // ερώτημα και όχι η φιλτραρισμένη λίστα της οθόνης πίσω: με φίλτρο
+    // «Εγκεκριμένες» η ανοιχτή βάρδια δεν θα ήταν μέσα.
+    if (selectedStoreId) {
+      fetchRecentShiftsAtStore(organization!.id, selectedStoreId)
+        .then((rows) => { if (isMounted) setStoreShifts(rows ?? []); })
+        .catch((err) => {
+          // Σιωπηλά: ο έλεγχος της οθόνης χάνεται, η βάση κρατάει ακόμα τον
+          // δικό της. Το να μην ανοίγει βάρδια επειδή δεν φόρτωσε μια λίστα
+          // θα ήταν χειρότερο από το να λείπει ένα προειδοποιητικό μήνυμα.
+          console.warn('Could not read the store shifts:', err);
+          if (isMounted) setStoreShifts([]);
+        });
+    }
 
     // Only someone who can act for the store may put a shift in another
     // person's name. An employee opening their own till stays themselves.
@@ -313,6 +333,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         if (todaySnapshot) {
           // A shift is already on record for today, so this one continues the
           // day: same opening figures, not up for renegotiation at 15:00.
+          setFloatShortfall(0);
           const float = resolveOpeningFloat(null, configuredFloat, {
             notes: Number(todaySnapshot.opening_cash_notes ?? 0),
             coins: Number(todaySnapshot.opening_cash_coins ?? 0),
@@ -370,6 +391,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           setOpeningCoins(float.coins.toFixed(2));
           setIsAutoFetched(float.carriedOver);
           setInheritedTopUps(0);
+          setFloatShortfall(float.shortfall);
         }
         // The inspection is offered only for a handover that is finished,
         // belongs to somebody else, and nobody has checked yet. The RPC
@@ -464,18 +486,41 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // the staff list arrives after the modal has opened.
   const effectiveOperatorId = operatorId || user?.id || '';
   const effectiveOperator = staff.find((u) => u.id === effectiveOperatorId);
-  const effectiveOperatorName = effectiveOperator
+  const effectiveOperatorNameRaw = effectiveOperator
     ? `${effectiveOperator.first_name ?? ''} ${effectiveOperator.last_name ?? ''}`.trim()
       || effectiveOperator.email
     : user
     ? `${user.first_name} ${user.last_name}`
     : 'Χρήστης';
+  const effectiveOperatorName = effectiveOperatorNameRaw;
+
+  /**
+   * Γιατί δεν μπορεί να ανοίξει, ελεγμένο ΠΡΙΝ συμπληρωθεί οτιδήποτε.
+   *
+   * Μέχρι τώρα η μόνη άμυνα ήταν ο μοναδικός δείκτης της βάσης, που χτυπάει
+   * στο τέλος: ο χειριστής μετρούσε το συρτάρι, πατούσε «Έναρξη» και έπαιρνε
+   * «duplicate key». Τώρα το λέει από την αρχή, και με όνομα.
+   */
+  const blockedReason = openBlockedReason({
+    storeId: selectedStoreId,
+    operatorId: effectiveOperatorId,
+    operatorName: effectiveOperatorName,
+    openedAt: (openedAt ? new Date(openedAt) : new Date()).toISOString(),
+    shifts: storeShifts,
+  });
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Δεύτερος φραγμός. Το κουμπί είναι ήδη κλειδωμένο, αλλά ένα πλήκτρο
+    // Enter σε πεδίο υποβάλλει φόρμα χωρίς να περάσει από το κουμπί.
+    if (blockedReason) {
+      setError(blockedReason);
+      return;
+    }
 
     const activeStore = effectiveStores.find((s) => s.id === selectedStoreId) || effectiveStores[0];
     // The `|| 'store_opap_01'` that used to close this expression made the
@@ -711,7 +756,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       </button>
       <button
         type="submit"
-        disabled={loading || fetchingPrev}
+        disabled={loading || fetchingPrev || blockedReason !== null}
+        title={blockedReason ?? undefined}
         className="px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
       >
         {loading ? (
@@ -746,6 +792,19 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       footer={footerActions}
     >
       <div className="space-y-4 text-xs">
+          {/* Ο κανόνας, στην κορυφή και πριν από οτιδήποτε άλλο. Ένα
+              «duplicate key» αφού μετρήσει κανείς το συρτάρι δεν είναι
+              έλεγχος, είναι τιμωρία. */}
+          {blockedReason && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-900 flex items-start space-x-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-black">{toGreekUpper('Δεν μπορει να ανοιξει βαρδια')}</p>
+                <p className="font-semibold mt-0.5 leading-snug">{blockedReason}</p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start space-x-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -1025,6 +1084,21 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Group 2: Opening Cash Float Breakdown */}
           <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
+            {/* Ένα πάγιο που μίκρυνε χωρίς εξήγηση διαβάζεται ως λάθος της
+                εφαρμογής, και ο επόμενος το ξαναγράφει στο χέρι - που είναι
+                ακριβώς το μετρητό που ΔΕΝ υπάρχει στο συρτάρι. */}
+            {floatShortfall > 0 && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-amber-900">
+                <p className="text-micro font-black uppercase tracking-wider">
+                  {toGreekUpper('Το βραδυ αφησε λιγοτερα απο το παγιο')}
+                </p>
+                <p className="text-micro font-semibold mt-0.5 leading-snug">
+                  Η μέρα ανοίγει με όσα βρέθηκαν στο συρτάρι, {formatCurrency(floatShortfall)}{' '}
+                  κάτω από το πάγιο. Δεν έφυγε φάκελος χθες — αυτά τα χαρτονομίσματα
+                  δεν υπάρχουν για να μετρηθούν.
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-micro font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <span>{toGreekUpper('2. Αρχικο Ταμειο (Float €)')}</span>
