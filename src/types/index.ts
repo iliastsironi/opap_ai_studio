@@ -403,6 +403,8 @@ export interface ShiftTemplateConfig {
   // Where the «what there is to collect» summary appears (0050). The day's
   // last shift is when somebody comes round, so that is the default.
   collection_summary_mode: 'LAST_SHIFT_ONLY' | 'EVERY_SHIFT';
+  /** Τα πάγια αντιγράφονται μόνα τους από τον προηγούμενο μήνα (0077). */
+  fixed_costs_auto_repeat?: boolean;
   topup_employee_allowed: boolean;
   safedrop_employee_allowed: boolean;
   morning_coins_carry_over: boolean;

@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Plus, Search, DollarSign, Tag, CalendarDays, Clock, CheckCircle, Building2, ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
-import { fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense, ExpenseRecord } from '../../services/moduleServices.ts';
+import {
+  fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense,
+  updateAndSyncShiftExpense, ExpenseRecord,
+} from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, Supplier } from '../../types/index.ts';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { athensDateKey, currentMonthKey, shiftMonthKey, monthLabel } from '../../lib/pnlEngine.ts';
@@ -19,6 +22,7 @@ import { useExpenseCategories } from './useExpenseCategories.ts';
 import { COMPANY_EXPENSE_CATEGORY, isCompanyCategory } from '../../lib/expenseCategories.ts';
 import {
   addCompanyDailyExpense,
+  updateCompanyDailyExpense,
   deleteCompanyDailyExpense,
   fetchCompanyDailyExpenses,
 } from '../../services/pnlService.ts';
@@ -42,7 +46,19 @@ type ScreenExpense = ExpenseRecord & { isCompany?: boolean };
 
 export const ExpensesManager: React.FC = () => {
   const { selectedStoreId, stores } = useTenant();
-  const { user, organization, hasPermission } = useAuth();
+  const { user, organization, hasPermission, roles, permissions } = useAuth();
+
+  /**
+   * Ποιος διορθώνει ένα έξοδο.
+   *
+   * Στενότερο από την καταχώρηση, που είναι καθημερινή δουλειά. Η αλλαγή
+   * ενός ΠΟΣΟΥ μετακινεί το αναμενόμενο ταμείο μιας κλεισμένης βάρδιας και
+   * μαζί την απόκλισή της· δεν είναι το ίδιο πράγμα με το να γράψεις ένα
+   * καινούριο έξοδο. Ίδια λίστα με τη διόρθωση πακέτου στην αποθήκη.
+   */
+  const canEditExpense =
+    roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code)) ||
+    permissions.includes('*');
   const [expenses, setExpenses] = useState<ScreenExpense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Dating an expense to another day is the Owner's, not the counter's: it
@@ -93,6 +109,8 @@ export const ExpensesManager: React.FC = () => {
   const [expenseDate, setExpenseDate] = useState(() => athensDateKey(new Date().toISOString()));
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  /** Το έξοδο που διορθώνεται. null = καταχώρηση νέου. */
+  const [editing, setEditing] = useState<ScreenExpense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<{ id: string; storeId: string; shiftId?: string; label: string; isCompany?: boolean } | null>(null);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -222,6 +240,45 @@ export const ExpensesManager: React.FC = () => {
     }
   };
 
+  /** Καθαρίζει τη φόρμα και κλείνει το παράθυρο, ό,τι κι αν έκανε. */
+  const closeForm = () => {
+    setShowModal(false);
+    setEditing(null);
+    setCreateError(null);
+    setAmount('');
+    setSelectedSupplierId('');
+    setRecipient('');
+    setCustomRecipient('');
+    setReceiptNumber('');
+    setNotes('');
+  };
+
+  /**
+   * Ανοίγει τη φόρμα πάνω σε υπάρχον έξοδο.
+   *
+   * Η ίδια φόρμα, γεμισμένη. Δύο φόρμες για το ίδιο πράγμα είναι δύο
+   * σημεία να ξεχαστεί ένα πεδίο - και το πεδίο που ξεχνιέται είναι πάντα
+   * αυτό που κάποιος χρειαζόταν.
+   */
+  const openEdit = (exp: ScreenExpense) => {
+    setEditing(exp);
+    setCreateError(null);
+    setCategory(exp.category);
+    setAmount(String(exp.amount ?? '').replace('.', ','));
+    setPaymentMethod((exp.payment_method as any) || 'CASH');
+    // Ο παραλήπτης γράφεται ελεύθερα στη διόρθωση: το έξοδο κουβαλάει ένα
+    // όνομα, όχι έναν προμηθευτή με id, και ψάχνοντας να τον ταιριάξουμε
+    // στη λίστα θα τον χάναμε όποτε δεν είναι εκεί.
+    setSelectedSupplierId('CUSTOM');
+    setCustomRecipient(exp.recipient || '');
+    setRecipient(exp.recipient || '');
+    setReceiptNumber(exp.receipt_number || '');
+    setExpenseDate(exp.date || athensDateKey(new Date().toISOString()));
+    setNotes(exp.notes || '');
+    if (!exp.isCompany && exp.store_id) setTargetStoreId(exp.store_id);
+    setShowModal(true);
+  };
+
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountCheck = parseNonNegativeAmount(amount, MAX_CURRENCY_AMOUNT);
@@ -239,6 +296,55 @@ export const ExpensesManager: React.FC = () => {
     setSubmitting(true);
     setCreateError(null);
     try {
+      // Η οθόνη το εμποδίζει ήδη· αυτό είναι ο δεύτερος φραγμός, γιατί
+      // ένα εταιρικό κλειδί γραμμένο σε γραμμή shift_expenses είναι
+      // ακριβώς το λάθος που διορθώθηκε στο 0075.
+      if (editing && isCompanyEntry !== !!editing.isCompany) {
+        setCreateError(
+          'Ένα έξοδο δεν αλλάζει από έξοδο καταστήματος σε έξοδο εταιρίας. Σβήστε το και καταχωρήστε το ξανά.'
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      // ── Διόρθωση ────────────────────────────────────────────────────
+      // Το είδος του εξόδου δεν αλλάζει εδώ: ένα έξοδο καταστήματος και
+      // ένα εταιρικό ζουν σε διαφορετικούς πίνακες, οπότε η μετακίνηση
+      // δεν είναι διόρθωση πεδίου - είναι διαγραφή και νέα καταχώρηση,
+      // και πρέπει να φαίνεται έτσι στο ίχνος.
+      if (editing) {
+        if (editing.isCompany) {
+          await updateCompanyDailyExpense(editing.id, {
+            expenseDate: expenseDate || athensDateKey(new Date().toISOString()),
+            payee: finalRecipient,
+            amount: amountCheck.value,
+            note: notes || null,
+          });
+        } else {
+          await updateAndSyncShiftExpense(
+            {
+              id: editing.id,
+              organization_id: orgId,
+              store_id: editing.store_id,
+              shift_id: editing.shift_id,
+            },
+            {
+              category,
+              amount: amountCheck.value,
+              payment_method: paymentMethod,
+              recipient: finalRecipient,
+              receipt_number: receiptNumber || undefined,
+              notes: notes || undefined,
+              date: expenseDate || undefined,
+            }
+          );
+        }
+        await loadExpenses();
+        await loadSuppliers();
+        closeForm();
+        return;
+      }
+
       if (isCompanyEntry) {
         // Ανεξάρτητο από μαγαζί, γιατί ο πίνακας δεν έχει μαγαζί.
         //
@@ -283,16 +389,10 @@ export const ExpensesManager: React.FC = () => {
       // A recipient typed just now may have become a supplier inside
       // createAndSyncShiftExpense; pick it up so the next entry offers it.
       await loadSuppliers();
-      setShowModal(false);
-      setAmount('');
-      setSelectedSupplierId('');
-      setRecipient('');
-      setCustomRecipient('');
-      setReceiptNumber('');
-      setNotes('');
+      closeForm();
     } catch (err: any) {
       console.error('Expense error:', err);
-      setCreateError(err.message || 'Αποτυχία καταχώρησης εξόδου');
+      setCreateError(err.message || (editing ? 'Αποτυχία διόρθωσης εξόδου' : 'Αποτυχία καταχώρησης εξόδου'));
     } finally {
       setSubmitting(false);
     }
@@ -428,6 +528,9 @@ export const ExpensesManager: React.FC = () => {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => {
+              // Ρητά: αν το παράθυρο είχε ανοίξει πριν για διόρθωση, το
+              // «νέο έξοδο» πρέπει να είναι νέο έξοδο.
+              setEditing(null);
               setCreateError(null);
               setShowModal(true);
             }}
@@ -707,16 +810,27 @@ export const ExpensesManager: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-slate-700">{exp.created_by_user_name || 'Υπάλληλος'}</td>
                     <td className="px-4 py-3 text-right">
-                      <IconButton
-                        icon={Trash2}
-                        label="Διαγραφή εξόδου"
-                        tone="danger"
-                        onClick={() => {
-                          setDeleteError(null);
-                          setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id, isCompany: exp.isCompany });
-                        }}
-                        className="ml-auto"
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Η διόρθωση μόνο σε διαχειριστή: αλλάζοντας ποσό
+                            σε έξοδο δεμένο σε βάρδια, μετακινείται και η
+                            απόκλιση εκείνης της βάρδιας. */}
+                        {canEditExpense && (
+                          <IconButton
+                            icon={Pencil}
+                            label="Διόρθωση εξόδου"
+                            onClick={() => openEdit(exp)}
+                          />
+                        )}
+                        <IconButton
+                          icon={Trash2}
+                          label="Διαγραφή εξόδου"
+                          tone="danger"
+                          onClick={() => {
+                            setDeleteError(null);
+                            setExpenseToDelete({ id: exp.id, storeId: exp.store_id, shiftId: exp.shift_id, label: exp.recipient || exp.id, isCompany: exp.isCompany });
+                          }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -755,16 +869,16 @@ export const ExpensesManager: React.FC = () => {
       {/* New Expense Modal */}
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={closeForm}
         icon={Receipt}
-        title="Καταχώρηση Νέου Εξόδου Ταμείου"
+        title={editing ? 'Διόρθωση Εξόδου' : 'Καταχώρηση Νέου Εξόδου Ταμείου'}
         size="md"
         bodyAsForm
         onSubmit={handleCreateExpense}
         footer={
           <ModalActions
-            onCancel={() => setShowModal(false)}
-            saveLabel="Καταχώρηση"
+            onCancel={closeForm}
+            saveLabel={editing ? 'Αποθήκευση' : 'Καταχώρηση'}
             isSaving={submitting}
             savingLabel="Αποθήκευση..."
           />
@@ -853,7 +967,16 @@ export const ExpensesManager: React.FC = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                   >
-                    {categoryOptions.map((c) => (
+                    {/* Σε διόρθωση, μόνο κατηγορίες της ίδιας πλευράς.
+                        Ένα έξοδο καταστήματος και ένα εταιρικό ζουν σε
+                        διαφορετικούς πίνακες· η μετακίνηση δεν είναι αλλαγή
+                        πεδίου και δεν γίνεται από εδώ. */}
+                    {(editing
+                      ? categoryOptions.filter(
+                          (c) => isCompanyCategory(c.key, categories) === !!editing.isCompany
+                        )
+                      : categoryOptions
+                    ).map((c) => (
                       <option key={c.key} value={c.key}>{c.label}</option>
                     ))}
                   </select>

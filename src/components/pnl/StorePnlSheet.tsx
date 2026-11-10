@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Banknote, Building2, Coffee, Coins, Copy, Edit2, Plus, Receipt, Trash2 } from 'lucide-react';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
@@ -12,6 +12,7 @@ import {
   weekdayLabel,
 } from '../../lib/pnlEngine.ts';
 import { copyFixedCostsFromPreviousMonth, deleteCommissionBatch, saveCommissionBatch, saveFixedCosts } from '../../services/pnlService.ts';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { AddExpenseModal } from './AddExpenseModal.tsx';
 import { AmountLinesModal } from './AmountLinesModal.tsx';
 import { CommissionEntryModal } from './CommissionEntryModal.tsx';
@@ -46,6 +47,16 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
   const [isCopying, setIsCopying] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [showAllFnbDays, setShowAllFnbDays] = useState(false);
+  /**
+   * Ένα κλειδί «κατάστημα + μήνας» για κάθε αυτόματη αντιγραφή που έγινε.
+   *
+   * Χωρίς αυτό, η αντιγραφή καλεί το onChanged(), το φύλλο ξαναδιαβάζεται,
+   * το effect ξανατρέχει - και αν για οποιονδήποτε λόγο ο μήνας έμενε
+   * άδειος, θα έγραφε ξανά και ξανά.
+   */
+  const autoCopied = useRef<Set<string>>(new Set());
+  /** Αν αυτό το κατάστημα έχει ζητήσει αυτόματη επανάληψη παγίων (0077). */
+  const [autoRepeat, setAutoRepeat] = useState(false);
 
   const fallbackStoreId = (result.units.find((unit) => unit.hasActivity) ?? result.units[0])?.storeId;
   const sheet = result.stores.find((s) => s.store.id === storeId) ?? result.stores.find((s) => s.store.id === fallbackStoreId);
@@ -56,6 +67,23 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
 
   const { store, fnb } = sheet;
   const month = result.month;
+
+  // Η ρύθμιση ζει στη διαμόρφωση του καταστήματος, δίπλα στις υπόλοιπες του
+  // ίδιου είδους. Αποτυχία ανάγνωσης σημαίνει «χειροκίνητα», που είναι η
+  // ακίνδυνη κατεύθυνση: τίποτα δεν γράφεται από μόνο του.
+  useEffect(() => {
+    let cancelled = false;
+    getShiftTemplateConfig(orgId, store.id)
+      .then((cfg) => {
+        if (!cancelled) setAutoRepeat((cfg as any)?.fixed_costs_auto_repeat === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAutoRepeat(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, store.id]);
   const storeUnit = result.units.find((unit) => unit.key === `${store.id}:STORE`);
   const fnbUnit = result.units.find((unit) => unit.key === `${store.id}:FNB`);
   const fnbRows = fnb ? (showAllFnbDays ? fnb.days : fnb.days.filter((day) => day.turnover !== 0 || day.expenses !== 0)) : [];
@@ -79,6 +107,42 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
       setIsCopying(false);
     }
   };
+
+  /**
+   * Η αυτόματη επανάληψη των παγίων (0077).
+   *
+   * Τρέχει όταν ανοίγει το φύλλο ενός μήνα, και ΜΟΝΟ όταν ο μήνας είναι
+   * άδειος από πάγια: τίποτα γραμμένο δεν αντικαθίσταται ποτέ. Η εφαρμογή
+   * δεν έχει χρονοδιακόπτη - κανείς δεν τρέχει την πρώτη του μήνα - οπότε
+   * «αυτόματα» σημαίνει «την πρώτη φορά που κοιτάει κανείς τον μήνα».
+   *
+   * Και το λέει. Μια σιωπηλή εγγραφή ποσών που κανείς δεν επιβεβαίωσε είναι
+   * ακριβώς ο τρόπος που ένα περσινό ενοίκιο μένει σε έναν μήνα που άλλαξε.
+   */
+  useEffect(() => {
+    if (!autoRepeat) return;
+    if (sheet.fixedCosts.lines.length > 0) return;
+    const key = `${store.id}:${month}`;
+    if (autoCopied.current.has(key)) return;
+    autoCopied.current.add(key);
+
+    let cancelled = false;
+    copyFixedCostsFromPreviousMonth(orgId, store.id, month)
+      .then(async (copied) => {
+        if (cancelled || copied === 0) return;
+        setNotice(
+          `${copied === 1 ? 'Αντιγράφηκε αυτόματα 1 πάγιο' : `Αντιγράφηκαν αυτόματα ${copied} πάγια`} από τον προηγούμενο μήνα. Ελέγξτε τα ποσά.`
+        );
+        await onChanged();
+      })
+      .catch((err) => {
+        if (!cancelled) setNotice(err?.message || 'Η αυτόματη αντιγραφή των παγίων απέτυχε.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRepeat, store.id, month, sheet.fixedCosts.lines.length]);
 
   const confirmDeleteBatch = async () => {
     if (!batchToDelete) return;

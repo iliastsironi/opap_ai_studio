@@ -3,6 +3,7 @@ import { Shift } from '../types/index.ts';
 import { updateShiftInFirestore } from './shiftService.ts';
 import { createSupplierInFirestore, fetchSuppliersFromFirestore } from './supplierService.ts';
 import { athensDateKey } from '../lib/pnlEngine.ts';
+import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 
 // ----------------------------------------------------
 // EXPENSES SERVICE (backed by the shift_expenses table - absorbs what used
@@ -250,6 +251,60 @@ export async function createAndSyncShiftExpense(
   }
 
   return created;
+}
+
+/**
+ * Διορθώνει ένα έξοδο που γράφτηκε λάθος.
+ *
+ * Η οθόνη των εξόδων έγραφε και έσβηνε, δεν διόρθωνε. Ένα λάθος ποσό
+ * σήμαινε «σβήσ' το και ξαναγράψ' το», που είναι δύο κινήσεις στο ίχνος για
+ * μία διόρθωση - και στα μισά βήματα το έξοδο δεν υπάρχει πουθενά.
+ *
+ * ΤΟ ΠΟΣΟ ΕΙΝΑΙ ΤΑΜΕΙΟ. Ένα έξοδο δεμένο σε βάρδια μετράει μέσα στο
+ * expenses_paid_cash της, δηλαδή στο αναμενόμενο ταμείο και στην απόκλιση.
+ * Αλλάζοντας το ποσό χωρίς να ξαναϋπολογιστεί εκείνο το άθροισμα, η βάρδια
+ * κρατάει το παλιό και η απόκλισή της γίνεται λάθος κατά τη διαφορά -
+ * σιωπηλά. Γι' αυτό ο συγχρονισμός εδώ είναι ο ίδιος με της δημιουργίας και
+ * της διαγραφής: ξαναμετράει από τις πραγματικές γραμμές.
+ *
+ * Ελέγχεται ότι όντως γράφτηκε. Ένα UPDATE που η RLS φιλτράρει γυρίζει 204
+ * χωρίς σφάλμα, και «αποθηκεύτηκε» θα σήμαινε ότι δεν έγινε τίποτα.
+ */
+export async function updateAndSyncShiftExpense(
+  expense: Pick<ExpenseRecord, 'id' | 'organization_id' | 'store_id' | 'shift_id'>,
+  patch: Partial<Pick<ExpenseRecord,
+    'category' | 'amount' | 'payment_method' | 'recipient' | 'receipt_number' | 'notes' | 'date'>>
+): Promise<void> {
+  const { error, count } = await supabase
+    .from(EXPENSES_TABLE)
+    .update(cleanData({ ...patch }), { count: 'exact' })
+    .eq('id', expense.id);
+  if (error) {
+    await handleSupabaseError(error, OperationType.UPDATE, `${EXPENSES_TABLE}/${expense.id}`);
+    throw error;
+  }
+  if (rowsWrittenProblem(count)) {
+    throw new Error(
+      'Το έξοδο δεν ενημερώθηκε — είτε δεν έχετε δικαίωμα αλλαγής, είτε το έχει ήδη σβήσει κάποιος άλλος.'
+    );
+  }
+
+  // Ο νέος παραλήπτης μπαίνει στους προμηθευτές, όπως και στη δημιουργία.
+  // Ποτέ δεν ρίχνει τη διόρθωση: το έξοδο είναι η εγγραφή που μετράει.
+  if (patch.recipient) {
+    await registerRecipientAsSupplier(
+      expense.organization_id,
+      expense.store_id,
+      patch.recipient,
+      patch.category
+    ).catch((err) => console.warn('Could not register the recipient as a supplier:', err));
+  }
+
+  if (expense.shift_id) {
+    await syncShiftExpensesCashTotal(expense.organization_id, expense.store_id, expense.shift_id).catch((err) => {
+      console.warn('Could not sync expenses_paid_cash after update:', err);
+    });
+  }
 }
 
 // Delete counterpart - keeps expenses_paid_cash correct after a row goes

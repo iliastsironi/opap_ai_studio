@@ -1155,6 +1155,35 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               </p>
             </div>
 
+            {/* Τα πάγια είναι εξ ορισμού τα ίδια κάθε μήνα. Μέχρι τώρα το
+                σύστημα ζητούσε ένα κλικ επιβεβαίωσης ανά κατάστημα ανά μήνα
+                για ακριβώς αυτό που ο όρος «πάγιο» υπόσχεται. */}
+            <div>
+              <label htmlFor="cfg-fixed-repeat" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
+                Πάγια έξοδα
+              </label>
+              <select
+                id="cfg-fixed-repeat"
+                disabled={!canManageScratchMode}
+                value={(template as any).fixed_costs_auto_repeat ? 'AUTO' : 'MANUAL'}
+                onChange={(e) =>
+                  setTemplate((prev) => ({
+                    ...prev,
+                    fixed_costs_auto_repeat: e.target.value === 'AUTO',
+                  } as any))
+                }
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 bg-white disabled:bg-slate-50 cursor-pointer"
+              >
+                <option value="MANUAL">Χειροκίνητη αντιγραφή κάθε μήνα</option>
+                <option value="AUTO">Αυτόματη επανάληψη κάθε μήνα</option>
+              </select>
+              <p className="text-micro text-slate-500 mt-1">
+                {(template as any).fixed_costs_auto_repeat
+                  ? 'Μόλις ανοίξει ένας μήνας χωρίς πάγια, αντιγράφονται από τον προηγούμενο — με τα ΠΟΣΑ του. Ελέγξτε τα πριν τα δεχτείτε.'
+                  : 'Με το κουμπί «Από προηγούμενο μήνα» στο Οικονομικό P&L, όποτε το θέλετε.'}
+              </p>
+            </div>
+
             <div>
               <label htmlFor="cfg-pos" className="block text-micro font-black text-slate-700 uppercase tracking-wider mb-1">
                 Τερματικά POS / Tora

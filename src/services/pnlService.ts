@@ -1,4 +1,5 @@
 import { supabase, handleSupabaseError, OperationType } from './supabase.ts';
+import { rowsWrittenProblem } from '../lib/writeGuard.ts';
 import {
   BUILTIN_EXPENSE_CATEGORIES,
   ExpenseCategoryDef,
@@ -732,6 +733,34 @@ export async function fetchCompanyDailyExpenses(orgId: string): Promise<PnlCompa
       .order('expense_date', { ascending: false }),
     toCompanyDaily
   );
+}
+
+/**
+ * Διορθώνει ένα έξοδο εταιρίας.
+ *
+ * Δίδυμο του updateAndSyncShiftExpense για την άλλη πλευρά: αυτά δεν
+ * ανήκουν σε μαγαζί ούτε σε βάρδια, οπότε δεν υπάρχει ταμείο να
+ * συγχρονιστεί - μόνο η ίδια η γραμμή.
+ */
+export async function updateCompanyDailyExpense(
+  id: string,
+  patch: { expenseDate?: string; payee?: string; amount?: number; note?: string | null }
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (patch.expenseDate !== undefined) body.expense_date = patch.expenseDate;
+  if (patch.payee !== undefined) body.payee = patch.payee.trim();
+  if (patch.amount !== undefined) body.amount = patch.amount;
+  if (patch.note !== undefined) body.note = (patch.note ?? '').trim() || null;
+  if (Object.keys(body).length === 0) return;
+
+  const { error, count } = await supabase
+    .from(COMPANY_DAILY_TABLE)
+    .update(body, { count: 'exact' })
+    .eq('id', id);
+  if (error) throw error;
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Το έξοδο εταιρίας δεν ενημερώθηκε — ίσως δεν έχετε δικαίωμα ή σβήστηκε.');
+  }
 }
 
 export async function deleteCompanyDailyExpense(id: string): Promise<void> {
