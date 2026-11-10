@@ -44,7 +44,8 @@ import {
 } from '../../lib/shiftCreditLines.ts';
 import { fetchShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
-import { fetchDayCollection } from '../../services/shiftService.ts';
+import { fetchDayCollection, fetchDayCoinHandover } from '../../services/shiftService.ts';
+import { auditCountedCash } from '../../lib/countedCashAudit.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import {
   safeNum,
@@ -203,11 +204,24 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
    */
   const [dayCollection, setDayCollection] = useState<CollectableShift[]>([]);
   const [collectionMode, setCollectionMode] = useState<unknown>(undefined);
+  /**
+   * Κέρματα που παρέδωσε ΝΩΡΙΤΕΡΑ σήμερα άλλη βάρδια.
+   *
+   * Είναι μέσα στο counted_cash αυτής της βάρδιας - το άνοιγμα της ημέρας
+   * τα μετράει ακόμα, παρόλο που έφυγαν - και μέχρι τώρα καμία γραμμή της
+   * επιθεώρησης δεν τα ανέφερε. Από εκεί η ερώτηση «μέτρησε τα 25 €;».
+   */
+  const [carriedCoins, setCarriedCoins] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setDayCollection([]);
-    if (!shift?.id || !isManagerOrOwner) return undefined;
+    setCarriedCoins(0);
+    if (!shift?.id) return undefined;
+    fetchDayCoinHandover(shift.id)
+      .then((amount) => { if (!cancelled) setCarriedCoins(amount); })
+      .catch(() => {});
+    if (!isManagerOrOwner) return () => { cancelled = true; };
     fetchDayCollection(shift.id)
       .then((rows) => { if (!cancelled) setDayCollection(rows); })
       .catch(() => {});
@@ -768,14 +782,71 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Ταμείο (Τελική Συμφωνία)
                         </div>
-                        <div className="flex justify-between text-slate-300 py-0.5">
-                          <span>Μετρητά Χαρτονομίσματα:</span>
-                          <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.banknotes)}</span>
-                        </div>
-                        <div className="flex justify-between text-slate-300 py-0.5">
-                          <span>Κέρματα:</span>
-                          <span className="font-mono font-bold text-white">{formatCurrency(banknotesAndCoins.coins)}</span>
-                        </div>
+                        {/* Το μέτρημα, γραμμή-γραμμή, και από κάτω το
+                            άθροισμά τους δίπλα σε ό,τι λέει η βάση. Μέχρι
+                            τώρα το «Σύνολο Καταμέτρησης» ΔΕΝ ήταν το
+                            άθροισμα των γραμμών από πάνω του: στη βραδινή
+                            της 10/11 τα κοψίματα έβγαζαν 6.091 € και το
+                            σύνολο 6.116 €, με τα 25 € του μεσημεριανού
+                            μετρημένα σωστά και αόρατα. Μια επιθεώρηση που
+                            δεν αθροίζει μπροστά σου δεν είναι επιθεώρηση. */}
+                        {(() => {
+                          const audit = auditCountedCash({
+                            notes: banknotesAndCoins.banknotes,
+                            coins: banknotesAndCoins.coins,
+                            ownHandover: shift.coin_handover,
+                            carriedToday: carriedCoins,
+                            stored: shift.counted_cash,
+                          });
+                          return (
+                            <>
+                              {audit.lines
+                                .filter((l) => !l.onlyWhenSet || Math.abs(l.amount) > 0.005)
+                                .map((l) => (
+                                  <div
+                                    key={l.key}
+                                    className={`flex justify-between py-0.5 ${
+                                      l.key === 'UNEXPLAINED' ? 'text-rose-300' : 'text-slate-300'
+                                    }`}
+                                    title={l.hint}
+                                  >
+                                    <span>{l.label}:</span>
+                                    <span
+                                      className={`font-mono font-bold ${
+                                        l.key === 'UNEXPLAINED' ? 'text-rose-200' : 'text-white'
+                                      }`}
+                                    >
+                                      {formatCurrency(l.amount, { showSign: l.key === 'UNEXPLAINED' })}
+                                    </span>
+                                  </div>
+                                ))}
+                              <div
+                                className={`flex justify-between py-1 mt-0.5 border-t font-bold ${
+                                  audit.balances
+                                    ? 'border-slate-800 text-emerald-200'
+                                    : 'border-rose-700 text-rose-200'
+                                }`}
+                              >
+                                <span>
+                                  {audit.balances ? 'Σύνολο μετρημένων ✓' : 'Σύνολο μετρημένων ✗'}
+                                </span>
+                                <span className="font-mono">{formatCurrency(audit.stored)}</span>
+                              </div>
+                              {!audit.balances && (
+                                <p className="text-micro text-rose-300 leading-snug">
+                                  Οι γραμμές από πάνω δίνουν {formatCurrency(audit.computed)}. Η
+                                  διαφορά δεν εξηγείται από το μέτρημα — ελέγξτε τη βάρδια.
+                                </p>
+                              )}
+                              {carriedCoins > 0 && (
+                                <p className="text-micro text-amber-200 leading-snug">
+                                  Τα {formatCurrency(carriedCoins)} κέρματα τα παρέδωσε προηγούμενη
+                                  βάρδια της ημέρας. Μετριούνται εδώ, δεν παραδίδονται ξανά.
+                                </p>
+                              )}
+                            </>
+                          );
+                        })()}
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Χρηματοκιβώτιο:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(bankDeposits)}</span>
@@ -791,12 +862,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             wondering whether it was zero or not recorded. It
                             was hidden at zero, which is why it was invisible
                             on every shift that had no cup. */}
-                        <div className="flex justify-between text-slate-300 py-0.5">
-                          <span>Παράδοση Κερμάτων:</span>
-                          <span className="font-mono font-bold text-white">
-                            {formatCurrency(safeNum(shift.coin_handover))}
-                          </span>
-                        </div>
                         {usedBatchClose ? (
                           <>
                             <div className="flex justify-between text-slate-400 py-0.5 text-micro">
