@@ -35,6 +35,7 @@ import {
   InspectionLine, summariseInspection, inspectionStatusFor, lineFinding,
 } from '../../lib/shiftInspection.ts';
 import { shouldOfferInspection } from '../../lib/inspectionPolicy.ts';
+import { storeOptionLabel } from '../../lib/storeAccess.ts';
 import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
 import {
   ShiftInspectionPanel, buildInspectionLines, applyInspectionToScratchRows,
@@ -772,7 +773,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 <option value="">-- Επιλέξτε Κατάστημα --</option>
                 {effectiveStores.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
+                    {storeOptionLabel(s)}
                   </option>
                 ))}
               </select>

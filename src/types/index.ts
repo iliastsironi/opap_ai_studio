@@ -152,6 +152,12 @@ export interface UserStoreAssignment {
   user_id: string;
   organization_id: string;
   store_id: string;
+  /**
+   * ΔΕΝ γεμίζουν από το fetchMyStoreAssignments: ο πίνακας κρατάει μόνο
+   * store_id. Το όνομα ενός καταστήματος ζει στο `stores`, και η λίστα που
+   * ενώνει τα δύο είναι το TenantContext. Διαβάζοντάς τα από εδώ, η οθόνη
+   * βαρδιών έβγαζε κενή ετικέτα - « ()», που διαβάζεται «0».
+   */
   store_name?: string;
   store_code?: string;
   department_id?: string;

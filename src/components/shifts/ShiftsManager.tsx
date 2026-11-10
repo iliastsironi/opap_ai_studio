@@ -42,6 +42,7 @@ import {
   canDeleteShift, closedShiftWarning, deleteShiftLabel,
 } from '../../lib/shiftDeletePermission.ts';
 import { handsOverCash, shiftHandover } from '../../lib/shiftHandover.ts';
+import { storeOptionLabel } from '../../lib/storeAccess.ts';
 import {
   creditChoiceMissing, creditDispositionNote, deletionLines, needsCreditChoice,
   type CreditChoice, type CreditDisposition, type ShiftDeletionCounts,
@@ -102,7 +103,7 @@ import {
 } from '../../lib/inspectionDayGroups.ts';
 
 export const ShiftsManager: React.FC = () => {
-  const { token, organization, roles, hasPermission, assignedStores } = useAuth();
+  const { token, organization, roles, hasPermission } = useAuth();
   const { currentStore, stores: tenantStores, storeId, setStoreId } = useTenant();
 
   const isOwnerOrAdmin =
@@ -125,18 +126,27 @@ export const ShiftsManager: React.FC = () => {
     hasPermission('shift.approve') ||
     hasPermission('shifts.approve');
 
-  const availableStores =
-    assignedStores && assignedStores.length > 0
-      ? assignedStores.map((s) => ({
-          id: s.store_id,
-          name: s.store_name || s.store_code,
-          code: s.store_code || '',
-        }))
-      : tenantStores.map((s) => ({
-          id: s.id,
-          name: s.name,
-          code: s.code,
-        }));
+  /**
+   * Τα καταστήματα που μπορεί να δουλέψει αυτός ο χρήστης.
+   *
+   * Από το TenantContext και ΜΟΝΟ. Εδώ η λίστα χτιζόταν ξανά από τις
+   * αναθέσεις του χρήστη, και το user_store_assignments δεν κρατάει όνομα
+   * ούτε κωδικό καταστήματος - μόνο store_id. Έτσι το `{s.name} ({s.code})`
+   * έβγαζε « ()», που στην οθόνη διαβάζεται «0»: ο υπάλληλος άνοιγε «Έναρξη
+   * Νέας Βάρδιας» και έβλεπε ένα μηδενικό αντί για το μαγαζί του.
+   *
+   * Το φιλτράρισμα δεν χάνεται - το TenantContext το κάνει ήδη με τις ίδιες
+   * αναθέσεις (visibleStores), και το λέει ρητά: «One rule, one place, and
+   * every consumer is right at once». Αυτή η οθόνη δεν είχε ρωτήσει.
+   *
+   * Αλλάζει και κάτι ακόμα προς το σωστό: ένας ιδιοκτήτης που έτυχε να έχει
+   * μία ανάθεση έβλεπε ΜΟΝΟ εκείνο το μαγαζί. Τώρα βλέπει όσα του αναλογούν.
+   */
+  const availableStores = tenantStores.map((s) => ({
+    id: s.id,
+    name: s.name,
+    code: s.code,
+  }));
 
   // Was falling back to three invented stores when the list was empty. An
   // empty list is the truth; the screen handles it.
@@ -949,7 +959,7 @@ export const ShiftsManager: React.FC = () => {
                   <option value="ALL">{toGreekUpper('Ολα τα Καταστηματα')}</option>
                   {effectiveStores.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.code})
+                      {storeOptionLabel(s)}
                     </option>
                   ))}
                 </select>

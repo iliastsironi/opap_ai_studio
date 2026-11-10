@@ -80,3 +80,25 @@ export function isElevatedRole(
   if ((permissions ?? []).includes('*')) return true;
   return (roles ?? []).some((r) => ELEVATED_ROLE_CODES.includes(r?.code ?? ''));
 }
+
+/**
+ * Πώς διαβάζεται ένα κατάστημα σε μια λίστα επιλογής.
+ *
+ * Υπάρχει επειδή `{store.name} ({store.code})` γράφτηκε σε δύο οθόνες, και
+ * σε μία από τις δύο το αντικείμενο δεν είχε ούτε όνομα ούτε κωδικό: το
+ * ShiftsManager έφτιαχνε τη λίστα από τις ΑΝΑΘΕΣΕΙΣ του χρήστη, και το
+ * user_store_assignments δεν κρατάει όνομα καταστήματος. Το JSX έβγαζε
+ * « ()» - δύο παρενθέσεις κολλητά, που στην οθόνη διαβάζονται «0». Ο
+ * υπάλληλος άνοιγε τη λίστα καταστημάτων και έβλεπε ένα μηδενικό.
+ *
+ * Καμία επιλογή δεν επιτρέπεται να είναι κενή: αν λείπουν και τα δύο, πέφτει
+ * στο id. Ένα id είναι άσχημο αλλά διαλέγεται· το « ()» δεν διαλέγεται.
+ */
+export function storeOptionLabel(
+  store: { id?: string | null; name?: string | null; code?: string | null } | null | undefined
+): string {
+  const name = String(store?.name ?? '').trim();
+  const code = String(store?.code ?? '').trim();
+  if (name && code) return name === code ? name : `${name} (${code})`;
+  return name || code || String(store?.id ?? '').trim() || '—';
+}

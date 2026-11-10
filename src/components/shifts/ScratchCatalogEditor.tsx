@@ -7,6 +7,7 @@ import {
 } from './ScratchCalculatorTable.tsx';
 import { fetchScratchCatalogForEditing, saveScratchCatalog } from '../../services/scratchCatalogService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
+import { bundleSizeProblem } from '../../lib/scratchBarcode.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 
 /**
@@ -96,6 +97,16 @@ export const ScratchCatalogEditor: React.FC<{
     const unnamed = rows.findIndex((r) => !r.name.trim());
     if (unnamed !== -1) {
       setError(`Η γραμμή ${unnamed + 1} δεν έχει όνομα παιχνιδιού.`);
+      return;
+    }
+    // Ένα σκρατς με αδύνατη πεντάδα μετριέται σαν λαχείο και δεν το λέει
+    // πουθενά. Σταματάει εδώ αντί να το ανακαλύψει κανείς στο ταμείο.
+    const badBundle = rows.findIndex(
+      (r) => !isLotteryRow(r) && bundleSizeProblem(r.price, r.bundleSize, r.packPieces) !== null
+    );
+    if (badBundle !== -1) {
+      const r = rows[badBundle];
+      setError(`«${r.name || `Γραμμή ${badBundle + 1}`}»: ${bundleSizeProblem(r.price, r.bundleSize, r.packPieces)}`);
       return;
     }
     setSaving(true);
@@ -202,7 +213,11 @@ export const ScratchCatalogEditor: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {rows.map((row, index) => {
+              const bundleProblem = isLotteryRow(row)
+                ? null
+                : bundleSizeProblem(row.price, row.bundleSize, row.packPieces);
+              return (
               <tr key={row.id} className="border-b border-slate-100 last:border-0">
                 <td className="py-2 pr-2">
                   <div className="flex items-center gap-1">
@@ -281,8 +296,18 @@ export const ScratchCatalogEditor: React.FC<{
                     title="Τεμάχια ανά πακέτο (π.χ. 5 για πεντάδα). Κενό για μεμονωμένα."
                     aria-label={`Τεμάχια ανά πακέτο για ${row.name || "το παιχνίδι"}`}
                     onChange={(next) => update(index, { bundleSize: next > 1 ? next : undefined })}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right"
+                    className={`w-full px-2.5 py-1.5 rounded-lg border font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right ${
+                      bundleProblem ? 'border-rose-400 text-rose-700' : 'border-slate-200'
+                    }`}
                   />
+                  {/* Το λάθος φαίνεται στη γραμμή του, όχι μόνο στην
+                      αποθήκευση: τα δύο αριθμητικά κουτάκια είναι δίπλα-δίπλα
+                      και ο αριθμός παιχνιδιού πέφτει εύκολα στο αριστερό. */}
+                  {bundleProblem && (
+                    <span className="block mt-1 text-micro font-bold text-rose-600 leading-tight max-w-[12rem]">
+                      {bundleProblem}
+                    </span>
+                  )}
                 </td>
                 {/* Ο αριθμός παιχνιδιού: ό,τι σκανάρεται πρώτο στην αποθήκη.
                     Κενό σημαίνει «δεν μπαίνει στην αποθήκη», που είναι σωστό
@@ -342,7 +367,8 @@ export const ScratchCatalogEditor: React.FC<{
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
