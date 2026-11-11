@@ -17,20 +17,43 @@
  */
 
 import { athensDateKey } from './pnlEngine.ts';
+import { isActiveStatus, isClosedShift } from './shiftStatus.ts';
+
+// Οι δύο λίστες ζουν στο lib/shiftStatus.ts - φύλλο χωρίς εισαγωγές, ώστε
+// να μπορεί να τις διαβάσει και ο pnlEngine χωρίς κύκλο. Ξαναβγαίνουν από
+// εδώ γιατί εδώ τις ζητούσαν μέχρι τώρα.
+export {
+  ACTIVE_SHIFT_STATUSES,
+  CLOSED_SHIFT_STATUSES,
+  isClosedShift,
+  closedShifts,
+} from './shiftStatus.ts';
 
 /**
- * Οι καταστάσεις που μετράνε ως «ανοιχτή».
+ * Οι καταστάσεις μιας βάρδιας που ΕΧΕΙ μετρηθεί.
  *
- * Ίδιες ακριβώς με τον μοναδικό δείκτη της βάσης. Αν αποκλίνουν, η οθόνη θα
- * λέει «ελεύθερο» για κάτι που η βάση θα αρνηθεί - ή, χειρότερα, το αντίθετο.
+ * «Στην επισκόπηση που μου δείχνεις αποκλίσεις ταμείου, έσοδα, έξοδα και
+ * λοιπά, να μην τα βλέπει live με το ταμείο που είναι ανοιχτό, γιατί πάει
+ * και μου βγάζει μια απόκλιση πολύ μεγάλη. Θέλουμε να βλέπει μέχρι την
+ * τελευταία κλεισμένη βάρδια· τα ταμεία που τρέχουνε θα περνάνε μέσα μόλις
+ * κλείνουνε.»
+ *
+ * Και είχε δίκιο στο νούμερο: η συνολική απόκλιση του πρακτορείου έγραφε
+ * −1.658,11 € ενώ μέχρι την τελευταία κλεισμένη βάρδια ήταν −136,70 €. Η
+ * διαφορά ήταν δύο ταμεία που δούλευαν ακόμα, και το ένα τους κουβαλούσε
+ * μια μισοσυμπληρωμένη απόκλιση −1.531,10 €. Ένα ταμείο στη μέση της
+ * βάρδιας δεν έχει απόκλιση· έχει μετρήσεις που δεν έχουν γίνει ακόμα.
+ *
+ * Ο κανόνας υπήρχε ήδη στον pnlEngine - «only closed shifts have a
+ * meaningful count» - και έλειπε από την επισκόπηση. Τώρα είναι ένας, εδώ,
+ * και τον διαβάζουν και οι δύο.
+ *
+ * Μαζί με τα ACTIVE_SHIFT_STATUSES καλύπτουν ΟΛΟΚΛΗΡΟ το ShiftStatus
+ * (OPEN, DRAFT_CLOSING, CORRECTION_REQUESTED, REOPENED | SUBMITTED,
+ * APPROVED), οπότε «κλεισμένη» και «όχι σε εξέλιξη» σήμερα συμπίπτουν. Αν
+ * προστεθεί ποτέ έβδομη κατάσταση, εδώ αποφασίζεται σε ποια μεριά πέφτει -
+ * και όχι σε έξι αθροίσματα σκορπισμένα σε τρεις οθόνες.
  */
-export const ACTIVE_SHIFT_STATUSES: ReadonlyArray<string> = [
-  'OPEN',
-  'DRAFT_CLOSING',
-  'CORRECTION_REQUESTED',
-  'REOPENED',
-];
-
 export interface ShiftLike {
   id?: string;
   store_id?: string | null;
@@ -42,7 +65,28 @@ export interface ShiftLike {
 }
 
 export function isActiveShift(shift: ShiftLike | null | undefined): boolean {
-  return ACTIVE_SHIFT_STATUSES.includes(String(shift?.status ?? ''));
+  return isActiveStatus(shift?.status);
+}
+
+/**
+ * Πότε έκλεισε η τελευταία - το «μέχρι πότε» ενός αθροίσματος.
+ *
+ * Λέγεται, δεν υπονοείται: ένα σύνολο χωρίς ημερομηνία διαβάζεται ως «τώρα»,
+ * και τώρα είναι ακριβώς αυτό που δεν είναι. Προτιμά το closed_at και πέφτει
+ * στο opened_at όταν λείπει - μια βάρδια υποβληθείσα πριν μπει η στήλη δεν
+ * έχει ώρα κλεισίματος, και το άνοιγμά της είναι πιο κοντά από το τίποτα.
+ */
+export function lastClosedAt(
+  shifts: ReadonlyArray<ShiftLike & { closed_at?: string | null }> | null | undefined
+): string | null {
+  let latest: string | null = null;
+  for (const s of shifts ?? []) {
+    if (!isClosedShift(s)) continue;
+    const when = String(s.closed_at ?? '').trim() || String(s.opened_at ?? '').trim();
+    if (when === '') continue;
+    if (latest === null || when > latest) latest = when;
+  }
+  return latest;
 }
 
 /**

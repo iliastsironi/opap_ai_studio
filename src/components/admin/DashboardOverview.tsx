@@ -22,6 +22,11 @@ import { Shift } from '../../types/index.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { StatCard } from '../ui/StatCard.tsx';
+import {
+  closedShifts,
+  isActiveShift,
+  lastClosedAt,
+} from '../../lib/shiftOpenRules.ts';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -102,19 +107,35 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
   // Compute live KPIs from shifts, falling back to demo numbers only when there
   // is no shift data at all - a real sum of exactly 0 must stay 0, not get
   // silently replaced by a demo constant.
+  //
+  // ΜΟΝΟ ΚΛΕΙΣΜΕΝΕΣ. Τα τέσσερα αθροίσματα διάβαζαν κάθε βάρδια, και ένα
+  // ταμείο στη μέση της βάρδιας έχει μισοσυμπληρωμένα νούμερα: η συνολική
+  // απόκλιση έγραφε −1.658,11 € ενώ μέχρι την τελευταία κλεισμένη ήταν
+  // −136,70 €, και η διαφορά ήταν δύο ταμεία που δούλευαν ακόμα. Τα λόγια
+  // του ιδιοκτήτη: «τα ταμεία που τρέχουνε θα περνάνε μέσα μόλις
+  // κλείνουνε». Ο κανόνας ζει στο lib/shiftStatus.ts - το ένα φύλλο που
+  // ορίζει ποια κατάσταση μετράει, και το διαβάζουν επίσης ο pnlEngine, η
+  // λίστα βαρδιών και οι αναφορές.
+  const countedShifts = closedShifts(allShifts);
+  const runningTills = allShifts.filter((s) => isActiveShift(s)).length;
+  const countedThrough = lastClosedAt(allShifts);
   const totalCompletedShifts = allShifts.filter((s) => s.status === 'APPROVED').length;
+  // Το αν δείχνουμε δοκιμαστικά νούμερα κρίνεται από το αν υπάρχει ΒΑΡΔΙΑ,
+  // όχι από το αν έχει κλείσει κάποια: ένα μαγαζί που μόλις άνοιξε το πρώτο
+  // του ταμείο πρέπει να δει μηδενικά και τη γραμμή «τρέχει τώρα», όχι
+  // 14.200 € επίδειξης.
   const hasRealShifts = allShifts.length > 0;
   const totalRevenueCalculated = hasRealShifts
-    ? allShifts.reduce((sum, s) => sum + (s.opap_gross_sales || 0) + (s.vlts_cash_in || 0) + (s.fnb_sales || 0), 0)
+    ? countedShifts.reduce((sum, s) => sum + (s.opap_gross_sales || 0) + (s.vlts_cash_in || 0) + (s.fnb_sales || 0), 0)
     : 14200;
   const totalExpensesCalculated = hasRealShifts
-    ? allShifts.reduce((sum, s) => sum + (s.expenses_paid_cash || 0), 0)
+    ? countedShifts.reduce((sum, s) => sum + (s.expenses_paid_cash || 0), 0)
     : 1860;
   const totalDiscrepanciesCalculated = hasRealShifts
-    ? allShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0)
+    ? countedShifts.reduce((sum, s) => sum + (s.discrepancy || 0), 0)
     : -8;
   const totalSafeDropCalculated = hasRealShifts
-    ? allShifts.reduce((sum, s) => sum + (s.bank_deposits || 0), 0)
+    ? countedShifts.reduce((sum, s) => sum + (s.bank_deposits || 0), 0)
     : 4500;
 
   return (
@@ -172,6 +193,43 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Μέχρι πότε φτάνουν τα παρακάτω. Χωρίς αυτή τη γραμμή το σύνολο
+          διαβάζεται ως «τώρα», και τώρα είναι ό,τι ακριβώς δεν είναι: τα
+          ταμεία που τρέχουν μπαίνουν μόλις κλείσουν. */}
+      {hasRealShifts && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 -mb-2">
+          <Clock className="w-3.5 h-3.5 text-slate-400" />
+          {countedThrough ? (
+            <span>
+              Τα παρακάτω σύνολα φτάνουν{' '}
+              <strong className="text-slate-700">
+                μέχρι την τελευταία κλεισμένη βάρδια —{' '}
+                {new Date(countedThrough).toLocaleString('el-GR', {
+                  timeZone: 'Europe/Athens',
+                  day: '2-digit',
+                  month: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </strong>
+              .
+            </span>
+          ) : (
+            <span>
+              <strong className="text-slate-700">Δεν έχει κλείσει καμία βάρδια ακόμα</strong> — τα
+              σύνολα μένουν μηδενικά μέχρι να κλείσει η πρώτη.
+            </span>
+          )}
+          {runningTills > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold">
+              {runningTills === 1
+                ? '1 ταμείο τρέχει τώρα — μπαίνει μόλις κλείσει'
+                : `${runningTills} ταμεία τρέχουν τώρα — μπαίνουν μόλις κλείσουν`}
+            </span>
+          )}
         </div>
       )}
 

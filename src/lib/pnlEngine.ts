@@ -2,6 +2,7 @@
 // store (plus F&B when it had activity), company costs and loans below it,
 // one bottom line. Pure - the whole month is reproducible from plain data.
 
+import { isClosedStatus } from './shiftStatus.ts';
 import { ExpenseCategoryDef, FNB_EXPENSE_CATEGORY, isCompanyCategory, isFnbCategory } from './expenseCategories.ts';
 import { isTransferCategory } from './storeTransfer.ts';
 
@@ -681,7 +682,7 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
     const hasFnb = fnbTurnover !== 0 || fnbExpenses.total !== 0 || fnbPayroll.length > 0;
 
     // Διαχείριση Ταμείου - only closed shifts have a meaningful count.
-    const closedShifts = storeShifts.filter((s) => s.status === 'SUBMITTED' || s.status === 'APPROVED');
+    const closedShifts = storeShifts.filter((s) => isClosedStatus(s.status));
     const storeVlt = vltCounts.filter((v) => v.storeId === store.id);
     const cash: PnlCashDay[] = days.map((date) => {
       const dayShifts = closedShifts.filter((s) => s.day === date);

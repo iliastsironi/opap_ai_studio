@@ -1,6 +1,7 @@
 import type { Shift, ShiftStatus } from '../types/index.ts';
 import { athensDateKey } from './pnlEngine.ts';
 import { safeNum, roundCurrency } from '../services/financialCalculator.ts';
+import { CLOSED_SHIFT_STATUSES } from './shiftStatus.ts';
 
 export interface ShiftDayPoint {
   /** Athens calendar day, YYYY-MM-DD. */
@@ -22,7 +23,10 @@ export interface ShiftDailySeriesOptions {
 }
 
 /** A shift whose figures are final enough to report. */
-const CLOSED: ShiftStatus[] = ['SUBMITTED', 'APPROVED'];
+// Η ίδια λίστα με την επισκόπηση και τον pnlEngine, από το ένα σημείο που
+// την ορίζει. Ήταν γραμμένη εδώ ξανά, σωστά - και μια σωστή αντιγραφή
+// είναι απλώς ένα λάθος που δεν έχει συμβεί ακόμα.
+const CLOSED: ReadonlyArray<string> = CLOSED_SHIFT_STATUSES;
 
 /**
  * One point per trading day, for the Reports overview chart.

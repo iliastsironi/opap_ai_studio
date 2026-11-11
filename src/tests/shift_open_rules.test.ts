@@ -3,6 +3,11 @@ import {
   activeShiftAt, isActiveShift, openBlockedReason, worksThisShift, type ShiftLike,
   ownShift,
   visibleShifts,
+  isClosedShift,
+  closedShifts,
+  lastClosedAt,
+  ACTIVE_SHIFT_STATUSES,
+  CLOSED_SHIFT_STATUSES,
 } from '../lib/shiftOpenRules.ts';
 
 const s = (over: Partial<ShiftLike>): ShiftLike => ({
@@ -170,5 +175,90 @@ describe('ownShift / visibleShifts', () => {
   it('κενό ή άγνωστο δεν σκάει', () => {
     expect(visibleShifts(null, ME, false)).toEqual([]);
     expect(visibleShifts(undefined, ME, true)).toEqual([]);
+  });
+});
+
+/**
+ * Τι μπαίνει στα σύνολα που διαβάζει άνθρωπος.
+ *
+ * Η επισκόπηση άθροιζε κάθε βάρδια, και ένα ταμείο στη μέση της βάρδιας
+ * έχει νούμερα που δεν έχουν μετρηθεί ακόμα. Στα πραγματικά δεδομένα η
+ * συνολική απόκλιση έγραφε −1.658,11 € ενώ μέχρι την τελευταία κλεισμένη
+ * βάρδια ήταν −136,70 €: η διαφορά ήταν δύο ταμεία σε εξέλιξη, το ένα με
+ * μισοσυμπληρωμένη απόκλιση −1.531,10 €.
+ */
+describe('ποια βάρδια μπαίνει στα σύνολα', () => {
+  it('κλεισμένη είναι η υποβληθείσα και η εγκεκριμένη', () => {
+    expect(isClosedShift({ status: 'SUBMITTED' })).toBe(true);
+    expect(isClosedShift({ status: 'APPROVED' })).toBe(true);
+  });
+
+  it('ό,τι δουλεύεται ακόμα δεν μπαίνει', () => {
+    for (const st of ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'REOPENED']) {
+      expect(isClosedShift({ status: st })).toBe(false);
+    }
+    expect(isClosedShift({ status: '' })).toBe(false);
+    expect(isClosedShift(null)).toBe(false);
+  });
+
+  /**
+   * Οι δύο λίστες μαζί είναι ΟΛΟ το ShiftStatus, και ξένες μεταξύ τους. Αν
+   * μπει έβδομη κατάσταση και ξεχαστεί, αυτό το τεστ το λέει πριν αρχίσει
+   * μια οθόνη να την αθροίζει και μια άλλη να την αγνοεί.
+   */
+  it('κάθε κατάσταση ανήκει σε μία ακριβώς μεριά', () => {
+    const all = ['OPEN', 'DRAFT_CLOSING', 'SUBMITTED', 'APPROVED', 'CORRECTION_REQUESTED', 'REOPENED'];
+    for (const st of all) {
+      const sides = [ACTIVE_SHIFT_STATUSES.includes(st), CLOSED_SHIFT_STATUSES.includes(st)];
+      expect(sides.filter(Boolean).length, st).toBe(1);
+    }
+    expect(ACTIVE_SHIFT_STATUSES.length + CLOSED_SHIFT_STATUSES.length).toBe(all.length);
+  });
+
+  it('ΤΟ ΑΘΡΟΙΣΜΑ ΑΦΗΝΕΙ ΕΞΩ ΤΟ ΤΑΜΕΙΟ ΠΟΥ ΤΡΕΧΕΙ', () => {
+    const shifts = [
+      { status: 'APPROVED', discrepancy: -136.7 },
+      { status: 'DRAFT_CLOSING', discrepancy: -1531.1 },
+      { status: 'DRAFT_CLOSING', discrepancy: 9.69 },
+    ];
+    const sum = (rows: { discrepancy: number }[]) => rows.reduce((a, r) => a + r.discrepancy, 0);
+    expect(sum(shifts)).toBeCloseTo(-1658.11, 2);
+    expect(sum(closedShifts(shifts))).toBeCloseTo(-136.7, 2);
+  });
+
+  it('χωρίς κλεισμένη βάρδια, κανένα σύνολο', () => {
+    expect(closedShifts([{ status: 'OPEN' }])).toEqual([]);
+    expect(closedShifts(null)).toEqual([]);
+  });
+});
+
+describe('μέχρι πότε φτάνουν τα σύνολα', () => {
+  it('η ώρα της τελευταίας κλεισμένης', () => {
+    expect(
+      lastClosedAt([
+        { status: 'APPROVED', closed_at: '2026-11-10T20:14:00Z' },
+        { status: 'SUBMITTED', closed_at: '2026-11-11T08:42:00Z' },
+      ])
+    ).toBe('2026-11-11T08:42:00Z');
+  });
+
+  it('ένα ταμείο που τρέχει δεν μετακινεί το «μέχρι πότε»', () => {
+    expect(
+      lastClosedAt([
+        { status: 'SUBMITTED', closed_at: '2026-11-11T08:42:00Z' },
+        { status: 'DRAFT_CLOSING', closed_at: '2026-11-11T14:16:00Z' },
+      ])
+    ).toBe('2026-11-11T08:42:00Z');
+  });
+
+  it('χωρίς ώρα κλεισίματος πέφτει στο άνοιγμα', () => {
+    expect(lastClosedAt([{ status: 'APPROVED', opened_at: '2026-10-01T06:00:00Z' }])).toBe(
+      '2026-10-01T06:00:00Z'
+    );
+  });
+
+  it('χωρίς καμία κλεισμένη, τίποτα να πει', () => {
+    expect(lastClosedAt([{ status: 'OPEN', opened_at: '2026-11-11T14:16:00Z' }])).toBe(null);
+    expect(lastClosedAt([])).toBe(null);
   });
 });

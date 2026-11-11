@@ -70,6 +70,7 @@ import { CommissionEntrySheet } from '../pnl/CommissionEntrySheet.tsx';
 import { percentLabel } from '../pnl/pnlDisplay.tsx';
 import { useMonthlyPnl } from '../pnl/useMonthlyPnl.ts';
 import { NumericField } from '../ui/NumericField.tsx';
+import { closedShifts } from '../../lib/shiftStatus.ts';
 
 type ReportsTab = 'OVERVIEW' | 'COMMISSIONS' | 'PNL' | 'DAILY_REPORT' | 'EMPLOYEE_KPIS' | 'SHIFT_KPIS';
 
@@ -318,7 +319,11 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
   const costMixShares = withShares(costMixData, costMixTotal);
 
   const hasCosts = costMixData.some((item) => item.value > 0);
-  const discrepantShifts = rawShifts.filter((s) => Math.abs(Number(s.discrepancy || 0)) >= 1).length;
+  // Κλεισμένες μόνο: ένα ταμείο που δουλεύεται ακόμα δεν είναι «έξω», έχει
+  // μισοσυμπληρωμένα νούμερα. Βλ. lib/shiftStatus.ts.
+  const discrepantShifts = closedShifts(rawShifts).filter(
+    (s) => Math.abs(Number(s.discrepancy || 0)) >= 1
+  ).length;
 
   // One bar per trading day; see buildShiftDailySeries for what this replaced
   // and why. No shifts means an empty chart - a plotted line the user could

@@ -104,6 +104,7 @@ import {
   shiftTypeLabel,
 } from '../../lib/inspectionDayGroups.ts';
 import { worksThisShift, visibleShifts } from '../../lib/shiftOpenRules.ts';
+import { closedShifts } from '../../lib/shiftStatus.ts';
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, user } = useAuth();
@@ -385,13 +386,22 @@ export const ShiftsManager: React.FC = () => {
     const totalCount = shifts.length;
     const openCount = shifts.filter((s) => OPEN_SHIFT_STATUSES.includes(s.status)).length;
     const pendingCount = shifts.filter((s) => s.status === 'SUBMITTED').length;
-    const totalDiscrepancy = shifts.reduce((acc, s) => acc + (Number(s.discrepancy) || 0), 0);
+    // Μόνο κλεισμένες: ένα ταμείο στη μέση της βάρδιας δεν έχει απόκλιση,
+    // έχει μετρήσεις που δεν έχουν γίνει. Στα πραγματικά δεδομένα η κάρτα
+    // έγραφε −1.658,11 € ενώ μέχρι την τελευταία κλεισμένη βάρδια ήταν
+    // −136,70 €. Ο κανόνας ζει στο lib/shiftStatus.ts· η ετικέτα από κάτω
+    // λέει ότι το νούμερο δεν περιλαμβάνει τα ταμεία που τρέχουν, αλλιώς
+    // δεν θα συμφωνούσε με τις γραμμές ακριβώς παρακάτω.
+    const countedShifts = closedShifts(shifts);
+    const totalDiscrepancy = countedShifts.reduce((acc, s) => acc + (Number(s.discrepancy) || 0), 0);
 
     return {
       totalCount,
       openCount,
       pendingCount,
       totalDiscrepancy,
+      countedCount: countedShifts.length,
+      runningCount: shifts.length - countedShifts.length,
     };
   }, [shifts]);
 
@@ -688,7 +698,11 @@ export const ShiftsManager: React.FC = () => {
                   {formatCurrency(metrics.totalDiscrepancy, { showSign: true })}
                 </span>
                 <span className="text-micro font-bold text-slate-500">
-                  {metrics.totalDiscrepancy === 0 ? toGreekUpper('Ισοζυγιο') : toGreekUpper('Διαφορα')}
+                  {metrics.runningCount > 0
+                    ? toGreekUpper('Μονο κλεισμενες')
+                    : metrics.totalDiscrepancy === 0
+                    ? toGreekUpper('Ισοζυγιο')
+                    : toGreekUpper('Διαφορα')}
                 </span>
               </div>
             </div>
