@@ -36,6 +36,8 @@ import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
+import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
+import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import {
   byCustomer,
@@ -105,6 +107,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
    * the till did, with the inherited ones marked.
    */
   const [shiftExpenses, setShiftExpenses] = useState<ExpenseRecord[]>([]);
+  /**
+   * Οι κατηγορίες του οργανισμού, για να ξεχωρίσουν τα έξοδα του καφέ.
+   *
+   * Όχι η ιστορική σταθερά «EXPENSES_FNB»: από το 0074 ο ιδιοκτήτης
+   * ονομάζει μόνος του τις κατηγορίες, και μια δική του κατηγορία του καφέ
+   * θα κατέληγε σιωπηλά στο πρακτορείο.
+   */
+  const { categories: expenseCategories } = useExpenseCategories(shift?.organization_id);
   /** The credits that actually reached each customer's balance. */
   const [postedCredits, setPostedCredits] = useState<Array<Record<string, unknown>>>([]);
 
@@ -481,8 +491,25 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               ? shift.vlt_machine_cash
               : [];
 
-            const expensesGpCashTotal = safeNum(shift.custom_field_values?.expenses_gp_cash ?? shift.expenses_paid_cash);
-            const expensesFnbCashTotal = safeNum(shift.custom_field_values?.expenses_fnb_cash);
+            // Ποια από αυτά τα έξοδα είναι του καφέ.
+            //
+            // Η γραμμή «Έξοδα FnB» έγραφε 0,00 € σε κάθε βάρδια, γιατί
+            // διάβαζε ένα πεδίο που κανένα κλείσιμο δεν γράφει - και στις
+            // 103 βάρδιες της βάσης είναι κενό. Στη βραδινή της 10/11, από
+            // τα 160,15 € που μέτρησε το ταμείο, τα 55,60 € ήταν πάγος και
+            // κάβα και εμφανίζονταν ολόκληρα στο πρακτορείο.
+            //
+            // Ο διαχωρισμός βγαίνει τώρα από τις ίδιες τις γραμμές. Το
+            // ΣΥΝΟΛΟ δεν αλλάζει ποτέ - βλ. lib/expenseSplit.ts.
+            const expenseSplit = splitShiftExpenses({
+              total: shift.custom_field_values?.expenses_gp_cash ?? shift.expenses_paid_cash,
+              storedGp: shift.custom_field_values?.expenses_gp_cash,
+              storedFnb: shift.custom_field_values?.expenses_fnb_cash,
+              rows: shiftExpenses,
+              categories: expenseCategories,
+            });
+            const expensesGpCashTotal = expenseSplit.gp;
+            const expensesFnbCashTotal = expenseSplit.fnb;
             const creditGrantedTotal = safeNum(shift.customer_credit_granted);
             const creditCollectedTotal = safeNum(shift.customer_credit_collected ?? shift.customer_returns);
 
@@ -1097,11 +1124,21 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             <span className="font-mono font-bold text-white">{formatCurrency(totalStorePos)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between text-slate-300 py-0.5">
+                        <div
+                          className="flex justify-between text-slate-300 py-0.5"
+                          title={
+                            expenseSplit.source === 'LINES'
+                              ? 'Τα έξοδα της βάρδιας που δεν ανήκουν στο κυλικείο.'
+                              : 'Δεν βρέθηκαν γραμμές εξόδων για διαχωρισμό — όλα εδώ.'
+                          }
+                        >
                           <span>Έξοδα ΓΠ:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(expensesGpCashTotal)}</span>
                         </div>
-                        <div className="flex justify-between text-slate-300 py-0.5">
+                        <div
+                          className="flex justify-between text-slate-300 py-0.5"
+                          title="Έξοδα με κατηγορία του κυλικείου. Μετρημένα ήδη μέσα στο σύνολο — εδώ απλώς ξεχωρίζουν."
+                        >
                           <span>Έξοδα FnB:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(expensesFnbCashTotal)}</span>
                         </div>
