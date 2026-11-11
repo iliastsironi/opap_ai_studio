@@ -40,7 +40,7 @@ import {
   unitFor,
   type LegacyUnitSettings,
 } from '../../lib/lotteryUnits.ts';
-import { applyCancellation, bundlesToPieces, piecesToBundles, standingOrderPieces } from '../../lib/laikoCancellation.ts';
+import { applyCancellation, bundlesToPieces, piecesToBundles } from '../../lib/laikoCancellation.ts';
 import {
   handoverChoices, handoverProblem, warehouseGoverns, type HandoverPack,
 } from '../../lib/warehouseHandover.ts';
@@ -49,7 +49,6 @@ import {
   deliveryIdLabel,
   isValidDeliveryId,
   normalizeDeliveryId,
-  standingQuantityFor,
 } from '../../lib/lotteryDelivery.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
@@ -66,7 +65,7 @@ import {
   undoLastPack,
   type PackHistoryEntry,
 } from '../../lib/scratchPackHistory.ts';
-import { isPackOpening } from '../../lib/scratchPackOpening.ts';
+import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -2755,20 +2754,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     setNewPackRemainder('');
                                     setSelectedPackId(null);
                                     setNewPackError(null);
-                                    // Όπου υπάρχει πάγια ποσότητα, το ράφι
-                                    // ανοίγει πάνω της αντί σε έναν αριθμό
-                                    // που ξαναγράφεται κάθε φορά. Μόνο το
-                                    // Λαϊκό και το Εθνικό έχουν· οι Ειδικές
-                                    // και το Πρωτοχρονιάτικο έρχονται σε
-                                    // άλλη ποσότητα κάθε κλήρωση, και η
-                                    // πάγια του Λαϊκού προσυμπλήρωνε και
-                                    // εκείνες. null = δεν έχει οριστεί.
-                                    const standing = standingQuantityFor(row.id, standingOrders);
-                                    setNewPackStartNo(
-                                      standing === null
-                                        ? '0'
-                                        : String(standingOrderPieces(standing, row.bundleSize))
-                                    );
+                                    // Μηδέν, ή η πάγια ποσότητα όπου
+                                    // υπάρχει. Ο κανόνας ζει στο
+                                    // lib/scratchPackOpening.ts, γιατί από
+                                    // το 0081 τον επιβάλλει και η βάση.
+                                    setNewPackStartNo(startNoForNewPack(row, standingOrders));
                                     const maxNo = getPackageMaxNumber(row.price, row.packPieces);
                                     setNewPackBackEndNo(maxNo === null ? '' : formatTicketNumber(maxNo));
                                   }}
