@@ -18,8 +18,17 @@
  * επιθεώρηση.
  */
 
+/**
+ * Ελληνικό πληκτρολόγιο: το υποδιαστολικό είναι κόμμα, και τα ποσά που
+ * πληκτρολογεί ο υπάλληλος αποθηκεύονται όπως γράφτηκαν - «117,22». Το
+ * `parseFloat` σταματάει στο κόμμα και δίνει 117, δηλαδή τρώει τα λεπτά.
+ * Σε 97 από τις 102 βάρδιες του πρακτορείου υπήρχε τουλάχιστον ένα τέτοιο
+ * ποσό, και η στήλη έβγαινε μέχρι 99 λεπτά κοντή για αυτόν τον λόγο μόνο.
+ * Ίδιος κανόνας με το safeNum του financialCalculator.
+ */
 const num = (v: unknown): number => {
-  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+  if (v === null || v === undefined || v === '') return 0;
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
   return Number.isFinite(n) ? n : 0;
 };
 
@@ -104,4 +113,58 @@ export function auditCountedCash(input: CountedCashInput): CountedCashAudit {
   }
 
   return { lines, computed, stored, unexplained, balances: Math.abs(unexplained) <= CENT };
+}
+
+/**
+ * Και το ΜΙΚΤΟ της καταμέτρησης, με τον ίδιο κανόνα.
+ *
+ * Κάτω από τις γραμμές του μετρήματος η στήλη συνεχίζει - χρηματοκιβώτιο,
+ * POS καταστήματος, έξοδα, πιστώσεις, επιστροφές - και κλείνει σε ένα
+ * «Σύνολο». Σε μια πρόχειρη βάρδια του demo όλες οι γραμμές ήταν 0,00 €
+ * και το «Σύνολο» έλεγε 180,00 €: το αποθηκευμένο μικτό είχε μείνει από
+ * προηγούμενη κατάσταση της φόρμας, αφού κάποιος έσβησε τα κοψίματα.
+ *
+ * Το αποθηκευμένο υπερισχύει - είναι ό,τι υπολόγισε το κλείσιμο και
+ * υπέγραψε ο υπάλληλος, και από αυτό βγαίνει η απόκλιση. Αλλά η διαφορά
+ * παίρνει δική της γραμμή, ώστε οι γραμμές συν τη διαφορά να ΕΙΝΑΙ το
+ * σύνολο που διαβάζει ο ιδιοκτήτης.
+ */
+export interface GrossCountInput {
+  /** Τα μετρημένα της βάρδιας, όπως τα βγάζει το auditCountedCash. */
+  counted: unknown;
+  bankDeposits?: unknown;
+  storePos?: unknown;
+  expensesGp?: unknown;
+  expensesFnb?: unknown;
+  creditsGranted?: unknown;
+  creditsCollected?: unknown;
+  /** Το αποθηκευμένο reconciliation_gross_total. */
+  stored?: unknown;
+}
+
+export interface GrossCountAudit {
+  /** Το άθροισμα των γραμμών που δείχνει η στήλη. */
+  computed: number;
+  /** Ό,τι κρατάει η βάση, ή το computed όταν δεν κρατάει τίποτα. */
+  stored: number;
+  /** stored − computed. 0 όταν βγαίνει. */
+  unexplained: number;
+  balances: boolean;
+}
+
+export function auditGrossCount(input: GrossCountInput): GrossCountAudit {
+  const computed = round2(
+    num(input.counted) +
+      num(input.bankDeposits) +
+      num(input.storePos) +
+      num(input.expensesGp) +
+      num(input.expensesFnb) +
+      num(input.creditsGranted) -
+      num(input.creditsCollected)
+  );
+  const hasStored =
+    input.stored !== undefined && input.stored !== null && String(input.stored) !== '';
+  const stored = hasStored ? round2(num(input.stored)) : computed;
+  const unexplained = round2(stored - computed);
+  return { computed, stored, unexplained, balances: Math.abs(unexplained) <= CENT };
 }

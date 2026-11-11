@@ -45,7 +45,8 @@ import {
 import { fetchShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
 import { fetchDayCollection, fetchDayCoinHandover } from '../../services/shiftService.ts';
-import { auditCountedCash } from '../../lib/countedCashAudit.ts';
+import { auditCountedCash, auditGrossCount } from '../../lib/countedCashAudit.ts';
+import { auditExpectedCash, toraPosTotal as resolveToraPos } from '../../lib/reportsAudit.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import {
   safeNum,
@@ -362,17 +363,43 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
           {activeTab === 'RECONCILIATION' && (() => {
             // Data Extractions & Calculations
-            const opapSales = safeNum(shift.opap_gross_sales);
-            const opapPayouts = safeNum(shift.opap_payouts);
-            const opapNet = roundCurrency(shift.opap_net_sales !== undefined ? safeNum(shift.opap_net_sales) : opapSales - opapPayouts);
+            // Τα ΩΜΑ αριθμοπαιχνίδια, όχι το σύνθετο.
+            //
+            // Το `opap_gross_sales` που αποθηκεύεται δεν είναι οι πωλήσεις
+            // των αριθμοπαιχνιδιών: το κλείσιμο γράφει εκεί `arithmo_gross
+            // − arithmo_cancels + pame_stoixima + clever_point + ippodromos`
+            // (ShiftClosingWizard, opapGrossTotal). Έτσι το Πάμε Στοίχημα
+            // ζούσε κρυμμένο μέσα στο «Καθαρά» του ΟΠΑΠ - 182,93 € στη
+            // βραδινή της 10/11 - χωρίς δική του γραμμή πουθενά, κι όποια
+            // οθόνη το πρόσθετε ξανά το μέτραγε δύο φορές.
+            const opapSales = safeNum(shift.number_games_sales ?? shift.arithmo_gross ?? shift.opap_gross_sales);
+            const opapPayouts = safeNum(shift.number_games_payouts ?? shift.arithmo_payouts ?? shift.opap_payouts);
+            const opapVouchers = safeNum(shift.number_games_vouchers ?? shift.arithmo_vouchers);
+            const opapCancels = safeNum(shift.number_games_cancellations ?? shift.arithmo_cancels);
+            const opapNet = roundCurrency(opapSales - opapPayouts + opapVouchers - opapCancels);
 
             const vltsIn = safeNum(shift.vlts_cash_in);
             const vltsOut = safeNum(shift.vlts_cash_out);
             const vltsNet = resolveVltNet(shift);
 
-            const scratchSales = safeNum(shift.scratch_sales ?? shift.custom_field_values?.scratch_sales);
+            // Ο μικτός των σκρατς, από τη στήλη που τον κρατάει.
+            //
+            // Διάβαζε `scratch_sales`, που δεν γράφεται ποτέ, κι έτσι η
+            // επιθεώρηση έδειχνε «Πωλήσεις 0,00» πάνω από εξαργυρώσεις
+            // 394 € και «Καθαρά −394 €», ενώ ο τύπος που παρήγαγε το
+            // αναμενόμενο ταμείο είχε βάλει +188 €. 582 € λάθος σε ένα
+            // κουτάκι, σε μια οθόνη που υπάρχει για να βρίσκει λάθη.
             const scratchPayouts = safeNum(shift.scratch_payouts ?? shift.custom_field_values?.scratch_payouts);
-            const scratchNet = roundCurrency(scratchSales - scratchPayouts);
+            const scratchNet = roundCurrency(
+              shift.scratch_lotto_sales !== undefined && shift.scratch_lotto_sales !== null
+                ? safeNum(shift.scratch_lotto_sales)
+                : safeNum(shift.scratch_sales ?? shift.custom_field_values?.scratch_sales) - scratchPayouts
+            );
+            const scratchSales = roundCurrency(
+              shift.scratch_gross_sales !== undefined && shift.scratch_gross_sales !== null
+                ? safeNum(shift.scratch_gross_sales)
+                : scratchNet + scratchPayouts
+            );
 
             const toraServices = safeNum(shift.custom_field_values?.tora_bill_payments_amount ?? shift.custom_field_values?.tora_services_amount);
             const toraPayouts = safeNum(shift.custom_field_values?.tora_payouts_amount);
@@ -384,11 +411,18 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             const fnbTotal = roundCurrency(fnbSales + fnbCard);
 
             const toraPosItems: Array<{ name: string; amount: string | number }> = shift.custom_field_values?.tora_pos_items || [];
-            const toraPosTotal = toraPosItems.length > 0
-              ? toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0)
-              : safeNum(shift.card_payments);
+            // Το δίχτυ ήταν το `card_payments`, που είναι το POS του
+            // ΚΑΤΑΣΤΗΜΑΤΟΣ - άλλα λεφτά. Βάρδια που έσβησε τις γραμμές της
+            // TORA έδειχνε τις πωλήσεις κάρτας του μαγαζιού στη θέση των
+            // εισπράξεων λογαριασμών. Ο resolver πέφτει στο `tora_total`.
+            const toraPosTotal = resolveToraPos(shift as never);
 
             const expectedCash = roundCurrency(safeNum(shift.expected_cash));
+
+            // Οι όροι του τύπου που ΟΝΤΩΣ παρήγαγε το expectedCash, ώστε η
+            // στήλη να αθροίζει μπροστά στον ιδιοκτήτη. Σε όλες τις 102
+            // κλεισμένες βάρδιες αναπαράγει το αποθηκευμένο ποσό στο λεπτό.
+            const reportsAudit = auditExpectedCash(shift as never);
 
             // Right Column - Physical Count Extractions
             // These read opening_notes / opening_coins / opening_topup1 /
@@ -441,17 +475,38 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             const creditGrantedTotal = safeNum(shift.customer_credit_granted);
             const creditCollectedTotal = safeNum(shift.customer_credit_collected ?? shift.customer_returns);
 
-            const countedDrawerCash = roundCurrency(safeNum(shift.counted_cash) || banknotesAndCoins.total);
-            const grossCount = roundCurrency(
-              banknotesAndCoins.banknotes +
-              banknotesAndCoins.coins +
-              bankDeposits +
-              totalStorePos +
-              expensesGpCashTotal +
-              expensesFnbCashTotal +
-              creditGrantedTotal -
-              creditCollectedTotal
-            );
+            const countedAudit = auditCountedCash({
+              notes: banknotesAndCoins.banknotes,
+              coins: banknotesAndCoins.coins,
+              ownHandover: shift.coin_handover,
+              carriedToday: carriedCoins,
+              stored: shift.counted_cash,
+            });
+
+            // Το μικτό της στήλης, από το ΙΔΙΟ μέτρημα που δείχνει η γραμμή
+            // «Σύνολο μετρημένων» από πάνω του.
+            //
+            // Έπαιρνε χαρτονομίσματα + κέρματα συρταριού και άφηνε έξω τις
+            // παραδόσεις κερμάτων. Έτσι το «Σύνολο» έβγαινε 6.843,65 € κάτω
+            // από μια γραμμή που έλεγε 6.116,00 € και πάνω από ένα τελικό
+            // που περιείχε τα 25 €: τρία νούμερα, δύο διαφορετικές πράξεις,
+            // στην οθόνη που υπάρχει για να ελέγχει ταμεία. Σε 24 από τις
+            // 102 κλεισμένες βάρδιες ήταν λάθος, από 20 έως 180 €.
+            //
+            // Όταν η βάση κρατάει το μικτό, αυτό υπερισχύει: είναι ό,τι
+            // υπολόγισε το κλείσιμο και υπέγραψε ο υπάλληλος, και σε 101
+            // από 102 βάρδιες συμφωνεί με το μέτρημα στο λεπτό.
+            const grossAudit = auditGrossCount({
+              counted: countedAudit.stored,
+              bankDeposits,
+              storePos: totalStorePos,
+              expensesGp: expensesGpCashTotal,
+              expensesFnb: expensesFnbCashTotal,
+              creditsGranted: creditGrantedTotal,
+              creditsCollected: creditCollectedTotal,
+              stored: shift.custom_field_values?.reconciliation_gross_total,
+            });
+            const grossCount = grossAudit.stored;
 
             // total_reconciliation_count is the old name for this value, kept
             // as a fallback so a shift saved before migration 0021 still reads
@@ -540,16 +595,28 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       {/* Block 1: Παιχνίδια ΟΠΑΠ */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
-                          Παιχνίδια
+                          Αριθμοπαιχνίδια
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
-                          <span>Ακαθάριστα:</span>
+                          <span>Πωλήσεις:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(opapSales)}</span>
                         </div>
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πληρωμές:</span>
                           <span className="font-mono font-bold text-rose-300">-{formatCurrency(opapPayouts)}</span>
                         </div>
+                        {opapVouchers > 0 && (
+                          <div className="flex justify-between text-slate-300 py-0.5">
+                            <span>Κουπόνια:</span>
+                            <span className="font-mono font-bold text-white">{formatCurrency(opapVouchers)}</span>
+                          </div>
+                        )}
+                        {opapCancels > 0 && (
+                          <div className="flex justify-between text-slate-300 py-0.5">
+                            <span>Ακυρώσεις:</span>
+                            <span className="font-mono font-bold text-rose-300">-{formatCurrency(opapCancels)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
                           <span>Καθαρά:</span>
                           <span className="font-mono text-emerald-400">{formatCurrency(opapNet)}</span>
@@ -594,7 +661,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Block 4: Tora Direct */}
+                      {/* Block 4: Tora Direct - τα πεδία «Υπηρεσίες» και
+                          «Πληρωμές», που κανένα κλείσιμο δεν γράφει: και στις
+                          102 κλεισμένες βάρδιες του πρακτορείου είναι μηδέν.
+                          Έδειχνε τρεις γραμμές μηδενικά - δηλαδή «η TORA δεν
+                          έφερε τίποτα» - ενώ οι πραγματικές εισπράξεις της,
+                          1.251,10 € εκείνο το βράδυ, κάθονταν δύο κουτάκια
+                          πιο κάτω με πρόσημο μείον. Κρύβεται όσο είναι άδειο
+                          αντί να αντιφάσκει με τη στήλη. */}
+                      {(toraServices > 0 || toraPayouts > 0 || toraDirectNet !== 0) && (
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
                           Tora Direct
@@ -612,6 +687,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span className="font-mono text-emerald-400">{formatCurrency(toraDirectNet)}</span>
                         </div>
                       </div>
+                      )}
 
                       {/* Block 5: FnB */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
@@ -634,26 +710,90 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
 
                       {/* Block 6: POS Αφαιρέσεις */}
                       <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        {/* Το πρόσημο. Έλεγε «POS Αφαιρέσεις» και έβγαζε
+                            −1.251,10 €, ενώ ο τύπος που παρήγαγε το
+                            αποθηκευμένο «Σύνολο Ταμείου» τα ΠΡΟΣΘΕΤΕΙ: είναι
+                            εισπράξεις λογαριασμών, λεφτά που μπήκαν. Λάθος
+                            πρόσημο σε τετραψήφιο ποσό, κι ένα από τα τρία
+                            λάθη που έκαναν τη στήλη να μη βγάζει. */}
                         <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
-                          POS Αφαιρέσεις
+                          TORA Direct (POS)
                         </div>
                         {toraPosItems.length > 0 ? (
                           toraPosItems.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-slate-300 py-0.5">
                               <span>{item.name || `POS #${idx + 1}`}:</span>
-                              <span className="font-mono font-bold text-rose-300">-{formatCurrency(safeNum(item.amount))}</span>
+                              <span className="font-mono font-bold text-white">{formatCurrency(safeNum(item.amount))}</span>
                             </div>
                           ))
                         ) : (
                           <div className="flex justify-between text-slate-300 py-0.5">
-                            <span>POS Πληρωμές:</span>
-                            <span className="font-mono font-bold text-rose-300">-{formatCurrency(toraPosTotal)}</span>
+                            <span>Εισπράξεις:</span>
+                            <span className="font-mono font-bold text-white">{formatCurrency(toraPosTotal)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
-                          <span>Σύνολο Αφαιρέσεων:</span>
-                          <span className="font-mono text-rose-300">-{formatCurrency(toraPosTotal)}</span>
+                          <span>Σύνολο:</span>
+                          <span className="font-mono text-emerald-400">{formatCurrency(toraPosTotal)}</span>
                         </div>
+                      </div>
+
+                      {/* Βγαίνει η στήλη;
+                          «Φτιάξε μου την επιθεώρηση να φαίνονται σωστά να
+                          μπορώ να ελέγξω τα ταμεία, για να βρίσκω τα λάθη
+                          τους» - και η στήλη έβγαζε 2.589,79 € κάτω από μια
+                          μπάρα που έλεγε 5.673,99 €.
+
+                          Τα κουτάκια από πάνω είναι η λεπτομέρεια κάθε
+                          συστήματος. Αυτό εδώ είναι ο τύπος, όρο προς όρο,
+                          με το άθροισμά τους δίπλα σε ό,τι κρατάει η βάση -
+                          και με δική του γραμμή για ό,τι δεν εξηγείται. */}
+                      <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
+                        <div className="text-center font-black text-indigo-300 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
+                          Από τι βγαίνει το σύνολο
+                        </div>
+                        {reportsAudit.lines
+                          .filter((l) => !l.onlyWhenSet || Math.abs(l.amount) > 0.005)
+                          .map((l) => (
+                            <div
+                              key={l.key}
+                              className={`flex justify-between py-0.5 ${
+                                l.key === 'UNEXPLAINED' ? 'text-rose-300' : 'text-slate-300'
+                              }`}
+                              title={l.hint}
+                            >
+                              <span>{l.label}:</span>
+                              <span
+                                className={`font-mono font-bold ${
+                                  l.key === 'UNEXPLAINED'
+                                    ? 'text-rose-200'
+                                    : l.amount < 0
+                                    ? 'text-rose-300'
+                                    : 'text-white'
+                                }`}
+                              >
+                                {formatCurrency(l.amount, { showSign: l.key === 'UNEXPLAINED' })}
+                              </span>
+                            </div>
+                          ))}
+                        <div
+                          className={`flex justify-between py-1 mt-0.5 border-t font-bold ${
+                            reportsAudit.balances
+                              ? 'border-slate-800 text-emerald-200'
+                              : 'border-rose-700 text-rose-200'
+                          }`}
+                        >
+                          <span>
+                            {reportsAudit.balances ? 'Σύνολο αναφορών ✓' : 'Σύνολο αναφορών ✗'}
+                          </span>
+                          <span className="font-mono">{formatCurrency(reportsAudit.stored)}</span>
+                        </div>
+                        {!reportsAudit.balances && (
+                          <p className="text-micro text-rose-300 leading-snug">
+                            Οι γραμμές από πάνω δίνουν {formatCurrency(reportsAudit.computed)}. Η
+                            διαφορά δεν εξηγείται από τις αναφορές — ελέγξτε τη βάρδια.
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -791,13 +931,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                             μετρημένα σωστά και αόρατα. Μια επιθεώρηση που
                             δεν αθροίζει μπροστά σου δεν είναι επιθεώρηση. */}
                         {(() => {
-                          const audit = auditCountedCash({
-                            notes: banknotesAndCoins.banknotes,
-                            coins: banknotesAndCoins.coins,
-                            ownHandover: shift.coin_handover,
-                            carriedToday: carriedCoins,
-                            stored: shift.counted_cash,
-                          });
+                          const audit = countedAudit;
                           return (
                             <>
                               {audit.lines
@@ -916,10 +1050,38 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Επιστροφές:</span>
                           <span className="font-mono font-bold text-rose-300">{creditCollectedTotal > 0 ? '-' + formatCurrency(creditCollectedTotal) : formatCurrency(0)}</span>
                         </div>
-                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
-                          <span>Σύνολο:</span>
+                        {/* Η διαφορά, πριν το σύνολο, ώστε οι γραμμές συν
+                            αυτή να ΕΙΝΑΙ το σύνολο που διαβάζεται από κάτω.
+                            Σε πρόχειρη βάρδια του demo οι γραμμές έβγαζαν
+                            0,00 € και το σύνολο έλεγε 180,00 €, χωρίς καμία
+                            ένδειξη από πού. */}
+                        {!grossAudit.balances && (
+                          <div
+                            className="flex justify-between text-rose-300 py-0.5"
+                            title="Το αποθηκευμένο σύνολο δεν συμφωνεί με τις γραμμές από πάνω. Αυτό θέλει έλεγχο."
+                          >
+                            <span>Αδικαιολόγητη διαφορά:</span>
+                            <span className="font-mono font-bold text-rose-200">
+                              {formatCurrency(grossAudit.unexplained, { showSign: true })}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`flex justify-between font-bold border-t pt-1 ${
+                            grossAudit.balances
+                              ? 'border-slate-800 text-indigo-200'
+                              : 'border-rose-700 text-rose-200'
+                          }`}
+                        >
+                          <span>{grossAudit.balances ? 'Σύνολο ✓' : 'Σύνολο ✗'}</span>
                           <span className="font-mono text-white">{formatCurrency(grossCount)}</span>
                         </div>
+                        {!grossAudit.balances && (
+                          <p className="text-micro text-rose-300 leading-snug">
+                            Οι γραμμές από πάνω δίνουν {formatCurrency(grossAudit.computed)}. Το
+                            αποθηκευμένο σύνολο είναι άλλο — ελέγξτε τη βάρδια.
+                          </p>
+                        )}
                       </div>
 
                       {/* Μετρητά μέσα στα μηχανήματα (0051). Its own block,
@@ -1660,7 +1822,15 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           arithmoPayouts: safeNum(shift.arithmo_payouts ?? shift.number_games_payouts),
           arithmoVouchers: safeNum(shift.arithmo_vouchers ?? shift.number_games_vouchers),
           arithmoNet: safeNum((shift as any).arithmo_net ?? (safeNum(shift.arithmo_gross) - safeNum(shift.arithmo_cancels) - safeNum(shift.arithmo_payouts) + safeNum(shift.arithmo_vouchers))),
-          scratchSales: safeNum(shift.scratch_sales ?? shift.scratch_lotto_sales),
+          // Ο ΜΙΚΤΟΣ, γιατί η απόδειξη τυπώνει από κάτω «− Εξαργυρώσεις».
+          // Έστελνε τον καθαρό, οπότε η απόδειξη έγραφε «Σκρατς 188 € /
+          // − Εξαργυρώσεις 394 €»: δύο γραμμές που δεν βγάζουν τίποτα.
+          scratchSales: safeNum(
+            shift.scratch_gross_sales ??
+              (shift.scratch_lotto_sales !== undefined && shift.scratch_lotto_sales !== null
+                ? roundCurrency(safeNum(shift.scratch_lotto_sales) + safeNum(shift.scratch_payouts))
+                : shift.scratch_sales)
+          ),
           scratchPayouts: safeNum(shift.scratch_payouts),
           scratchNet: safeNum(shift.scratch_lotto_sales),
           vltsIn: safeNum(shift.vlts_cash_in),
