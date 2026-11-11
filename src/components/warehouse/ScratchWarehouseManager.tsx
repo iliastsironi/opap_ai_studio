@@ -16,6 +16,7 @@ import {
   agingLabel, agingTone, canWithdraw, daysInWarehouse, summariseAging, withdrawBlockedReason,
 } from '../../lib/warehouseAging.ts';
 import { packProgress, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
+import { warehouseStartState } from '../../lib/warehouseHandover.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { Modal } from '../ui/Modal.tsx';
@@ -301,6 +302,15 @@ export const ScratchWarehouseManager: React.FC = () => {
     setGameNo(digits.slice(0, GAME_NO_LENGTH));
   };
 
+  /**
+   * Σε ποια φάση είναι η αποθήκη αυτού του καταστήματος.
+   *
+   * Τα packs φορτώνονται σε ΟΛΕΣ τις καταστάσεις, άρα το μηδέν εδώ σημαίνει
+   * «δεν έχει καταχωρηθεί ποτέ πακέτο» - η ίδια ερώτηση που απαντά και το
+   * storeUsesWarehouse στη βάση για το ταμείο.
+   */
+  const startState = warehouseStartState({ packCount: packs.length, gameCount: games.length });
+
   const canSave = !!game && isValidPackCode(packCode) && !!receivedAt && !saving;
 
   const save = async () => {
@@ -411,6 +421,53 @@ export const ScratchWarehouseManager: React.FC = () => {
                 {aging.warning} {aging.warning === 1 ? 'πακέτο πλησιάζει' : 'πακέτα πλησιάζουν'} τις
                 90 ημέρες.
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Δεν υπάρχει διακόπτης να ανάψει, και η οθόνη δεν το έλεγε πουθενά:
+          ένα κατάστημα με άδεια αποθήκη έγραφε «Κανένα πακέτο στην αποθήκη»,
+          που διαβάζεται ως βλάβη. Ο διακόπτης είναι το απόθεμα - δες
+          lib/warehouseHandover.ts. */}
+      {!loading && startState !== 'STARTED' && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 flex items-start gap-3">
+          <Boxes className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-indigo-950 space-y-1.5">
+            <p className="font-black text-sm">
+              Η αποθήκη αυτού του καταστήματος δεν έχει ξεκινήσει ακόμα
+            </p>
+            {startState === 'READY_TO_START' ? (
+              <>
+                <p>
+                  Δεν υπάρχει ρύθμιση να ενεργοποιηθεί — <strong>ο διακόπτης είναι το
+                  απόθεμα</strong>. Μόλις καταχωρηθεί το πρώτο πακέτο εδώ, το ταμείο
+                  σταματά να γράφει κωδικό στο χέρι: διαλέγει από τα πακέτα που
+                  παραδόθηκαν, και ένα νέο παιχνίδι δεν πωλείται πριν του παραδοθεί
+                  πακέτο.
+                </p>
+                <p className="text-indigo-800">
+                  Μέχρι τότε το ταμείο δουλεύει όπως πάντα, με πληκτρολογημένο κωδικό —
+                  αυτό δεν είναι βλάβη, είναι η κατάσταση πριν την πρώτη παραλαβή.{' '}
+                  <strong>
+                    {games.length}{' '}
+                    {games.length === 1 ? 'παιχνίδι είναι έτοιμο' : 'παιχνίδια είναι έτοιμα'}
+                  </strong>{' '}
+                  για παραλαβή — σκανάρετε ή γράψτε το πρώτο πακέτο παρακάτω.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Κανένα παιχνίδι αυτού του καταστήματος δεν έχει <strong>4ψήφιο αριθμό
+                  παιχνιδιού</strong>, οπότε δεν υπάρχει τίποτα να παραληφθεί: ο 4ψήφιος
+                  είναι αυτό που σκανάρεται, και χωρίς αυτόν η λίστα παραλαβής μένει άδεια.
+                </p>
+                <p className="text-indigo-800">
+                  Συμπληρώστε τους 4ψήφιους στα παιχνίδια από τη «Διαμόρφωση» του
+                  καταστήματος και η αποθήκη ξεκινά με την πρώτη καταχώρηση.
+                </p>
+              </>
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { supabase } from './supabase.ts';
+import { gamesMissingFrom } from '../lib/catalogPropagation.ts';
 import {
   applyLotteryProductShapes,
   DEFAULT_SCRATCH_PRESETS,
@@ -160,12 +161,20 @@ export async function seedScratchCatalogForStore(orgId: string, storeId: string)
   return true;
 }
 
-export async function saveScratchCatalog(
+/**
+ * Μια γραμμή του καταλόγου όπως γράφεται στη βάση.
+ *
+ * Ένα σημείο, γιατί δύο δρόμοι γράφουν πια τον κατάλογο: η αποθήκευση ενός
+ * καταστήματος και η αντιγραφή ενός νέου παιχνιδιού στα υπόλοιπα. Αν
+ * απέκλιναν, το ίδιο παιχνίδι θα υπήρχε με δύο σχήματα σε δύο μαγαζιά.
+ */
+function toCatalogRow(
   orgId: string,
   storeId: string | null,
-  rows: ScratchTicketRow[]
-): Promise<void> {
-  const payload = rows.map((row, index) => ({
+  row: ScratchTicketRow,
+  sortOrder: number
+) {
+  return {
     organization_id: orgId,
     store_id: storeId,
     code: row.id,
@@ -185,10 +194,18 @@ export async function saveScratchCatalog(
       : null,
     pack_pieces: row.packPieces && row.packPieces > 0 ? row.packPieces : null,
     back_side_enabled: row.backSideEnabled !== false,
-    sort_order: index,
+    sort_order: sortOrder,
     is_active: true,
     updated_at: new Date().toISOString(),
-  }));
+  };
+}
+
+export async function saveScratchCatalog(
+  orgId: string,
+  storeId: string | null,
+  rows: ScratchTicketRow[]
+): Promise<void> {
+  const payload = rows.map((row, index) => toCatalogRow(orgId, storeId, row, index));
 
   // Replace outright rather than upsert. The unique index is on
   // (organization_id, COALESCE(store_id, ''), code) - an expression, because
@@ -207,4 +224,78 @@ export async function saveScratchCatalog(
   if (payload.length === 0) return;
   const { error } = await supabase.from(TABLE).insert(payload);
   if (error) throw error;
+}
+
+export interface PropagatedGames {
+  storeId: string;
+  storeName: string;
+  added: string[];
+}
+
+/**
+ * Βάζει τα νέα παιχνίδια και στα υπόλοιπα καταστήματα του οργανισμού.
+ *
+ * «Τα 4ψήφια είναι παντού τα ίδια.» Ο αριθμός παιχνιδιού είναι του ΟΠΑΠ, όχι
+ * του μαγαζιού - αλλά ο κατάλογος κρατιέται ανά κατάστημα, οπότε ένα
+ * παιχνίδι που προστέθηκε στη μία οθόνη δεν υπήρχε στο άλλο μαγαζί μέχρι να
+ * ξαναγραφεί με το χέρι. Τα χριστουγεννιάτικα το έδειξαν: μπήκαν στη Λαμία
+ * και η Στυλίδα δεν τα είδε ποτέ.
+ *
+ * ΜΟΝΟ ΠΡΟΣΘΗΚΕΣ, ποτέ αφαιρέσεις ή αλλαγές: τι πουλάει κάθε μαγαζί και σε
+ * τι σειρά το μετράει είναι δική του απόφαση, και μια αντιγραφή που
+ * ισοπέδωνε τον κατάλογο του άλλου θα έσβηνε δουλειά που δεν ζήτησε κανείς.
+ * Οι δικές του ρυθμίσεις μένουν όπως είναι· το νέο παιχνίδι μπαίνει στο
+ * τέλος της λίστας του.
+ *
+ * Αν ένα κατάστημα δεν έχει καθόλου κατάλογο, δεν του γράφεται τίποτα: ένα
+ * μαγαζί με άδειο κατάλογο μετράει με τα προεπιλεγμένα (δες
+ * fetchScratchCatalog), και δύο-τρεις γραμμές θα του έσβηναν όλα τα
+ * υπόλοιπα. Ο σπόρος του είναι δουλειά του seedScratchCatalogForStore.
+ */
+export async function addNewGamesToOtherStores(
+  orgId: string,
+  sourceStoreId: string,
+  rows: ScratchTicketRow[]
+): Promise<PropagatedGames[]> {
+  const { data: storeRows, error: storeErr } = await supabase
+    .from('stores')
+    .select('id,name')
+    .eq('organization_id', orgId);
+  if (storeErr) throw storeErr;
+
+  const targets = (storeRows ?? []).filter((s: any) => s.id !== sourceStoreId);
+  const report: PropagatedGames[] = [];
+
+  for (const store of targets) {
+    const { data: theirs, error } = await supabase
+      .from(TABLE)
+      .select('code,name,game_no,sort_order')
+      .eq('organization_id', orgId)
+      .eq('store_id', (store as any).id);
+    if (error) throw error;
+
+    const existing = (theirs ?? []) as { code: string; name: string; game_no: string | null; sort_order: number }[];
+    if (existing.length === 0) continue;
+
+    const missing = gamesMissingFrom(
+      rows.map((r) => ({ ...r, code: r.id })),
+      existing.map((r) => ({ code: r.code, name: r.name, gameNo: r.game_no }))
+    );
+    if (missing.length === 0) continue;
+
+    const nextSort = Math.max(...existing.map((r) => Number(r.sort_order) || 0)) + 1;
+    const payload = missing.map((row, i) =>
+      toCatalogRow(orgId, (store as any).id, row as ScratchTicketRow, nextSort + i)
+    );
+    const { error: insertErr } = await supabase.from(TABLE).insert(payload);
+    if (insertErr) throw insertErr;
+
+    report.push({
+      storeId: (store as any).id,
+      storeName: String((store as any).name ?? ''),
+      added: missing.map((m) => String(m.name ?? '')),
+    });
+  }
+
+  return report;
 }

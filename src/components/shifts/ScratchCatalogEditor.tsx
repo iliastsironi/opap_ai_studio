@@ -5,7 +5,11 @@ import {
   isLotteryRow,
   type ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
-import { fetchScratchCatalogForEditing, saveScratchCatalog } from '../../services/scratchCatalogService.ts';
+import {
+  addNewGamesToOtherStores,
+  fetchScratchCatalogForEditing,
+  saveScratchCatalog,
+} from '../../services/scratchCatalogService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
 import { bundleSizeProblem } from '../../lib/scratchBarcode.ts';
 import { NumericField } from '../ui/NumericField.tsx';
@@ -114,7 +118,33 @@ export const ScratchCatalogEditor: React.FC<{
     setMessage(null);
     try {
       await saveScratchCatalog(orgId, storeId, rows);
-      setMessage('Ο κατάλογος αποθηκεύτηκε. Ισχύει αμέσως σε κάθε συσκευή.');
+
+      // Ο 4ψήφιος είναι του ΟΠΑΠ, όχι του μαγαζιού: ένα παιχνίδι που μπήκε
+      // εδώ λείπει από τα υπόλοιπα καταστήματα μέχρι να ξαναγραφεί με το
+      // χέρι, και τα χριστουγεννιάτικα το έδειξαν. Μόνο προσθήκες - δες
+      // lib/catalogPropagation.ts για το γιατί κρίνει ο 4ψήφιος και όχι ο
+      // εσωτερικός κωδικός.
+      //
+      // Η αποθήκευση έχει ήδη πετύχει εδώ. Αν η αντιγραφή σκοντάψει, το
+      // λέει χωριστά αντί να διαβαστεί σαν αποτυχία της αποθήκευσης.
+      let spread = '';
+      if (storeId) {
+        try {
+          const report = await addNewGamesToOtherStores(orgId, storeId, rows);
+          const added = report.filter((r) => r.added.length > 0);
+          if (added.length > 0) {
+            spread =
+              ' Προστέθηκε και σε: ' +
+              added.map((r) => `${r.storeName} (${r.added.join(', ')})`).join(' · ') +
+              '.';
+          }
+        } catch (err: any) {
+          spread = ` Ο κατάλογος σώθηκε, αλλά η αντιγραφή στα άλλα καταστήματα απέτυχε: ${
+            err?.message ?? 'άγνωστο σφάλμα'
+          }`;
+        }
+      }
+      setMessage(`Ο κατάλογος αποθηκεύτηκε. Ισχύει αμέσως σε κάθε συσκευή.${spread}`);
     } catch (err: any) {
       setError(err?.message || 'Η αποθήκευση του καταλόγου απέτυχε');
     } finally {
