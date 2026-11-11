@@ -38,6 +38,7 @@ import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../serv
 import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
 import { packIsGone, packWarning } from '../../lib/scratchPackWarning.ts';
+import { activePackLabel } from '../../lib/scratchOnTheCounter.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import {
@@ -1286,6 +1287,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               // τίποτα και φεύγουν· μένουν στο tooltip.
                               const isLottery = isLotteryRow(r);
                               const rowWarning = isLottery ? null : packWarning(r as never);
+                              // Ποιο πακέτο έτρεχε σε αυτή τη γραμμή. Γραφόταν
+                              // από το 0065 και δεν φαινόταν πουθενά - ούτε
+                              // εδώ ούτε στο ταμείο.
+                              const packLabel = activePackLabel(r as never, isLottery);
                               const gone = packIsGone(r as never, {
                                 isLottery,
                                 soldThisShift: qty,
@@ -1319,6 +1324,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     {safeNum(r.cancelledBundles) > 0 && (
                                       <span className="ml-2 text-micro bg-slate-800 text-slate-300 border border-slate-600 px-1.5 py-0.2 rounded font-mono">
                                         {safeNum(r.cancelledBundles)} πεντ. αδιάθετες
+                                      </span>
+                                    )}
+                                    {packLabel && (
+                                      <span
+                                        className="block text-micro font-mono font-bold text-slate-500 mt-0.5 tracking-wide"
+                                        title="Ο κωδικός του πακέτου που έτρεχε σε αυτή τη γραμμή"
+                                      >
+                                        {packLabel}
                                       </span>
                                     )}
                                   </td>

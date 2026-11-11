@@ -10,6 +10,7 @@ import {
   Lock,
   Unlock,
   PackagePlus,
+  Package,
   Info,
   ArrowRight,
   Check,
@@ -66,6 +67,11 @@ import {
   type PackHistoryEntry,
 } from '../../lib/scratchPackHistory.ts';
 import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
+import {
+  activePackLabel,
+  awaitingDelivery,
+  readyPackCount,
+} from '../../lib/scratchOnTheCounter.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -1904,9 +1910,32 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const hiddenSeasonal = hiddenSeasonalRowIds(
     seasonalConfig ?? { special_edition_enabled: specialEditionEnabled }
   );
-  const visibleRows = hiddenSeasonal.length === 0
-    ? rows
-    : rows.filter((r) => !hiddenSeasonal.includes(r.id));
+  /**
+   * Ένας κωδικός που μπήκε στον κατάλογο και δεν έχει φτάσει στον πάγκο.
+   *
+   * Ο κατάλογος λέει τι υπάρχει ως παιχνίδι· η αποθήκη τι έχει παραδοθεί.
+   * Δύο νέοι κωδικοί εμφανίστηκαν ως πωλήσιμες γραμμές με τα πακέτα τους
+   * ακόμα στο ράφι - τα ίδια δελτία σε δύο μέρη ταυτόχρονα. Ο κανόνας ζει
+   * στο lib/scratchOnTheCounter.ts και αγγίζει ΜΟΝΟ ό,τι δεν μετρήθηκε
+   * ποτέ: ό,τι τρέχει συνεχίζει να τρέχει, ό,τι κι αν λέει η αποθήκη.
+   *
+   * Ποτέ σε ανάγνωση: μια κλεισμένη βάρδια είναι ΑΡΧΕΙΟ, όχι πάγκος, και
+   * το «περιμένει παράδοση» θα έκρινε τον Οκτώβριο με το ράφι του Νοεμβρίου.
+   */
+  const awaitingRows = (readOnly ? [] : rows).filter((r) =>
+    awaitingDelivery({
+      row: r,
+      readyPacks: readyPackCount(warehousePacks, r.id),
+      warehouseInUse,
+      isLottery: isLotteryRow(r),
+    })
+  );
+  const visibleRows =
+    hiddenSeasonal.length === 0 && awaitingRows.length === 0
+      ? rows
+      : rows.filter(
+          (r) => !hiddenSeasonal.includes(r.id) && !awaitingRows.some((a) => a.id === r.id)
+        );
 
   // Group rows by category
   // Σκρατς first, then Λαχεία, never interleaved - they are different products
@@ -2040,6 +2069,31 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         </div>
       )}
 
+      {/* Ό,τι περιμένει παράδοση το λέμε, δεν το εξαφανίζουμε σιωπηλά: ο
+          κωδικός ΥΠΑΡΧΕΙ στον κατάλογο, και χωρίς αυτή τη γραμμή το ταμείο
+          θα έψαχνε ένα παιχνίδι που «χάθηκε». */}
+      {awaitingRows.length > 0 && (
+        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start space-x-2 text-micro text-amber-950">
+          <Package className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p>
+              <strong>
+                {awaitingRows.length === 1
+                  ? 'Ένα παιχνίδι περιμένει παράδοση'
+                  : `${awaitingRows.length} παιχνίδια περιμένουν παράδοση`}
+                :
+              </strong>{' '}
+              {awaitingRows.map((r) => r.name).join(' · ')}
+            </p>
+            <p className="text-amber-800">
+              Καταχωρημένα στον κατάλογο, αλλά η αποθήκη δεν έχει παραδώσει πακέτο στο
+              κατάστημα — δεν πωλούνται ακόμα, γι' αυτό δεν μετριούνται εδώ. Μπαίνουν μόνα
+              τους μόλις παραδοθεί το πρώτο πακέτο.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Table grid */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
@@ -2152,6 +2206,10 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                     // with no pack behind it, so «how far through» means
                     // nothing there.
                     const rowPackWarning = isLottery ? null : packWarning(row as any);
+                    // «Παιχνίδι / Κωδικός» λέει η κεφαλίδα από την αρχή, και κωδικό
+                    // δεν έδειχνε πουθενά. Γράφεται σε κάθε άνοιγμα από το 0065·
+                    // του έλειπε μόνο μια θέση να διαβαστεί.
+                    const rowPackLabel = activePackLabel(row, isLottery);
                     const rowHasBackSide = hasBackSide(row, sellingMode);
                     const rowBundleSize = row.bundleSize || 5;
                     /**
@@ -2231,6 +2289,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               />
                             </div>
                           ) : (
+                            <>
                             <div className="flex items-center justify-between group">
                               <div className="flex items-center space-x-1.5">
                                 <span>{row.name}</span>
@@ -2297,6 +2356,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 )}
                               </div>
                             </div>
+                            {rowPackLabel && (
+                              <span
+                                className="block text-micro font-bold text-slate-500 font-mono mt-0.5 tracking-wide"
+                                title={`Το πακέτο που τρέχει τώρα σε αυτή τη γραμμή${
+                                  row.isNewPack ? ' - άνοιξε σε αυτή τη βάρδια' : ''
+                                }`}
+                              >
+                                {rowPackLabel}
+                              </span>
+                            )}
+                            </>
                           )}
                         </td>
 
