@@ -66,6 +66,7 @@ import {
   undoLastPack,
   type PackHistoryEntry,
 } from '../../lib/scratchPackHistory.ts';
+import { isPackOpening } from '../../lib/scratchPackOpening.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -1120,6 +1121,12 @@ export function lockScratchRowsForSave(
   return rows.map((row) => {
     const stored = storedById.get(String(row.id));
     if (!stored) return row;
+    // Το άνοιγμα νέου πακέτου περνάει. Χωρίς αυτό ο υπάλληλος θα πατούσε
+    // το κουμπί, θα έβλεπε το πακέτο να ανοίγει στην οθόνη, και το σώσιμο
+    // θα γύριζε σιωπηλά τα δύο νούμερα στο παλιό πακέτο - δηλαδή κουμπί
+    // που δουλεύει μέχρι να φύγεις από τη σελίδα. Ο ίδιος κανόνας με τον
+    // trigger του 0080· βλ. lib/scratchPackOpening.ts.
+    if (isPackOpening(stored, row)) return row;
     return {
       ...row,
       startNo: stored.startNo === undefined || stored.startNo === null ? row.startNo : String(stored.startNo),
@@ -2724,8 +2731,18 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                         {!readOnly && canManage && (
                           <td className="p-2 text-center">
                             <div className="flex items-center justify-center space-x-1.5">
-                              {/* Open New Pack button - sets both locked baselines (Μπροστά-Αρχικό, Πίσω-Τελικό), Owner/Admin only. Meaningless for a manual-mode row (no physical pack to number). */}
-                              {canEditLockedFields && !isManual && (
+                              {/* Άνοιγμα νέου πακέτου.
+                                  Ήταν Owner/Admin μόνο, επειδή γράφει τα δύο
+                                  κλειδωμένα σημεία εκκίνησης. Αλλά το πακέτο
+                                  το ανοίγει όποιος είναι στον πάγκο όταν
+                                  τελειώνει το προηγούμενο. Τα ΝΟΥΜΕΡΑ μένουν
+                                  κλειδωμένα - τα κουτιά είναι ανενεργά και
+                                  γεμίζουν μόνα τους· αυτό που ξεκλειδώνει
+                                  είναι η ΠΡΑΞΗ. Βλ. lib/scratchPackOpening.
+                                  Χωρίς νόημα σε γραμμή χειροκίνητης
+                                  καταμέτρησης: δεν υπάρχει πακέτο να
+                                  αριθμηθεί. */}
+                              {!isManual && (
                                 <IconButton
                                   icon={PackagePlus}
                                   label="Άνοιγμα Νέου Πακέτου"
