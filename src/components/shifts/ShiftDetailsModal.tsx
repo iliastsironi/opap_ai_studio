@@ -45,7 +45,7 @@ import {
 import { fetchShiftCustomerCredits } from '../../services/customerCreditService.ts';
 import { collectionSummary, shouldShowCollection, type CollectableShift } from '../../lib/collectionSummary.ts';
 import { fetchDayCollection, fetchDayCoinHandover } from '../../services/shiftService.ts';
-import { auditCountedCash, auditGrossCount } from '../../lib/countedCashAudit.ts';
+import { auditCountedCash, auditGrossCount, auditOpeningCash } from '../../lib/countedCashAudit.ts';
 import { auditExpectedCash, toraPosTotal as resolveToraPos } from '../../lib/reportsAudit.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import {
@@ -434,9 +434,20 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             const openingCoinsAmount = safeNum(shift.opening_cash_coins);
             const openingTopUp1 = safeNum(shift.custom_field_values?.opening_topup_1);
             const openingTopUp2 = safeNum(shift.custom_field_values?.opening_topup_2);
-            const openingCashTotal = roundCurrency(
-              openingNotesAmount + openingCoinsAmount + openingTopUp1 + openingTopUp2 || safeNum(shift.opening_cash)
-            );
+            // Η κληρονομημένη προσαύξηση. Όταν η βραδινή συνεχίζει την
+            // ημέρα, παίρνει μαζί της ό,τι προσαύξηση δόθηκε το πρωί· το
+            // ποσό ζει στο `inherited_topups`, μπαίνει στο opening_cash και
+            // δεν είχε γραμμή πουθενά. Σε 8 βραδινές έλειπαν έτσι από 300
+            // έως 2.500 € κάτω από ένα σύνολο που δεν τα εξηγούσε.
+            const openingAudit = auditOpeningCash({
+              notes: openingNotesAmount,
+              coins: openingCoinsAmount,
+              topUp1: openingTopUp1,
+              topUp2: openingTopUp2,
+              inherited: shift.custom_field_values?.inherited_topups,
+              stored: shift.opening_cash,
+            });
+            const openingCashTotal = openingAudit.stored;
 
             const denominations: Record<string, number> = shift.counted_denominations || shift.custom_field_values?.denominations || {};
             const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
@@ -525,6 +536,16 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
             );
             const isBalanced = Math.abs(discrepancy) < 0.01;
 
+            // Συμφωνεί το μεγάλο νούμερο με τις δύο μπάρες από κάτω;
+            //
+            // Η απόκλιση ΕΙΝΑΙ «καθαρό μείον αναμενόμενο». Σε πρόχειρη
+            // βάρδια που κάποιος έσβησε τα κοψίματα, το αποθηκευμένο έμεινε
+            // στα −200 € ενώ οι δύο μπάρες έλεγαν 0 και −20: ο ιδιοκτήτης
+            // διάβαζε ένα έλλειμμα που οι στήλες από κάτω δεν παρήγαγαν.
+            const discrepancyFromColumns = roundCurrency(reconciliationNetTotal - expectedCash);
+            const discrepancyExplained =
+              Math.abs(discrepancy - discrepancyFromColumns) <= 0.005;
+
             return (
               <div className="space-y-4">
                 {/* Status & Discrepancy Hero Card */}
@@ -577,9 +598,23 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                       >
                         {formatCurrency(discrepancy, { showSign: true })}
                       </span>
+                      {!discrepancyExplained && (
+                        <span className="block text-micro font-bold text-amber-300 mt-0.5">
+                          Οι στήλες δίνουν {formatCurrency(discrepancyFromColumns, { showSign: true })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {!discrepancyExplained && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <strong>Η απόκλιση δεν βγαίνει από τις στήλες.</strong> Το αποθηκευμένο ποσό
+                    είναι {formatCurrency(discrepancy, { showSign: true })}, ενώ «Σύνολο
+                    Καταμέτρησης» μείον «Σύνολο Ταμείου» δίνει{' '}
+                    {formatCurrency(discrepancyFromColumns, { showSign: true })}. Ελέγξτε τη βάρδια.
+                  </div>
+                )}
 
                 {/* 2-COLUMN SIDE-BY-SIDE RECONCILIATION VIEW */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -834,8 +869,36 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Προσαύξηση #2:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(openingTopUp2)}</span>
                         </div>
-                        <div className="flex justify-between text-indigo-200 font-bold border-t border-slate-800 pt-1">
-                          <span>Σύνολο:</span>
+                        {openingAudit.inherited > 0 && (
+                          <div
+                            className="flex justify-between text-slate-300 py-0.5"
+                            title="Προσαύξηση που δόθηκε νωρίτερα σήμερα και συνεχίζει σε αυτή τη βάρδια."
+                          >
+                            <span>Προσαύξηση από το πρωί:</span>
+                            <span className="font-mono font-bold text-white">
+                              {formatCurrency(openingAudit.inherited)}
+                            </span>
+                          </div>
+                        )}
+                        {!openingAudit.balances && (
+                          <div
+                            className="flex justify-between text-rose-300 py-0.5"
+                            title="Το αποθηκευμένο αρχικό κεφάλαιο δεν συμφωνεί με τις γραμμές από πάνω."
+                          >
+                            <span>Αδικαιολόγητη διαφορά:</span>
+                            <span className="font-mono font-bold text-rose-200">
+                              {formatCurrency(openingAudit.unexplained, { showSign: true })}
+                            </span>
+                          </div>
+                        )}
+                        <div
+                          className={`flex justify-between font-bold border-t pt-1 ${
+                            openingAudit.balances
+                              ? 'border-slate-800 text-indigo-200'
+                              : 'border-rose-700 text-rose-200'
+                          }`}
+                        >
+                          <span>{openingAudit.balances ? 'Σύνολο ✓' : 'Σύνολο ✗'}</span>
                           <span className="font-mono text-white">{formatCurrency(openingCashTotal)}</span>
                         </div>
                       </div>

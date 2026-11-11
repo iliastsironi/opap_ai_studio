@@ -105,6 +105,7 @@ export interface ReportsAuditInput {
   arithmo_cancels?: unknown;
   pame_stoixima?: unknown;
   pame_stoixima_balance?: unknown;
+  clever_point_total?: unknown;
   clever_point?: unknown;
   ippodromos?: unknown;
   ippodromos_balance?: unknown;
@@ -166,7 +167,11 @@ export function auditExpectedCash(input: ReportsAuditInput): ReportsAudit {
   const cancels = round2(first(input.number_games_cancellations, input.arithmo_cancels));
 
   const pame = round2(first(input.pame_stoixima, input.pame_stoixima_balance));
-  const clever = round2(num(input.clever_point));
+  // `clever_point` ΔΕΝ είναι στήλη - η στήλη λέγεται `clever_point_total`.
+  // Όσο το Clever Point είναι μηδέν παντού δεν φαινόταν· την πρώτη μέρα που
+  // ένα μαγαζί το χρησιμοποιούσε, η στήλη θα έβγαζε ψεύτικο κόκκινο ίσο με
+  // το ποσό του.
+  const clever = round2(first(input.clever_point_total, input.clever_point));
   const ippodromos = round2(first(input.ippodromos, input.ippodromos_balance));
   const scratch = round2(num(input.scratch_lotto_sales));
   const tora = toraPosTotal(input);

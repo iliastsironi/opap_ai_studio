@@ -168,3 +168,47 @@ export function auditGrossCount(input: GrossCountInput): GrossCountAudit {
   const unexplained = round2(stored - computed);
   return { computed, stored, unexplained, balances: Math.abs(unexplained) <= CENT };
 }
+
+/**
+ * Και το ΑΡΧΙΚΟ ΚΕΦΑΛΑΙΟ, που είχε το ίδιο πρόβλημα μια γραμμή πιο πάνω.
+ *
+ * Το κουτάκι έδειχνε Μετρητά + Κέρματα + Προσαύξηση #1 + Προσαύξηση #2 και
+ * από κάτω ένα «Σύνολο» που διάβαζε το `opening_cash` της βάσης. Όταν η
+ * βραδινή κληρονομεί προσαύξηση από την πρωινή, το ποσό ζει στο
+ * `inherited_topups` - μπαίνει στο σύνολο, αλλά δεν είχε γραμμή. Σε 8
+ * βραδινές του πρακτορείου έλειπαν έτσι από 300 έως 2.500 €, κάτω από ένα
+ * σύνολο που δεν τα εξηγούσε.
+ */
+export interface OpeningCashInput {
+  notes?: unknown;
+  coins?: unknown;
+  topUp1?: unknown;
+  topUp2?: unknown;
+  /** Προσαύξηση που έδωσε προηγούμενη βάρδια της ίδιας ημέρας. */
+  inherited?: unknown;
+  /** Το αποθηκευμένο opening_cash. */
+  stored?: unknown;
+}
+
+export interface OpeningCashAudit {
+  computed: number;
+  stored: number;
+  unexplained: number;
+  balances: boolean;
+  inherited: number;
+}
+
+export function auditOpeningCash(input: OpeningCashInput): OpeningCashAudit {
+  const inherited = round2(num(input.inherited));
+  const computed = round2(
+    num(input.notes) + num(input.coins) + num(input.topUp1) + num(input.topUp2) + inherited
+  );
+  const hasStored =
+    input.stored !== undefined && input.stored !== null && String(input.stored) !== '';
+  // Χωρίς αποθηκευμένο δεν υπάρχει τίποτα να συγκριθεί· και ένα μηδενικό
+  // αποθηκευμένο δίπλα σε γραμμές που δίνουν ποσό είναι παλιά βάρδια που
+  // δεν έγραψε ποτέ το άθροισμα, όχι λάθος της βάρδιας.
+  const stored = hasStored && num(input.stored) !== 0 ? round2(num(input.stored)) : computed;
+  const unexplained = round2(stored - computed);
+  return { computed, stored, unexplained, balances: Math.abs(unexplained) <= CENT, inherited };
+}

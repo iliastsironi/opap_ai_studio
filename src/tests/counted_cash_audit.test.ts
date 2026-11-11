@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auditCountedCash, auditGrossCount } from '../lib/countedCashAudit.ts';
+import { auditCountedCash, auditGrossCount, auditOpeningCash } from '../lib/countedCashAudit.ts';
 
 const line = (a: ReturnType<typeof auditCountedCash>, key: string) =>
   a.lines.find((l) => l.key === key);
@@ -118,5 +118,45 @@ describe('auditGrossCount', () => {
 
   it('διαβάζει ποσό γραμμένο με ελληνικό κόμμα', () => {
     expect(auditGrossCount({ counted: '100,50', storePos: '10,25' }).computed).toBe(110.75);
+  });
+});
+
+describe('auditOpeningCash', () => {
+  it('βγαίνει στην απλή περίπτωση: χαρτονομίσματα + κέρματα', () => {
+    const a = auditOpeningCash({ notes: 1000, coins: 217.3, stored: 1217.3 });
+    expect(a.computed).toBe(1217.3);
+    expect(a.balances).toBe(true);
+    expect(a.inherited).toBe(0);
+  });
+
+  /**
+   * Βραδινή που συνεχίζει την ημέρα: η προσαύξηση δόθηκε το πρωί και ζει
+   * στο `inherited_topups`. Μπαίνει στο opening_cash, αλλά δεν είχε γραμμή -
+   * το κουτάκι έδειχνε 1.358 κάτω από σύνολο 2.358.
+   */
+  it('δίνει γραμμή στην προσαύξηση που κληρονομήθηκε από το πρωί', () => {
+    const a = auditOpeningCash({ notes: 1000, coins: 358, inherited: 1000, stored: 2358 });
+    expect(a.inherited).toBe(1000);
+    expect(a.computed).toBe(2358);
+    expect(a.balances).toBe(true);
+  });
+
+  it('χωρίς τη γραμμή, το κουτάκι δεν βγάζει - και τώρα το λέει', () => {
+    const a = auditOpeningCash({ notes: 1000, coins: 358, stored: 2358 });
+    expect(a.computed).toBe(1358);
+    expect(a.unexplained).toBe(1000);
+    expect(a.balances).toBe(false);
+  });
+
+  it('παλιά βάρδια χωρίς αποθηκευμένο σύνολο δεν κατηγορείται', () => {
+    const a = auditOpeningCash({ notes: 1000, coins: 200, stored: 0 });
+    expect(a.stored).toBe(1200);
+    expect(a.balances).toBe(true);
+  });
+
+  it('μετράει και τις δύο προσαυξήσεις της ίδιας της βάρδιας', () => {
+    const a = auditOpeningCash({ notes: 500, coins: 100, topUp1: 50, topUp2: 25, stored: 675 });
+    expect(a.computed).toBe(675);
+    expect(a.balances).toBe(true);
   });
 });

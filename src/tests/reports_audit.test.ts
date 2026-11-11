@@ -193,3 +193,28 @@ describe('toraPosTotal', () => {
     expect(toraPosTotal({ custom_field_values: { tora_pos_items: [{ amount: 7 }] } })).toBe(7);
   });
 });
+
+describe('Clever Point', () => {
+  /**
+   * Η στήλη λέγεται `clever_point_total`. Διαβάζοντας `clever_point`, που
+   * δεν υπάρχει, η επιθεώρηση θα έβγαζε κόκκινο ίσο με το ποσό του Clever
+   * την πρώτη μέρα που κάποιο μαγαζί το χρησιμοποιούσε.
+   */
+  it('διαβάζει τη στήλη που υπάρχει όντως', () => {
+    const audit = auditExpectedCash({
+      number_games_sales: 100,
+      clever_point_total: 40,
+      scratch_lotto_sales: 0,
+      vlts_net: 0,
+      fnb_cash: 0,
+      expected_cash: 140,
+    });
+    expect(audit.lines.find((l) => l.key === 'CLEVER')?.amount).toBe(40);
+    expect(audit.balances).toBe(true);
+  });
+
+  it('κρατάει το παλιό όνομα ως δίχτυ', () => {
+    const audit = auditExpectedCash({ clever_point: 25, scratch_lotto_sales: 0, vlts_net: 0, fnb_cash: 0 });
+    expect(audit.lines.find((l) => l.key === 'CLEVER')?.amount).toBe(25);
+  });
+});
