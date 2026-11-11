@@ -38,6 +38,7 @@ export interface ShiftLike {
   opened_at?: string | null;
   opened_by_user_id?: string | null;
   opened_by_user_name?: string | null;
+  closed_by_user_id?: string | null;
 }
 
 export function isActiveShift(shift: ShiftLike | null | undefined): boolean {
@@ -69,6 +70,49 @@ export function worksThisShift(
   const me = String(userId ?? '');
   if (!shift || !me) return false;
   return String(shift.opened_by_user_id ?? '') === me;
+}
+
+/**
+ * Είναι δική του αυτή η βάρδια - να τη δει, όχι να τη δουλέψει;
+ *
+ * Πιο πλατύ από το worksThisShift επίτηδες: μια βάρδια αλλάζει χέρια, κι
+ * όποιος την έκλεισε έχει κάθε λόγο να διαβάζει το ταμείο που μέτρησε.
+ * Ίδιος κανόνας με τη βάση (0022: opened_by_user_id OR closed_by_user_id).
+ */
+export function ownShift(
+  shift: ShiftLike | null | undefined,
+  userId: string | null | undefined
+): boolean {
+  const me = String(userId ?? '');
+  if (!shift || !me) return false;
+  return (
+    String(shift.opened_by_user_id ?? '') === me ||
+    String(shift.closed_by_user_id ?? '') === me
+  );
+}
+
+/**
+ * Ποιες βάρδιες επιτρέπεται να δει αυτός ο χρήστης.
+ *
+ * «Ο υπάλληλος θα βλέπει μόνο τη βάρδια τη δική του, καμία άλλη. Ο admin
+ * φυσικά θα βλέπει όλες τις ανοιχτές βάρδιες.»
+ *
+ * Η λίστα κατέβαινε ολόκληρη και δεν φιλτραριζόταν πουθενά: υπάλληλος της
+ * Στυλίδας έβλεπε την ανοιχτή βάρδια της Λαμίας, με το όνομα εκείνου που
+ * τη δούλευε. Η βάση έδινε τη γραμμή (0022/0054, στενεύει στο 0079) και η
+ * οθόνη τη ζωγράφιζε.
+ *
+ * Δύο μισά, γιατί το ένα δεν αρκεί: αυτό εδώ καθορίζει τι ΒΛΕΠΕΙ κανείς, η
+ * πολιτική της βάσης τι ΜΠΟΡΕΙ να φτάσει στον browser του.
+ */
+export function visibleShifts<T extends ShiftLike>(
+  shifts: ReadonlyArray<T> | null | undefined,
+  userId: string | null | undefined,
+  seesEverything: boolean
+): T[] {
+  const list = shifts ?? [];
+  if (seesEverything) return [...list];
+  return list.filter((s) => ownShift(s, userId));
 }
 
 /** Το όνομα του χειριστή, για μήνυμα. Ποτέ κενό. */

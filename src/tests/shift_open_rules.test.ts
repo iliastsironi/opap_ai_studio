@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeShiftAt, isActiveShift, openBlockedReason, worksThisShift, type ShiftLike,
+  ownShift,
+  visibleShifts,
 } from '../lib/shiftOpenRules.ts';
 
 const s = (over: Partial<ShiftLike>): ShiftLike => ({
@@ -106,5 +108,67 @@ describe('ποιος μπορεί να ανοίξει βάρδια', () => {
     });
     expect(openBlockedReason({ ...base, openedAt: '2026-11-10T14:00:00Z', shifts: [lateNight] }))
       .toContain('Μία βάρδια ανά άτομο');
+  });
+});
+
+describe('ownShift / visibleShifts', () => {
+  const ME = 'user_me';
+  const COLLEAGUE = 'user_other';
+
+  const mine = { id: 's1', store_id: 'stilida', status: 'OPEN', opened_by_user_id: ME };
+  const theirs = { id: 's2', store_id: 'lamia', status: 'OPEN', opened_by_user_id: COLLEAGUE };
+  const iClosedIt = {
+    id: 's3',
+    store_id: 'stilida',
+    status: 'SUBMITTED',
+    opened_by_user_id: COLLEAGUE,
+    closed_by_user_id: ME,
+  };
+
+  it('δική του είναι αυτή που άνοιξε', () => {
+    expect(ownShift(mine, ME)).toBe(true);
+  });
+
+  it('δική του και αυτή που έκλεισε — η βάρδια αλλάζει χέρια', () => {
+    expect(ownShift(iClosedIt, ME)).toBe(true);
+  });
+
+  it('του συναδέλφου δεν είναι δική του', () => {
+    expect(ownShift(theirs, ME)).toBe(false);
+  });
+
+  it('χωρίς χρήστη δεν είναι τίποτα δικό του', () => {
+    expect(ownShift(mine, null)).toBe(false);
+    expect(ownShift(mine, '')).toBe(false);
+  });
+
+  /**
+   * Το παράπονο του ιδιοκτήτη: «έχει ανοίξει υπάλληλος στη Στυλίδα βάρδια
+   * και του δείχνει και τις δύο βάρδιες κι απ' τα δύο τα μαγαζιά».
+   */
+  it('ο υπάλληλος βλέπει μόνο τη δική του, καμία άλλη', () => {
+    const seen = visibleShifts([mine, theirs, iClosedIt], ME, false);
+    expect(seen.map((s) => s.id)).toEqual(['s1', 's3']);
+  });
+
+  it('η ανοιχτή βάρδια του άλλου μαγαζιού δεν περνάει', () => {
+    const seen = visibleShifts([theirs], ME, false);
+    expect(seen).toEqual([]);
+  });
+
+  it('ο admin βλέπει όλες τις ανοιχτές βάρδιες', () => {
+    const seen = visibleShifts([mine, theirs, iClosedIt], 'user_admin', true);
+    expect(seen.map((s) => s.id)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('δεν πειράζει τον πίνακα που του δόθηκε', () => {
+    const list = [mine, theirs];
+    visibleShifts(list, ME, false);
+    expect(list).toHaveLength(2);
+  });
+
+  it('κενό ή άγνωστο δεν σκάει', () => {
+    expect(visibleShifts(null, ME, false)).toEqual([]);
+    expect(visibleShifts(undefined, ME, true)).toEqual([]);
   });
 });

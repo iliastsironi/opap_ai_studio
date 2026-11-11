@@ -37,6 +37,7 @@ import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
+import { packIsGone, packWarning } from '../../lib/scratchPackWarning.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import {
@@ -1275,6 +1276,21 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               const val = calculateRowTotal(r);
                               const isManual = getCountingMode(r) === 'manual';
                               const bundleTracked = isBundleTrackedRow(r);
+                              // Τελειωμένο πακέτο.
+                              //
+                              // Η γραμμή έδειχνε «Μπρ. Αρχικό 150 · Σύνολο 0
+                              // τμχ», και το 150 διαβάζεται σαν απόθεμα ενώ
+                              // είναι η θέση ΜΕΤΑ το τελευταίο δελτίο -
+                              // δηλαδή άδειο ράφι. Όταν η βάρδια δεν πούλησε
+                              // τίποτα από αυτό, τα νούμερα δεν εξηγούν
+                              // τίποτα και φεύγουν· μένουν στο tooltip.
+                              const isLottery = isLotteryRow(r);
+                              const rowWarning = isLottery ? null : packWarning(r as never);
+                              const gone = packIsGone(r as never, {
+                                isLottery,
+                                soldThisShift: qty,
+                              });
+                              const goneTitle = `Το πακέτο τελείωσε — δεν υπάρχει στο ράφι. Τελευταία θέση: ${r.endNo || r.startNo || '—'}.`;
                               const bundleSize = r.bundleSize || 5;
                               const startSplit = bundleTracked ? splitPiecesIntoBundles(parseNonNegativeInt(r.startNo).value, bundleSize) : null;
                               const endSplit = bundleTracked && r.endNo ? splitPiecesIntoBundles(parseNonNegativeInt(r.endNo).value, bundleSize) : null;
@@ -1285,6 +1301,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     {r.isNewPack && (
                                       <span className="ml-2 text-micro bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">
                                         Νέο
+                                      </span>
+                                    )}
+                                    {rowWarning?.state === 'finished' && (
+                                      <span
+                                        className="ml-2 text-micro bg-rose-950 text-rose-300 border border-rose-800 px-1.5 py-0.2 rounded"
+                                        title={goneTitle}
+                                      >
+                                        ⛔ Τελείωσε
                                       </span>
                                     )}
                                     {/* Αδιάθετοι. The one figure that says a
@@ -1300,7 +1324,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   </td>
                                   <td className="py-1.5 px-2 text-right text-slate-300">{formatCurrency(Number(r.price))}</td>
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">
-                                    {isManual ? (
+                                    {gone ? (
+                                      <span className="text-slate-500 font-sans font-normal" title={goneTitle}>
+                                        δεν υπάρχει
+                                      </span>
+                                    ) : isManual ? (
                                       <span className="text-slate-500">—</span>
                                     ) : (
                                       <>
@@ -1314,7 +1342,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                     )}
                                   </td>
                                   <td className="py-1.5 px-2 text-center text-indigo-300 font-bold">
-                                    {isManual ? (
+                                    {gone ? (
+                                      <span className="text-slate-500 font-sans font-normal" title={goneTitle}>
+                                        —
+                                      </span>
+                                    ) : isManual ? (
                                       r.manualQty || '-'
                                     ) : (
                                       <>

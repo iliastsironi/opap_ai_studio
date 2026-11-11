@@ -103,7 +103,7 @@ import {
   registerLabel,
   shiftTypeLabel,
 } from '../../lib/inspectionDayGroups.ts';
-import { worksThisShift } from '../../lib/shiftOpenRules.ts';
+import { worksThisShift, visibleShifts } from '../../lib/shiftOpenRules.ts';
 
 export const ShiftsManager: React.FC = () => {
   const { token, organization, roles, hasPermission, user } = useAuth();
@@ -302,7 +302,19 @@ export const ShiftsManager: React.FC = () => {
     setError(null);
 
     try {
-      const fsData = await fetchShiftsFromFirestore(orgId, selectedStoreFilter, selectedStatusFilter);
+      // Μόνο οι δικές του, εκτός αν εγκρίνει.
+      //
+      // Η λίστα κατέβαινε ολόκληρη και δεν φιλτραριζόταν πουθενά, οπότε
+      // υπάλληλος της Στυλίδας έβλεπε την ανοιχτή βάρδια της Λαμίας με το
+      // όνομα εκείνου που τη δούλευε. Το φίλτρο μπαίνει ΕΔΩ, στο σημείο που
+      // φτάνουν τα δεδομένα, ώστε να μην υπάρχει οθόνη πιο κάτω που να
+      // ξεχάστηκε - ο πίνακας, οι κάρτες, τα KPI και η ανοιχτή βάρδια
+      // διαβάζουν όλα από αυτό.
+      const fsData = visibleShifts(
+        await fetchShiftsFromFirestore(orgId, selectedStoreFilter, selectedStatusFilter),
+        user?.id,
+        canApprove
+      );
       setShifts(fsData);
 
       // Find active shift for current store
@@ -317,13 +329,16 @@ export const ShiftsManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [orgId, selectedStoreFilter, selectedStatusFilter, currentStore?.id]);
+  }, [orgId, selectedStoreFilter, selectedStatusFilter, currentStore?.id, user?.id, canApprove]);
 
   useEffect(() => {
     fetchShifts();
 
     // Setup real-time listener for live shift state changes
-    const unsub = subscribeToShifts(orgId, selectedStoreFilter, (updatedShifts) => {
+    const unsub = subscribeToShifts(orgId, selectedStoreFilter, (incoming) => {
+      // Το ίδιο φίλτρο και στη ζωντανή ροή. Χωρίς αυτό, η βάρδια του
+      // συναδέλφου θα εμφανιζόταν μόλις άλλαζε κάτι πάνω της.
+      const updatedShifts = visibleShifts(incoming, user?.id, canApprove);
       let filtered = updatedShifts;
       if (selectedStatusFilter !== 'ALL') {
         filtered = updatedShifts.filter((s) => s.status === selectedStatusFilter);
@@ -340,7 +355,7 @@ export const ShiftsManager: React.FC = () => {
     });
 
     return () => unsub();
-  }, [orgId, selectedStoreFilter, selectedStatusFilter, currentStore?.id, fetchShifts]);
+  }, [orgId, selectedStoreFilter, selectedStatusFilter, currentStore?.id, fetchShifts, user?.id, canApprove]);
 
   // Handle open wizard for specific shift
   const handleOpenWizard = (shiftToClose: Shift) => {
