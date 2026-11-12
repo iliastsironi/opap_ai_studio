@@ -21,17 +21,15 @@
  * βιβλία.
  */
 
-/** Ό,τι δέχεται το auth_is_elevated() της βάσης (0002). Ίδια λίστα επίτηδες. */
-export const ELEVATED_ROLES = [
-  'ORG_OWNER',
-  'PLATFORM_ADMIN',
-  'AREA_MANAGER',
-  'STORE_MANAGER',
-  'ORG_ADMIN',
-] as const;
+/**
+ * Οι δύο κύκλοι ρόλων έφυγαν σε δικό τους φύλλο (authCircles.ts) τη στιγμή
+ * που τους χρειάστηκε και η οθόνη των εξόδων: η ίδια λίστα ρόλων γραμμένη
+ * δεύτερη φορά είναι η ίδια ερώτηση με δύο απαντήσεις που θα διαφωνήσουν.
+ * Μένουν εξαγόμενα από εδώ, γιατί εδώ τα ζητάνε όσοι τα ζητούσαν πάντα.
+ */
+import { ELEVATED_ROLES, OWNER_ROLES } from './authCircles.ts';
 
-/** Ποιος αποφασίζει για κλεισμένο ταμείο. */
-export const OWNER_ROLES = ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'] as const;
+export { ELEVATED_ROLES, OWNER_ROLES };
 
 /** Καταστάσεις όπου η βάρδια δεν έχει ακόμα υποβληθεί. */
 export const DRAFT_STATUSES = [

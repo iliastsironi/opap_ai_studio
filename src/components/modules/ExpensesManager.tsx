@@ -19,7 +19,13 @@ import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { presetsForCategory, suppliersForCategory, expenseCategoryOfSupplier } from '../../lib/expenseSuppliers.ts';
 import { useExpenseCategories } from './useExpenseCategories.ts';
-import { COMPANY_EXPENSE_CATEGORY, isCompanyCategory } from '../../lib/expenseCategories.ts';
+import {
+  COMPANY_EXPENSE_CATEGORY,
+  canRecordCompanyExpense,
+  isCompanyCategory,
+  offerableCategories,
+} from '../../lib/expenseCategories.ts';
+import { roleCodesOf } from '../../lib/authCircles.ts';
 import {
   addCompanyDailyExpense,
   updateCompanyDailyExpense,
@@ -59,6 +65,14 @@ export const ExpensesManager: React.FC = () => {
   const canEditExpense =
     roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(r.code)) ||
     permissions.includes('*');
+  /**
+   * Ποιος γράφει έξοδο της εταιρίας.
+   *
+   * Ο διευθυντής, όπως ζήτησε ο ιδιοκτήτης - το 0082 άνοιξε και την πύλη
+   * της βάσης στον ίδιο κύκλο. Ο κανόνας ζει στο expenseCategories, ώστε η
+   * οθόνη και ο έλεγχος πριν την αποθήκευση να ρωτάνε το ίδιο πράγμα.
+   */
+  const canRecordCompany = canRecordCompanyExpense(roleCodesOf(roles), permissions);
   const [expenses, setExpenses] = useState<ScreenExpense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Dating an expense to another day is the Owner's, not the counter's: it
@@ -136,6 +150,14 @@ export const ExpensesManager: React.FC = () => {
    */
   const companyCategoryKey =
     categories.find((c) => c.side === 'COMPANY')?.key ?? COMPANY_EXPENSE_CATEGORY;
+  /**
+   * Τι προσφέρει η φόρμα σε αυτόν τον χρήστη.
+   *
+   * Η λίστα του φίλτρου από πάνω μένει πλήρης - ο υπάλληλος που ΕΧΕΙ δει
+   * μια παλιά γραμμή εταιρίας πρέπει να μπορεί να τη φιλτράρει. Στενεύει
+   * μόνο η καταχώρηση.
+   */
+  const offeredCategories = offerableCategories(categories, roleCodesOf(roles), permissions);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
 
   const loadExpenses = async () => {
@@ -299,6 +321,18 @@ export const ExpensesManager: React.FC = () => {
       // Η οθόνη το εμποδίζει ήδη· αυτό είναι ο δεύτερος φραγμός, γιατί
       // ένα εταιρικό κλειδί γραμμένο σε γραμμή shift_expenses είναι
       // ακριβώς το λάθος που διορθώθηκε στο 0075.
+      // Δεύτερος φραγμός: η λίστα δεν προσφέρει πια κατηγορία εταιρίας σε
+      // υπάλληλο, αλλά ένα έξοδο μπορεί να φτάσει εδώ με κατηγορία που
+      // επιλέχθηκε από προμηθευτή ή που μόλις δημιουργήθηκε. Το μήνυμα
+      // λέει τον λόγο· το RLS θα έλεγε μόνο ότι απαγορεύεται.
+      if (isCompanyEntry && !canRecordCompany) {
+        setCreateError(
+          'Τα έξοδα εταιρίας καταχωρούνται από τον διευθυντή ή τον ιδιοκτήτη. Διαλέξτε κατηγορία καταστήματος.'
+        );
+        setSubmitting(false);
+        return;
+      }
+
       if (editing && isCompanyEntry !== !!editing.isCompany) {
         setCreateError(
           'Ένα έξοδο δεν αλλάζει από έξοδο καταστήματος σε έξοδο εταιρίας. Σβήστε το και καταχωρήστε το ξανά.'
@@ -975,7 +1009,7 @@ export const ExpensesManager: React.FC = () => {
                       ? categoryOptions.filter(
                           (c) => isCompanyCategory(c.key, categories) === !!editing.isCompany
                         )
-                      : categoryOptions
+                      : offeredCategories
                     ).map((c) => (
                       <option key={c.key} value={c.key}>{c.label}</option>
                     ))}

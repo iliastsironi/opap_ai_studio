@@ -14,6 +14,7 @@
  * απαντηθεί η ερώτηση σε όλο το έργο.
  */
 
+import { isElevatedRole } from './authCircles.ts';
 import { stripGreekAccents } from './greekTypography.ts';
 
 /**
@@ -121,6 +122,43 @@ export function isCompanyCategory(category: unknown, categories?: readonly Expen
   const key = String(category ?? '');
   const match = categories?.find((c) => c.key === key);
   return match ? match.side === 'COMPANY' : key === COMPANY_EXPENSE_CATEGORY;
+}
+
+/**
+ * Ποιος γράφει έξοδο που πληρώνει η εταιρία.
+ *
+ * Ο διευθυντής και πάνω - ίδιος κύκλος με το auth_is_elevated() της βάσης,
+ * που είναι η πύλη που όντως φυλάει τον πίνακα (0082). Όχι ο υπάλληλος: ένα
+ * ΕΦΚΑ δεν πληρώνεται από το συρτάρι του ταμείου, δεν περνάει σε βάρδια και
+ * δεν βαραίνει μαγαζί· είναι δουλειά των βιβλίων.
+ *
+ * Μέχρι το 0082 η απάντηση ήταν «μόνο ο ιδιοκτήτης», και δεν ήταν γραμμένη
+ * πουθενά στην οθόνη - ζούσε μόνο μέσα στο RLS. Η φόρμα πρόσφερε την
+ * κατηγορία σε όλους, το ποσό γραφόταν, και το σφάλμα ερχόταν από τη βάση
+ * στο τέλος.
+ */
+export function canRecordCompanyExpense(
+  roleCodes: ReadonlyArray<string> | null | undefined,
+  permissions?: ReadonlyArray<string> | null
+): boolean {
+  return isElevatedRole(roleCodes, permissions);
+}
+
+/**
+ * Όσες κατηγορίες προσφέρονται σε ΑΥΤΟΝ τον χρήστη για νέα καταχώρηση.
+ *
+ * Το activeCategories απαντάει «τι υπάρχει»· αυτό απαντάει «τι μπορεί να
+ * γραφτεί». Οι δύο ερωτήσεις ήταν μία, και γι' αυτό ο υπάλληλος έβλεπε στη
+ * λίστα μια κατηγορία που η βάση δεν τον άφηνε ποτέ να χρησιμοποιήσει.
+ */
+export function offerableCategories(
+  list: readonly ExpenseCategoryDef[],
+  roleCodes: ReadonlyArray<string> | null | undefined,
+  permissions?: ReadonlyArray<string> | null
+): ExpenseCategoryDef[] {
+  const active = activeCategories(list);
+  if (canRecordCompanyExpense(roleCodes, permissions)) return active;
+  return active.filter((c) => c.side !== 'COMPANY');
 }
 
 /** Τα keys που ανήκουν στον καφέ - η μορφή που θέλει η μηχανή του P&L. */
