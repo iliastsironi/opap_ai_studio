@@ -35,6 +35,17 @@ export interface InspectionLine {
   found: number | null;
   /** Ticket price, for the ticket kinds. Ignored for cash. */
   unitPrice?: number;
+  /**
+   * Η ταυτότητα της γραμμής και η συσκευασία της - ΜΟΝΟ για την εμφάνιση.
+   *
+   * Ο αριθμός εδώ μένει πάντα σε κομμάτια, όπως τον κρατάει η γραμμή και
+   * όπως τον διαβάζει το lineFinding. Αυτά τα δύο επιτρέπουν στην οθόνη να
+   * τον ΔΕΙΞΕΙ στη μονάδα που μετράει το μαγαζί - πεντάδες στα λαχεία των
+   * δύο καταστημάτων - χωρίς να αλλάξει τίποτα στο τι αποθηκεύεται ή στο
+   * πόσο χρεώνεται. Δες lib/lotteryQuantityView.ts.
+   */
+  rowId?: string;
+  bundleSize?: number;
 }
 
 export interface LineFinding {
@@ -150,7 +161,17 @@ export interface InspectionHandover {
   /** notes + coins - τα μετρητά του συρταριού. */
   money: number;
   /** Λαχεία: τεμάχια που απομένουν και η αξία τους. */
+  /**
+   * Το άθροισμα των αριθμών των λαχείων.
+   *
+   * ΔΕΝ είναι πλήθος σε μια μονάδα: το Λαϊκό μετράει κομμάτια και το Εθνικό
+   * πεντάδες, οπότε το άθροισμά τους δεν μετράει τίποτα. Μένει γιατί το
+   * μετράει το ίδιο το lineFinding ανά γραμμή· η οθόνη δείχνει γραμμές και
+   * αξία.
+   */
   lotteryUnits: number;
+  /** Πόσες γραμμές λαχείων παραλαμβάνονται. */
+  lotteryLines: number;
   lotteryValue: number;
   /** Σκρατς: γραμμές προς έλεγχο. ΟΧΙ τεμάχια - δες παραπάνω. */
   scratchLines: number;
@@ -180,11 +201,13 @@ export function inspectionHandover(lines: InspectionLine[]): InspectionHandover 
     }
   }
 
+  const lotteryLines = (lines ?? []).filter((l) => l.kind === 'LOTTERY').length;
+
   return {
     notes, coins,
     money: round2(notes + coins),
-    lotteryUnits, lotteryValue,
+    lotteryUnits, lotteryValue, lotteryLines,
     scratchLines,
-    ticketLines: scratchLines + (lines ?? []).filter((l) => l.kind === 'LOTTERY').length,
+    ticketLines: scratchLines + lotteryLines,
   };
 }

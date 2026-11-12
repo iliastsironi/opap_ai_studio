@@ -67,6 +67,7 @@ import {
   type PackHistoryEntry,
 } from '../../lib/scratchPackHistory.ts';
 import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
+import { displayedRowCount } from '../../lib/lotteryQuantityView.ts';
 import {
   activePackLabel,
   awaitingDelivery,
@@ -961,26 +962,16 @@ export function splitPiecesIntoBundles(totalPieces: number, bundleSize: number):
 /**
  * Πόσες μονάδες δείχνει η στήλη του πλήθους.
  *
- * Ένα κατάστημα που μετράει ένα λαχείο σε πεντάδες θέλει το πλήθος σε
- * πεντάδες, οπότε μια γραμμή κοστολογημένη ανά κομμάτι διαιρείται. Μια
- * γραμμή της οποίας η τιμή ΕΙΝΑΙ η πεντάδα δεν έχει τι να διαιρέσει - το
- * πλήθος της είναι ήδη σε πεντάδες.
+ * Μετακόμισε στο lib/lotteryQuantityView.ts: τον ίδιο κανόνα χρειάζονται και
+ * οι δύο επιθεωρήσεις - η πρωινή παράδοση και το ταμείο που κοιτάει ο
+ * υπεύθυνος - και καμία από τις δύο δεν μπορεί να κουβαλήσει ολόκληρη αυτή
+ * την οθόνη για να τον διαβάσει. Ξαναβγαίνει από εδώ γιατί εδώ τον
+ * ζητούσαν.
  *
- * Το `row.bundleSize || 5` που γυρνούσε το 0 σε 5 έκανε τη δεύτερη
- * διαίρεση να μοιάζει λογική: 337 πεντάδες Εθνικού εμφανίζονταν ως 67, και
- * η ίδια γραμμή έλεγε «337 τμχ» για ένα λαχείο που δεν πωλείται ποτέ σε
- * κομμάτια. Η συνθήκη είναι η ίδια που φυλάει και την τιμή - bundleSize
- * πάνω από το μηδέν - γιατί είναι η ίδια ερώτηση: έχει κομμάτια από πίσω;
+ * Η παγίδα που φυλάει είναι γραμμένη εκεί: πεντάδα 0 σημαίνει ότι η μονάδα
+ * ΕΙΝΑΙ η πεντάδα, και το `|| 5` έκανε 337 πεντάδες Εθνικού να φαίνονται 67.
  */
-export function displayedRowCount(
-  totalQty: number,
-  bundleSize: unknown,
-  bundlesOnly: boolean
-): number {
-  const packed = Number(bundleSize);
-  if (!bundlesOnly || !Number.isFinite(packed) || packed <= 0) return totalQty;
-  return Math.floor(totalQty / packed);
-}
+export { displayedRowCount };
 
 /**
  * Πόσα δελτία του παλιού πακέτου μετράνε ως πώληση όταν ανοίγει καινούριο.

@@ -39,6 +39,9 @@ import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
 import { packIsGone, packWarning } from '../../lib/scratchPackWarning.ts';
 import { activePackLabel } from '../../lib/scratchOnTheCounter.ts';
+import { formatQuantity, quantityView } from '../../lib/lotteryQuantityView.ts';
+import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
+import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { carriedFromStored } from '../../lib/posBatchClose.ts';
 import {
@@ -51,7 +54,6 @@ import { collectionSummary, shouldShowCollection, type CollectableShift } from '
 import { fetchDayCollection, fetchDayCoinHandover } from '../../services/shiftService.ts';
 import { auditCountedCash, auditGrossCount, auditOpeningCash } from '../../lib/countedCashAudit.ts';
 import { auditExpectedCash, toraPosTotal as resolveToraPos } from '../../lib/reportsAudit.ts';
-import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import {
   safeNum,
   roundCurrency,
@@ -68,7 +70,6 @@ import {
   getCountingMode,
   hasBackSide,
   parseNonNegativeInt,
-  splitPiecesIntoBundles,
   ScratchTicketRow,
 } from './ScratchCalculatorTable.tsx';
 
@@ -119,6 +120,40 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
   const { categories: expenseCategories } = useExpenseCategories(shift?.organization_id);
   /** The credits that actually reached each customer's balance. */
   const [postedCredits, setPostedCredits] = useState<Array<Record<string, unknown>>>([]);
+
+  /**
+   * Σε τι μετράει το μαγαζί κάθε λαχείο.
+   *
+   * «Όταν κάνεις επιθεώρηση ταμείου μετά σαν υπεύθυνος, τις πωλήσεις στα
+   * λαχεία τις δείχνει όλες με κομμάτια και όχι με πεντάδες.» Η ρύθμιση
+   * υπήρχε, αλλά αυτή η οθόνη δεν διάβαζε ποτέ το πρότυπο του καταστήματος
+   * - οπότε έγραφε ό,τι κρατάει η γραμμή, δηλαδή κομμάτια.
+   *
+   * Αποτυχία εδώ δεν κρύβει τίποτα: χωρίς ρυθμίσεις, η οθόνη δείχνει ό,τι
+   * έδειχνε πάντα.
+   */
+  const [lotteryUnits, setLotteryUnits] = useState<Record<string, unknown>>({});
+  const [legacyUnits, setLegacyUnits] = useState<LegacyUnitSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const orgId = shift?.organization_id;
+    const storeId = shift?.store_id;
+    if (!orgId || !storeId) return undefined;
+    getShiftTemplateConfig(orgId, storeId)
+      .then((config) => {
+        if (cancelled) return;
+        setLotteryUnits(((config as any)?.lottery_units ?? {}) as Record<string, unknown>);
+        setLegacyUnits({
+          special_edition_x5_bundles: (config as any)?.special_edition_x5_bundles,
+          special_edition_x10_bundles: (config as any)?.special_edition_x10_bundles,
+          protochroniatiko_bundles: (config as any)?.protochroniatiko_bundles,
+          laiko_selling_mode: (config as any)?.laiko_selling_mode,
+        });
+      })
+      .catch((err) => console.warn('[ShiftDetailsModal] could not load the unit settings:', err));
+    return () => { cancelled = true; };
+  }, [shift?.organization_id, shift?.store_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1267,7 +1302,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               <th className="py-1.5 px-2 text-center text-indigo-400">Μπρ. Τελικό</th>
                               <th className="py-1.5 px-2 text-center text-purple-400">Πίσ. Αρχικό</th>
                               <th className="py-1.5 px-2 text-center text-purple-400">Πίσ. Τελικό</th>
-                              <th className="py-1.5 px-2 text-center">Σύνολο (Τμχ)</th>
+                              {/* Όχι «(Τμχ)»: η στήλη έχει σκρατς σε κομμάτια
+                                  και λαχεία σε πεντάδες, και η μονάδα
+                                  γράφεται πια δίπλα σε κάθε νούμερο. */}
+                              <th className="py-1.5 px-2 text-center">Σύνολο</th>
                               <th className="py-1.5 px-2 text-right">Αξία (€)</th>
                             </tr>
                           </thead>
@@ -1276,7 +1314,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                               const qty = calculateCombinedRowQty(r);
                               const val = calculateRowTotal(r);
                               const isManual = getCountingMode(r) === 'manual';
-                              const bundleTracked = isBundleTrackedRow(r);
                               // Τελειωμένο πακέτο.
                               //
                               // Η γραμμή έδειχνε «Μπρ. Αρχικό 150 · Σύνολο 0
@@ -1296,9 +1333,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                 soldThisShift: qty,
                               });
                               const goneTitle = `Το πακέτο τελείωσε — δεν υπάρχει στο ράφι. Τελευταία θέση: ${r.endNo || r.startNo || '—'}.`;
-                              const bundleSize = r.bundleSize || 5;
-                              const startSplit = bundleTracked ? splitPiecesIntoBundles(parseNonNegativeInt(r.startNo).value, bundleSize) : null;
-                              const endSplit = bundleTracked && r.endNo ? splitPiecesIntoBundles(parseNonNegativeInt(r.endNo).value, bundleSize) : null;
+                              // Σε τι μετράει το μαγαζί ΑΥΤΟ το παιχνίδι. Η
+                              // γραμμή κρατάει κομμάτια· εδώ διαβάζεται στη
+                              // μονάδα που μετράει ο άνθρωπος.
+                              const view = quantityView(r, isLottery, lotteryUnits, legacyUnits);
+                              const inUnits = view.inBundles;
                               return (
                                 <tr key={r.id || idx} className="hover:bg-slate-800/40">
                                   <td className="py-1.5 px-2 font-sans font-bold text-slate-200">
@@ -1345,12 +1384,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       <span className="text-slate-500">—</span>
                                     ) : (
                                       <>
-                                        {r.startNo || '-'}
-                                        {startSplit && (
-                                          <div className="text-micro font-sans font-normal text-amber-500/80 normal-case">
-                                            {startSplit.bundles} πεντ. + {startSplit.pieces} τμχ
-                                          </div>
-                                        )}
+                                        {r.startNo === '' || r.startNo === undefined
+                                          ? '-'
+                                          : inUnits
+                                          ? formatQuantity(r.startNo, view)
+                                          : r.startNo}
                                       </>
                                     )}
                                   </td>
@@ -1363,12 +1401,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                       r.manualQty || '-'
                                     ) : (
                                       <>
-                                        {r.endNo || '-'}
-                                        {endSplit && (
-                                          <div className="text-micro font-sans font-normal text-indigo-400/80 normal-case">
-                                            {endSplit.bundles} πεντ. + {endSplit.pieces} τμχ
-                                          </div>
-                                        )}
+                                        {r.endNo === '' || r.endNo === undefined
+                                          ? '-'
+                                          : inUnits
+                                          ? formatQuantity(r.endNo, view)
+                                          : r.endNo}
                                       </>
                                     )}
                                   </td>
@@ -1376,7 +1413,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                                   <td className="py-1.5 px-2 text-center text-amber-300 font-bold">{!hasBackSide(r) ? '—' : (r.backEndNo || '-')}</td>
                                   <td className="py-1.5 px-2 text-center font-bold text-white">
                                     <span className={qty > 0 ? 'bg-indigo-900/80 px-2 py-0.5 rounded text-indigo-200' : 'text-slate-500'}>
-                                      {qty}
+                                      {formatQuantity(qty, view)}
                                     </span>
                                   </td>
                                   <td className="py-1.5 px-2 text-right font-black text-emerald-400">

@@ -6,6 +6,10 @@ import { NumericField } from '../ui/NumericField.tsx';
 import {
   InspectionLine, lineFinding, summariseInspection, inspectionHandover,
 } from '../../lib/shiftInspection.ts';
+import {
+  formatQuantity, looseOf, quantityView, toPieces, unitsOf,
+} from '../../lib/lotteryQuantityView.ts';
+import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 
 /**
  * Η επιθεώρηση παράδοσης, on the morning shift's opening screen.
@@ -76,9 +80,16 @@ export const InspectionHandoverSummary: React.FC<{
         <p className="text-micro text-slate-600 mt-1.5 font-medium">
           {/* Τα λαχεία έχουν αξία γιατί το νούμερό τους είναι απόθεμα· τα
               σκρατς μόνο γραμμές, γιατί το δικό τους είναι θέση σε πακέτο. */}
-          {h.lotteryUnits > 0 && (
+          {h.lotteryLines > 0 && (
             <>
-              Λαχεία: <strong className="font-mono">{h.lotteryUnits}</strong> τεμάχια
+              {/* ΟΧΙ άθροισμα μονάδων. Το 200 του Λαϊκού είναι κομμάτια και
+                  το 80 του Εθνικού πεντάδες· προστιθέμενα έδιναν «280
+                  τεμάχια», έναν αριθμό που δεν μετράει τίποτα - ακριβώς το
+                  μπέρδεμα που φτιάχνουμε παρακάτω γραμμή-γραμμή. Η αξία
+                  προστίθεται σωστά, γιατί κάθε γραμμή πολλαπλασιάζεται με τη
+                  δική της τιμή. */}
+              Λαχεία: <strong className="font-mono">{h.lotteryLines}</strong>{' '}
+              {h.lotteryLines === 1 ? 'γραμμή' : 'γραμμές'}
               (<strong className="font-mono">{formatCurrency(h.lotteryValue)}</strong>)
               {h.scratchLines > 0 ? ' · ' : ''}
             </>
@@ -104,9 +115,20 @@ export const ShiftInspectionPanel: React.FC<{
   skipped?: boolean;
   /** Μετράει ο ίδιος που δούλεψε τη βάρδια που επιθεωρείται. */
   selfInspection?: boolean;
+  /**
+   * Σε τι μετράει το μαγαζί κάθε λαχείο (shift_templates.lottery_units).
+   *
+   * «Τα λαχεία να τα εμφανίζει σαν πεντάδες και όχι σαν κομμάτια, γιατί τα
+   * βλέπουν και μπερδεύονται.» Η απάντηση υπήρχε ήδη δηλωμένη ανά παιχνίδι
+   * και το ταμείο τη σέβεται· η επιθεώρηση δεν τη ρωτούσε ποτέ και έγραφε
+   * κομμάτια. Ο αριθμός από κάτω δεν αλλάζει - μόνο αυτό που διαβάζεται.
+   */
+  lotteryUnits?: Record<string, unknown> | null;
+  legacyUnits?: LegacyUnitSettings | null;
 }> = ({
   previousOperatorName, lines, onChangeFound, onSkip,
   disabled = false, skipped = false, selfInspection = false,
+  lotteryUnits, legacyUnits,
 }) => {
   const summary = useMemo(() => summariseInspection(lines), [lines]);
 
@@ -124,7 +146,7 @@ export const ShiftInspectionPanel: React.FC<{
     {
       kind: ['SCRATCH', 'LOTTERY'],
       title: '3. Σκρατς & Λαχεία',
-      hint: 'Στα σκρατς ελέγχετε τον αύξοντα αριθμό, στα λαχεία το πλήθος που παραλαμβάνετε.',
+      hint: 'Στα σκρατς ελέγχετε τον αύξοντα αριθμό, στα λαχεία το πλήθος που παραλαμβάνετε — στη μονάδα που μετράει το μαγαζί.',
     },
   ];
 
@@ -194,6 +216,23 @@ export const ShiftInspectionPanel: React.FC<{
               {sectionLines.map((line) => {
                 const finding = lineFinding(line);
                 const isMoney = line.kind === 'CASH' || line.kind === 'COINS';
+                // Η μονάδα που μετράει το μαγαζί. Στα χρήματα δεν ισχύει.
+                const view = quantityView(
+                  { id: line.rowId, bundleSize: line.bundleSize, price: line.unitPrice },
+                  line.kind === 'LOTTERY',
+                  lotteryUnits,
+                  legacyUnits
+                );
+                // Ο αριθμός που βλέπει και γράφει ο χειριστής.
+                const current = line.found ?? line.expected;
+                const shown = view.size > 0 ? unitsOf(current, view) : current;
+                // Το σπασμένο υπόλοιπο εμφανίζεται ΜΟΝΟ αν υπάρχει· αλλιώς
+                // ένα «+ 0 κομμάτια» σε κάθε γραμμή μαθαίνει τον χειριστή να
+                // μη διαβάζει τη γραμμή. Όταν υπάρχει, πρέπει να μπορεί να
+                // γραφτεί: μια μετατροπή που το έκοβε θα χρέωνε δελτία που
+                // είναι στο ράφι.
+                const hasLoose = view.size > 0 && looseOf(line.expected, view) !== 0;
+                const loose = view.size > 0 ? looseOf(current, view) : 0;
                 return (
                   <div
                     key={line.key}
@@ -211,8 +250,12 @@ export const ShiftInspectionPanel: React.FC<{
                       </span>
                       <span className="text-micro text-slate-500 font-mono">
                         Δηλώθηκε:{' '}
-                        {isMoney ? formatCurrency(line.expected) : line.expected}
-                        {!isMoney && line.unitPrice ? ` · ${formatCurrency(line.unitPrice)}/τεμ.` : ''}
+                        {isMoney
+                          ? formatCurrency(line.expected)
+                          : formatQuantity(line.expected, view, false)}
+                        {!isMoney && view.unitPrice
+                          ? ` · ${formatCurrency(view.unitPrice)}/${view.nounSingular}`
+                          : ''}
                       </span>
                     </div>
 
@@ -221,15 +264,37 @@ export const ShiftInspectionPanel: React.FC<{
                         Owner described it: «αν δε βρει 1000 θα βρει 995». A
                         blank field would make every line a chore and an
                         untouched one ambiguous. */}
-                    <div className="w-28">
+                    <div className={hasLoose ? 'w-36 flex items-center gap-1' : 'w-28'}>
                       <NumericField
-                        value={line.found ?? line.expected}
-                        onChange={(next) => onChangeFound(line.key, next)}
+                        value={shown}
+                        onChange={(next) =>
+                          onChangeFound(
+                            line.key,
+                            view.size > 0 ? toPieces(next, loose, view) : next
+                          )
+                        }
                         decimals={isMoney ? 2 : 0}
                         min={0}
                         disabled={disabled}
-                        aria-label={`Βρήκα — ${line.label}`}
+                        aria-label={`Βρήκα — ${line.label}${
+                          isMoney ? '' : ` (${view.noun})`
+                        }`}
                       />
+                      {hasLoose && (
+                        <>
+                          <span className="text-micro text-slate-400 shrink-0">+</span>
+                          <NumericField
+                            value={loose}
+                            onChange={(next) =>
+                              onChangeFound(line.key, toPieces(unitsOf(current, view), next, view))
+                            }
+                            decimals={0}
+                            min={0}
+                            disabled={disabled}
+                            aria-label={`Βρήκα — ${line.label} (κομμάτια)`}
+                          />
+                        </>
+                      )}
                     </div>
 
                     <span
@@ -348,6 +413,9 @@ export function buildInspectionLines(
       expected,
       found: null,
       unitPrice: Number(row?.price) || 0,
+      // Μόνο για την εμφάνιση: ο αριθμός μένει σε κομμάτια.
+      rowId: String(row?.id ?? ''),
+      bundleSize: Number(row?.bundleSize) || 0,
     });
   }
 

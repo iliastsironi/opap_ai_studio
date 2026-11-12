@@ -14,6 +14,7 @@ import {
   fetchDayOpening, DayOpeningSnapshot, recordShiftInspection, fetchRecentShiftsAtStore,
 } from '../../services/shiftService.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
+import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { openBlockedReason } from '../../lib/shiftOpenRules.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
@@ -167,6 +168,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   /** Why no inspection is on offer, when there is a handover but it cannot be checked. */
   const [inspectionUnavailable, setInspectionUnavailable] = useState<string | null>(null);
   const [floatEditableByEmployee, setFloatEditableByEmployee] = useState(false);
+  /** Σε τι μονάδα μετράει το μαγαζί κάθε λαχείο - μόνο για την εμφάνιση. */
+  const [lotteryUnits, setLotteryUnits] = useState<Record<string, unknown>>({});
+  const [legacyUnits, setLegacyUnits] = useState<LegacyUnitSettings | null>(null);
   // The opening float decides what the till is measured against at close, so
   // by default it is not set by the person being measured. A store can open it
   // up in «Διαμόρφωση».
@@ -274,6 +278,16 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setFloatNotes(floatNotes);
         setFloatCoins(floatCoins);
         setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
+        // Σε τι μετράει το μαγαζί κάθε λαχείο. Η επιθεώρηση το χρειάζεται για
+        // να δείξει πεντάδες εκεί που το ταμείο δείχνει πεντάδες - ο αριθμός
+        // που γράφεται μένει σε κομμάτια.
+        setLotteryUnits(((config as any)?.lottery_units ?? {}) as Record<string, unknown>);
+        setLegacyUnits({
+          special_edition_x5_bundles: (config as any)?.special_edition_x5_bundles,
+          special_edition_x10_bundles: (config as any)?.special_edition_x10_bundles,
+          protochroniatiko_bundles: (config as any)?.protochroniatiko_bundles,
+          laiko_selling_mode: (config as any)?.laiko_selling_mode,
+        });
         setConfiguredThreshold(Number(config?.discrepancy_threshold ?? 15));
         const carryCoins = (config as any)?.morning_coins_carry_over !== false;
         setMorningCoinsCarryOver(carryCoins);
@@ -1052,6 +1066,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               lines={inspectionLines}
               skipped={inspectionSkipped}
               selfInspection={isSelfInspection}
+              lotteryUnits={lotteryUnits}
+              legacyUnits={legacyUnits}
               disabled={loading}
               onChangeFound={(key, found) => {
                 setInspectionLines((current) =>

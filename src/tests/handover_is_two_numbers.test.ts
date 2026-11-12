@@ -85,7 +85,7 @@ describe('τα παραδοτέα της επιθεώρησης', () => {
     const h = inspectionHandover([]);
     expect(h).toEqual({
       notes: 0, coins: 0, money: 0,
-      lotteryUnits: 0, lotteryValue: 0, scratchLines: 0, ticketLines: 0,
+      lotteryUnits: 0, lotteryValue: 0, lotteryLines: 0, scratchLines: 0, ticketLines: 0,
     });
   });
 });
