@@ -105,6 +105,15 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   // to configure, which the guard in the effect below reflects.
   const storeId = currentStore?.id ?? null;
 
+  /**
+   * Ποιον κατάλογο δείχνει η καρτέλα: την κοινή λίστα ή αυτή του μαγαζιού.
+   *
+   * Ξεκινάει από την ΚΟΙΝΗ, γιατί αυτή είναι η σωστή απάντηση σχεδόν πάντα:
+   * ένας νέος κωδικός του ΟΠΑΠ είναι ο ίδιος για όλα τα μαγαζιά, και το να
+   * περνιέται χωριστά σε καθένα είναι ο τρόπος που ξεχνιέται σε ένα.
+   */
+  const [catalogScope, setCatalogScope] = useState<'ORG' | 'STORE'>('ORG');
+
   const canEdit = hasPermission('organization.update') || hasPermission('store.update');
   // Deliberately its own permission check, not folded into canEdit above -
   // Scratch Selling Mode is Owner-only per spec, stricter than whatever
@@ -753,9 +762,55 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           since 0030; it used to live in each browser's localStorage, edited
           from inside the closing wizard by whoever happened to be counting. */}
       {activeTab === 'CATALOG' && (
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-          {storeId ? (
-            <ScratchCatalogEditor orgId={orgId} storeId={storeId} canEdit={canManageScratchMode} />
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+          {/*
+            Ποιον κατάλογο επεξεργάζεσαι.
+
+            «Εμείς που προσφέρουμε την εφαρμογή θα βάζουμε και θα βγάζουμε
+            κωδικούς και θα ενημερώνονται όλοι ταυτόχρονα.» Η κοινή λίστα
+            υπήρχε ΗΔΗ στα δεδομένα από το 0030 - μια γραμμή με store_id NULL
+            ισχύει για κάθε κατάστημα, και το κατάστημα μπορεί να την
+            παρακάμψει με δική του γραμμή του ίδιου κωδικού. Αυτό που έλειπε
+            ήταν ο δρόμος να τη φτάσει κανείς: η οθόνη περνούσε πάντα το
+            τρέχον κατάστημα, οπότε ένας νέος κωδικός έπρεπε να περαστεί
+            χωριστά σε κάθε μαγαζί - 22 κωδικοί συντηρούνται έτσι σήμερα σε
+            δύο καταστήματα, και το τρίτο δεν έχει κατάλογο καθόλου.
+          */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(
+              [
+                ['ORG', 'Όλα τα καταστήματα'],
+                ['STORE', currentStore?.name ?? 'Αυτό το κατάστημα'],
+              ] as Array<['ORG' | 'STORE', string]>
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                disabled={key === 'STORE' && !storeId}
+                onClick={() => setCatalogScope(key)}
+                className={`px-3 py-1.5 rounded-lg text-micro font-bold border transition-colors ${
+                  catalogScope === key
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                } ${key === 'STORE' && !storeId ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-micro text-slate-500">
+            {catalogScope === 'ORG'
+              ? 'Η κοινή λίστα: ό,τι προσθέσετε ή αφαιρέσετε εδώ ισχύει αμέσως σε ΚΑΘΕ κατάστημα του οργανισμού. Ένα κατάστημα που έχει δική του γραμμή για τον ίδιο κωδικό κρατάει τη δική του.'
+              : 'Μόνο αυτό το κατάστημα. Μια γραμμή εδώ παρακάμπτει την κοινή λίστα για τον ίδιο κωδικό — τα υπόλοιπα καταστήματα δεν την βλέπουν.'}
+          </p>
+
+          {catalogScope === 'ORG' || storeId ? (
+            <ScratchCatalogEditor
+              orgId={orgId}
+              storeId={catalogScope === 'ORG' ? null : storeId}
+              canEdit={canManageScratchMode}
+            />
           ) : (
             <p className="text-xs text-slate-500 py-6 text-center">
               Επιλέξτε κατάστημα για να δείτε τον κατάλογό του.
