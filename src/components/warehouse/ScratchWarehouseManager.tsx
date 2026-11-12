@@ -17,6 +17,7 @@ import {
 } from '../../lib/warehouseAging.ts';
 import { packProgress, positionKey, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
 import { warehouseStartState } from '../../lib/warehouseHandover.ts';
+import { codesByGame, repeatedCodes, totalCodes } from '../../lib/warehouseCodeList.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { Modal } from '../ui/Modal.tsx';
@@ -266,6 +267,16 @@ export const ScratchWarehouseManager: React.FC = () => {
   // άνοιξε λήγει κανονικά, και πριν το 0076 η ειδοποίηση θα το έχανε τη
   // στιγμή που ο αντμιν το κουβαλούσε στο μαγαζί.
   const aging = useMemo(() => summariseAging(unopened), [unopened]);
+
+  /**
+   * Όλοι οι κωδικοί, ανεξάρτητα από το φίλτρο της λίστας.
+   *
+   * ΟΧΙ το `visible`: το ερώτημα είναι «ποιοι κωδικοί υπάρχουν», και μια
+   * απάντηση που ακολουθεί το φίλτρο θα έλεγε «δεν υπάρχει» για κωδικό που
+   * απλώς βρίσκεται σε άλλη καρτέλα - ακριβώς το λάθος που φτιάχνουμε.
+   */
+  const allCodes = useMemo(() => codesByGame(packs), [packs]);
+  const [codesOpen, setCodesOpen] = useState(true);
 
   const visible = useMemo(() => {
     const needle = digitsOnly(search) || search.trim().toLowerCase();
@@ -570,6 +581,92 @@ export const ScratchWarehouseManager: React.FC = () => {
           </p>
         )}
       </div>
+
+      {/*
+        Ποιοι κωδικοί υπάρχουν.
+
+        Η λίστα από κάτω δείχνει ΜΙΑ θέση τη φορά, οπότε το «τον έχω ήδη
+        περάσει αυτόν τον κωδικό;» ήθελε τέσσερις καρτέλες και μνήμη. Εδώ
+        είναι όλοι μαζί, ανά παιχνίδι - έτσι ρωτιέται στην πράξη, με το
+        πακέτο στο χέρι.
+      */}
+      {allCodes.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setCodesOpen((v) => !v)}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <Boxes className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="text-xs font-black text-slate-800">
+                {toGreekUpper('Ολοι οι κωδικοι')}
+              </span>
+              <span className="text-micro font-bold text-slate-400">
+                {totalCodes(allCodes)} σε {allCodes.length}{' '}
+                {allCodes.length === 1 ? 'παιχνίδι' : 'παιχνίδια'}
+              </span>
+              {repeatedCodes(allCodes) > 0 && (
+                <span className="text-micro font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5">
+                  {repeatedCodes(allCodes)} διπλοί
+                </span>
+              )}
+            </span>
+            <span className="text-micro font-bold text-indigo-600 shrink-0">
+              {codesOpen ? 'Απόκρυψη' : 'Εμφάνιση'}
+            </span>
+          </button>
+
+          {codesOpen && (
+            <div className="px-3.5 pb-3 space-y-1.5 border-t border-slate-100 pt-2.5">
+              <p className="text-micro text-slate-400">
+                Γκρι στο ράφι · μπλε προς παράδοση · πράσινο στο μαγαζί · διαγραμμένο
+                αποσυρμένο.
+              </p>
+              {allCodes.map((game) => (
+                <div
+                  key={game.key}
+                  className="flex items-start gap-2 flex-wrap py-1 border-b border-slate-50 last:border-0"
+                >
+                  <span className="text-micro font-bold text-slate-700 min-w-[140px] shrink-0">
+                    {game.label}
+                    {game.gameNo && (
+                      <span className="text-slate-400 font-mono"> ·{game.gameNo}</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1 flex-wrap">
+                    {game.codes.map((entry, i) => (
+                      <span
+                        key={`${entry.code}_${i}`}
+                        title={`${entry.code} — ${
+                          entry.status === 'IN_WAREHOUSE'
+                            ? 'στο ράφι'
+                            : entry.status === 'PENDING_DELIVERY'
+                            ? 'προς παράδοση'
+                            : entry.status === 'IN_STORE'
+                            ? 'στο μαγαζί'
+                            : 'αποσυρμένο'
+                        }${entry.repeated ? ' · ο ΙΔΙΟΣ κωδικός υπάρχει δύο φορές σε αυτό το παιχνίδι' : ''}`}
+                        className={`font-mono text-micro px-1.5 py-0.5 rounded-md border ${
+                          entry.status === 'IN_STORE'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            : entry.status === 'PENDING_DELIVERY'
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                            : entry.status === 'WITHDRAWN'
+                            ? 'bg-slate-50 border-slate-200 text-slate-400 line-through'
+                            : 'bg-slate-50 border-slate-200 text-slate-600'
+                        } ${entry.repeated ? 'ring-1 ring-amber-400' : ''}`}
+                      >
+                        {entry.code}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Λίστα */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
