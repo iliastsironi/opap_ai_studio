@@ -650,9 +650,22 @@ export function getCountingMode(row: ScratchTicketRow): 'range' | 'bundle' | 'ma
 // nothing.
 export type ScratchSellingMode = 'FRONT_AND_BACK' | 'FRONT_ONLY';
 
-// Whether a row has a Πίσω (back) side to sell from at all. Falls back to
-// the historical rule (Σκρατς: yes, Λαχεία: no) for any row that hasn't
-// explicitly set backSideEnabled, so this stays a pure opt-in change.
+// Whether a row has a Πίσω (back) side to sell from at all.
+//
+// ΤΟ ΕΙΔΟΣ ΑΠΟΦΑΣΙΖΕΙ ΣΤΑ ΛΑΧΕΙΑ, ΟΧΙ Η ΣΗΜΑΙΑ. Λόγια του ιδιοκτήτη:
+// «στα σκρατς έχει νόημα, στα λαχεία όχι». Ένα πακέτο σκρατς είναι σειρά
+// δελτίων με δύο άκρα, και πουλάς από όποιο βολεύει· ένα λαχείο είναι
+// απόθεμα μιας κλήρωσης - δεν έχει δεύτερο άκρο να ξεκινήσεις.
+//
+// Ήταν `row.backSideEnabled ?? !isLotteryRow(row)`: ο κανόνας του είδους
+// ΜΟΝΟ όταν κανείς δεν είχε γράψει σημαία. Στη Στυλίδα και τα 6 λαχεία
+// είχαν back_side_enabled = true αποθηκευμένο, οπότε το ταμείο τους
+// ζωγράφιζε Πίσω-Αρχικό και Πίσω-Τελικό. Με το είδος να απαντά πρώτο, οι
+// 642 γραμμές που κουβαλάνε true διορθώνονται χωρίς να πειραχτεί γραμμή
+// δεδομένων - και καμία δεν χάνει πώληση: σε 108 βάρδιες (1/10 - 12/11)
+// ΚΑΝΕΝΑ λαχείο δεν έχει Πίσω-Αρχικό, δηλαδή κανένα δεν πούλησε ποτέ από
+// πίσω. Το Πίσω-Τελικό που φαίνεται είναι κλειδωμένη βάση, όχι πώληση.
+//
 // storeMode is optional and only ever narrows the result (never widens
 // it), so every existing call site with one argument - historical/
 // read-only views over already-persisted rows (ShiftDetailsModal.tsx,
@@ -661,7 +674,8 @@ export type ScratchSellingMode = 'FRONT_AND_BACK' | 'FRONT_ONLY';
 // path (ShiftClosingWizard.tsx, via this file) passes storeMode.
 export function hasBackSide(row: ScratchTicketRow, storeMode?: ScratchSellingMode): boolean {
   if (storeMode === 'FRONT_ONLY') return false;
-  return row.backSideEnabled ?? !isLotteryRow(row);
+  if (isLotteryRow(row)) return false;
+  return row.backSideEnabled ?? true;
 }
 
 // Whether a row's CURRENT active-inventory state can be safely folded into
@@ -991,9 +1005,50 @@ export { displayedRowCount };
  * Null μόνο όπου το είχε πάντα: σκρατς με τιμή που δεν διαιρεί τα 300 €,
  * όπου δεν ορίζεται μέγεθος πακέτου και τη ρωτάμε τον χειριστή.
  */
-export function tailSoldOnNewPack(row: ScratchTicketRow | null | undefined): number | null {
+export function tailSoldOnNewPack(
+  row: ScratchTicketRow | null | undefined,
+  /**
+   * Υπήρχε παλιό πακέτο. Προεπιλογή ναι, γιατί αυτό ίσχυε πάντα και κάθε
+   * παλιός καλών το εννοούσε - δες hadPackBefore για το πότε όχι.
+   */
+  hadOldPack: boolean = true
+): number | null {
   if (row && isLotteryRow(row)) return 0;
+  // Ουρά παλιού πακέτου υπάρχει μόνο αν υπήρχε παλιό πακέτο.
+  if (!hadOldPack) return 0;
   return piecesLeftInPack(row?.price, row?.startNo, row?.packPieces);
+}
+
+/**
+ * Είχε η γραμμή πακέτο ΠΡΙΝ από αυτό που ανοίγει τώρα;
+ *
+ * Το παράπονο, με τα λόγια του ιδιοκτήτη: «έβαλα τα δύο καινούργια, το
+ * Δώρο 5 και το Δώρο 10 [...] έβαλα σκρατς από την αποθήκη να μπει στο
+ * μαγαζί και το θεώρησε ότι έχει πουληθεί ολόκληρο το πακέτο».
+ *
+ * Έτσι ήταν. Η ουρά μετριέται «μέγεθος πακέτου − αρχικό», και το αρχικό
+ * ενός ολοκαίνουριου παιχνιδιού είναι μηδέν, άρα η ουρά έβγαινε ΟΛΟΚΛΗΡΟ
+ * το πακέτο: 60 δελτία × 5 € και 30 × 10 €, 600 € πωλήσεις που δεν έγιναν
+ * ποτέ. Η πράξη είναι σωστή για πακέτο που τελείωσε - λάθος για πακέτο που
+ * μόλις ήρθε, γιατί δεν υπάρχει προηγούμενο να χρεωθεί.
+ *
+ * ΓΙΑΤΙ ΡΩΤΑΕΙ ΤΗΝ ΑΠΟΘΗΚΗ ΚΑΙ ΟΧΙ ΜΟΝΟ ΤΗ ΓΡΑΜΜΗ. Με την αποθήκη σε ισχύ
+ * κάθε άνοιγμα γράφει κωδικό πακέτου (openPack), οπότε «κενός κωδικός»
+ * ΑΠΟΔΕΙΚΝΥΕΙ ότι δεν άνοιξε ποτέ πακέτο εδώ. Χωρίς αποθήκη ο κωδικός
+ * λείπει πάντα και δεν αποδεικνύει τίποτα: εκεί η ουρά μένει όπως ήταν -
+ * το πακέτο των 2 € που βρέθηκε στη θέση 6 και τελείωσε είναι 144 δελτία,
+ * 288 €, και χάνονταν ολόκληρα πριν υπάρξει αυτός ο υπολογισμός.
+ *
+ * Δεν αγγίζει το «πούλησα όλο το πακέτο μέσα σε μια βάρδια»: εκείνη η
+ * γραμμή κρατάει τον κωδικό του πακέτου που παρέλαβε, οπότε απαντά ναι και
+ * χρεώνεται κανονικά.
+ */
+export function hadPackBefore(
+  row: ScratchTicketRow | null | undefined,
+  warehouseGoverned: boolean
+): boolean {
+  if (!warehouseGoverned) return true;
+  return String(row?.packCode ?? '').trim() !== '';
 }
 
 /**
@@ -1754,7 +1809,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     //
     // Null when the price does not divide 300: no defined pack size, so the
     // operator typed the figure instead and we take theirs.
-    const automatic = tailSoldOnNewPack(target);
+    // Το πρώτο πακέτο ενός παιχνιδιού δεν έχει προηγούμενο να χρεωθεί.
+    const automatic = tailSoldOnNewPack(
+      target,
+      hadPackBefore(target, warehouseGoverns(warehouseInUse, isLotteryRow(target)))
+    );
     const soldOut = automatic === null
       ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
       : automatic;
@@ -3092,7 +3151,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
         // Τα λαχεία δεν ανοίγουν πακέτο, παραλαμβάνουν για μια κλήρωση.
         const targetIsLottery = targetRow ? isLotteryRow(targetRow) : false;
         const targetHasBackSide = targetRow ? hasBackSide(targetRow, sellingMode) : false;
-        const autoRemainder = tailSoldOnNewPack(targetRow);
+        // Ίδιος κανόνας με το handleOpenNewPack που θα το γράψει: το
+        // παράθυρο ΠΡΟΑΝΑΓΓΕΛΛΕΙ τη χρέωση, και μια προαναγγελία που
+        // διαφωνεί με την πράξη είναι χειρότερη από καμία.
+        const autoRemainder = tailSoldOnNewPack(
+          targetRow,
+          hadPackBefore(targetRow, warehouseGoverns(warehouseInUse, targetIsLottery))
+        );
         const remainderPieces = autoRemainder === null
           ? Math.max(0, parseInt(newPackRemainder, 10) || 0)
           : autoRemainder;

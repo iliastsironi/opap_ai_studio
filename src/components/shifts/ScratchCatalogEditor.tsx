@@ -376,14 +376,29 @@ export const ScratchCatalogEditor: React.FC<{
                   />
                 </td>
                 <td className="py-2 pr-2">
-                  <input
-                    type="checkbox"
-                    checked={row.backSideEnabled !== false}
-                    disabled={!canEdit}
-                    onChange={(e) => update(index, { backSideEnabled: e.target.checked })}
-                    aria-label={`Πώληση από το πίσω μέρος για ${row.name || 'το παιχνίδι'}`}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer disabled:cursor-default"
-                  />
+                  {/* Στα λαχεία δεν προσφέρεται καθόλου: το ταμείο δεν
+                      ζωγραφίζει πίσω πλευρά σε λαχείο (hasBackSide), οπότε
+                      ένα τσεκ εδώ θα ήταν διακόπτης που δεν ανάβει τίποτα.
+                      Και το κουτάκι ΕΔΕΙΧΝΕ τσεκαρισμένο σε κάθε λαχείο,
+                      γιατί `!== false` διαβάζει το άγραφο ως ναι - η οθόνη
+                      έλεγε «πουλάει από πίσω» για γραμμές που δεν μπορούν. */}
+                  {isLotteryRow(row) ? (
+                    <span
+                      className="text-micro text-slate-400"
+                      title="Τα λαχεία δεν έχουν πίσω πλευρά — είναι απόθεμα κλήρωσης, όχι πακέτο με δύο άκρα."
+                    >
+                      —
+                    </span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={row.backSideEnabled !== false}
+                      disabled={!canEdit}
+                      onChange={(e) => update(index, { backSideEnabled: e.target.checked })}
+                      aria-label={`Πώληση από το πίσω μέρος για ${row.name || 'το παιχνίδι'}`}
+                      className="w-4 h-4 accent-indigo-600 cursor-pointer disabled:cursor-default"
+                    />
+                  )}
                 </td>
                 <td className="py-2">
                   <button

@@ -175,10 +175,27 @@ describe('Λαϊκό Λαχείο bundle/piece dual-unit tracking', () => {
       expect(hasBackSide(scratchRow)).toBe(true);
     });
 
-    it('an explicit backSideEnabled overrides the category default either way', () => {
-      expect(hasBackSide(laikoRow({ backSideEnabled: true }))).toBe(true);
+    /**
+     * Ο ιδιοκτήτης ανακάλεσε την προαίρεση των λαχείων: «αυτό στα λαχεία
+     * δεν το θέλουμε, στα σκρατς έχει νόημα, στα λαχεία όχι». Το τεστ
+     * κατοχύρωνε ότι μια σημαία true νικάει το είδος - τώρα κατοχυρώνει το
+     * αντίστροφο, γιατί στη Στυλίδα και τα 6 λαχεία είχαν τη σημαία
+     * γραμμένη true και το ταμείο τους ζωγράφιζε Πίσω-Αρχικό/Τελικό.
+     *
+     * Δεν χάνεται πώληση: σε 108 βάρδιες (1/10 - 12/11) κανένα λαχείο δεν
+     * έχει Πίσω-Αρχικό, δηλαδή κανένα δεν πούλησε ποτέ από πίσω.
+     */
+    it('στα λαχεία το είδος νικάει τη σημαία - πίσω πλευρά δεν υπάρχει', () => {
+      expect(hasBackSide(laikoRow({ backSideEnabled: true }))).toBe(false);
+      expect(hasBackSide(laikoRow({ backSideEnabled: false }))).toBe(false);
+      expect(hasBackSide(laikoRow())).toBe(false);
+    });
+
+    it('στα σκρατς η σημαία εξακολουθεί να αποφασίζει, και στις δύο φορές', () => {
       const scratchRow: ScratchTicketRow = { id: 'scr_5_7ari', name: '7ΑΡΙ', category: 'Σκρατς 5€', price: 5, startNo: '', endNo: '', backSideEnabled: false };
       expect(hasBackSide(scratchRow)).toBe(false);
+      expect(hasBackSide({ ...scratchRow, backSideEnabled: true })).toBe(true);
+      expect(hasBackSide({ ...scratchRow, backSideEnabled: undefined })).toBe(true);
     });
   });
 });
