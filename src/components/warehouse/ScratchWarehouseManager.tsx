@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Truck, Undo2,
+  AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Trash2, Truck, Undo2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import {
-  cancelDelivery, correctPack, deliverPackToStore, fetchPackPositions, fetchWarehouseGames,
-  fetchWarehousePacks, receivePack, returnPackById, withdrawPack,
+  cancelDelivery, correctPack, deletePackById, deliverPackToStore, fetchPackPositions,
+  fetchWarehouseGames, fetchWarehousePacks, receivePack, returnPackById, withdrawPack,
   type PackStatus, type WarehouseGame, type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 import {
@@ -72,6 +72,12 @@ export const ScratchWarehouseManager: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<PackStatus>('IN_WAREHOUSE');
   const [search, setSearch] = useState('');
   const [toWithdraw, setToWithdraw] = useState<WarehousePack | null>(null);
+  /**
+   * Το πακέτο που δεν έπρεπε να γραφτεί ποτέ - χωριστά από το toWithdraw,
+   * γιατί είναι άλλη ερώτηση: η απόσυρση λέει «γύρισε στον ΟΠΑΠ», η
+   * διαγραφή λέει «δεν υπήρξε». Δες deletePackById.
+   */
+  const [toDelete, setToDelete] = useState<WarehousePack | null>(null);
   /** Το πακέτο που διορθώνεται, με ό,τι έχει γραφτεί μέχρι στιγμής. */
   const [editing, setEditing] = useState<WarehousePack | null>(null);
   const [editGameNo, setEditGameNo] = useState('');
@@ -834,6 +840,23 @@ export const ScratchWarehouseManager: React.FC = () => {
                         </button>
                         </>
                         )}
+                        {/* Έξω από το ternary επίτηδες: η λάθος καταχώρηση
+                            πρέπει να μπορεί να φύγει από ΟΠΟΙΑ θέση κι αν
+                            βρίσκεται, και τα 26 δοκιμαστικά της Λαμίας
+                            είναι όλα «στο μαγαζί» - τη μόνη θέση που δεν
+                            είχε καμία έξοδο. */}
+                        {canCorrect && (
+                          <button
+                            type="button"
+                            disabled={busyPackId === pack.id}
+                            onClick={() => setToDelete(pack)}
+                            title="Μπήκε λάθος — σβήσιμο της καταχώρησης (όχι επιστροφή στον ΟΠΑΠ)"
+                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-micro cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Διαγραφή
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -970,6 +993,62 @@ export const ScratchWarehouseManager: React.FC = () => {
         onConfirm={async () => {
           if (!toWithdraw) return;
           await withdrawPack(toWithdraw.id, 'Επιστροφή στον ΟΠΑΠ');
+          await load();
+        }}
+      />
+
+      {/* Η διαγραφή της λάθος καταχώρησης. Λέει ΜΕ ΝΟΥΜΕΡΟ αν ο κωδικός
+          έχει πωλήσεις πάνω του, γιατί αυτό είναι όλη η διαφορά ανάμεσα σε
+          «σβήνω μια δοκιμή» και «σβήνω το πακέτο που πουλάει ο πάγκος». */}
+      <ConfirmDestructiveModal
+        isOpen={toDelete !== null}
+        onClose={() => setToDelete(null)}
+        confirmLabel="Διαγραφή"
+        what={
+          toDelete ? (
+            <span className="font-bold">
+              την καταχώρηση του πακέτου {toDelete.pack_code} — {toDelete.game_name},{' '}
+              {formatCurrency(toDelete.pieces * toDelete.unit_price)}
+            </span>
+          ) : null
+        }
+        lines={
+          toDelete
+            ? [
+                {
+                  label: 'Αξία αποθήκης',
+                  detail: `μειώνεται κατά ${formatCurrency(toDelete.pieces * toDelete.unit_price)}`,
+                  fate: 'GOES' as const,
+                },
+                {
+                  label: 'Η γραμμή του πακέτου',
+                  detail: 'σβήνεται οριστικά — δεν μένει ως αποσυρμένο',
+                  fate: 'GOES' as const,
+                },
+                packProgress(positions[toDelete.pack_code], toDelete.pieces).sold > 0
+                  ? {
+                      label: 'ΠΡΟΣΟΧΗ',
+                      detail: `ο κωδικός έχει ${
+                        packProgress(positions[toDelete.pack_code], toDelete.pieces).sold
+                      } δελτία πουλημένα σε βάρδιες — οι πωλήσεις ΜΕΝΟΥΝ, το ταμείο θα κρατάει κωδικό που η αποθήκη δεν έχει`,
+                      fate: 'STAYS' as const,
+                    }
+                  : {
+                      label: 'Πωλήσεις',
+                      detail: 'καμία — ο κωδικός δεν εμφανίζεται σε καμία βάρδια',
+                      fate: 'STAYS' as const,
+                    },
+                {
+                  label: 'Ίχνος',
+                  detail: 'η διαγραφή καταγράφεται στο ημερολόγιο ενεργειών',
+                  fate: 'STAYS' as const,
+                },
+              ]
+            : []
+        }
+        onConfirm={async () => {
+          if (!toDelete) return;
+          await deletePackById(toDelete.id);
           await load();
         }}
       />
