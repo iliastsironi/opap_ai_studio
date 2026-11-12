@@ -21,6 +21,7 @@ import { presetsForCategory, suppliersForCategory, expenseCategoryOfSupplier } f
 import { useExpenseCategories } from './useExpenseCategories.ts';
 import {
   COMPANY_EXPENSE_CATEGORY,
+  canManageExpenseCategories,
   canRecordCompanyExpense,
   isCompanyCategory,
   offerableCategories,
@@ -73,6 +74,13 @@ export const ExpensesManager: React.FC = () => {
    * οθόνη και ο έλεγχος πριν την αποθήκευση να ρωτάνε το ίδιο πράγμα.
    */
   const canRecordCompany = canRecordCompanyExpense(roleCodesOf(roles), permissions);
+  /**
+   * Ποιος φτιάχνει κατηγορία.
+   *
+   * Ο κανόνας ζει στο expenseCategories, ίδια πύλη με το RLS του 0074. Η
+   * οθόνη τον ρωτάει για να μη δείξει κουμπί που θα σκάσει με 42501.
+   */
+  const canManageCategories = canManageExpenseCategories(roleCodesOf(roles), permissions);
   const [expenses, setExpenses] = useState<ScreenExpense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   // Dating an expense to another day is the Owner's, not the counter's: it
@@ -986,14 +994,22 @@ export const ExpensesManager: React.FC = () => {
                     <label htmlFor="expense-category" className="block text-slate-700 font-semibold">Κατηγορία</label>
                     {/* Η δημιουργία ζει δίπλα στο πεδίο, όχι σε οθόνη
                         ρυθμίσεων: τη στιγμή που λείπει μια κατηγορία είναι
-                        ακριβώς η στιγμή που κάποιος καταχωρεί το έξοδο. */}
-                    <button
-                      type="button"
-                      onClick={() => setNewCategoryOpen(true)}
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                    >
-                      + Νέα κατηγορία
-                    </button>
+                        ακριβώς η στιγμή που κάποιος καταχωρεί το έξοδο.
+
+                        Μόνο για όποιον θα τον δεχτεί και η βάση. Κρύβεται
+                        αντί να απενεργοποιηθεί: ο υπάλληλος δεν αποκτάει
+                        ποτέ αυτό το δικαίωμα μέσα από αυτή τη φόρμα, οπότε
+                        ένα γκρίζο κουμπί θα ήταν μόνιμος θόρυβος. Η λίστα
+                        από κάτω του δίνει ήδη ό,τι μπορεί να γράψει. */}
+                    {canManageCategories && (
+                      <button
+                        type="button"
+                        onClick={() => setNewCategoryOpen(true)}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                      >
+                        + Νέα κατηγορία
+                      </button>
+                    )}
                   </div>
                   <select
                     id="expense-category"
@@ -1174,7 +1190,7 @@ export const ExpensesManager: React.FC = () => {
         onConfirm={handleDeleteExpense}
       />
 
-      {newCategoryOpen && (
+      {newCategoryOpen && canManageCategories && (
         <NewExpenseCategoryModal
           orgId={orgId}
           existing={categories}

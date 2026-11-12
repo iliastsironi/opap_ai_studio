@@ -145,6 +145,30 @@ export function canRecordCompanyExpense(
 }
 
 /**
+ * Ποιος ονομάζει τις κατηγορίες.
+ *
+ * Ο διευθυντής και πάνω - ίδιος κύκλος με το auth_is_elevated(), που φυλάει
+ * και τις τρεις εγγραφές του πίνακα στο 0074: INSERT, UPDATE και DELETE.
+ *
+ * Η οθόνη πρόσφερε το «+ Νέα κατηγορία» σε όλους. Ο υπάλληλος άνοιγε τη
+ * φόρμα, έγραφε όνομα, διάλεγε πλευρά, πατούσε αποθήκευση - και έπαιρνε
+ * 42501 από το RLS στο τέλος. Ένα κουμπί που αποτυγχάνει πάντα διαβάζεται
+ * ως βλάβη, όχι ως όριο (shiftDeletePermission.ts).
+ *
+ * ΧΩΡΙΣΤΗ ΕΡΩΤΗΣΗ ΑΠΟ ΤΟ canRecordCompanyExpense, ΕΠΙΤΗΔΕΣ: εκείνο ρωτάει
+ * ποιος ΓΡΑΦΕΙ έξοδο εταιρίας (0082, company_daily_expenses), αυτό ποιος
+ * ΦΤΙΑΧΝΕΙ κατηγορία (0074, expense_categories). Σήμερα οι δύο πύλες
+ * απαντάνε το ίδιο· είναι όμως δύο πύλες, και η μία μπορεί να αλλάξει
+ * χωρίς την άλλη - όπως άλλαξε η πρώτη στο 0082.
+ */
+export function canManageExpenseCategories(
+  roleCodes: ReadonlyArray<string> | null | undefined,
+  permissions?: ReadonlyArray<string> | null
+): boolean {
+  return isElevatedRole(roleCodes, permissions);
+}
+
+/**
  * Όσες κατηγορίες προσφέρονται σε ΑΥΤΟΝ τον χρήστη για νέα καταχώρηση.
  *
  * Το activeCategories απαντάει «τι υπάρχει»· αυτό απαντάει «τι μπορεί να
