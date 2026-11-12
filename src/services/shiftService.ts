@@ -322,6 +322,34 @@ export async function updateShiftInFirestore(
 }
 
 /**
+ * Οι γραμμές σκρατς όπως είναι γραμμένες στη βάση ΤΩΡΑ.
+ *
+ * Ο φύλακας των κλειδωμένων πεδίων (0006) συγκρίνει με ό,τι έχει η βάση αυτή
+ * τη στιγμή, ενώ η οθόνη κρατούσε ως «αποθηκευμένο» το στιγμιότυπο της
+ * ώρας που άνοιξε η σελίδα. Μετά από ένα άνοιγμα πακέτου που γράφτηκε, τα
+ * δύο δεν συμφωνούσαν πια - και κάθε επόμενο σώσιμο, μαζί με την υποβολή,
+ * απορριπτόταν με το «κλειδωμένο» χωρίς ο υπάλληλος να έχει αγγίξει τίποτα.
+ *
+ * null όταν δεν μπόρεσε να διαβαστεί: ο καλών κρατάει ό,τι είχε, και το
+ * σώσιμο δεν σταματάει για μια ανάγνωση που απέτυχε.
+ */
+export async function fetchStoredScratchRows(shiftId: string): Promise<unknown[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('custom_field_values')
+      .eq('id', shiftId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const rows = (data as { custom_field_values?: { scratch_ticket_items?: unknown } })
+      .custom_field_values?.scratch_ticket_items;
+    return Array.isArray(rows) ? rows : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Τι θα πάρει μαζί της η διαγραφή, μετρημένο πριν ρωτηθεί ο χρήστης.
  *
  * Διαβάζεται από τη βάση και όχι από την οθόνη: το παράθυρο πρέπει να λέει

@@ -1843,6 +1843,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
    */
   const handleUndoPack = async (rowId: string) => {
     if (readOnly) return;
+    // Δεύτερη γραμμή άμυνας: ό,τι κρύβει το κουμπί δεν πρέπει να τρέχει
+    // ούτε αν το καλέσει κάτι άλλο. Βλ. το σχόλιο στο κουμπί.
+    if (!canEditLockedFields) return;
     const target = rows.find((r) => r.id === rowId);
     if (!target) return;
     const last = lastPackOpened(target);
@@ -2364,7 +2367,16 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     {packWarningText(rowPackWarning)}
                                   </span>
                                 )}
-                                {!readOnly && canUndoPack(row) && (
+                                {/* Η αναίρεση ΕΠΑΝΑΦΕΡΕΙ το Μπροστά-Αρχικό και το
+                                    Πίσω-Τελικό στις παλιές τιμές - τα δύο
+                                    κλειδωμένα πεδία. Ο υπάλληλος δεν επιτρέπεται
+                                    να τα κινήσει, και η αναίρεση πατιέται πάντα
+                                    ΜΕΤΑ το σώσιμο του ανοίγματος (το πρόχειρο
+                                    γράφει σε 800ms): η βάση την αρνούνταν στο
+                                    επόμενο σώσιμο, ολόκληρη τη βάρδια. Ένα κουμπί
+                                    που αποτυγχάνει πάντα διαβάζεται ως χαλασμένο
+                                    σύστημα, όχι ως όριο. */}
+                                {!readOnly && canEditLockedFields && canUndoPack(row) && (
                                   <button
                                     type="button"
                                     onClick={() => void handleUndoPack(row.id)}

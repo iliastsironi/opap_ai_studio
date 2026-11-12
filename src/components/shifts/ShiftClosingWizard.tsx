@@ -186,7 +186,8 @@ import { NO_SHIFT_CARRY, expenseOrigin, isCarriedExpense } from '../../lib/expen
 import { duplicateGroups } from '../../lib/duplicateExpense.ts';
 import { creditTotals } from '../../lib/creditTotals.ts';
 import { Shift, ShiftExpense, CustomerCredit } from '../../types/index.ts';
-import { updateShiftInFirestore } from '../../services/shiftService.ts';
+import { updateShiftInFirestore, fetchStoredScratchRows } from '../../services/shiftService.ts';
+import { describeLockMismatch } from '../../lib/lockMismatch.ts';
 import { coinHandoverTotals, carriedCoinNote } from '../../lib/coinHandoverCarry.ts';
 import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
@@ -1194,6 +1195,41 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     !isAuthLoading &&
     (roles.some((r) => ['ORG_OWNER', 'PLATFORM_ADMIN', 'AREA_MANAGER', 'STORE_MANAGER', 'ORG_ADMIN'].includes(r.code)) ||
       permissions.includes('*'));
+
+  /**
+   * Τα κλειδωμένα νούμερα όπως είναι γραμμένα στη βάση ΤΩΡΑ.
+   *
+   * Ξεκινάει από το στιγμιότυπο της ώρας που άνοιξε η σελίδα - και δεν
+   * μένει εκεί. Το `shift` είναι αυτό που φορτώθηκε μία φορά και δεν
+   * ανανεώνεται από τη ζωντανή ροή· αν ο φύλακας έστελνε πίσω ΑΥΤΟ, μετά
+   * από κάθε άνοιγμα πακέτου που γράφτηκε θα έστελνε τα παλιά νούμερα
+   * πάνω στα καινούρια, και ο trigger θα απέρριπτε κάθε επόμενο σώσιμο -
+   * αυτόματο και υποβολή - με το «κλειδωμένο». Ο υπάλληλος έχανε ό,τι
+   * είχε γράψει από το άνοιγμα και μετά.
+   */
+  const storedScratchRef = useRef<unknown>(shift.custom_field_values?.scratch_ticket_items);
+  /**
+   * Διαβάζεται πριν από ΚΑΘΕ σώσιμο, μόνο για όποιον η βάση δεν αφήνει να
+   * αλλάξει τα κλειδωμένα πεδία (οι υπόλοιποι δεν περνούν από τον φύλακα).
+   * Αν η ανάγνωση αποτύχει μένει ό,τι υπήρχε: το σώσιμο δεν σταματάει.
+   */
+  const refreshStoredScratch = async () => {
+    if (canEditScratchLockedFields) return;
+    const fresh = await fetchStoredScratchRows(shift.id);
+    if (fresh) storedScratchRef.current = fresh;
+  };
+  /**
+   * Το μήνυμα της βάσης, και - αν είναι της κλειδαριάς - ΤΙ ακριβώς διέφερε.
+   * Η ίδια φράση έχει βγει από τέσσερις διαφορετικές αιτίες· χωρίς τις τιμές
+   * η κάθε μία βρέθηκε εκ των υστέρων, όταν το σφάλμα είχε φύγει.
+   */
+  const explainSaveError = (err: any, sentRows: unknown): string => {
+    const base: string = err?.message || '';
+    const detail = describeLockMismatch(base, sentRows, storedScratchRef.current);
+    if (!detail) return base;
+    console.warn('[shift lock]', detail);
+    return `${base} — για τον υπεύθυνο: ${detail}`;
+  };
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
   const [isAutoSaved, setIsAutoSaved] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -1761,7 +1797,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // merge makes the database refuse the entire update (42501).
         scratch_ticket_items: lockScratchRowsForSave(
           scratchRows,
-          shift.custom_field_values?.scratch_ticket_items,
+          storedScratchRef.current,
           canEditScratchLockedFields
         ),
         store_pos_items: storePosItems,
@@ -1806,12 +1842,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       // Ξαναελέγχεται ΜΕΣΑ στο χρονόμετρο: η υποβολή μπορεί να ξεκίνησε
       // αφού προγραμματίστηκε αυτό εδώ, που είναι ακριβώς το σενάριο.
       if (submitStarted.current) return;
+      let sentRows: unknown;
       try {
+        await refreshStoredScratch();
+        // Η ανάγνωση είναι αναμονή: η υποβολή μπορεί να ξεκίνησε στο μεταξύ,
+        // και ένα πρόχειρο που γράφει ΜΕΤΑ από αυτή ξανανοίγει τη βάρδια.
+        if (submitStarted.current) return;
         const payload = buildCurrentPayload('DRAFT_CLOSING');
+        sentRows = (payload as any).custom_field_values?.scratch_ticket_items;
         if (typeof window !== 'undefined') {
           localStorage.setItem(`shift_draft_${shift.id}`, JSON.stringify(payload));
         }
         await updateShiftInFirestore(shift.id, payload);
+        storedScratchRef.current = sentRows;
         const timeStr = new Date().toLocaleTimeString('el-GR', {
           hour: '2-digit',
           minute: '2-digit',
@@ -1826,7 +1869,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // employee keeps working a shift that stopped persisting. Surface it
         // in the same banner the manual save uses.
         console.warn('Autosave error:', err);
-        setDraftSaveError(err?.message || 'Αποτυχία αυτόματης αποθήκευσης προχείρου');
+        setDraftSaveError(explainSaveError(err, sentRows) || 'Αποτυχία αυτόματης αποθήκευσης προχείρου');
       }
     }, 800);
 
@@ -1866,8 +1909,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const saveDraft = async () => {
     setIsSavingDraft(true);
     setDraftSaveError(null);
+    let sentRows: unknown;
     try {
+      await refreshStoredScratch();
       const draftPayload = buildCurrentPayload('DRAFT_CLOSING');
+      sentRows = (draftPayload as any).custom_field_values?.scratch_ticket_items;
 
       if (typeof window !== 'undefined') {
         try {
@@ -1878,6 +1924,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       }
 
       await updateShiftInFirestore(shift.id, draftPayload);
+      storedScratchRef.current = sentRows;
 
       const timeStr = new Date().toLocaleTimeString('el-GR', {
         hour: '2-digit',
@@ -1889,7 +1936,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       setTimeout(() => setIsAutoSaved(false), TOAST_AUTO_DISMISS_MS);
     } catch (e: any) {
       console.warn('Draft autosave warning:', e);
-      setDraftSaveError(e.message || 'Αποτυχία αποθήκευσης προχείρου');
+      setDraftSaveError(explainSaveError(e, sentRows) || 'Αποτυχία αποθήκευσης προχείρου');
     } finally {
       setIsSavingDraft(false);
     }
@@ -2057,10 +2104,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     // Πριν από οτιδήποτε άλλο: από εδώ και πέρα κανένα πρόχειρο δεν γράφει.
     submitStarted.current = true;
 
+    let sentRows: unknown;
     try {
+      await refreshStoredScratch();
       const submitPayload = buildCurrentPayload('SUBMITTED');
+      sentRows = (submitPayload as any).custom_field_values?.scratch_ticket_items;
 
       await updateShiftInFirestore(shift.id, submitPayload);
+      storedScratchRef.current = sentRows;
 
       // Apply customer credit debt balances to store directory
       try {
@@ -2097,7 +2148,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       requestNotificationsRefresh();
       setTimeout(() => onSubmitted(), SUBMIT_SUCCESS_REDIRECT_MS);
     } catch (err: any) {
-      setError(err.message || 'Σφάλμα κατά την υποβολή βάρδιας');
+      setError(explainSaveError(err, sentRows) || 'Σφάλμα κατά την υποβολή βάρδιας');
       setShowSubmitConfirm(false);
       // Η υποβολή δεν έγινε, άρα η βάρδια δουλεύεται ακόμα. Το πρόχειρο
       // ξαναζωντανεύει: μια αποτυχημένη υποβολή που αφήνει πίσω της ταμείο
