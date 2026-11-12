@@ -15,7 +15,7 @@ import {
 import {
   agingLabel, agingTone, canWithdraw, daysInWarehouse, summariseAging, withdrawBlockedReason,
 } from '../../lib/warehouseAging.ts';
-import { packProgress, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
+import { packProgress, positionKey, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
 import { warehouseStartState } from '../../lib/warehouseHandover.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -230,7 +230,7 @@ export const ScratchWarehouseManager: React.FC = () => {
       IN_WAREHOUSE: shelf.length,
       PENDING_DELIVERY: pending.length,
       IN_STORE: packs.filter(
-        (p) => p.status === 'IN_STORE' && packProgress(positions[p.pack_code], p.pieces).remaining > 0
+        (p) => p.status === 'IN_STORE' && packProgress(positions[positionKey(p.catalog_code, p.pack_code)], p.pieces).remaining > 0
       ).length,
       WITHDRAWN: packs.filter((p) => p.status === 'WITHDRAWN').length,
     }),
@@ -241,7 +241,7 @@ export const ScratchWarehouseManager: React.FC = () => {
     () =>
       packs.filter(
         (p) =>
-          p.status === 'IN_STORE' && packProgress(positions[p.pack_code], p.pieces).remaining === 0
+          p.status === 'IN_STORE' && packProgress(positions[positionKey(p.catalog_code, p.pack_code)], p.pieces).remaining === 0
       ).length,
     [packs, positions]
   );
@@ -277,7 +277,7 @@ export const ScratchWarehouseManager: React.FC = () => {
       (p) =>
         p.status === statusFilter &&
         (statusFilter !== 'IN_STORE' ||
-          packProgress(positions[p.pack_code], p.pieces).remaining > 0)
+          packProgress(positions[positionKey(p.catalog_code, p.pack_code)], p.pieces).remaining > 0)
     );
     const rows = search.trim()
       ? inGroup.filter(
@@ -713,7 +713,33 @@ export const ScratchWarehouseManager: React.FC = () => {
                         <span className="text-slate-600 block min-w-[170px]">
                           {pack.status === 'IN_STORE' ? (
                             (() => {
-                              const prog = packProgress(positions[pack.pack_code], pack.pieces);
+                              const where = positions[positionKey(pack.catalog_code, pack.pack_code)];
+                              /**
+                               * Καμία βάρδια δεν έχει γράψει ποτέ αυτόν τον
+                               * κωδικό σε αυτό το παιχνίδι.
+                               *
+                               * Χωρίς αυτό, η οθόνη έδειχνε «#0 / 60 · 0%»
+                               * - που είναι ΑΚΡΙΒΩΣ ό,τι δείχνει και ένα
+                               * ολοκαίνουριο πακέτο που μόλις άνοιξε. Δύο
+                               * εντελώς διαφορετικά πράγματα, το ίδιο
+                               * νούμερο: «δεν το άγγιξε κανείς ποτέ» και
+                               * «μόλις ξεκίνησε». Αυτή η διάκριση είναι όλη
+                               * η διαφορά όταν ψάχνεις ποιο πακέτο μπήκε
+                               * λάθος και ποιο πουλάει.
+                               */
+                              if (!where) {
+                                return (
+                                  <>
+                                    <span className="text-xs font-bold text-slate-400">
+                                      δεν μετρήθηκε ποτέ
+                                    </span>
+                                    <span className="block text-micro text-slate-400 mt-0.5">
+                                      καμία βάρδια δεν έγραψε αυτόν τον κωδικό
+                                    </span>
+                                  </>
+                                );
+                              }
+                              const prog = packProgress(where, pack.pieces);
                               const tone = progressTone(prog.percent);
                               const bar =
                                 tone === 'HIGH' ? 'bg-rose-500' : tone === 'MID' ? 'bg-amber-500' : 'bg-emerald-500';
@@ -771,7 +797,7 @@ export const ScratchWarehouseManager: React.FC = () => {
                              το πακέτο είναι στο μαγαζί, και ο αντμιν που
                              το έβλεπε στην αποθήκη θα το παρέδιδε δεύτερη
                              φορά. */
-                          packProgress(positions[pack.pack_code], pack.pieces).sold === 0 ? (
+                          packProgress(positions[positionKey(pack.catalog_code, pack.pack_code)], pack.pieces).sold === 0 ? (
                             <button
                               type="button"
                               disabled={busyPackId === pack.id}
@@ -1025,11 +1051,11 @@ export const ScratchWarehouseManager: React.FC = () => {
                   detail: 'σβήνεται οριστικά — δεν μένει ως αποσυρμένο',
                   fate: 'GOES' as const,
                 },
-                packProgress(positions[toDelete.pack_code], toDelete.pieces).sold > 0
+                packProgress(positions[positionKey(toDelete.catalog_code, toDelete.pack_code)], toDelete.pieces).sold > 0
                   ? {
                       label: 'ΠΡΟΣΟΧΗ',
                       detail: `ο κωδικός έχει ${
-                        packProgress(positions[toDelete.pack_code], toDelete.pieces).sold
+                        packProgress(positions[positionKey(toDelete.catalog_code, toDelete.pack_code)], toDelete.pieces).sold
                       } δελτία πουλημένα σε βάρδιες — οι πωλήσεις ΜΕΝΟΥΝ, το ταμείο θα κρατάει κωδικό που η αποθήκη δεν έχει`,
                       fate: 'STAYS' as const,
                     }

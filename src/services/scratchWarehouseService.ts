@@ -1,7 +1,7 @@
 import { supabase } from './supabase.ts';
 import { packPieces, packValue } from '../lib/scratchBarcode.ts';
 import { rowsWrittenProblem } from '../lib/writeGuard.ts';
-import type { ProgressRow } from '../lib/packProgress.ts';
+import { positionKey, type ProgressRow } from '../lib/packProgress.ts';
 
 /**
  * Η αποθήκη των σκρατς: τι παρελήφθη, τι περιμένει, τι βγήκε.
@@ -170,14 +170,21 @@ export async function fetchPackPositions(
     .limit(60);
   if (error) throw error;
 
+  // Κλειδί: παιχνίδι ΚΑΙ κωδικός. Ο κωδικός μόνος του δεν ξεχωρίζει πακέτο -
+  // το 1234567 υπάρχει σε δέκα παιχνίδια, και ένας χάρτης με σκέτο κωδικό
+  // απαντούσε στο καθένα την πρόοδο ενός άλλου. Δες lib/packProgress.ts.
   const byCode: Record<string, ProgressRow> = {};
   for (const shift of data ?? []) {
     const rows = (shift as any).custom_field_values?.scratch_ticket_items ?? [];
     for (const row of rows) {
       const code = String(row?.packCode ?? '').trim();
+      if (!code) continue;
+      // Η γραμμή ΞΕΡΕΙ σε ποιο παιχνίδι ανήκει: το id της είναι ο κωδικός
+      // του καταλόγου, ο ίδιος που κουβαλάει το πακέτο ως catalog_code.
+      const key = positionKey(row?.id, code);
       // Η πρώτη που συναντάμε είναι η πιο πρόσφατη· οι παλιότερες αγνοούνται.
-      if (!code || byCode[code]) continue;
-      byCode[code] = {
+      if (byCode[key]) continue;
+      byCode[key] = {
         startNo: row.startNo,
         endNo: row.endNo,
         backStartNo: row.backStartNo,
