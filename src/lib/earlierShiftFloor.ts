@@ -80,11 +80,17 @@ export function matchingRow<R extends RowRef>(row: R, others: ReadonlyArray<R>):
 
 const plain = (n: number) => `${n} τεμ.`;
 
-function describe(side: 'front' | 'back', hasBack: boolean, now: string, earlier: string): string {
-  const where = hasBack ? (side === 'front' ? ' Μπροστά' : ' Πίσω') : '';
+/**
+ * Το μήνυμα ΔΕΝ λέει πόσα είχε πουλήσει η προηγούμενη βάρδια. Ο υπάλληλος
+ * δεν χρειάζεται να δει τα νούμερα του άλλου - χρειάζεται να μάθει ότι αυτό
+ * που έγραψε δεν γίνεται, και γιατί. Η βάρδια ξεκινά από τις πωλήσεις της
+ * προηγούμενης και ό,τι πουλήσει προστίθεται από πάνω.
+ */
+function describe(side: 'front' | 'back', hasBack: boolean, now: string): string {
+  const where = hasBack ? `${side === 'front' ? 'Μπροστά' : 'Πίσω'} — ` : '';
   return (
-    `Οι πωλήσεις${where} (${now}) είναι λιγότερες από όσες είχε ήδη γράψει η προηγούμενη βάρδια (${earlier}). ` +
-    'Τα νούμερα της ημέρας μόνο αυξάνονται — ελέγξτε τα.'
+    `${where}Δεν γίνεται: γράφεις ${now}, αλλά η προηγούμενη βάρδια έχει ήδη πουλήσει περισσότερα. ` +
+    'Η βάρδια ξεκινά από τις πωλήσεις της προηγούμενης και ό,τι πουλήσει προστίθεται από πάνω.'
   );
 }
 
@@ -113,13 +119,13 @@ export function belowEarlierShift<R extends RowRef>(
     if (now.frontEntered && now.frontOrigin === was.frontOrigin && now.front < was.front) {
       found.push({
         rowId, side: 'front', now: now.front, earlier: was.front,
-        message: describe('front', now.hasBack, say(now.front), say(was.front)),
+        message: describe('front', now.hasBack, say(now.front)),
       });
     }
     if (now.hasBack && now.backEntered && now.backOrigin === was.backOrigin && now.back < was.back) {
       found.push({
         rowId, side: 'back', now: now.back, earlier: was.back,
-        message: describe('back', true, say(now.back), say(was.back)),
+        message: describe('back', true, say(now.back)),
       });
     }
   }

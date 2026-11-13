@@ -33,8 +33,7 @@ describe('η γραμμή που έχει γράψει λιγότερα', () => 
     expect(issues.length).toBe(1);
     expect(issues[0].now).toBe(1);
     expect(issues[0].earlier).toBe(2);
-    expect(issues[0].message).toContain('(1 τεμ.)');
-    expect(issues[0].message).toContain('(2 τεμ.)');
+    expect(issues[0].message).toContain('γράφεις 1 τεμ.');
   });
 
   /** Λαμία, 12/11: η πρωινή πούλησε 2 πεντάδες, η βραδινή έγραψε 0 και 0. */
@@ -49,14 +48,31 @@ describe('η γραμμή που έχει γράψει λιγότερα', () => 
       'FRONT_ONLY'
     );
     expect(issues.length).toBe(1);
-    expect(issues[0].message).toContain('0 τεμ.');
-    expect(issues[0].message).toContain('10 τεμ. = 2 πεντάδες');
+    expect(issues[0].message).toContain('γράφεις 0 τεμ.');
+    // Οι 2 πεντάδες της πρωινής δεν φαίνονται στον υπάλληλο.
+    expect(issues[0].message).not.toContain('10');
+    expect(issues[0].message).not.toContain('πεντάδες');
   });
 
-  it('το μήνυμα λέει τι γράφτηκε, τι υπήρχε, και ότι τα νούμερα της ημέρας μόνο αυξάνονται', () => {
+  it('το μήνυμα λέει ότι δεν γίνεται και γιατί: η προηγούμενη βάρδια έχει ήδη πουλήσει περισσότερα', () => {
     const [i] = earlierShiftIssues([row({ endNo: '2' })], [row({ endNo: '5' })], 'FRONT_ONLY');
-    expect(i.message).toContain('λιγότερες από όσες είχε ήδη γράψει η προηγούμενη βάρδια');
-    expect(i.message).toContain('μόνο αυξάνονται');
+    expect(i.message).toContain('Δεν γίνεται');
+    expect(i.message).toContain('η προηγούμενη βάρδια έχει ήδη πουλήσει περισσότερα');
+    // Και το πώς δουλεύει: ξεκινά από της προηγούμενης, ό,τι πουλήσει προστίθεται.
+    expect(i.message).toContain('ξεκινά από τις πωλήσεις της προηγούμενης');
+    expect(i.message).toContain('προστίθεται από πάνω');
+  });
+
+  /**
+   * Ο υπάλληλος δεν χρειάζεται να δει τι πούλησε ο προηγούμενος. Ειδικά ένα
+   * νούμερο που δεν υπάρχει αλλού στο μήνυμα, για να μη μπερδευτεί με άλλο.
+   */
+  it('το μήνυμα ΔΕΝ γράφει πόσα είχε πουλήσει η προηγούμενη βάρδια', () => {
+    const [i] = earlierShiftIssues([row({ endNo: '2' })], [row({ endNo: '16' })], 'FRONT_ONLY');   // πρωί: 15
+    expect(i.message).not.toContain('15');
+    expect(i.message).not.toContain('16');
+    // Μόνο ό,τι έγραψε ο ίδιος: 2 − 1 = 1.
+    expect(i.message).toContain('γράφεις 1 τεμ.');
   });
 });
 

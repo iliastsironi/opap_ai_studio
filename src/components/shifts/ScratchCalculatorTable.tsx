@@ -2229,8 +2229,8 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               {belowEarlierNames.length === 1 ? 'παιχνίδι' : 'παιχνίδια'})
             </p>
             <p>
-              {belowEarlierNames.join(', ')}. Τα νούμερα της ημέρας μόνο αυξάνονται — δείτε τις γραμμές
-              με το κόκκινο μήνυμα.
+              {belowEarlierNames.join(', ')}. Η προηγούμενη βάρδια έχει ήδη πουλήσει περισσότερα — δείτε
+              τις γραμμές με το κόκκινο μήνυμα.
             </p>
           </div>
         </div>
