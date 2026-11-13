@@ -68,6 +68,7 @@ import {
 } from '../../lib/scratchPackHistory.ts';
 import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
 import { displayedRowCount } from '../../lib/lotteryQuantityView.ts';
+import { belowEarlierShift, type BelowEarlier, type FloorReading } from '../../lib/earlierShiftFloor.ts';
 import {
   activePackLabel,
   awaitingDelivery,
@@ -1295,6 +1296,53 @@ export function calculateBackRowTotal(row: ScratchTicketRow, storeMode?: Scratch
   return calculateBackRowQty(row, storeMode) * (row.price || 0);
 }
 
+/**
+ * Πώς διαβάζεται μια γραμμή όταν συγκρίνεται με την προηγούμενη βάρδια της
+ * ημέρας (lib/earlierShiftFloor.ts). Ό,τι μετράει ο πίνακας, μετράει και
+ * εδώ - οι ίδιες calculate* - ώστε ο έλεγχος να μην έχει δικό του τρόπο να
+ * μετρά πωλήσεις.
+ *
+ * Χωρίς τις ακυρώσεις: οι πεντάδες που γύρισαν αδιάθετες του Λαϊκού δεν
+ * μεταφέρονται στην επόμενη βάρδια (carryOverScratchInventory), οπότε η
+ * σύγκριση με αυτές μέσα θα έβγαζε «λιγότερα» όταν η βραδινή απλώς τις
+ * ξαναβάζει. Μετράμε τι ΠΟΥΛΗΘΗΚΕ πριν τις ακυρώσεις.
+ *
+ * Τα χειροκίνητα προϊόντα (manualQty) δεν συγκρίνονται: η ποσότητά τους
+ * γράφεται ανά βάρδια και δεν μεταφέρεται, οπότε μικρότερο νούμερο το βράδυ
+ * είναι απολύτως φυσιολογικό.
+ */
+function readForEarlierShift(row: ScratchTicketRow, storeMode?: ScratchSellingMode): FloorReading | null {
+  if (getCountingMode(row) === 'manual') return null;
+  const position = (v: unknown): string => {
+    const t = String(v ?? '').trim();
+    const n = parseInt(t, 10);
+    return t === '' ? '' : Number.isNaN(n) ? t : String(n);
+  };
+  const bundle = Number(row.bundleSize) || 0;
+  return {
+    front: calculateRowQty({ ...row, cancelledBundles: '' }),
+    back: calculateBackRowQty(row, storeMode),
+    frontEntered: String(row.endNo ?? '').trim() !== '',
+    backEntered: String(row.backStartNo ?? '').trim() !== '',
+    frontOrigin: position(row.startNo),
+    backOrigin: position(row.backEndNo),
+    hasBack: hasBackSide(row, storeMode),
+    say: (n: number) =>
+      bundle === 5 && n > 0 && n % 5 === 0
+        ? `${n} τεμ. = ${n / 5} ${n / 5 === 1 ? 'πεντάδα' : 'πεντάδες'}`
+        : `${n} τεμ.`,
+  };
+}
+
+/** Οι γραμμές που έχουν γράψει λιγότερα από την προηγούμενη βάρδια της ημέρας. */
+export function earlierShiftIssues(
+  rows: ScratchTicketRow[],
+  earlierRows: ScratchTicketRow[] | null | undefined,
+  storeMode?: ScratchSellingMode
+): BelowEarlier[] {
+  return belowEarlierShift(rows, earlierRows, (r) => readForEarlierShift(r, storeMode));
+}
+
 // 'warning' = an unusual number for the standard 300 EUR-per-pack
 // convention (a real combined/oversized pack can legitimately exceed it) -
 // shown as a soft heads-up, never blocking. 'error' = a reversed reading or
@@ -1497,6 +1545,15 @@ interface ScratchCalculatorTableProps {
   // one maintaining the price list. Opening a new pack stays here - that is a
   // physical thing that happens during a shift, not a setting.
   catalogEditable?: boolean;
+  /**
+   * Οι γραμμές της προηγούμενης βάρδιας της ΙΔΙΑΣ ημέρας, όπως έκλεισαν.
+   *
+   * Μέσα στην ημέρα τα νούμερα είναι σωρευτικά, άρα καμία γραμμή δεν μπορεί
+   * να έχει λιγότερες πωλήσεις από αυτές. Η οθόνη το λέει επάνω στη γραμμή
+   * (lib/earlierShiftFloor.ts). null όταν δεν υπάρχει τίποτα να συγκριθεί,
+   * π.χ. στην πρώτη βάρδια της ημέρας.
+   */
+  earlierShiftRows?: ScratchTicketRow[] | null;
 }
 
 export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
@@ -1515,6 +1572,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   onPackTaken,
   onPackReturned,
   catalogEditable = false,
+  earlierShiftRows = null,
 }) => {
   const { roles, permissions } = useAuth();
   const canManage =
@@ -1934,6 +1992,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     if (errors.length > 0) rowValidationErrors.set(r.id, errors);
   }
 
+  // Λιγότερα από την προηγούμενη βάρδια. 'error' γιατί είναι αδύνατο, όχι
+  // ασυνήθιστο - αλλά, όπως όλα εδώ, δεν εμποδίζει το σώσιμο: μια διόρθωση
+  // του υπεύθυνου στην πρωινή είναι ο λόγος που θα μπορούσε να έχει δίκιο.
+  const belowEarlier = earlierShiftIssues(rows, earlierShiftRows, sellingMode);
+  for (const issue of belowEarlier) {
+    const list = rowValidationErrors.get(issue.rowId) ?? [];
+    list.push({ message: issue.message, severity: 'error' });
+    rowValidationErrors.set(issue.rowId, list);
+  }
+  const belowEarlierNames = [...new Set(belowEarlier.map((i) => rows.find((r) => r.id === i.rowId)?.name).filter(Boolean))] as string[];
+
   // Helper for typing ticket numbers: strips leading zeros when typing new number over 000
   const handleTicketNumberChange = (
     rowId: string,
@@ -2148,6 +2217,25 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       )}
 
       {/* Table grid */}
+      {belowEarlierNames.length > 0 && (
+        <div
+          role="alert"
+          className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start space-x-2"
+        >
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-bold">
+              Λιγότερες πωλήσεις από την προηγούμενη βάρδια ({belowEarlierNames.length}{' '}
+              {belowEarlierNames.length === 1 ? 'παιχνίδι' : 'παιχνίδια'})
+            </p>
+            <p>
+              {belowEarlierNames.join(', ')}. Τα νούμερα της ημέρας μόνο αυξάνονται — δείτε τις γραμμές
+              με το κόκκινο μήνυμα.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>

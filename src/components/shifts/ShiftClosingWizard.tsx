@@ -203,6 +203,7 @@ import {
   vltMachineTotal,
 } from '../../lib/vltMachineCash.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
+import { earlierRowsForFloor } from '../../lib/earlierShiftFloor.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
@@ -514,6 +515,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * καταχωρημένο πακέτο και μετά, ο κωδικός έρχεται μόνο από εκεί.
    */
   const [warehousePacks, setWarehousePacks] = useState<WarehousePack[]>([]);
+  // Η προηγούμενη βάρδια της ΙΔΙΑΣ ημέρας, για να μη γράψει η βραδινή λιγότερες
+  // πωλήσεις από όσες είχε ήδη η πρωινή. null όταν δεν υπάρχει: η πρώτη βάρδια
+  // της ημέρας, ή μια ανάγνωση που απέτυχε - και στις δύο δεν λέμε τίποτα
+  // αντί να λέμε κάτι λάθος.
+  const [earlierShiftRows, setEarlierShiftRows] = useState<any[] | null>(null);
   const [warehouseInUse, setWarehouseInUse] = useState(false);
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
@@ -603,6 +609,15 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         const daySnapshot = day && (day as any).status === 'FOUND' ? (day as any).snapshot : null;
         // Ξαναδιαβασμένη εδώ, όχι μόνο από το στιγμιότυπο του ανοίγματος.
         setDayTopUps(Math.max(0, safeNum((daySnapshot as any)?.topups_today)));
+        setEarlierShiftRows(
+          earlierRowsForFloor({
+            handoverRows: handover?.scratch_ticket_items,
+            handoverShiftId: handover?.shift_id,
+            currentShiftId: shift.id,
+            dayFirstOpenedAt: daySnapshot?.opened_at ?? null,
+            openedAt: shift.opened_at,
+          })
+        );
         const seed = seedRowsFor({
           dayOpeningRows: daySnapshot?.scratch_ticket_items ?? null,
           dayFirstOpenedAt: daySnapshot?.opened_at ?? null,
@@ -2745,6 +2760,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 standingOrders={standingOrders}
                 warehousePacks={warehousePacks}
                 warehouseInUse={warehouseInUse}
+                earlierShiftRows={earlierShiftRows}
                 onPackTaken={async (packId) => {
                   await movePackToStore(packId, shift.id);
                   setWarehousePacks((prev) => prev.filter((p) => p.id !== packId));
