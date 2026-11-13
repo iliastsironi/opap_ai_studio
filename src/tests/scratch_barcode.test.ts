@@ -61,8 +61,28 @@ describe('ο κωδικός όπως τυπώνεται στο εισιτήρι�
     expect(readBarcode('0153006724803399').problem).toBeNull();
   });
 
-  it('15 ή 17 ψηφία απορρίπτονται και λένε πόσα έχεις', () => {
-    expect(readBarcode('015300672480339').problem).toContain('15');
+  /**
+   * Το πρώτο ζωντανό σκανάρισμα (Λαμία, 13/11/2026) έδωσε ακριβώς αυτό: 15 ψηφία.
+   * Ο κανόνας που περίμενε 11, 14 ή 16 το απέρριψε, ενώ το παιχνίδι (0162) και το
+   * πακέτο (0030741) ήταν σωστά και υπήρχαν ήδη στη βάση.
+   */
+  it('15 ψηφία, όπως τα έδωσε ο σαρωτής στη Λαμία, διαβάζονται', () => {
+    const { parts, problem } = readBarcode('016200307410593');
+    expect(problem).toBeNull();
+    expect(parts).toEqual({ gameNo: '0162', packCode: '0030741', ticketNo: '059', check: '3' });
+  });
+
+  it('τα 15 είναι το ίδιο πακέτο με τα 14 και τα 16 του ίδιου εισιτηρίου', () => {
+    const ids = ['01620030741059', '016200307410593', '0162003074105932'].map((c) => {
+      const p = readBarcode(c).parts;
+      return `${p?.gameNo}|${p?.packCode}|${p?.ticketNo}`;
+    });
+    expect(new Set(ids).size).toBe(1);
+  });
+
+  it('12, 13 ή 17 ψηφία απορρίπτονται και λένε πόσα έχεις', () => {
+    expect(readBarcode('016200307410').problem).toContain('12');
+    expect(readBarcode('0162003074105').problem).toContain('13');
     expect(readBarcode('01530067248033921').problem).toContain('17');
   });
 });

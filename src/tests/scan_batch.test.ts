@@ -45,6 +45,24 @@ describe('ένα σκανάρισμα', () => {
     if (second.ok === false) expect(second.reason).toBe('duplicate_staged');
   });
 
+  /** Ό,τι διάβασε ο σαρωτής της Λαμίας στο πρώτο ζωντανό σκανάρισμα: 15 ψηφία. */
+  it('το πραγματικό σκανάρισμα των 15 ψηφίων γίνεται πακέτο', () => {
+    const MONTHS: ScanGame = { gameNo: '0162', catalogCode: 'scr_5_24m', name: '24 ΜΗΝΕΣ 5€', price: 5, pieces: 60, value: 300 };
+    const out = stageScan('016200307410593', ctx({ games: [...games, MONTHS] }));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.pack.packCode).toBe('0030741');
+    expect(out.pack.game.name).toBe('24 ΜΗΝΕΣ 5€');
+
+    // Το ίδιο πακέτο υπάρχει ήδη στη βάση: πρέπει να το αναγνωρίσει, όχι να το απορρίψει ως «λάθος μήκος».
+    const dup = stageScan('016200307410593', ctx({
+      games: [...games, MONTHS],
+      existing: [{ catalog_code: 'scr_5_24m', pack_code: '0030741' }],
+    }));
+    expect(dup.ok).toBe(false);
+    if (dup.ok === false) expect(dup.reason).toBe('already_registered');
+  });
+
   it('παιχνίδι που δεν υπάρχει στον κατάλογο το λέει, με τον αριθμό', () => {
     const out = stageScan('0199-0067248-033', ctx());
     expect(out.ok).toBe(false);

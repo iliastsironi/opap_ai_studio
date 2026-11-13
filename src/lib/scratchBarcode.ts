@@ -14,12 +14,15 @@
  *
  *   0153-0067248-033-92
  *
- * με δύο ψηφία στο τέλος που ο παλιός κανόνας δεν γνώριζε. Αν το barcode
- * κωδικοποιεί και αυτά, κάθε σκανάρισμα θα απορριπτόταν με «έχετε 16» - και
- * ο λόγος θα φαινόταν ως χαλασμένος σαρωτής. Δεν ξέρουμε αν τα κωδικοποιεί
- * (δεν αποκωδικοποιείται από φωτογραφία), γι' αυτό δέχεται και τα δύο μήκη.
- * Τα δύο τελευταία ΔΕΝ ελέγχονται: δεν γνωρίζουμε τον αλγόριθμό τους, και
- * ένας επινοημένος θα απέρριπτε σωστά πακέτα. Και οι δύο
+ * με δύο ψηφία στο τέλος που ο παλιός κανόνας δεν γνώριζε. Το πρώτο ζωντανό
+ * σκανάρισμα (Λαμία, 13/11/2026) έδωσε ΔΕΚΑΠΕΝΤΕ: `016200307410593` - παιχνίδι
+ * 0162, πακέτο 0030741 (υπήρχε ήδη στη βάση, άρα τα πρώτα 11 ήταν σωστά),
+ * δελτίο 059, και ένα ψηφίο μετά. Δεν ξέρουμε αν το barcode κωδικοποιεί ένα
+ * ψηφίο ελέγχου και όχι δύο, ή αν ο σαρωτής χάνει το τελευταίο· και τα δύο
+ * δίνουν τα ίδια πρώτα 14. Γι' αυτό δέχεται 14 έως 16 και όχι μόνο ένα μήκος -
+ * ο κανόνας που περίμενε ακριβώς 16 απέρριπτε το πρώτο πραγματικό σκανάρισμα.
+ * Τα ψηφία μετά το δελτίο ΔΕΝ ελέγχονται: δεν γνωρίζουμε τον αλγόριθμό τους,
+ * και ένας επινοημένος θα απέρριπτε σωστά πακέτα. Και οι δύο
  * δρόμοι περνούν από εδώ, ώστε να μην υπάρχουν δύο αναγνώσεις του ίδιου
  * κωδικού που μπορούν να διαφωνήσουν.
  *
@@ -33,7 +36,10 @@ export const GAME_NO_LENGTH = 4;
 export const PACK_CODE_LENGTH = 7;
 export const TICKET_NO_LENGTH = 3;
 export const BARCODE_LENGTH = GAME_NO_LENGTH + PACK_CODE_LENGTH + TICKET_NO_LENGTH;
-/** Τα ψηφία στο τέλος του τυπωμένου κωδικού του εισιτηρίου (δες πάνω). */
+/**
+ * Τα ψηφία στο τέλος του τυπωμένου κωδικού του εισιτηρίου (δες πάνω): έως δύο.
+ * Ο σαρωτής της Λαμίας έδωσε ένα.
+ */
 export const CHECK_DIGITS_LENGTH = 2;
 export const PRINTED_BARCODE_LENGTH = BARCODE_LENGTH + CHECK_DIGITS_LENGTH;
 
@@ -43,7 +49,7 @@ export interface ScannedBarcode {
   /** null όταν σκαναρίστηκε μόνο το παιχνίδι και το πακέτο, χωρίς δελτίο. */
   ticketNo: string | null;
   /**
-   * Τα δύο ψηφία μετά το δελτίο - ΜΟΝΟ όταν ο κωδικός ήρθε με 16 ψηφία.
+   * Τα ψηφία μετά το δελτίο (ένα ή δύο) - ΜΟΝΟ όταν ο κωδικός ήρθε με 15 ή 16.
    * Απουσιάζει (όχι null) στα 11 και 14, ώστε ό,τι είχε γραφτεί πριν να
    * συγκρίνεται ίδιο.
    */
@@ -64,9 +70,9 @@ export function digitsOnly(raw: unknown): string {
 /**
  * Διαβάζει ό,τι μπήκε στο πεδίο.
  *
- * Δέχεται 11 ψηφία (παιχνίδι + πακέτο), 14 (με το δελτίο) ή 16 (όπως τυπώνεται
- * στο εισιτήριο, με τα δύο ψηφία στο τέλος). Τα 11 είναι ό,τι γράφει ο
- * χειριστής στα δύο βήματα· τα 14 και τα 16 είναι ό,τι δίνει ο σαρωτής.
+ * Δέχεται 11 ψηφία (παιχνίδι + πακέτο) ή 14 έως 16 (με το δελτίο και τα ψηφία
+ * στο τέλος του εισιτηρίου). Τα 11 είναι ό,τι γράφει ο χειριστής στα δύο
+ * βήματα· τα 14 έως 16 είναι ό,τι δίνει ο σαρωτής.
  */
 export function readBarcode(raw: unknown): BarcodeReading {
   const digits = digitsOnly(raw);
@@ -75,14 +81,13 @@ export function readBarcode(raw: unknown): BarcodeReading {
   const short = GAME_NO_LENGTH + PACK_CODE_LENGTH;
   if (
     digits.length !== short &&
-    digits.length !== BARCODE_LENGTH &&
-    digits.length !== PRINTED_BARCODE_LENGTH
+    (digits.length < BARCODE_LENGTH || digits.length > PRINTED_BARCODE_LENGTH)
   ) {
     return {
       parts: null,
       problem:
-        `Χρειάζονται ${short} ψηφία (παιχνίδι + πακέτο), ${BARCODE_LENGTH} με τον αριθμό ` +
-        `δελτίου ή ${PRINTED_BARCODE_LENGTH} όπως τυπώνεται στο εισιτήριο — έχετε ${digits.length}.`,
+        `Χρειάζονται ${short} ψηφία (παιχνίδι + πακέτο) ή ${BARCODE_LENGTH} έως ` +
+        `${PRINTED_BARCODE_LENGTH} με τον αριθμό δελτίου, όπως τυπώνεται στο εισιτήριο — έχετε ${digits.length}.`,
     };
   }
 
@@ -91,7 +96,7 @@ export function readBarcode(raw: unknown): BarcodeReading {
     packCode: digits.slice(GAME_NO_LENGTH, short),
     ticketNo: digits.length >= BARCODE_LENGTH ? digits.slice(short, BARCODE_LENGTH) : null,
   };
-  if (digits.length === PRINTED_BARCODE_LENGTH) parts.check = digits.slice(BARCODE_LENGTH);
+  if (digits.length > BARCODE_LENGTH) parts.check = digits.slice(BARCODE_LENGTH);
   return { parts, problem: null };
 }
 
