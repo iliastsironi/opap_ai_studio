@@ -68,7 +68,10 @@ import {
 } from '../../lib/scratchPackHistory.ts';
 import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
 import { displayedRowCount } from '../../lib/lotteryQuantityView.ts';
-import { belowEarlierShift, type BelowEarlier, type FloorReading } from '../../lib/earlierShiftFloor.ts';
+import {
+  belowEarlierShift, restoreEarlierFinals,
+  type BelowEarlier, type FloorReading, type FloorSide, type RestoreResult,
+} from '../../lib/earlierShiftFloor.ts';
 import {
   activePackLabel,
   awaitingDelivery,
@@ -1327,6 +1330,7 @@ function readForEarlierShift(row: ScratchTicketRow, storeMode?: ScratchSellingMo
     frontOrigin: position(row.startNo),
     backOrigin: position(row.backEndNo),
     hasBack: hasBackSide(row, storeMode),
+    shape: `${getCountingMode(row)}${isLotteryRow(row) ? '-lottery' : ''}`,
     say: (n: number) =>
       bundle === 5 && n > 0 && n % 5 === 0
         ? `${n} τεμ. = ${n / 5} ${n / 5 === 1 ? 'πεντάδα' : 'πεντάδες'}`
@@ -1341,6 +1345,91 @@ export function earlierShiftIssues(
   storeMode?: ScratchSellingMode
 ): BelowEarlier[] {
   return belowEarlierShift(rows, earlierRows, (r) => readForEarlierShift(r, storeMode));
+}
+
+/**
+ * Τα πεδία που κρατούν το τελικό. Μια γραμμή με πεντάδες κρατά και πόσες
+ * πουλήθηκαν (saleBundles/salePieces), γιατί αυτά και το endNo γράφονται
+ * μαζί - βλ. handleUpdateRemainingBundles. Αν έμενε ένα πίσω, η γραμμή θα
+ * έδειχνε ένα νούμερο και θα μετρούσε άλλο.
+ */
+const frontFinalFields = (row: ScratchTicketRow): string[] =>
+  isBundleTrackedRow(row) ? ['endNo', 'saleBundles', 'salePieces'] : ['endNo'];
+const BACK_FINAL_FIELDS = ['backStartNo'];
+
+/**
+ * Το άνοιγμα της βραδινής: τα κενά τελικά παίρνουν της προηγούμενης βάρδιας.
+ *
+ * `done` θυμάται ποιες πλευρές έχουν ήδη κριθεί, ώστε ένα τελικό που ο
+ * υπάλληλος σβήνει για να ξαναγράψει να μην ξαναγεμίζει μόνο του κάτω από
+ * τα δάχτυλά του. Μια πλευρά μπαίνει εκεί μόνο όταν κρατιέται πράγματι, όχι
+ * όταν η γραμμή δεν είναι ακόμα έτοιμη (αρχικό που φτάνει με καθυστέρηση,
+ * τρόπος πώλησης που φορτώνει μετά).
+ */
+export function prefillFromEarlierShift(
+  rows: ScratchTicketRow[],
+  earlierRows: ScratchTicketRow[] | null | undefined,
+  storeMode: ScratchSellingMode | undefined,
+  done: ReadonlySet<string>
+): { rows: ScratchTicketRow[]; held: string[]; changed: boolean } {
+  if (!Array.isArray(earlierRows) || earlierRows.length === 0) return { rows, held: [], changed: false };
+  const held: string[] = [];
+  let changed = false;
+  const next = rows.map((row) => {
+    const sides = (['front', 'back'] as FloorSide[]).filter((side) => !done.has(`${row.id}:${side}`));
+    if (sides.length === 0) return row;
+    const hit = restoreEarlierFinals(row, earlierRows, (r) => readForEarlierShift(r, storeMode), {
+      when: 'blank', sides, frontFields: frontFinalFields(row), backFields: BACK_FINAL_FIELDS,
+    });
+    if (!hit) return row;
+    for (const side of hit.held) held.push(`${row.id}:${side}`);
+    if (hit.restored.length === 0) return row;
+    changed = true;
+    return hit.row;
+  });
+  return { rows: changed ? next : rows, held, changed };
+}
+
+/** Πόσες γραμμές κρατούν το τελικό της προηγούμενης βάρδιας. 0: ο πίνακας δουλεύει όπως πάντα. */
+export function rowsHeldToEarlierShift(
+  rows: ScratchTicketRow[],
+  earlierRows: ScratchTicketRow[] | null | undefined,
+  storeMode: ScratchSellingMode | undefined
+): number {
+  if (!Array.isArray(earlierRows) || earlierRows.length === 0) return 0;
+  return rows.filter(
+    (row) =>
+      restoreEarlierFinals(row, earlierRows, (r) => readForEarlierShift(r, storeMode), {
+        when: 'blank', frontFields: [], backFields: [],
+      }) !== null
+  ).length;
+}
+
+/**
+ * Ο υπάλληλος φεύγει από ένα τελικό: αν είναι κενό ή μικρότερο από της
+ * προηγούμενης βάρδιας, ξαναμπαίνει το δικό της. null όταν είναι εντάξει.
+ */
+export function holdToEarlierShift(
+  row: ScratchTicketRow,
+  side: FloorSide,
+  earlierRows: ScratchTicketRow[] | null | undefined,
+  storeMode: ScratchSellingMode | undefined
+): RestoreResult<ScratchTicketRow> | null {
+  const hit = restoreEarlierFinals(row, earlierRows, (r) => readForEarlierShift(r, storeMode), {
+    when: 'blank-or-below', sides: [side], frontFields: frontFinalFields(row), backFields: BACK_FINAL_FIELDS,
+  });
+  return hit && hit.restored.length > 0 ? hit : null;
+}
+
+/** Το νούμερο που ξαναμπήκε, όπως το βλέπει ο υπάλληλος στο πεδίο. */
+export function restoredFigure(earlier: ScratchTicketRow, side: FloorSide): string {
+  if (side === 'back') return String(earlier.backStartNo ?? '').trim();
+  if (!isBundleTrackedRow(earlier)) return String(earlier.endNo ?? '').trim();
+  const { bundles, pieces } = splitPiecesIntoBundles(
+    parseNonNegativeInt(earlier.endNo).value,
+    earlier.bundleSize || 5
+  );
+  return pieces > 0 ? `${bundles} πεντ. + ${pieces} κομ.` : `${bundles} πεντ.`;
 }
 
 // 'warning' = an unusual number for the standard 300 EUR-per-pack
@@ -1648,6 +1737,61 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [newPackModalRowId, showResetConfirm, rowToRemove]);
+
+  // --- Τα τελικά της προηγούμενης βάρδιας της ημέρας (lib/earlierShiftFloor.ts)
+  //
+  // Η βραδινή ξεκινά με αυτά γραμμένα και δεν γίνεται να γράψει λιγότερα.
+  const earlierFill = React.useRef<{ for: unknown; done: Set<string> }>({ for: null, done: new Set() });
+  // Η γραμμή που πληκτρολογείται τώρα: όσο γράφει, το «γράφεις λιγότερα»
+  // θα άναβε στο πρώτο ψηφίο του «158» και θα κουνούσε τον πίνακα κάτω από
+  // τα δάχτυλά του. Κρίνεται όταν φεύγει από το πεδίο.
+  const [typingRowId, setTypingRowId] = useState<string | null>(null);
+  // Τι ξαναμπήκε και γιατί, ανά πλευρά γραμμής: «id:front» / «id:back».
+  const [heldNotes, setHeldNotes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (readOnly || !Array.isArray(earlierShiftRows) || earlierShiftRows.length === 0) return;
+    if (earlierFill.current.for !== earlierShiftRows) {
+      earlierFill.current = { for: earlierShiftRows, done: new Set() };
+    }
+    const out = prefillFromEarlierShift(rows, earlierShiftRows, sellingMode, earlierFill.current.done);
+    for (const key of out.held) earlierFill.current.done.add(key);
+    if (out.changed) onChangeRows(out.rows);
+    // onChangeRows is the parent's setter wrapper, new on every render; the
+    // `done` set is what keeps this from running twice for the same side.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, earlierShiftRows, sellingMode, readOnly]);
+
+  const startTypingFinal = (row: ScratchTicketRow) => setTypingRowId(row.id);
+
+  /**
+   * Το μήνυμα φεύγει όταν αλλάξει το νούμερο, ΟΧΙ όταν μπει ο δείκτης στο
+   * πεδίο: στις γραμμές με πεντάδες και κομμάτια το Tab πηγαίνει στο
+   * διπλανό κουτάκι της ίδιας γραμμής, και το μήνυμα χανόταν πριν προλάβει
+   * κανείς να το διαβάσει.
+   */
+  const forgetHeldNote = (rowId: string, side: FloorSide) => {
+    const key = `${rowId}:${side}`;
+    setHeldNotes((notes) => {
+      if (!(key in notes)) return notes;
+      const { [key]: _gone, ...rest } = notes;
+      return rest;
+    });
+  };
+
+  /** true: ξαναμπήκε το νούμερο της προηγούμενης και δεν χρειάζεται άλλος έλεγχος. */
+  const holdFinalToEarlier = (row: ScratchTicketRow, side: FloorSide): boolean => {
+    setTypingRowId((id) => (id === row.id ? null : id));
+    if (readOnly) return false;
+    const hit = holdToEarlierShift(row, side, earlierShiftRows, sellingMode);
+    if (!hit) return false;
+    onChangeRows(rows.map((r) => (r.id === row.id ? hit.row : r)));
+    setHeldNotes((notes) => ({
+      ...notes,
+      [`${row.id}:${side}`]: `Λιγότερες πωλήσεις δεν γίνεται — ξαναμπήκε το ${restoredFigure(hit.earlier, side)}`,
+    }));
+    return true;
+  };
 
   const handleUpdateRow = (id: string, field: keyof ScratchTicketRow, value: any) => {
     if (readOnly) return;
@@ -1960,6 +2104,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   const handleReset = () => {
     if (readOnly) return;
     const reset = rows.map((r) => ({ ...r, endNo: '', backStartNo: '', manualQty: '' }));
+    // Μια βραδινή που μηδενίζει ξαναγεμίζει με της προηγούμενης: το «τίποτα»
+    // της ημέρας δεν είναι κενό, είναι ό,τι έχει ήδη πουληθεί.
+    earlierFill.current.done.clear();
     onChangeRows(reset);
     setShowResetConfirm(false);
   };
@@ -1995,12 +2142,15 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   // Λιγότερα από την προηγούμενη βάρδια. 'error' γιατί είναι αδύνατο, όχι
   // ασυνήθιστο - αλλά, όπως όλα εδώ, δεν εμποδίζει το σώσιμο: μια διόρθωση
   // του υπεύθυνου στην πρωινή είναι ο λόγος που θα μπορούσε να έχει δίκιο.
-  const belowEarlier = earlierShiftIssues(rows, earlierShiftRows, sellingMode);
+  const belowEarlier = earlierShiftIssues(rows, earlierShiftRows, sellingMode).filter(
+    (issue) => issue.rowId !== typingRowId
+  );
   for (const issue of belowEarlier) {
     const list = rowValidationErrors.get(issue.rowId) ?? [];
     list.push({ message: issue.message, severity: 'error' });
     rowValidationErrors.set(issue.rowId, list);
   }
+  const holdsEarlierFinals = rowsHeldToEarlierShift(rows, earlierShiftRows, sellingMode) > 0;
   const belowEarlierNames = [...new Set(belowEarlier.map((i) => rows.find((r) => r.id === i.rowId)?.name).filter(Boolean))] as string[];
 
   // Helper for typing ticket numbers: strips leading zeros when typing new number over 000
@@ -2217,6 +2367,12 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       )}
 
       {/* Table grid */}
+      {!readOnly && holdsEarlierFinals && (
+        <p className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-micro font-bold text-slate-600">
+          Τα τελικά ξεκινούν από όσα έκλεισε η προηγούμενη βάρδια. Γράψτε από πάνω ό,τι πουλήθηκε από τότε —
+          λιγότερα από αυτά δεν γίνεται.
+        </p>
+      )}
       {belowEarlierNames.length > 0 && (
         <div
           role="alert"
@@ -2700,15 +2856,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   maxLength={MAX_LABEL_LENGTH}
                                   disabled={readOnly}
                                   value={row.endNo?.trim() ? String(remainingSplit.bundles) : ''}
-                                  onFocus={(e) => e.currentTarget.select()}
-                                  onChange={(e) =>
+                                  onFocus={(e) => { startTypingFinal(row); e.currentTarget.select(); }}
+                                  onBlur={() => { holdFinalToEarlier(row, 'front'); }}
+                                  onChange={(e) => {
+                                    forgetHeldNote(row.id, 'front');
                                     handleUpdateRemainingBundles(
                                       row.id,
                                       'bundles',
                                       e.target.value,
                                       row.endNo?.trim() ? String(remainingSplit.pieces) : ''
-                                    )
-                                  }
+                                    );
+                                  }}
                                   placeholder={String(startPiecesSplit.bundles)}
                                   title={`${rowBundleSize}άδες που απομένουν στο τέλος της βάρδιας`}
                                   className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
@@ -2727,15 +2885,17 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     maxLength={MAX_LABEL_LENGTH}
                                     disabled={readOnly}
                                     value={row.endNo?.trim() ? String(remainingSplit.pieces) : ''}
-                                    onFocus={(e) => e.currentTarget.select()}
-                                    onChange={(e) =>
+                                    onFocus={(e) => { startTypingFinal(row); e.currentTarget.select(); }}
+                                    onBlur={() => { holdFinalToEarlier(row, 'front'); }}
+                                    onChange={(e) => {
+                                      forgetHeldNote(row.id, 'front');
                                       handleUpdateRemainingBundles(
                                         row.id,
                                         'pieces',
                                         e.target.value,
                                         row.endNo?.trim() ? String(remainingSplit.bundles) : ''
-                                      )
-                                    }
+                                      );
+                                    }}
                                     placeholder={String(startPiecesSplit.pieces)}
                                     title="Μεμονωμένα κομμάτια που απομένουν στο τέλος της βάρδιας"
                                     className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
@@ -2762,6 +2922,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     : `= ${bundleSaleCheck.soldPieces} τμχ`}
                                 </span>
                               )}
+                              {heldNotes[`${row.id}:front`] && (
+                                <span role="status" className="text-micro font-extrabold text-amber-700 block">
+                                  {heldNotes[`${row.id}:front`]}
+                                </span>
+                              )}
                               {bundleSaleCheck.soldPieces > 0 && rowErrors.length === 0 && (
                                 <span className="text-micro font-semibold text-emerald-600 block">
                                   {/* "πεντ."/"κομ." abbreviations, not the earlier "A×B+C" notation -
@@ -2784,6 +2949,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               disabled={readOnly}
                               value={row.endNo}
                               onFocus={(e) => {
+                                startTypingFinal(row);
                                 e.currentTarget.select();
                                 if (/^0+$/.test(row.endNo)) {
                                   handleUpdateRow(row.id, 'endNo', '');
@@ -2797,12 +2963,16 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 }
                               }}
                               onBlur={() => {
+                                if (holdFinalToEarlier(row, 'front')) return;
                                 // Στα Σκρατς κλείδωμα: το τελικό δεν γίνεται να είναι μικρότερο από το αρχικό
                                 if (!isLottery && startNum !== null && endNum !== null && endNum < startNum) {
                                   handleUpdateRow(row.id, 'endNo', row.startNo || '000');
                                 }
                               }}
-                              onChange={(e) => handleTicketNumberChange(row.id, 'endNo', e.target.value, row.endNo)}
+                              onChange={(e) => {
+                                forgetHeldNote(row.id, 'front');
+                                handleTicketNumberChange(row.id, 'endNo', e.target.value, row.endNo);
+                              }}
                               placeholder="000"
                               className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
                                 isInvalidScratchEnd || hasCrossingError
@@ -2820,6 +2990,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                             {isInvalidScratchEnd && (
                               <span className="text-micro font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                 Τελικό &lt; Αρχικό
+                              </span>
+                            )}
+                            {heldNotes[`${row.id}:front`] && (
+                              <span role="status" className="text-micro font-extrabold text-amber-700 block mt-0.5">
+                                {heldNotes[`${row.id}:front`]}
                               </span>
                             )}
                             {frontQty > 0 && !isInvalidScratchEnd && (
@@ -2843,9 +3018,13 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 maxLength={MAX_LABEL_LENGTH}
                                 disabled={!canEditBackStart}
                                 value={row.backStartNo || ''}
-                                onFocus={(e) => e.currentTarget.select()}
-                                onChange={(e) => handleTicketNumberChange(row.id, 'backStartNo', e.target.value, row.backStartNo || '')}
+                                onFocus={(e) => { startTypingFinal(row); e.currentTarget.select(); }}
+                                onChange={(e) => {
+                                  forgetHeldNote(row.id, 'back');
+                                  handleTicketNumberChange(row.id, 'backStartNo', e.target.value, row.backStartNo || '');
+                                }}
                                 onBlur={() => {
+                                  if (holdFinalToEarlier(row, 'back')) return;
                                   if (backStartNum !== null && backEndNum !== null && backStartNum > backEndNum) {
                                     handleUpdateRow(row.id, 'backStartNo', row.backEndNo || '000');
                                   }
@@ -2865,6 +3044,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               {isInvalidBackStart && (
                                 <span className="text-micro font-extrabold text-rose-600 block mt-0.5 whitespace-nowrap">
                                   Αρχικό &gt; Τελικό
+                                </span>
+                              )}
+                              {heldNotes[`${row.id}:back`] && (
+                                <span role="status" className="text-micro font-extrabold text-amber-700 block mt-0.5">
+                                  {heldNotes[`${row.id}:back`]}
                                 </span>
                               )}
                               {backQty > 0 && !isInvalidBackStart && (

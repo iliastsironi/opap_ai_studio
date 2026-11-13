@@ -26,6 +26,12 @@
  *   3. Μπροστά και Πίσω ξεχωριστά. Το άθροισμά τους θα έκρυβε μια πλευρά που
  *      έπεσε πίσω, πίσω από μια άλλη που ανέβηκε.
  *
+ * Δεν φτάνει να το λέει η οθόνη, και ο υπάλληλος δεν χρειάζεται να
+ * κρύβεται από τα νούμερα της προηγούμενης: η βραδινή ΞΕΚΙΝΑ με τα τελικά
+ * της πρωινής γραμμένα, και δεν γίνεται να γραφτεί μικρότερο νούμερο από
+ * αυτά (restoreEarlierFinals παρακάτω). Ό,τι πουλήσει η βραδινή, το γράφει
+ * πάνω από αυτά.
+ *
  * Καθαρή συνάρτηση: το πώς μετριέται μια γραμμή έρχεται από αυτόν που
  * καλεί, ώστε η λογική να μην εξαρτάται από τον πίνακα που τη χρησιμοποιεί.
  */
@@ -49,6 +55,12 @@ export interface FloorReading {
   backOrigin: string;
   /** Η γραμμή πουλάει και από πίσω. */
   hasBack: boolean;
+  /**
+   * Πώς μετριέται η γραμμή («range», «bundle»…). Δύο βάρδιες που τη μετράνε
+   * διαφορετικά δεν έχουν συγκρίσιμα τελικά: το ένα είναι σειριακός αριθμός,
+   * το άλλο κομμάτια που απομένουν.
+   */
+  shape?: string;
   /** Πώς γράφεται μια ποσότητα αυτής της γραμμής. */
   say?: (n: number) => string;
 }
@@ -112,6 +124,7 @@ export function belowEarlierShift<R extends RowRef>(
     const now = read(row);
     const was = read(earlier);
     if (!now || !was) continue;
+    if ((now.shape ?? '') !== (was.shape ?? '')) continue;
 
     const say = now.say ?? plain;
     const rowId = text(row.id);
@@ -151,4 +164,98 @@ export function earlierRowsForFloor(input: {
   if (isOwnShift(input.handoverShiftId, input.currentShiftId)) return null;
   const rows = input.handoverRows;
   return Array.isArray(rows) && rows.length > 0 ? rows : null;
+}
+
+export type FloorSide = 'front' | 'back';
+
+export interface RestoreResult<R> {
+  /** Η γραμμή με τα τελικά της προηγούμενης βάρδιας όπου χρειάστηκε. */
+  row: R;
+  /** Η γραμμή της προηγούμενης βάρδιας, από όπου πάρθηκαν τα νούμερα. */
+  earlier: R;
+  /** Οι πλευρές που κρατούν το νούμερο της προηγούμενης (αλλαγμένες ή όχι). */
+  held: FloorSide[];
+  /** Οι πλευρές που άλλαξαν τώρα. */
+  restored: FloorSide[];
+}
+
+export interface RestoreOptions {
+  /**
+   * 'blank': μόνο ό,τι είναι κενό - το γέμισμα όταν ανοίγει η βάρδια.
+   * 'blank-or-below': και ό,τι γράφτηκε μικρότερο - όταν ο υπάλληλος φεύγει
+   * από το πεδίο.
+   */
+  when: 'blank' | 'blank-or-below';
+  /** Τα πεδία της γραμμής που κρατούν το τελικό του Μπροστά. */
+  frontFields: ReadonlyArray<string>;
+  /** Τα πεδία της γραμμής που κρατούν το τελικό του Πίσω. */
+  backFields: ReadonlyArray<string>;
+  /** Μόνο αυτές οι πλευρές εξετάζονται. Χωρίς αυτό, και οι δύο. */
+  sides?: ReadonlyArray<FloorSide>;
+}
+
+/**
+ * Βάζει πίσω τα τελικά της προηγούμενης βάρδιας εκεί που η βραδινή έχει
+ * αφήσει κενό ή έχει γράψει λιγότερα. null όταν δεν υπάρχει τίποτα με το
+ * οποίο να κρατιέται η γραμμή.
+ *
+ * Κρατιέται μια πλευρά μόνο όταν η προηγούμενη βάρδια ΓΡΑΨΕ τελικό εκεί και
+ * οι δύο μετράνε από το ίδιο σημείο, με τον ίδιο τρόπο - οι ίδιοι κανόνες
+ * με την ειδοποίηση παραπάνω, γιατί είναι το ίδιο ερώτημα. Αν η βραδινή
+ * άνοιξε καινούριο πακέτο ή άλλαξε το αρχικό ο υπεύθυνος, τίποτα δεν
+ * κρατιέται και ο πίνακας δουλεύει όπως πάντα.
+ *
+ * Επιστρέφει νέα γραμμή· δεν αλλάζει τις παραμέτρους.
+ */
+export function restoreEarlierFinals<R extends RowRef & Record<string, any>>(
+  row: R,
+  earlierRows: ReadonlyArray<R> | null | undefined,
+  read: (row: R) => FloorReading | null,
+  options: RestoreOptions
+): RestoreResult<R> | null {
+  if (!Array.isArray(earlierRows) || earlierRows.length === 0) return null;
+  const earlier = matchingRow(row, earlierRows);
+  if (!earlier) return null;
+  const now = read(row);
+  const was = read(earlier);
+  if (!now || !was) return null;
+  if ((now.shape ?? '') !== (was.shape ?? '')) return null;
+
+  const wanted = options.sides ?? (['front', 'back'] as FloorSide[]);
+  const held: FloorSide[] = [];
+  const restored: FloorSide[] = [];
+  let next: R = row;
+
+  const consider = (
+    side: FloorSide,
+    holds: boolean,
+    blank: boolean,
+    below: boolean,
+    fields: ReadonlyArray<string>
+  ) => {
+    if (!wanted.includes(side) || !holds) return;
+    held.push(side);
+    if (!(blank || (options.when === 'blank-or-below' && below))) return;
+    const patch: Record<string, unknown> = {};
+    for (const f of fields) patch[f] = earlier[f];
+    next = { ...next, ...patch };
+    restored.push(side);
+  };
+
+  consider(
+    'front',
+    was.frontEntered && now.frontOrigin === was.frontOrigin,
+    !now.frontEntered,
+    now.front < was.front,
+    options.frontFields
+  );
+  consider(
+    'back',
+    now.hasBack && was.backEntered && now.backOrigin === was.backOrigin,
+    !now.backEntered,
+    now.back < was.back,
+    options.backFields
+  );
+
+  return held.length === 0 ? null : { row: next, earlier, held, restored };
 }
