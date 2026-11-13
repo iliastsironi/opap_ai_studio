@@ -21,6 +21,7 @@ import { codesByGame, repeatedCodes, totalCodes } from '../../lib/warehouseCodeL
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { Modal } from '../ui/Modal.tsx';
+import { ScanReceivePanel } from './ScanReceivePanel.tsx';
 import { ConfirmDestructiveModal } from '../ui/ConfirmDestructiveModal.tsx';
 
 /**
@@ -581,6 +582,17 @@ export const ScratchWarehouseManager: React.FC = () => {
           </p>
         )}
       </div>
+
+      {/* Παραλαβή ολόκληρης παραγγελίας: σκανάρισμα πολλών πακέτων στη σειρά. */}
+      <ScanReceivePanel
+        orgId={orgId}
+        storeId={storeId}
+        userId={user?.id}
+        games={games}
+        existing={packs}
+        receivedAt={receivedAt}
+        onRegistered={load}
+      />
 
       {/*
         Ποιοι κωδικοί υπάρχουν.

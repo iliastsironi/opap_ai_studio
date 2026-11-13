@@ -10,6 +10,19 @@
  * later, and no input has to opt in.
  */
 
+/**
+ * Ένα πεδίο που ΔΕΝ θέλει να προχωρά το Enter: το βάζει ρητά στον εαυτό του
+ * (ή σε πρόγονο) με `data-enter-advance="off"`.
+ *
+ * Το χρειάζεται το πεδίο σάρωσης της αποθήκης: ο σαρωτής στέλνει Enter μετά
+ * από κάθε barcode, και με τον κανόνα της εφαρμογής η εστίαση θα έφευγε στο
+ * επόμενο πεδίο - το δεύτερο πακέτο θα έπεφτε στην αναζήτηση της λίστας.
+ * Εξαίρεση με αίτηση και όχι γενικός έλεγχος του `defaultPrevented`: πολλά
+ * πεδία στην εφαρμογή ακυρώνουν το Enter για άλλους λόγους και περιμένουν
+ * ακόμα να προχωρήσει.
+ */
+export const ENTER_ADVANCE_OPT_OUT = '[data-enter-advance="off"]';
+
 /** Types where Enter means «next field» rather than «newline» or «submit». */
 const ADVANCING_TYPES = new Set([
   'text', 'number', 'email', 'tel', 'url', 'search', 'password',
@@ -64,6 +77,7 @@ export function installEnterAdvancesFocus(doc: Document = document): () => void 
 
     const target = event.target as HTMLElement | null;
     if (!isAdvancingField(target)) return;
+    if (target!.closest(ENTER_ADVANCE_OPT_OUT)) return;
 
     const next = nextFieldAfter(target!);
     // No next field means this is the last one, and Enter keeps its usual

@@ -8,7 +8,18 @@
  *     └─────────────── αριθμός παιχνιδιού, σταθερός πανελλαδικά
  *
  * Δεκατέσσερα ψηφία συνολικά. Ο σαρωτής τα δίνει μαζεμένα· ο χειριστής τα
- * γράφει σε δύο βήματα, πρώτα το παιχνίδι και μετά το πακέτο. Και οι δύο
+ * γράφει σε δύο βήματα, πρώτα το παιχνίδι και μετά το πακέτο.
+ *
+ * Στο ίδιο το εισιτήριο όμως το τυπωμένο κείμενο έχει ΔΕΚΑΕΞΙ:
+ *
+ *   0153-0067248-033-92
+ *
+ * με δύο ψηφία στο τέλος που ο παλιός κανόνας δεν γνώριζε. Αν το barcode
+ * κωδικοποιεί και αυτά, κάθε σκανάρισμα θα απορριπτόταν με «έχετε 16» - και
+ * ο λόγος θα φαινόταν ως χαλασμένος σαρωτής. Δεν ξέρουμε αν τα κωδικοποιεί
+ * (δεν αποκωδικοποιείται από φωτογραφία), γι' αυτό δέχεται και τα δύο μήκη.
+ * Τα δύο τελευταία ΔΕΝ ελέγχονται: δεν γνωρίζουμε τον αλγόριθμό τους, και
+ * ένας επινοημένος θα απέρριπτε σωστά πακέτα. Και οι δύο
  * δρόμοι περνούν από εδώ, ώστε να μην υπάρχουν δύο αναγνώσεις του ίδιου
  * κωδικού που μπορούν να διαφωνήσουν.
  *
@@ -22,12 +33,21 @@ export const GAME_NO_LENGTH = 4;
 export const PACK_CODE_LENGTH = 7;
 export const TICKET_NO_LENGTH = 3;
 export const BARCODE_LENGTH = GAME_NO_LENGTH + PACK_CODE_LENGTH + TICKET_NO_LENGTH;
+/** Τα ψηφία στο τέλος του τυπωμένου κωδικού του εισιτηρίου (δες πάνω). */
+export const CHECK_DIGITS_LENGTH = 2;
+export const PRINTED_BARCODE_LENGTH = BARCODE_LENGTH + CHECK_DIGITS_LENGTH;
 
 export interface ScannedBarcode {
   gameNo: string;
   packCode: string;
   /** null όταν σκαναρίστηκε μόνο το παιχνίδι και το πακέτο, χωρίς δελτίο. */
   ticketNo: string | null;
+  /**
+   * Τα δύο ψηφία μετά το δελτίο - ΜΟΝΟ όταν ο κωδικός ήρθε με 16 ψηφία.
+   * Απουσιάζει (όχι null) στα 11 και 14, ώστε ό,τι είχε γραφτεί πριν να
+   * συγκρίνεται ίδιο.
+   */
+  check?: string;
 }
 
 export interface BarcodeReading {
@@ -44,31 +64,35 @@ export function digitsOnly(raw: unknown): string {
 /**
  * Διαβάζει ό,τι μπήκε στο πεδίο.
  *
- * Δέχεται 11 ψηφία (παιχνίδι + πακέτο) ή 14 (με το δελτίο). Τα 11 είναι ό,τι
- * γράφει ο χειριστής στα δύο βήματα· τα 14 είναι ό,τι δίνει ο σαρωτής.
+ * Δέχεται 11 ψηφία (παιχνίδι + πακέτο), 14 (με το δελτίο) ή 16 (όπως τυπώνεται
+ * στο εισιτήριο, με τα δύο ψηφία στο τέλος). Τα 11 είναι ό,τι γράφει ο
+ * χειριστής στα δύο βήματα· τα 14 και τα 16 είναι ό,τι δίνει ο σαρωτής.
  */
 export function readBarcode(raw: unknown): BarcodeReading {
   const digits = digitsOnly(raw);
   if (digits === '') return { parts: null, problem: 'Γράψτε ή σκανάρετε τον κωδικό.' };
 
   const short = GAME_NO_LENGTH + PACK_CODE_LENGTH;
-  if (digits.length !== short && digits.length !== BARCODE_LENGTH) {
+  if (
+    digits.length !== short &&
+    digits.length !== BARCODE_LENGTH &&
+    digits.length !== PRINTED_BARCODE_LENGTH
+  ) {
     return {
       parts: null,
       problem:
-        `Χρειάζονται ${short} ψηφία (παιχνίδι + πακέτο) ή ${BARCODE_LENGTH} με τον αριθμό ` +
-        `δελτίου — έχετε ${digits.length}.`,
+        `Χρειάζονται ${short} ψηφία (παιχνίδι + πακέτο), ${BARCODE_LENGTH} με τον αριθμό ` +
+        `δελτίου ή ${PRINTED_BARCODE_LENGTH} όπως τυπώνεται στο εισιτήριο — έχετε ${digits.length}.`,
     };
   }
 
-  return {
-    parts: {
-      gameNo: digits.slice(0, GAME_NO_LENGTH),
-      packCode: digits.slice(GAME_NO_LENGTH, short),
-      ticketNo: digits.length === BARCODE_LENGTH ? digits.slice(short) : null,
-    },
-    problem: null,
+  const parts: ScannedBarcode = {
+    gameNo: digits.slice(0, GAME_NO_LENGTH),
+    packCode: digits.slice(GAME_NO_LENGTH, short),
+    ticketNo: digits.length >= BARCODE_LENGTH ? digits.slice(short, BARCODE_LENGTH) : null,
   };
+  if (digits.length === PRINTED_BARCODE_LENGTH) parts.check = digits.slice(BARCODE_LENGTH);
+  return { parts, problem: null };
 }
 
 export function isValidGameNo(value: unknown): boolean {

@@ -34,6 +34,39 @@ describe('ο κωδικός σπάει στα τρία', () => {
   });
 });
 
+describe('ο κωδικός όπως τυπώνεται στο εισιτήριο: 16 ψηφία', () => {
+  /**
+   * Το κείμενο κάτω από το barcode ενός εισιτηρίου 7ΑΡΙ 5€ είναι
+   * `0153-0067248-033-92` - δύο ψηφία περισσότερα από όσα περίμενε ο κανόνας.
+   * Αν το barcode τα κωδικοποιεί, κάθε σκανάρισμα έπεφτε σε «έχετε 16».
+   */
+  it('δέχεται τα 16 και τα σπάει σε τέσσερα', () => {
+    const { parts, problem } = readBarcode('0153-0067248-033-92');
+    expect(problem).toBeNull();
+    expect(parts).toEqual({ gameNo: '0153', packCode: '0067248', ticketNo: '033', check: '92' });
+  });
+
+  it('ίδιο αποτέλεσμα όταν ο σαρωτής δίνει τα 16 ενωμένα', () => {
+    expect(readBarcode('0153006724803392').parts?.packCode).toBe('0067248');
+  });
+
+  it('τα 14 και τα 11 μένουν όπως ήταν, χωρίς πεδίο check', () => {
+    expect(readBarcode('01530067248033').parts).toEqual({ gameNo: '0153', packCode: '0067248', ticketNo: '033' });
+    expect('check' in (readBarcode('01530067248033').parts ?? {})).toBe(false);
+    expect(readBarcode('01530067248').parts).toEqual({ gameNo: '0153', packCode: '0067248', ticketNo: null });
+  });
+
+  it('τα δύο τελευταία ψηφία δεν ελέγχονται - δεν ξέρουμε τον αλγόριθμο', () => {
+    expect(readBarcode('0153006724803300').problem).toBeNull();
+    expect(readBarcode('0153006724803399').problem).toBeNull();
+  });
+
+  it('15 ή 17 ψηφία απορρίπτονται και λένε πόσα έχεις', () => {
+    expect(readBarcode('015300672480339').problem).toContain('15');
+    expect(readBarcode('01530067248033921').problem).toContain('17');
+  });
+});
+
 describe('τα δύο μέρη ξεχωριστά', () => {
   it('ο αριθμός παιχνιδιού είναι 4 ψηφία', () => {
     expect(isValidGameNo('0157')).toBe(true);
