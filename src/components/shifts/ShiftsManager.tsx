@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Sliders,
   Scale,
+  Gamepad2,
   ChevronDown,
   ChevronUp,
   Trash2,
@@ -61,6 +62,8 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
 import { DailyShiftReportModal } from './DailyShiftReportModal.tsx';
 import { lazyWithRetry } from '../../lib/lazyWithRetry.ts';
+import { useVltMismatchCount } from './useVltMismatchCount.ts';
+import { isElevatedRole } from '../../lib/authCircles.ts';
 
 // Lazy-loaded: each is only mounted behind a condition (active wizard / active
 // manager tab), so keeping them out of the main chunk avoids shipping the
@@ -73,6 +76,9 @@ const ShiftTemplateConfigurator = lazyWithRetry(() =>
 );
 const DiscrepancyLedger = lazyWithRetry(() =>
   import('./DiscrepancyLedger.tsx').then((m) => ({ default: m.DiscrepancyLedger }))
+);
+const VltReportCheck = lazyWithRetry(() =>
+  import('./VltReportCheck.tsx').then((m) => ({ default: m.VltReportCheck }))
 );
 
 // Statuses that mean "this shift is still someone's to finish". Keep this as
@@ -107,8 +113,8 @@ import { worksThisShift, visibleShifts } from '../../lib/shiftOpenRules.ts';
 import { closedShifts } from '../../lib/shiftStatus.ts';
 
 export const ShiftsManager: React.FC = () => {
-  const { token, organization, roles, hasPermission, user } = useAuth();
-  const { currentStore, stores: tenantStores, storeId, setStoreId } = useTenant();
+  const { token, organization, roles, permissions, hasPermission, user } = useAuth();
+  const { currentStore, stores: tenantStores, storeId, setStoreId, selectedStoreId } = useTenant();
 
   const isOwnerOrAdmin =
     roles?.some((r) => ['ORG_OWNER', 'ORG_ADMIN', 'PLATFORM_ADMIN'].includes(r.code)) ||
@@ -116,6 +122,13 @@ export const ShiftsManager: React.FC = () => {
 
   /** Οι κωδικοί ρόλων, όπως τους περιμένει το canDeleteShift. */
   const roleCodes = (roles ?? []).map((r) => r.code);
+
+  /**
+   * Ποιος βλέπει τον έλεγχο VLT: ο διευθυντής και πάνω - ο ίδιος κύκλος με την
+   * πολιτική της βάσης (0086, auth_is_elevated). Όχι ο υπεύθυνος βάρδιας: εκείνος
+   * θα έβλεπε την καρτέλα και η βάση θα του γύριζε άδειο.
+   */
+  const canCheckVlt = isElevatedRole(roleCodes, permissions);
 
   const canApprove =
     roles?.some(
@@ -158,7 +171,10 @@ export const ShiftsManager: React.FC = () => {
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'DISCREPANCIES' | 'TEMPLATE'>('SHIFTS');
+  const [managerTab, setManagerTab] = useState<'SHIFTS' | 'DISCREPANCIES' | 'VLT' | 'TEMPLATE'>('SHIFTS');
+  // Μετράει στο παρασκήνιο, για να φαίνεται η διαφορά χωρίς να ανοίξει κανείς την καρτέλα.
+  // Ξαναμετράει όταν αλλάζει καρτέλα: μπορεί να έγραψε reports.
+  const vltMismatchCount = useVltMismatchCount(canCheckVlt, organization?.id, selectedStoreId, managerTab);
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>(() => {
     try {
       const saved = localStorage.getItem('shiftledger_shifts_view_mode');
@@ -602,6 +618,28 @@ export const ShiftsManager: React.FC = () => {
                 <Scale className="w-3.5 h-3.5" />
                 <span>{toGreekUpper('Αποκλισεις')}</span>
               </button>
+              {canCheckVlt && (
+                <button
+                  onClick={() => setManagerTab('VLT')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                    managerTab === 'VLT'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <span>{toGreekUpper('Ελεγχος VLT')}</span>
+                  {vltMismatchCount > 0 && (
+                    <span
+                      role="status"
+                      aria-label={`${vltMismatchCount} ημέρες με διαφορά VLT`}
+                      className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-micro font-black flex items-center justify-center"
+                    >
+                      {vltMismatchCount}
+                    </span>
+                  )}
+                </button>
+              )}
               {isOwnerOrAdmin && (
                 <button
                   onClick={() => setManagerTab('TEMPLATE')}
@@ -717,6 +755,10 @@ export const ShiftsManager: React.FC = () => {
       ) : managerTab === 'DISCREPANCIES' ? (
         <Suspense fallback={<LazyLoadingFallback />}>
           <DiscrepancyLedger />
+        </Suspense>
+      ) : managerTab === 'VLT' && canCheckVlt ? (
+        <Suspense fallback={<LazyLoadingFallback />}>
+          <VltReportCheck canEdit />
         </Suspense>
       ) : (
         <>
