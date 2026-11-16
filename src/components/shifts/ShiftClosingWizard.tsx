@@ -193,7 +193,7 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
-import { ExpenseCategoryDef, countsInTill, isCompanyCategory, isFnbCategory, tillExpensesOnly } from '../../lib/expenseCategories.ts';
+import { ExpenseCategoryDef, isCompanyCategory, isFnbCategory, tillExpensesOnly } from '../../lib/expenseCategories.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
 import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
@@ -261,7 +261,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * θα μπορούσε να το γράψει εδώ και θα χρέωνε το ταμείο του.
    */
   const tillCategoryOptions = expenseCategoryOptions.filter(
-    (c) => countsInTill(c.key, expenseCategories)
+    (c) => !isCompanyCategory(c.key, expenseCategories)
   );
   const canManage =
     roles.some(

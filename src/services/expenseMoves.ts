@@ -77,9 +77,7 @@ export async function moveCompanyExpenseToStore(
   }
 ): Promise<void> {
   await moveExpense({
-    // Χωρίς βάρδια: ένα παλιό έξοδο εταιρίας δεν ανήκει σε καμία. Αν η νέα
-    // κατηγορία πληρώνεται από το ταμείο, το βρίσκει η βάρδια της ημέρας
-    // όταν ξαναϋπολογιστεί, και αν όχι, δεν το μετράει ποτέ.
+    // Χωρίς βάρδια και χωρίς χρέωση: ένα παλιό έξοδο εταιρίας δεν ανήκει σε κανένα ταμείο.
     create: async () => {
       const created = await createExpenseInFirestore({
         organization_id: company.organizationId,
@@ -89,6 +87,9 @@ export async function moveCompanyExpenseToStore(
         payment_method: target.paymentMethod,
         recipient: company.payee,
         date: company.expenseDate,
+        // Ήταν ανεξάρτητο από κάθε ταμείο και μένει: αν θέλετε να το χρεώσετε,
+        // το τσεκάρετε στη διόρθωση.
+        charged_to_till: false,
         ...(company.note ? { notes: company.note } : {}),
         ...(target.userId ? { created_by_user_id: target.userId } : {}),
         ...(target.userName ? { created_by_user_name: target.userName } : {}),

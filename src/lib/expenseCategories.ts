@@ -55,15 +55,6 @@ export interface ExpenseCategoryDef {
   sortOrder: number;
   isActive: boolean;
   isBuiltin: boolean;
-  /**
-   * Βγαίνει από το συρτάρι της βάρδιας;
-   *
-   * Όχι όλα τα έξοδα καταστήματος πληρώνονται από το ταμείο: το ενοίκιο
-   * πάει με έμβασμα, η Cosmote ίσως με μετρητά. Ο διακόπτης ζει στην
-   * κατηγορία (0084) και ο ΜΟΝΟΣ τρόπος να διαβαστεί είναι το countsInTill.
-   * Λείπει = ναι, όπως ήταν πριν υπάρξει ο διακόπτης.
-   */
-  paidFromTill?: boolean;
 }
 
 /**
@@ -82,7 +73,7 @@ export const BUILTIN_EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
   { key: 'CLEANING', label: 'Καθαριότητα (ΓΠ)', side: 'AGENCY', sortOrder: 50, isActive: true, isBuiltin: true },
   { key: 'MAINTENANCE', label: 'Συντήρηση / Βλάβες (ΓΠ)', side: 'AGENCY', sortOrder: 60, isActive: true, isBuiltin: true },
   { key: 'OTHER', label: 'Λοιπά Έξοδα (ΓΠ)', side: 'AGENCY', sortOrder: 70, isActive: true, isBuiltin: true },
-  { key: 'EXPENSES_COMPANY', label: 'Έξοδα Εταιρίας (ΕΦΚΑ, ΙΚΑ, εφορία)', side: 'COMPANY', sortOrder: 80, isActive: true, isBuiltin: true, paidFromTill: false },
+  { key: 'EXPENSES_COMPANY', label: 'Έξοδα Εταιρίας (ΕΦΚΑ, ΙΚΑ, εφορία)', side: 'COMPANY', sortOrder: 80, isActive: true, isBuiltin: true },
 ];
 
 /** Η μία κατηγορία του καφέ που υπήρχε πριν τον πίνακα. */
@@ -134,38 +125,36 @@ export function isCompanyCategory(category: unknown, categories?: readonly Expen
 }
 
 /**
- * Μετράει αυτό το έξοδο στο ταμείο μιας βάρδιας;
- *
- * Η ΜΟΝΗ απάντηση, όπως τα isFnbCategory και isCompanyCategory. Δύο λόγοι
- * το βγάζουν από το συρτάρι: είναι έξοδο εταιρίας (δεν πέρασε ποτέ από
- * μαγαζί), ή η κατηγορία του δηλώνει ότι δεν πληρώνεται από το ταμείο
- * (π.χ. «Πάγια Έξοδα»: ενοίκιο που πάει με έμβασμα).
- *
- * Μια κατηγορία που δεν ξέρουμε - αποσύρθηκε και σβήστηκε, ή έξοδο
- * παλιό - μετράει, όπως μετρούσαν όλα πριν υπάρξει ο διακόπτης: ένα έξοδο
- * που κρύβεται από το ταμείο χωρίς να το ξέρει κανείς είναι χειρότερο από
- * ένα που μετράει.
- */
-export function countsInTill(category: unknown, categories?: readonly ExpenseCategoryDef[]): boolean {
-  if (isCompanyCategory(category, categories)) return false;
-  const key = String(category ?? '');
-  const match = categories?.find((c) => c.key === key);
-  return match ? match.paidFromTill !== false : true;
-}
-
-/**
  * Από μια λίστα εξόδων, όσα έχουν δουλειά σε ένα ταμείο.
+ *
+ * Ο πράκτορας: «να έχει μια επιλογή που να λέει χρέωση στο ταμείο της ημέρας
+ * που τρέχει· αν δεν την πατάμε, να μη χρεώνεται σε κανένα ταμείο, απλά να
+ * καταχωρείται στα έξοδα». Η επιλογή ζει στο ίδιο το έξοδο (charged_to_till,
+ * 0085) και είναι η ΜΟΝΗ που αποφασίζει, με δύο εξαιρέσεις που δεν είναι
+ * επιλογή:
+ *
+ *   1. Έξοδο εταιρίας         ΔΕΝ μετράει, ποτέ. Δεν πέρασε από μαγαζί.
+ *   2. charged_to_till = false  ΔΕΝ μετράει, σε κανένα ταμείο.
+ *
+ * Ό,τι δεν έχει τη στήλη (γραμμή πριν το 0085, ή γραμμή της οθόνης κλεισίματος
+ * που γράφτηκε μέσα στη βάρδια) μετράει, όπως μετρούσε πάντα.
+ *
+ * Η κατηγορία δεν αποφασίζει τίποτα εδώ. Μια πρώτη εκδοχή είχε διακόπτη ανά
+ * κατηγορία («Πάγια Έξοδα» εκτός ταμείου) και μπέρδευε: το ίδιο έξοδο μετρούσε
+ * ή όχι ανάλογα με το πού το έγραφε κανείς. Ένα έξοδο, μία επιλογή.
  *
  * Μία συνάρτηση, όλες οι θέσεις: η λίστα που βλέπει ο υπάλληλος, τα σύνολα
  * που χρεώνουν το ταμείο του και το άθροισμα expenses_paid_cash που
  * ξαναμετράει η οθόνη των εξόδων. Αν χωρίζονταν, ένα έξοδο θα μπορούσε να
  * κρύβεται από την οθόνη και να χρεώνεται ούτως ή άλλως.
  */
-export function tillExpensesOnly<T extends { category?: string | null }>(
+export function tillExpensesOnly<T extends { category?: string | null; charged_to_till?: boolean | null }>(
   expenses: readonly T[],
   categories: readonly ExpenseCategoryDef[]
 ): T[] {
-  return expenses.filter((e) => countsInTill(e.category, categories));
+  return expenses.filter(
+    (e) => !isCompanyCategory(e.category, categories) && e.charged_to_till !== false
+  );
 }
 
 /**

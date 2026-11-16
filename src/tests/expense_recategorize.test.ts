@@ -1,23 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  BUILTIN_EXPENSE_CATEGORIES,
-  ExpenseCategoryDef,
-  countsInTill,
-  isLiveShiftStatus,
-  tillExpensesOnly,
-} from '../lib/expenseCategories.ts';
-import { MoveLeftDuplicateError, categoryChangeBlock, moveExpense } from '../lib/expenseMove.ts';
+import { ExpenseCategoryDef, isLiveShiftStatus, tillExpensesOnly } from '../lib/expenseCategories.ts';
+import { MoveLeftDuplicateError, chargeChangeBlock, moveExpense } from '../lib/expenseMove.ts';
 
 /**
- * Ο ιδιοκτήτης: «τα πάγια χρεώνονται στο ταμείο, δεν πρέπει» και «ανάλογα το
- * έξοδο να μπορούμε να το αλλάξουμε κατηγορία, αν είναι έξοδα εταιρίας ή
- * πάγιο ή κάτι άλλο».
+ * Ο πράκτορας: «ας βάλει στο έξοδο μία επιλογή να το χρεώνουμε εμείς κατά
+ * βούληση· αν δεν την πατάμε, να μη χρεώνεται σε κανένα ταμείο, απλά να
+ * καταχωρείται στα έξοδα». Και ο ιδιοκτήτης: «ανάλογα το έξοδο να μπορούμε να
+ * το αλλάξουμε κατηγορία, αν είναι έξοδα εταιρίας ή πάγιο ή κάτι άλλο».
  *
- * Η κατηγορία αποφασίζει αν ένα έξοδο βγαίνει από το συρτάρι της βάρδιας (ο
- * διακόπτης «πληρώνεται από το ταμείο»), και η κατηγορία αλλάζει μετά. Οι
- * κλεισμένες βάρδιες μένουν όπως είναι - εκτός από τα έξοδα εταιρίας.
+ * Η επιλογή ζει πάνω στο έξοδο (charged_to_till, 0085). Η κατηγορία δεν
+ * αποφασίζει τίποτα για το ταμείο - μια πρώτη εκδοχή με διακόπτη ανά κατηγορία
+ * μπέρδευε και αντικαταστάθηκε. Οι κλεισμένες βάρδιες μένουν όπως είναι.
  */
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8');
@@ -28,59 +23,47 @@ const cat = (over: Partial<ExpenseCategoryDef>): ExpenseCategoryDef => ({
 
 const categories: ExpenseCategoryDef[] = [
   cat({ key: 'EXPENSES_GP' }),
-  cat({ key: 'UTILITIES', label: 'Λογαριασμοί / ΔΕΗ (ΓΠ)' }),
-  cat({ key: 'CUSTOM_PAGIA_EXODA', label: 'Πάγια Έξοδα', paidFromTill: false }),
-  cat({ key: 'EXPENSES_COMPANY', side: 'COMPANY', paidFromTill: false }),
-  cat({ key: 'CUSTOM_EFKA', side: 'COMPANY' }),            // εταιρική, ΧΩΡΙΣ τον διακόπτη γραμμένο
+  cat({ key: 'UTILITIES' }),
+  cat({ key: 'CUSTOM_PAGIA_EXODA', label: 'Πάγια Έξοδα' }),
+  cat({ key: 'EXPENSES_COMPANY', side: 'COMPANY' }),
+  cat({ key: 'CUSTOM_EFKA', side: 'COMPANY' }),
   cat({ key: 'EXPENSES_FNB', side: 'FNB' }),
 ];
 
-describe('μετράει ένα έξοδο στο ταμείο;', () => {
-  it('συνηθισμένη κατηγορία μετράει, όπως πάντα', () => {
-    expect(countsInTill('EXPENSES_GP', categories)).toBe(true);
-    expect(countsInTill('UTILITIES', categories)).toBe(true);
-    expect(countsInTill('EXPENSES_FNB', categories)).toBe(true);
-  });
-
-  it('κατηγορία με διακόπτη «όχι» δεν μετράει', () => {
-    expect(countsInTill('CUSTOM_PAGIA_EXODA', categories)).toBe(false);
-  });
-
-  it('εταιρική δεν μετράει ποτέ, και ΧΩΡΙΣ διακόπτη γραμμένο', () => {
-    expect(countsInTill('EXPENSES_COMPANY', categories)).toBe(false);
-    expect(countsInTill('CUSTOM_EFKA', categories)).toBe(false);
-  });
-
-  it('άγνωστη κατηγορία ή χωρίς λίστα μετράει - ό,τι δεν ξέρουμε δεν κρύβεται από το ταμείο', () => {
-    expect(countsInTill('ΚΑΤΙ_ΑΛΛΟ', categories)).toBe(true);
-    expect(countsInTill('EXPENSES_GP', [])).toBe(true);
-    expect(countsInTill(undefined, categories)).toBe(true);
-    expect(countsInTill('EXPENSES_COMPANY', [])).toBe(false);   // η ενσωματωμένη εταιρική φεύγει ούτως ή άλλως
-  });
-
-  it('η ενσωματωμένη εταιρική δηλώνει ρητά «όχι»', () => {
-    expect(BUILTIN_EXPENSE_CATEGORIES.find((c) => c.key === 'EXPENSES_COMPANY')?.paidFromTill).toBe(false);
-    expect(BUILTIN_EXPENSE_CATEGORIES.filter((c) => c.side !== 'COMPANY').every((c) => c.paidFromTill !== false)).toBe(true);
-  });
-});
-
-describe('το ταμείο της ημέρας', () => {
+describe('ποια έξοδα μετράνε στο ταμείο', () => {
   const day = [
-    { id: 'a', category: 'EXPENSES_GP', amount: 40 },
-    { id: 'b', category: 'UTILITIES', amount: 142.5 },        // η Cosmote: πληρώθηκε από το συρτάρι
-    { id: 'c', category: 'CUSTOM_PAGIA_EXODA', amount: 1450.4 }, // το ενοίκιο: με έμβασμα
-    { id: 'd', category: 'EXPENSES_COMPANY', amount: 1200 },
+    { id: 'charged', category: 'EXPENSES_GP', charged_to_till: true, amount: 40 },
+    { id: 'old', category: 'UTILITIES', amount: 142.5 },                       // γραμμή πριν το 0085: δεν έχει τη στήλη
+    { id: 'notCharged', category: 'EXPENSES_GP', charged_to_till: false, amount: 1450.4 },
+    { id: 'company', category: 'EXPENSES_COMPANY', charged_to_till: true, amount: 1200 },
   ];
 
-  it('δεν χρεώνεται το ενοίκιο, χρεώνεται η Cosmote', () => {
-    expect(tillExpensesOnly(day, categories).map((e) => e.id)).toEqual(['a', 'b']);
+  it('μετράει ό,τι χρεώθηκε και ό,τι δεν έχει τη στήλη· όχι ό,τι δεν χρεώθηκε, όχι της εταιρίας', () => {
+    expect(tillExpensesOnly(day, categories).map((e) => e.id)).toEqual(['charged', 'old']);
+  });
+
+  it('το ταμείο δεν χρεώνεται το ενοίκιο που δεν τσεκαρίστηκε', () => {
     const charged = tillExpensesOnly(day, categories).reduce((t, e) => t + e.amount, 0);
     expect(charged).toBe(182.5);
   });
 
-  it('η ίδια κατηγορία χωρίς διακόπτη στη βάση (πριν το 0084) χρεώνει όπως πριν', () => {
-    const before = categories.map((c) => ({ ...c, paidFromTill: undefined }));
-    expect(tillExpensesOnly(day, before).map((e) => e.id)).toEqual(['a', 'b', 'c']);
+  it('η κατηγορία ΔΕΝ αποφασίζει: «Πάγια Έξοδα» που τσεκαρίστηκε μετράει, ΓΠ που δεν τσεκαρίστηκε όχι', () => {
+    const rows = [
+      { id: 'pagia', category: 'CUSTOM_PAGIA_EXODA', charged_to_till: true },
+      { id: 'gp', category: 'EXPENSES_GP', charged_to_till: false },
+    ];
+    expect(tillExpensesOnly(rows, categories).map((e) => e.id)).toEqual(['pagia']);
+  });
+
+  it('εταιρική κατηγορία δεν μετράει ποτέ, ούτε με τσεκαρισμένη στήλη', () => {
+    const rows = [{ id: 'c', category: 'CUSTOM_EFKA', charged_to_till: true }, { id: 'e', category: 'EXPENSES_COMPANY' }];
+    expect(tillExpensesOnly(rows, categories)).toEqual([]);
+  });
+
+  it('null σε στήλη ή χωρίς λίστα κατηγοριών: μετράει, όπως πάντα', () => {
+    expect(tillExpensesOnly([{ id: 'x', category: 'EXPENSES_GP', charged_to_till: null }], categories).map((e) => e.id)).toEqual(['x']);
+    expect(tillExpensesOnly([{ id: 'x', category: 'EXPENSES_GP' }], []).map((e) => e.id)).toEqual(['x']);
+    expect(tillExpensesOnly([{ id: 'c', category: 'EXPENSES_COMPANY' }], [])).toEqual([]);   // η ενσωματωμένη εταιρική φεύγει ούτως ή άλλως
   });
 });
 
@@ -93,26 +76,25 @@ describe('ποια βάρδια ξαναϋπολογίζεται', () => {
   });
 });
 
-describe('πότε ΔΕΝ γίνεται η αλλαγή κατηγορίας', () => {
-  const base = { fromCountsInTill: true, toCountsInTill: false, toCompany: false, shiftStatus: 'APPROVED', shiftIsLive: false };
+describe('πότε ΔΕΝ γίνεται η αλλαγή στη χρέωση του ταμείου', () => {
+  const base = { fromCharged: true, toCharged: false, toCompany: false, shiftStatus: 'APPROVED', shiftIsLive: false };
 
-  it('έξοδο κλεισμένης βάρδιας: δεν βγαίνει από το ταμείο και δεν μπαίνει σε αυτό', () => {
-    expect(categoryChangeBlock(base)).toContain('έχει κλείσει');
-    expect(categoryChangeBlock({ ...base, fromCountsInTill: false, toCountsInTill: true })).toContain('έχει κλείσει');
+  it('έξοδο κλεισμένης βάρδιας δεν βγαίνει από το ταμείο της', () => {
+    expect(chargeChangeBlock(base)).toContain('έχει κλείσει');
   });
 
   it('εξαίρεση: η μετακίνηση στα έξοδα εταιρίας γίνεται και σε κλεισμένη βάρδια', () => {
-    expect(categoryChangeBlock({ ...base, toCompany: true, toCountsInTill: false })).toBeNull();
+    expect(chargeChangeBlock({ ...base, toCompany: true })).toBeNull();
   });
 
-  it('ίδιος χειρισμός ταμείου: γίνεται κανονικά, όπως πάντα', () => {
-    expect(categoryChangeBlock({ ...base, toCountsInTill: true })).toBeNull();
-    expect(categoryChangeBlock({ ...base, fromCountsInTill: false, toCountsInTill: false })).toBeNull();
+  it('χωρίς αλλαγή στη χρέωση, η διόρθωση (π.χ. ποσό, κατηγορία) γίνεται κανονικά', () => {
+    expect(chargeChangeBlock({ ...base, toCharged: true })).toBeNull();
+    expect(chargeChangeBlock({ ...base, fromCharged: false })).toBeNull();
   });
 
   it('ζωντανή βάρδια, ή έξοδο χωρίς βάρδια: γίνεται', () => {
-    expect(categoryChangeBlock({ ...base, shiftStatus: 'OPEN', shiftIsLive: true })).toBeNull();
-    expect(categoryChangeBlock({ ...base, shiftStatus: null, shiftIsLive: false })).toBeNull();
+    expect(chargeChangeBlock({ ...base, shiftStatus: 'OPEN', shiftIsLive: true })).toBeNull();
+    expect(chargeChangeBlock({ ...base, shiftStatus: null, shiftIsLive: false })).toBeNull();
   });
 });
 
@@ -160,35 +142,20 @@ describe('η μετακίνηση ανάμεσα σε κατάστημα και 
 });
 
 describe('το καλώδιο στις οθόνες και στις υπηρεσίες', () => {
-  const manager = read('src/components/modules/ExpensesManager.tsx');
   const moves = read('src/services/expenseMoves.ts');
   const moduleServices = read('src/services/moduleServices.ts');
   const wizard = read('src/components/shifts/ShiftClosingWizard.tsx');
   const details = read('src/components/shifts/ShiftDetailsModal.tsx');
   const newCategory = read('src/components/modules/NewExpenseCategoryModal.tsx');
   const pnl = read('src/services/pnlService.ts');
+  const lib = read('src/lib/expenseCategories.ts');
 
-  it('η φόρμα δεν αρνείται πια την αλλαγή από κατάστημα σε εταιρία', () => {
-    expect(manager).not.toContain('δεν αλλάζει από έξοδο καταστήματος σε έξοδο εταιρίας');
-    expect(manager).toContain('await moveStoreExpenseToCompany(');
-    expect(manager).toContain('await moveCompanyExpenseToStore(');
-  });
-
-  it('στη διόρθωση προσφέρονται όλες οι κατηγορίες, όχι μόνο της ίδιας πλευράς', () => {
-    expect(manager).not.toContain('isCompanyCategory(c.key, categories) === !!editing.isCompany');
-  });
-
-  it('η αλλαγή κατηγορίας κρίνεται από τη βάρδια ΠΡΙΝ γραφτεί οτιδήποτε', () => {
-    const from = manager.indexOf('// Κατάστημα → κατάστημα.');
-    expect(from).toBeGreaterThan(0);
-    const edit = manager.slice(from, manager.indexOf('await updateAndSyncShiftExpense(', from));
-    expect(edit).toContain('shiftStatusOf(editing.shift_id)');
-    expect(edit).toContain('categoryChangeBlock(');
-    expect(edit).toContain('if (blocked)');
-  });
-
-  it('νέο έξοδο σε κατηγορία εκτός ταμείου δεν δένεται στη βάρδια που είναι ανοιχτή', () => {
-    expect(manager).toContain('categoryCountsInTill ? activeShift : null');
+  it('δεν υπάρχει πια διακόπτης ανά κατηγορία: ένα έξοδο, μία επιλογή', () => {
+    for (const code of [lib, pnl, newCategory, wizard]) {
+      expect(code).not.toContain('paidFromTill');
+      expect(code).not.toContain('paid_from_till');
+    }
+    expect(newCategory).not.toContain('Πληρώνεται από το ταμείο');
   });
 
   it('το άθροισμα expenses_paid_cash ξαναμετριέται με το ίδιο φίλτρο του ταμείου', () => {
@@ -197,53 +164,48 @@ describe('το καλώδιο στις οθόνες και στις υπηρεσ
     expect(sync.slice(0, 900)).toContain('fetchExpenseCategories(orgId)');
   });
 
+  it('ένα νέο έξοδο γράφει τη στήλη ΜΟΝΟ όταν είναι «όχι», ώστε το «ναι» να μη χρειάζεται το 0085', () => {
+    expect(moduleServices).toContain('...(input.charged_to_till === false ? { charged_to_till: false } : {})');
+  });
+
+  it('η λίστα του κλεισίματος και η λίστα εξόδων της βάρδιας χρησιμοποιούν το ίδιο φίλτρο', () => {
+    expect(wizard).toContain('tillExpensesOnly(expenses, expenseCategories)');
+    expect(wizard).toContain('tillExpensesOnly(storeExpenses, expenseCategories)');
+    expect(details).toContain('tillExpensesOnly(shiftExpenses, expenseCategories)');
+    expect(details).toContain('{tillRows.map((exp) => (');
+  });
+
+  it('μέσα στη βάρδια προσφέρονται όλες οι κατηγορίες εκτός από τις εταιρικές', () => {
+    const at = wizard.indexOf('const tillCategoryOptions = expenseCategoryOptions.filter(');
+    expect(wizard.slice(at, at + 160)).toContain('!isCompanyCategory(c.key, expenseCategories)');
+  });
+
+  it('έξοδο εταιρίας που μετακινείται σε κατάστημα δεν χρεώνεται σε κανένα ταμείο', () => {
+    const toStore = moves.slice(moves.indexOf('export async function moveCompanyExpenseToStore'));
+    expect(toStore).toContain('charged_to_till: false,');
+  });
+
   it('η κλεισμένη βάρδια δεν ξαναμετριέται στη μετακίνηση προς την εταιρία', () => {
     expect(moves).toContain('isLiveShiftStatus(status)');
-    const toCompany = moves.slice(moves.indexOf('export async function moveStoreExpenseToCompany'), moves.indexOf('export async function moveCompanyExpenseToStore'));
-    expect(toCompany.indexOf('isLiveShiftStatus(status)')).toBeGreaterThan(toCompany.indexOf('syncShiftExpensesCashTotal') - 80);
   });
 
   it('κάθε σβήσιμο της μετακίνησης μετράει τις γραμμές που έσβησε', () => {
     expect(moves).toContain("delete({ count: 'exact' })");
     expect(moves).toContain('rowsWrittenProblem(count)');
-    expect(moves).not.toContain('deleteCompanyDailyExpense(');
-  });
-
-  it('η οθόνη του ταμείου προσφέρει μόνο κατηγορίες που πληρώνονται από το ταμείο', () => {
-    expect(wizard).toContain('(c) => countsInTill(c.key, expenseCategories)');
-    expect(wizard).toContain('export { tillExpensesOnly };');
-  });
-
-  it('η λίστα εξόδων της βάρδιας δεν δείχνει ό,τι δεν πληρώθηκε από το συρτάρι', () => {
-    expect(details).toContain('tillExpensesOnly(shiftExpenses, expenseCategories)');
-    expect(details).toContain('rows: tillRows,');
-    expect(details).toContain('{tillRows.map((exp) => (');
-  });
-
-  it('η νέα κατηγορία έχει τον διακόπτη, και τον γράφει στη βάση ΜΟΝΟ όταν είναι «όχι»', () => {
-    expect(newCategory).toContain('Πληρώνεται από το ταμείο της βάρδιας');
-    expect(newCategory).toContain("side === 'COMPANY' ? true : paidFromTill");
-    expect(pnl).toContain('...(paidFromTill ? {} : { paid_from_till: false })');
-    expect(pnl).toContain('paidFromTill: r.paid_from_till !== false');
   });
 });
 
-describe('το migration 0084', () => {
-  const sql = read('supabase/migrations/0084_a_category_can_stay_out_of_the_till.sql');
+describe('το migration 0085', () => {
+  const sql = read('supabase/migrations/0085_an_expense_is_charged_to_the_till_by_choice.sql');
+  const body = sql.replace(/--.*$/gm, '');
 
-  it('προσθέτει τη στήλη με default «ναι», ώστε τίποτα να μην αλλάζει από μόνο του', () => {
-    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS paid_from_till BOOLEAN NOT NULL DEFAULT TRUE/);
+  it('προσθέτει τη στήλη με default «ναι»: κάθε υπάρχον έξοδο συμπεριφέρεται όπως πριν', () => {
+    expect(body).toMatch(/ALTER TABLE shift_expenses\s+ADD COLUMN IF NOT EXISTS charged_to_till BOOLEAN NOT NULL DEFAULT TRUE/);
   });
 
-  it('βγάζει από το ταμείο μόνο τα «Πάγια Έξοδα» και τις εταιρικές', () => {
-    expect(sql).toMatch(/side = 'COMPANY' OR key = 'CUSTOM_PAGIA_EXODA'/);
-    // Οι Λογαριασμοί / ΔΕΗ πληρώθηκαν από το συρτάρι στα πραγματικά κλεισίματα: μένουν «ναι».
-    expect(sql.replace(/--.*$/gm, '')).not.toMatch(/UTILITIES/);
-  });
-
-  it('δεν αγγίζει βάρδιες ούτε έξοδα', () => {
-    const body = sql.replace(/--.*$/gm, '');
+  it('δεν αγγίζει ούτε βάρδιες ούτε υπάρχοντα έξοδα', () => {
+    expect(body).not.toMatch(/\bUPDATE\b/i);
+    expect(body).not.toMatch(/\bDELETE\b/i);
     expect(body).not.toMatch(/\bshifts\b/i);
-    expect(body).not.toMatch(/shift_expenses/i);
   });
 });

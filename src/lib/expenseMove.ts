@@ -54,11 +54,11 @@ export async function moveExpense(steps: MoveSteps): Promise<{ id: string }> {
   return created;
 }
 
-export interface CategoryChange {
-  /** Μπαίνει στο ταμείο η παλιά κατηγορία; */
-  fromCountsInTill: boolean;
-  /** Μπαίνει η νέα; */
-  toCountsInTill: boolean;
+export interface ChargeChange {
+  /** Χρεωνόταν στο ταμείο πριν την αλλαγή; */
+  fromCharged: boolean;
+  /** Θα χρεώνεται μετά; */
+  toCharged: boolean;
   /** Πάει στα έξοδα εταιρίας. */
   toCompany: boolean;
   /** Η κατάσταση της βάρδιας που κρατάει το έξοδο· null όταν δεν είναι δεμένο σε βάρδια. */
@@ -68,20 +68,19 @@ export interface CategoryChange {
 }
 
 /**
- * Γιατί ΔΕΝ γίνεται αυτή η αλλαγή κατηγορίας, ή null όταν γίνεται.
+ * Γιατί ΔΕΝ γίνεται αυτή η αλλαγή στη χρέωση του ταμείου, ή null όταν γίνεται.
  *
  * Ο ιδιοκτήτης: οι κλεισμένες βάρδιες μένουν όπως είναι, εκτός από τα έξοδα
  * εταιρίας. Μια κλεισμένη βάρδια έχει αποθηκευμένα το αναμενόμενο ταμείο και
- * την απόκλιση· αν ένα έξοδό της έβγαινε ή έμπαινε στο ταμείο, αυτά θα
- * έμεναν όπως έκλεισαν και θα έλεγαν άλλο νούμερο από το άθροισμα εξόδων της.
+ * την απόκλιση· αν ένα έξοδό της έβγαινε από το ταμείο, αυτά θα έμεναν όπως
+ * έκλεισαν και θα έλεγαν άλλο νούμερο από το άθροισμα εξόδων της.
  */
-export function categoryChangeBlock(change: CategoryChange): string | null {
+export function chargeChangeBlock(change: ChargeChange): string | null {
   if (change.toCompany) return null;
   if (!change.shiftStatus || change.shiftIsLive) return null;
-  if (change.fromCountsInTill === change.toCountsInTill) return null;
+  if (change.fromCharged === change.toCharged) return null;
   return (
     'Αυτό το έξοδο ανήκει σε βάρδια που έχει κλείσει, και οι κλεισμένες βάρδιες μένουν όπως είναι. ' +
-    'Δεν αλλάζει σε κατηγορία που το βγάζει ή το βάζει στο ταμείο· ' +
-    'μπορείτε όμως να το μετακινήσετε στα έξοδα εταιρίας, ή να το αλλάξετε σε κατηγορία με τον ίδιο χειρισμό ταμείου.'
+    'Δεν αλλάζει η χρέωσή του στο ταμείο· μπορείτε όμως να το μετακινήσετε στα έξοδα εταιρίας.'
   );
 }

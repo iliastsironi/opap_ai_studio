@@ -28,6 +28,11 @@ export interface ExpenseRecord {
   notes?: string;
   created_by_user_id?: string;
   created_by_user_name?: string;
+  /**
+   * Χρεώνεται στο ταμείο μιας βάρδιας; (0085) Η επιλογή του χρήστη στη φόρμα
+   * εξόδου. Λείπει = ναι, όπως ήταν κάθε έξοδο πριν υπάρξει η στήλη.
+   */
+  charged_to_till?: boolean;
   date: string;
   created_at: string;
 }
@@ -149,6 +154,8 @@ export interface CreateShiftExpenseInput {
   receipt_number?: string;
   receipt_url?: string;
   notes?: string;
+  /** false = δεν χρεώνεται σε κανένα ταμείο, καταχωρείται μόνο στα έξοδα. */
+  charged_to_till?: boolean;
   // The day the money was spent, YYYY-MM-DD. Defaults to today, which is what
   // this always hardcoded - so an invoice from last week could only ever be
   // filed under the day it was typed, and the month it belonged to was wrong.
@@ -232,6 +239,10 @@ export async function createAndSyncShiftExpense(
     ...(input.receipt_number ? { receipt_number: input.receipt_number } : {}),
     ...(input.receipt_url ? { receipt_url: input.receipt_url } : {}),
     ...(input.notes ? { notes: input.notes } : {}),
+    // Γράφεται ΜΟΝΟ όταν είναι όχι: η προεπιλογή της βάσης είναι ναι, και έτσι
+    // ένα έξοδο που χρεώνεται (κάθε έξοδο της οθόνης κλεισίματος) δεν εξαρτάται
+    // από το αν έτρεξε το 0085.
+    ...(input.charged_to_till === false ? { charged_to_till: false } : {}),
   };
 
   const created = await createExpenseInFirestore(payload);
@@ -284,6 +295,9 @@ export async function updateAndSyncShiftExpense(
   expense: Pick<ExpenseRecord, 'id' | 'organization_id' | 'store_id' | 'shift_id'>,
   patch: Partial<Pick<ExpenseRecord,
     'category' | 'amount' | 'payment_method' | 'recipient' | 'receipt_number' | 'notes' | 'date'>>
+    // Η χρέωση στο ταμείο αλλάζει ΜΑΖΙ με το δέσιμο στη βάρδια: χρεώνεται = δεμένο στη
+    // βάρδια που τρέχει, δεν χρεώνεται = ξεδεμένο (shift_id null).
+    & { shift_id?: string | null; charged_to_till?: boolean }
 ): Promise<void> {
   const { error, count } = await supabase
     .from(EXPENSES_TABLE)

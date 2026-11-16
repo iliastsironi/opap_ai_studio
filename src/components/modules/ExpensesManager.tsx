@@ -4,11 +4,11 @@ import { useTenant } from '../../context/TenantContext.tsx';
 import { useAuth } from '../../context/AuthContext.tsx';
 import {
   fetchExpensesFromFirestore, createAndSyncShiftExpense, deleteAndSyncShiftExpense,
-  updateAndSyncShiftExpense, ExpenseRecord,
+  updateAndSyncShiftExpense, syncShiftExpensesCashTotal, ExpenseRecord,
 } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
 import { moveStoreExpenseToCompany, moveCompanyExpenseToStore, shiftStatusOf } from '../../services/expenseMoves.ts';
-import { categoryChangeBlock } from '../../lib/expenseMove.ts';
+import { chargeChangeBlock } from '../../lib/expenseMove.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, Supplier } from '../../types/index.ts';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -26,7 +26,6 @@ import {
   canManageExpenseCategories,
   canRecordCompanyExpense,
   isCompanyCategory,
-  countsInTill,
   isLiveShiftStatus,
   offerableCategories,
 } from '../../lib/expenseCategories.ts';
@@ -126,6 +125,11 @@ export const ExpensesManager: React.FC = () => {
   const [category, setCategory] = useState('EXPENSES_GP');
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
+  /**
+   * «Χρέωση στο ταμείο της βάρδιας που τρέχει». Ξεκινά ΑΤΣΕΚΑΡΙΣΤΟ: ό,τι δεν
+   * τσεκάρει κανείς δεν χρεώνεται σε κανένα ταμείο, καταχωρείται μόνο στα έξοδα.
+   */
+  const [chargeToTill, setChargeToTill] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [recipient, setRecipient] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
@@ -152,8 +156,15 @@ export const ExpensesManager: React.FC = () => {
    * κατηγορία «ΕΦΚΑ δόσεις» με πλευρά COMPANY πάει κι αυτή στην εταιρία.
    */
   const isCompanyEntry = isCompanyCategory(category, categories);
-  /** Βγαίνει αυτή η κατηγορία από το συρτάρι της βάρδιας; (όχι για εταιρικά - αυτά δεν έχουν βάρδια) */
-  const categoryCountsInTill = countsInTill(category, categories);
+  /** Χρεωνόταν ήδη στο ταμείο το έξοδο που διορθώνεται; (Λείπει η στήλη = ναι, όπως κάθε παλιό έξοδο.) */
+  const wasCharged = !!editing && !editing.isCompany && editing.charged_to_till !== false;
+  /**
+   * Μπορεί να τσεκαριστεί η χρέωση; Χρειάζεται βάρδια που τρέχει. Σε διόρθωση
+   * ενός έξοδου που ήδη χρεώνεται μένει ενεργό, ώστε να βγαίνει από το ταμείο.
+   */
+  const canCharge = !!activeShift || wasCharged;
+  /** Το τσεκ όπως ισχύει ΠΡΑΓΜΑΤΙΚΑ: τσεκαρισμένο κι έγκυρο. (Αν άλλαξε το κατάστημα και δεν έχει βάρδια, δεν μετράει.) */
+  const effectiveCharge = chargeToTill && canCharge;
   /**
    * Με ποια κατηγορία εμφανίζεται ένα έξοδο εταιρίας στη λίστα.
    *
@@ -287,6 +298,7 @@ export const ExpensesManager: React.FC = () => {
     setCustomRecipient('');
     setReceiptNumber('');
     setNotes('');
+    setChargeToTill(false);
   };
 
   /**
@@ -312,6 +324,7 @@ export const ExpensesManager: React.FC = () => {
     setExpenseDate(exp.date || athensDateKey(new Date().toISOString()));
     setNotes(exp.notes || '');
     if (!exp.isCompany && exp.store_id) setTargetStoreId(exp.store_id);
+    setChargeToTill(!exp.isCompany && exp.charged_to_till !== false);
     setShowModal(true);
   };
 
@@ -401,13 +414,16 @@ export const ExpensesManager: React.FC = () => {
             }
           );
         } else {
-          // Κατάστημα → κατάστημα. Αν η αλλαγή βγάζει το έξοδο από το ταμείο ή το
-          // βάζει σε αυτό, και η βάρδια του έχει ήδη κλείσει, δεν γίνεται: η
-          // κλεισμένη βάρδια μένει όπως είναι.
+          // Κατάστημα → κατάστημα. Η κατηγορία αλλάζει ελεύθερα και δεν επηρεάζει το
+          // ταμείο· το ταμείο το αποφασίζει μόνο το τσεκ «Χρέωση στο ταμείο».
+          //
+          //  · Το ξετσεκάρισμα βγάζει το έξοδο από το ταμείο: ξεδένεται από τη βάρδια
+          //    και η βάρδια ξαναμετράει. Σε κλεισμένη βάρδια δεν γίνεται - μένει όπως είναι.
+          //  · Το τσεκάρισμα το δένει στη βάρδια που τρέχει και τη ξαναμετράει.
           const status = await shiftStatusOf(editing.shift_id);
-          const blocked = categoryChangeBlock({
-            fromCountsInTill: countsInTill(editing.category, categories),
-            toCountsInTill: categoryCountsInTill,
+          const blocked = chargeChangeBlock({
+            fromCharged: wasCharged,
+            toCharged: effectiveCharge,
             toCompany: false,
             shiftStatus: status,
             shiftIsLive: isLiveShiftStatus(status),
@@ -417,6 +433,8 @@ export const ExpensesManager: React.FC = () => {
             setSubmitting(false);
             return;
           }
+          const unCharge = wasCharged && !effectiveCharge;
+          const newlyCharged = !wasCharged && effectiveCharge && !!activeShift;
           await updateAndSyncShiftExpense(
             {
               id: editing.id,
@@ -432,8 +450,16 @@ export const ExpensesManager: React.FC = () => {
               receipt_number: receiptNumber || undefined,
               notes: notes || undefined,
               date: expenseDate || undefined,
+              ...(unCharge ? { charged_to_till: false, shift_id: null } : {}),
+              ...(newlyCharged ? { charged_to_till: true, shift_id: activeShift!.id } : {}),
             }
           );
+          // Η βάρδια που το κρατούσε ξαναμετρήθηκε μέσα στο updateAndSync· η νέα, εδώ.
+          if (newlyCharged) {
+            await syncShiftExpensesCashTotal(orgId, editing.store_id, activeShift!.id).catch((err) =>
+              console.warn('Could not sync expenses_paid_cash after charging an expense:', err)
+            );
+          }
         }
         await loadExpenses();
         await loadSuppliers();
@@ -471,10 +497,11 @@ export const ExpensesManager: React.FC = () => {
             receipt_number: receiptNumber || undefined,
             notes: notes || undefined,
             date: expenseDate || undefined,
+            charged_to_till: !!(effectiveCharge && activeShift),
           },
-          // Μια κατηγορία «εκτός ταμείου» (π.χ. Πάγια Έξοδα) δεν δένεται στη
-          // βάρδια που τυχαίνει να είναι ανοιχτή.
-          categoryCountsInTill ? activeShift : null
+          // Δένεται στη βάρδια που τρέχει ΜΟΝΟ αν το ζήτησε ο χρήστης. Αλλιώς δεν
+          // χρεώνεται σε κανένα ταμείο και καταχωρείται μόνο στα έξοδα.
+          effectiveCharge && activeShift ? activeShift : null
         );
       }
 
@@ -630,6 +657,7 @@ export const ExpensesManager: React.FC = () => {
               // «νέο έξοδο» πρέπει να είναι νέο έξοδο.
               setEditing(null);
               setCreateError(null);
+              setChargeToTill(false);
               setShowModal(true);
             }}
             className="transition px-4 py-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center space-x-2 shadow-xs cursor-pointer"
@@ -1023,44 +1051,43 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               )}
 
-              {/* Η βάρδια αφορά μόνο ΝΕΟ έξοδο καταστήματος που πληρώνεται από το
-                  ταμείο. Ένα έξοδο εταιρίας δεν δένεται ποτέ σε βάρδια (το
-                  addCompanyDailyExpense δεν παίρνει βάρδια), οπότε το μήνυμα εδώ
-                  έλεγε το αντίθετο από το γαλάζιο πλαίσιο από πάνω. Και μια
-                  κατηγορία «εκτός ταμείου» (π.χ. Πάγια Έξοδα) δεν χρεώνει το
-                  ταμείο όποια βάρδια κι αν είναι ανοιχτή. */}
-              {!editing && !isCompanyEntry && categoryCountsInTill && (
-              <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2">
-                <Clock className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                <div className="text-micro leading-tight">
-                  {activeShift ? (
-                    <>
-                      <p className="font-bold text-indigo-950">
-                        ⚡ Ενεργή Βάρδια: {activeShift.register_id || 'Ταμείο 1'} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
-                      </p>
-                      <p className="text-indigo-700 mt-0.5">
-                        Το έξοδο θα καταχωρηθεί και θα μεταφερθεί <strong>αυτόματα</strong> στο κλείσιμο της βάρδιας!
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-slate-600">
-                      Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή. Το έξοδο θα καταγραφεί στο γενικό αρχείο εξόδων.
-                    </p>
-                  )}
-                </div>
-              </div>
-              )}
-              {!editing && !isCompanyEntry && !categoryCountsInTill && (
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-start space-x-2">
-                <Building2 className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                <div className="text-micro leading-tight">
-                  <p className="font-bold text-slate-800">Δεν χρεώνεται στο ταμείο της βάρδιας</p>
-                  <p className="text-slate-600 mt-0.5">
-                    Η κατηγορία δεν πληρώνεται από το συρτάρι. Μένει έξοδο του καταστήματος στο P&amp;L και
-                    δεν αλλάζει το ταμείο καμίας βάρδιας.
-                  </p>
-                </div>
-              </div>
+              {/* «Χρέωση στο ταμείο της βάρδιας που τρέχει». Ο πράκτορας: «ας βάλει στο
+                  έξοδο μία επιλογή να το χρεώνουμε εμείς κατά βούληση· αν δεν την
+                  πατάμε, να μη χρεώνεται σε κανένα ταμείο, απλά να καταχωρείται στα
+                  έξοδα». Μόνο για έξοδο καταστήματος: ένα έξοδο εταιρίας δεν δένεται
+                  ποτέ σε βάρδια (το addCompanyDailyExpense δεν παίρνει βάρδια). */}
+              {!isCompanyEntry && (
+              <label
+                htmlFor="expense-charge-till"
+                className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
+                  effectiveCharge ? 'bg-indigo-50/70 border-indigo-200' : 'bg-slate-50 border-slate-200'
+                } ${canCharge ? 'cursor-pointer' : 'opacity-70'}`}
+              >
+                <input
+                  id="expense-charge-till"
+                  type="checkbox"
+                  checked={effectiveCharge}
+                  disabled={!canCharge}
+                  onChange={(e) => setChargeToTill(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <span className="text-micro leading-tight">
+                  <strong className="block font-bold text-slate-900">
+                    Χρέωση στο ταμείο της βάρδιας που τρέχει
+                    {activeShift && (
+                      <span className="font-semibold text-indigo-700">
+                        {' '}— {activeShift.register_id || 'Ταμείο 1'} ({activeShift.shift_type === 'MORNING' ? 'Πρωινή' : 'Απογευματινή'})
+                      </span>
+                    )}
+                  </strong>
+                  <span className="block text-slate-600 mt-0.5">
+                    {effectiveCharge
+                      ? 'Το έξοδο αφαιρείται από το ταμείο και μεταφέρεται αυτόματα στο κλείσιμο της βάρδιας.'
+                      : 'Δεν χρεώνεται σε κανένα ταμείο· καταχωρείται μόνο στα έξοδα.'}
+                    {!canCharge && ' Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή.'}
+                  </span>
+                </span>
+              </label>
               )}
               {/* Η διόρθωση που αλλάζει πίνακα λέει ξεκάθαρα τι θα γίνει. */}
               {editing && !editing.isCompany && isCompanyEntry && (
