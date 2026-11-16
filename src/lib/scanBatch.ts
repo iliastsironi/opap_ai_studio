@@ -12,7 +12,7 @@
  * ελέγχεται χωρίς δίκτυο.
  */
 
-import { readBarcode } from './scratchBarcode.ts';
+import { BARCODE_LENGTH, PRINTED_BARCODE_LENGTH, digitsOnly, readBarcode } from './scratchBarcode.ts';
 import { positionKey } from './packProgress.ts';
 
 /** Ό,τι χρειάζεται από ένα παιχνίδι του καταλόγου (WarehouseGame, χωρίς τη βάση). */
@@ -50,6 +50,24 @@ export interface ScanContext {
  * λόγο διαβάζεται ως χαλασμένος σαρωτής.
  */
 export function stageScan(raw: unknown, ctx: ScanContext): ScanOutcome {
+  // Ένα σκανάρισμα φέρνει ΟΛΟΝ τον κωδικό: 14 έως 16 ψηφία, με το δελτίο. Λιγότερα
+  // σημαίνει ότι ο σαρωτής διάβασε μόνο ένα κομμάτι (στη Λαμία ήρθαν και 9 και
+  // 11 ψηφία από το ίδιο εισιτήριο). Τα 11 ψηφία (παιχνίδι + πακέτο) είναι
+  // σωστά για τη φόρμα που γράφεται με το χέρι, όχι για το σκανάρισμα: εδώ ένα
+  // κομμάτι δεν πρέπει να περνά σαν πακέτο, γιατί ο χειριστής δεν θα καταλάβαινε
+  // ποτέ ότι διαβάστηκε μισό. Λέμε τι διαβάστηκε και ζητάμε νέο σκανάρισμα.
+  const digitCount = digitsOnly(raw).length;
+  if (digitCount > 0 && digitCount < BARCODE_LENGTH) {
+    const shown = String(raw ?? '').trim();
+    return {
+      ok: false,
+      reason: 'format',
+      message:
+        `«${shown}»: Ο σαρωτής διάβασε μόνο ένα κομμάτι του κωδικού (${digitCount} ψηφία ` +
+        `αντί για ${BARCODE_LENGTH} έως ${PRINTED_BARCODE_LENGTH}) — σκανάρετε ξανά.`,
+    };
+  }
+
   const reading = readBarcode(raw);
   if (!reading.parts) {
     const shown = String(raw ?? '').trim();

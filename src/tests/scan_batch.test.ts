@@ -84,6 +84,42 @@ describe('ένα σκανάρισμα', () => {
     expect(out.ok).toBe(true);
   });
 
+  /**
+   * Ο σαρωτής της Λαμίας διάβασε από το ίδιο εισιτήριο 9 και 11 ψηφία αντί για
+   * 15. Τα 11 (παιχνίδι + πακέτο) είναι έγκυρα στη φόρμα με το χέρι, αλλά
+   * ένα σκανάρισμα που έφερε μόνο τόσα είναι μισοδιαβασμένο: δεν γίνεται
+   * πακέτο, και ο χειριστής ακούει «σκανάρετε ξανά».
+   */
+  describe('μισοδιαβασμένος κωδικός', () => {
+    it.each(['016200307', '01620030741', '0162003074105', '0162 0030741'])(
+      '«%s» δεν γίνεται πακέτο και ζητά νέο σκανάρισμα',
+      (partial) => {
+        const out = stageScan(partial, ctx({ games: [...games, { ...SEPT, gameNo: '0162', catalogCode: 'scr_5_24m' }] }));
+        expect(out.ok).toBe(false);
+        if (out.ok === false) {
+          expect(out.reason).toBe('format');
+          expect(out.message).toContain('Ο σαρωτής διάβασε μόνο ένα κομμάτι');
+          expect(out.message).toContain('σκανάρετε ξανά');
+          expect(out.message).toContain(String(partial.replace(/\D/g, '').length));
+        }
+      }
+    );
+
+    it('τα 14, 15 και 16 ψηφία περνούν όπως πριν', () => {
+      for (const code of ['0153006724803', '01530067248033', '015300672480339', '0153006724803392']) {
+        const out = stageScan(code, ctx());
+        // 13 ψηφία: μισοδιαβασμένο· 14 έως 16: πακέτο.
+        expect(out.ok).toBe(code.replace(/\D/g, '').length >= 14);
+      }
+    });
+
+    it('ο κωδικός με περισσότερα από 16 ψηφία δεν λέγεται «κομμάτι»', () => {
+      const out = stageScan('01530067248033920153006724803392', ctx());
+      expect(out.ok).toBe(false);
+      if (out.ok === false) expect(out.message).not.toContain('μόνο ένα κομμάτι');
+    });
+  });
+
   it('κείμενο που δεν είναι κωδικός γίνεται μήνυμα με ό,τι διαβάστηκε - δεν πετάει', () => {
     const out = stageScan('12345', ctx());
     expect(out.ok).toBe(false);
