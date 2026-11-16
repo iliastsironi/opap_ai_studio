@@ -520,7 +520,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       </tr>
                     ) : (
                       paginatedCustomers.map((cust) => {
-                        const { limit, isUnlimited, tierConfig } = getCustomerCreditLimit(cust, tierConfigs);
+                        const { limit, isUnlimited } = getCustomerCreditLimit(cust, tierConfigs);
                         const debt = cust.current_debt || 0;
 
                         return (
@@ -542,7 +542,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
 
                             <td className="p-3 text-center">
                               <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-micro font-black border ${tierConfig.badgeBg} ${tierConfig.badgeBorder}`}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-micro font-black border bg-slate-100 text-slate-700 border-slate-300"
                               >
                                 {cust.tier}
                               </span>

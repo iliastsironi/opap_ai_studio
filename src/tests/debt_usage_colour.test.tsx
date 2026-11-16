@@ -146,3 +146,113 @@ describe('ο πίνακας του τεφτεριού', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });
+
+/**
+ * Η ίδια ιδέα μέσα στη βάρδια: στη γραμμή πίστωσης του πελάτη, μόνο τα νούμερα
+ * οφειλής έχουν χρώμα· το όριο και το υπόλοιπο ορίου είναι απλά.
+ */
+describe('η γραμμή πελάτη μέσα στη βάρδια', async () => {
+  const { CreditStatusPanel } = await import('../components/shifts/CreditStatusPanel.tsx');
+  const { DEFAULT_CREDIT_TIER_CONFIGS } = await import('../services/customerCreditService.ts');
+
+  const customer = (over: Record<string, unknown> = {}) => ({
+    id: 'c1', organization_id: 'o', store_id: 's', name: 'Γιώργος', tier: 'B', current_debt: 0,
+    created_at: '', updated_at: '', ...over,
+  }) as never;
+
+  const panel = (props: Record<string, unknown>) =>
+    renderToStaticMarkup(
+      <CreditStatusPanel
+        customer={customer((props.customer as Record<string, unknown>) ?? {})}
+        liveDebt={(props.liveDebt as number) ?? 0}
+        savedDebt={(props.savedDebt as number) ?? (props.liveDebt as number) ?? 0}
+        tierConfigs={DEFAULT_CREDIT_TIER_CONFIGS}
+        amount={(props.amount as number) ?? 0}
+        isGranted={(props.isGranted as boolean) ?? true}
+      />
+    );
+  /** Ό,τι μένει όταν βγουν τα χρωματισμένα νούμερα οφειλής: δεν πρέπει να έχει καθόλου χρώμα. */
+  const withoutDebtFigures = (html: string) => html.replace(/<span data-debt-tone[\s\S]*?<\/span>(?:<\/span>)?/g, '');
+  const COLOURS = /emerald|amber|rose|orange|purple|red-|green-|yellow/;
+
+  it('δείχνει όριο, οφειλή και υπόλοιπο ορίου, με αυτή τη σειρά', () => {
+    const html = panel({ liveDebt: 60 });
+    const order = ['Όριο:', 'Τρέχουσα Οφειλή:', 'Υπόλοιπο Ορίου:'].map((t) => html.indexOf(t));
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(html).toContain('100,00');   // όριο κατηγορίας Β
+    expect(html).toContain('40,00');    // υπόλοιπο
+  });
+
+  it('η οφειλή παίρνει το χρώμα του ποσοστού, όλα τα άλλα μένουν χωρίς χρώμα', () => {
+    for (const [debt, toneName] of [[40, 'GREEN'], [65, 'ORANGE'], [90, 'RED']] as const) {
+      const html = panel({ liveDebt: debt });
+      expect(html).toContain(`data-debt-tone="${toneName}"`);
+      expect(withoutDebtFigures(html)).not.toMatch(COLOURS);
+    }
+  });
+
+  /** Το σήμα Score είχε φανάρι ανά κατηγορία (A πράσινο, B κεχριμπάρι, C κόκκινο) και μπέρδευε δίπλα στην οφειλή. */
+  it('το σήμα της κατηγορίας δεν έχει χρώμα φαναριού', () => {
+    for (const tier of ['A', 'B', 'C', 'A+']) {
+      expect(withoutDebtFigures(panel({ customer: { tier }, liveDebt: 10 }))).not.toMatch(COLOURS);
+    }
+  });
+
+  it('το όριο είναι το πραγματικό όριο του πελάτη, όχι πάντα της κατηγορίας', () => {
+    // Β = 100 €, αλλά ο πελάτης έχει δικό του όριο 40 €.
+    const html = panel({ customer: { custom_limit: 40 }, liveDebt: 30 });
+    expect(html).toContain('40,00');
+    expect(html).not.toContain('100,00');
+    expect(html).toContain('data-debt-tone="ORANGE"');   // 30/40 = 75%
+  });
+
+  it('με το νέο ποσό, το νέο σύνολο οφειλής έχει το χρώμα του δικού του ποσοστού', () => {
+    const html = panel({ liveDebt: 40, amount: 30 });          // 40 → 70 € από 100 €
+    expect(html).toContain('Νέο Σύνολο Οφειλής:');
+    const total = html.slice(html.indexOf('Νέο Σύνολο Οφειλής:'));
+    expect(total).toContain('data-debt-tone="ORANGE"');
+    expect(total).toContain('70,00');
+  });
+
+  it('νέο σύνολο πάνω από το όριο: κόκκινο με «Υπέρβαση»', () => {
+    const total = panel({ liveDebt: 80, amount: 50 });
+    expect(total.slice(total.indexOf('Νέο Σύνολο Οφειλής:'))).toContain('Υπέρβαση');
+  });
+
+  it('είσπραξη: το νέο υπόλοιπο οφειλής χρωματίζεται κι αυτό ως ποσοστό του ορίου', () => {
+    const html = panel({ liveDebt: 90, amount: 50, isGranted: false });   // 90 → 40 €
+    const after = html.slice(html.indexOf('Νέο Υπόλοιπο μετά την Είσπραξη:'));
+    expect(after).toContain('data-debt-tone="GREEN"');
+    expect(after).toContain('40,00');
+  });
+
+  it('απεριόριστος πελάτης: όριο «Απεριόριστο», χωρίς υπόλοιπο και χωρίς χρώμα', () => {
+    const html = panel({ customer: { tier: 'A+' }, liveDebt: 5000 });
+    expect(html).toContain('Απεριόριστο');
+    expect(html).not.toContain('Υπόλοιπο Ορίου:');
+    expect(html).toContain('data-debt-tone="NONE"');
+    expect(withoutDebtFigures(html)).not.toMatch(COLOURS);
+  });
+
+  it('εξηγεί τη διαφορά από τη βάση όταν οι γραμμές της βάρδιας την άλλαξαν', () => {
+    const text = (html: string) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '');
+    expect(text(panel({ liveDebt: 70, savedDebt: 50 }))).toContain('στη βάση €50,00');
+    expect(text(panel({ liveDebt: 50, savedDebt: 50 }))).not.toContain('στη βάση');
+  });
+
+  it('η βάρδια χρησιμοποιεί αυτό το component και όχι τα παλιά χρώματα', () => {
+    const src = fs.readFileSync(path.join(process.cwd(), 'src/components/shifts/CustomerCreditSection.tsx'), 'utf8');
+    expect(src).toContain('<CreditStatusPanel');
+    expect(src).not.toContain('Διαθέσιμο Περιθώριο');
+    expect(src).not.toContain("'text-emerald-700 font-black'");
+  });
+});
+
+describe('ο τύπος πελάτη στο τεφτέρι', () => {
+  it('το σήμα Credit Score του πίνακα είναι ουδέτερο, όχι φανάρι', () => {
+    const modal = fs.readFileSync(path.join(process.cwd(), 'src/components/shifts/CustomerCreditDirectoryModal.tsx'), 'utf8');
+    expect(modal).not.toContain('${tierConfig.badgeBg}');
+    expect(modal).toContain('border bg-slate-100 text-slate-700 border-slate-300"');
+  });
+});

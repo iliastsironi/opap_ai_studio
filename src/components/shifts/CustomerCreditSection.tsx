@@ -34,6 +34,7 @@ import {
   DEFAULT_CREDIT_TIER_CONFIGS,
 } from '../../services/customerCreditService.ts';
 import { CustomerCreditDirectoryModal } from './CustomerCreditDirectoryModal.tsx';
+import { CreditStatusPanel } from './CreditStatusPanel.tsx';
 import { NumericField } from '../ui/NumericField.tsx';
 
 interface CustomerCreditSectionProps {
@@ -519,63 +520,16 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                   </div>
                 )}
 
-                {/* Customer Status & Limit Feedback Pill */}
+                {/* Ο πελάτης, το όριό του, η οφειλή του και το υπόλοιπο ορίου */}
                 {customerObj && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70 text-xs">
-                    <div className="flex items-center space-x-2 flex-wrap">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-micro font-black border ${
-                          tierConfigs[customerObj.tier]?.badgeBg || 'bg-slate-100 text-slate-800'
-                        } ${tierConfigs[customerObj.tier]?.badgeBorder || 'border-slate-300'}`}
-                      >
-                        Score: {customerObj.tier} ({tierConfigs[customerObj.tier]?.isUnlimited ? 'Απεριόριστο' : `Όριο: ${formatCurrency(tierConfigs[customerObj.tier]?.defaultLimit)}`})
-                      </span>
-
-                      <span className="text-micro text-slate-600 font-semibold">
-                        Τρέχουσα Οφειλή:{' '}
-                        <strong className="font-mono text-slate-900">{formatCurrency(liveDebt)}</strong>
-                        {Math.abs(liveDebt - (customerObj.current_debt || 0)) > 0.005 && (
-                          /* Από πού προκύπτει, όταν διαφέρει από τη βάση: αλλιώς
-                             δύο γραμμές της ίδιας οθόνης δείχνουν δύο νούμερα
-                             για τον ίδιο πελάτη και κανένα δεν εξηγεί το άλλο. */
-                          <span className="text-micro text-slate-500 font-medium">
-                            {' '}(στη βάση {formatCurrency(customerObj.current_debt || 0)}, με τις
-                            γραμμές αυτής της βάρδιας)
-                          </span>
-                        )}
-                      </span>
-
-                      {!tierConfigs[customerObj.tier]?.isUnlimited && (
-                        <span className="text-micro text-slate-600 font-semibold">
-                          • Διαθέσιμο Περιθώριο:{' '}
-                          <strong
-                            className={`font-mono ${
-                              validationResult && validationResult.availableCredit <= 0
-                                ? 'text-rose-600 font-black'
-                                : 'text-emerald-700 font-black'
-                            }`}
-                          >
-                            {formatCurrency(validationResult ? validationResult.availableCredit : 0)}
-                          </strong>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Transaction Outcome Badge */}
-                    {amount > 0 && (
-                      <div className="text-micro font-mono font-bold">
-                        {isGranted ? (
-                          <span className={isOverLimit ? 'text-rose-700 font-black' : 'text-amber-900'}>
-                            Νέο Σύνολο Οφειλής: {formatCurrency(liveDebt + amount)}
-                          </span>
-                        ) : (
-                          <span className="text-emerald-800 font-black">
-                            Νέο Υπόλοιπο μετά την Είσπραξη: {formatCurrency(Math.max(0, liveDebt - amount))}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <CreditStatusPanel
+                    customer={customerObj}
+                    liveDebt={liveDebt}
+                    savedDebt={customerObj.current_debt || 0}
+                    tierConfigs={tierConfigs}
+                    amount={amount}
+                    isGranted={isGranted}
+                  />
                 )}
 
                 {/* Overlimit Warning Banner */}

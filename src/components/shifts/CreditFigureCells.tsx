@@ -26,9 +26,12 @@ interface Props {
   isUnlimited: boolean;
 }
 
-export const CreditFigureCells: React.FC<Props> = ({ debt, limit, isUnlimited }) => {
+/**
+ * Η τρέχουσα οφειλή, χρωματισμένη ως ποσοστό του ορίου. Το ΜΟΝΟ νούμερο που
+ * παίρνει χρώμα, στο τεφτέρι και στη γραμμή πελάτη της βάρδιας.
+ */
+export const DebtFigure: React.FC<Props> = ({ debt, limit, isUnlimited }) => {
   const usage = debtUsage(debt, limit, isUnlimited);
-  const remaining = isUnlimited ? null : Math.max(0, limit - debt);
 
   const hint =
     usage.percent !== null
@@ -38,24 +41,32 @@ export const CreditFigureCells: React.FC<Props> = ({ debt, limit, isUnlimited })
         : undefined;
 
   return (
+    <span
+      data-debt-tone={usage.tone ?? 'NONE'}
+      title={hint}
+      aria-label={hint ? `${formatCurrency(debt)} — ${hint}` : undefined}
+      className={`font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+        usage.tone ? TONE_CLASSES[usage.tone] : 'text-slate-800'
+      }`}
+    >
+      {usage.over && <AlertTriangle className="w-3 h-3 shrink-0" />}
+      {formatCurrency(debt)}
+      {usage.over && <span className="font-sans font-bold text-micro uppercase">Υπέρβαση</span>}
+    </span>
+  );
+};
+
+export const CreditFigureCells: React.FC<Props> = ({ debt, limit, isUnlimited }) => {
+  const remaining = isUnlimited ? null : Math.max(0, limit - debt);
+
+  return (
     <>
       <td className="p-3 text-right font-mono font-bold text-slate-700">
         {isUnlimited ? 'Απεριόριστο' : formatCurrency(limit)}
       </td>
 
       <td className="p-3 text-right font-mono">
-        <span
-          data-debt-tone={usage.tone ?? 'NONE'}
-          title={hint}
-          aria-label={hint ? `${formatCurrency(debt)} — ${hint}` : undefined}
-          className={`font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
-            usage.tone ? TONE_CLASSES[usage.tone] : 'text-slate-800'
-          }`}
-        >
-          {usage.over && <AlertTriangle className="w-3 h-3 shrink-0" />}
-          {formatCurrency(debt)}
-          {usage.over && <span className="font-sans font-bold text-micro uppercase">Υπέρβαση</span>}
-        </span>
+        <DebtFigure debt={debt} limit={limit} isUnlimited={isUnlimited} />
       </td>
 
       <td className="p-3 text-right font-mono font-bold text-slate-700">
