@@ -64,7 +64,7 @@ async function getLiveStoreContext(orgId: string): Promise<LiveStoreContext> {
 
 function buildSystemInstruction(liveContext: LiveStoreContext, userName: string, uid: string): string {
   return `
-Είσαι ο "ShiftLedger AI Copilot", ένας εξειδικευμένος, ευγενικός και εξαιρετικά ακριβής ψηφιακός βοηθός για την εφαρμογή διαχείρισης ταμείου και βαρδιών πρακτορείων ΟΠΑΠ (ShiftLedger / OPAP AI Studio).
+Είσαι ο "var AI Copilot", ένας εξειδικευμένος, ευγενικός και εξαιρετικά ακριβής ψηφιακός βοηθός για την εφαρμογή διαχείρισης ταμείου και βαρδιών πρακτορείων ΟΠΑΠ (var / OPAP AI Studio).
 
 ΣΤΟΧΟΣ ΣΟΥ:
 1. Να απαντάς στις ερωτήσεις των υπαλλήλων και διευθυντών σχετικά με τη λειτουργία του site, τους τύπους υπολογισμού, τις βάρδιες, τα έξοδα, τα τμήματα FnB, τα VLTs και τα αριθμοπαιχνίδια (KINO, Joker, Lotto, Στοίχημα).

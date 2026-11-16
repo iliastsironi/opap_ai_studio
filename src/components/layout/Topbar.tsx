@@ -91,13 +91,8 @@ export const Topbar: React.FC<TopbarProps> = ({ sidebarOpen, onToggleSidebar }) 
         </div>
       </div>
 
-      {/* Middle/Right Status Pill & User Menu */}
+      {/* User Menu */}
       <div className="flex items-center space-x-4">
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold shadow-2xs">
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-          <span>Online • Live System</span>
-        </div>
-
         {/* User Dropdown Button */}
         <div className="relative" ref={userMenuRef}>
           <button

@@ -347,7 +347,7 @@ export const UsersManager: React.FC = () => {
               type="button"
               onClick={() =>
                 navigator.clipboard?.writeText(
-                  `ShiftLedger\nUsername: ${issuedCredentials.username}\nΚωδικός: ${issuedCredentials.password}`
+                  `var\nUsername: ${issuedCredentials.username}\nΚωδικός: ${issuedCredentials.password}`
                 )
               }
               className="transition px-3 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer"
@@ -394,7 +394,7 @@ export const UsersManager: React.FC = () => {
             <button
               onClick={() => {
                 navigator.clipboard.writeText(
-                  `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή ShiftLedger!\n\nΟρίστε τον κωδικό πρόσβασής σας εδώ: ${lastInviteInfo.inviteLink}`
+                  `Γεια σου ${lastInviteInfo.name},\nΈχεις προσκληθεί στην εφαρμογή var!\n\nΟρίστε τον κωδικό πρόσβασής σας εδώ: ${lastInviteInfo.inviteLink}`
                 );
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), TOAST_AUTO_DISMISS_MS);

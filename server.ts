@@ -20,7 +20,7 @@ async function startServer() {
   app.use(express.json());
 
   app.get('/api/v1/health', (req, res) => {
-    res.json({ status: 'ok', service: 'ShiftLedger Engine', version: '2.0.0-supabase' });
+    res.json({ status: 'ok', service: 'var Engine', version: '2.0.0-supabase' });
   });
 
   // Same handlers the Vercel functions (api/copilot-chat.ts, api/users-invite.ts)
@@ -67,7 +67,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`ShiftLedger server running on http://0.0.0.0:${PORT}`);
+    console.log(`var server running on http://0.0.0.0:${PORT}`);
   });
 }
 

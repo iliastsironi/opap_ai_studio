@@ -78,7 +78,7 @@ export const CopilotPage: React.FC = () => {
         {
           id: 'welcome-1',
           role: 'assistant',
-          content: `Γειά σου **${user?.first_name || 'Συνάδελφε'}**! 🖐️\n\nΕίμαι ο **ShiftLedger AI Copilot**. Μπορώ να σε βοηθήσω με:\n- **Τύπους υπολογισμού ταμείου** & καταμέτρηση (KINO, VLTs, POS, Scratch)\n- **Διαδικασίες βάρδιας** (άνοιγμα, κλείσιμο, αιτιολογήσεις αποκλίσεων)\n- **Καταχώρηση εξόδων**, προμηθευτών & συμβάντων\n- **Αναλύσεις & πληροφορίες** από τα τρέχοντα δεδομένα του καταστήματος\n\nΠώς μπορώ να σε βοηθήσω σήμερα;`,
+          content: `Γειά σου **${user?.first_name || 'Συνάδελφε'}**! 🖐️\n\nΕίμαι ο **var AI Copilot**. Μπορώ να σε βοηθήσω με:\n- **Τύπους υπολογισμού ταμείου** & καταμέτρηση (KINO, VLTs, POS, Scratch)\n- **Διαδικασίες βάρδιας** (άνοιγμα, κλείσιμο, αιτιολογήσεις αποκλίσεων)\n- **Καταχώρηση εξόδων**, προμηθευτών & συμβάντων\n- **Αναλύσεις & πληροφορίες** από τα τρέχοντα δεδομένα του καταστήματος\n\nΠώς μπορώ να σε βοηθήσω σήμερα;`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -233,7 +233,7 @@ export const CopilotPage: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h1 className="text-base font-black text-slate-900">AI Copilot ShiftLedger</h1>
+              <h1 className="text-base font-black text-slate-900">AI Copilot var</h1>
               <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-micro font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                 Live Assistant

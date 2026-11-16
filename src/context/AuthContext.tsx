@@ -33,7 +33,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// There was a DEFAULT_ORG here: a hardcoded organisation - «ShiftLedger OPAP
+// There was a DEFAULT_ORG here: a hardcoded organisation - «var OPAP
 // Demo Store», ΑΦΜ EL998877665, an invented Κηφισίας address - used both as
 // the initial state and as the value whenever a real row was not read. Since
 // the live tenant's row was never read at all (see below), that hardcoded copy
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const meta = authUser.user_metadata || {};
       const firstName = meta.first_name || 'Χρήστης';
-      const lastName = meta.last_name || 'ShiftLedger';
+      const lastName = meta.last_name || 'var';
       const defaultUserObj: User = {
         id: authUser.id,
         email: authUser.email || '',
@@ -197,7 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               activeOrg = {
                 id: userOrgId,
-                legal_name: `${uData.first_name || 'Χρήστης'} ${uData.last_name || 'ShiftLedger'}`,
+                legal_name: `${uData.first_name || 'Χρήστης'} ${uData.last_name || 'var'}`,
                 trade_name: `Πρακτορείο ${uData.first_name || 'ΟΠΑΠ'}`,
                 vat_number: '',
                 tax_office: '',

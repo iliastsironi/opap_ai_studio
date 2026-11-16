@@ -4,7 +4,7 @@ import {
   calculateReconciliationBreakdown,
   roundCurrency,
 } from '../services/financialCalculator.js';
-import { scratchGrossOf } from '../components/shifts/ShiftLedgerSheet.tsx';
+import { scratchGrossOf } from '../components/shifts/ShiftSheet.tsx';
 
 /**
  * Η πρώτη βάρδια της Στυλίδας, όπως τη βρήκαμε στη βάση.

@@ -7,7 +7,7 @@ import {
   normalizeRoleCode,
 } from '../lib/rbac.ts';
 
-describe('ShiftLedger - Authorization Engine', () => {
+describe('var - Authorization Engine', () => {
   it('verifies store access logic for tenant isolation', () => {
     const assignedStores = [{ store_id: 'store_opap_01' }, { store_id: 'store_play_02' }];
     const userCanAccessStore1 = assignedStores.some((a) => a.store_id === 'store_opap_01');

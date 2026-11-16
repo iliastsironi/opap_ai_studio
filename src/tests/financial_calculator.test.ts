@@ -11,7 +11,7 @@ import {
   safeNum,
 } from '../services/financialCalculator.js';
 
-describe('Financial Calculation Service - ShiftLedger Engine', () => {
+describe('Financial Calculation Service - var Engine', () => {
   describe('safeNum & rounding utilities', () => {
     it('safely handles null, undefined, strings, and Greek comma format', () => {
       expect(safeNum(null)).toBe(0);

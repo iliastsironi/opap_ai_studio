@@ -1,4 +1,4 @@
--- ShiftLedger — Supabase schema
+-- var — Supabase schema
 -- Starting point: src/db/schema.sql (dormant, never wired to the live app).
 -- Deviations from it are explained in the migration plan
 -- (/Users/iliastsironis/.claude/plans/enumerated-waddling-hollerith.md) —

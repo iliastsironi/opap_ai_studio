@@ -526,7 +526,7 @@ export const ShiftReceiptPrintView: React.FC<ShiftReceiptPrintViewProps> = ({
         </div>
 
         <div className="text-center text-micro text-slate-500 print:text-black pt-2">
-          *** SHIFTLEDGER POS SYSTEM • {new Date().toLocaleString('el-GR')} ***
+          *** VAR • BESIMPL • {new Date().toLocaleString('el-GR')} ***
         </div>
       </div>
     </div>

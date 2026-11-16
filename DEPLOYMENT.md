@@ -48,7 +48,7 @@ is the intended end state.
 
 ```
 id          org_opap_demo
-trade_name  ShiftLedger OPAP Demo Store
+trade_name  var Demo Store
 vat_number  EL998877665
 ```
 

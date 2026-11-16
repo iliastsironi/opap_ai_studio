@@ -74,7 +74,7 @@ export interface ToraPosItem {
   amount: string;
 }
 
-const SHARED_POS_COUNT_KEY = (storeId?: string) => `shiftledger_shared_pos_count_${storeId || 'default'}`;
+const SHARED_POS_COUNT_KEY = (storeId?: string) => `var_shared_pos_count_${storeId || 'default'}`;
 
 function getSavedSharedPosCount(storeId?: string): number {
   try {
@@ -103,7 +103,7 @@ function getSavedStorePosConfig(storeId?: string, targetCount?: number): ToraPos
   const count = targetCount ?? getSavedSharedPosCount(storeId);
   let list: ToraPosItem[] = [];
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(`shiftledger_store_pos_${storeId || 'default'}`) : null;
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(`var_store_pos_${storeId || 'default'}`) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -127,7 +127,7 @@ function saveStorePosConfig(storeId: string | undefined, items: ToraPosItem[]): 
   try {
     if (typeof window === 'undefined') return;
     const clean = items.map((p) => ({ id: p.id, name: p.name, amount: '' }));
-    localStorage.setItem(`shiftledger_store_pos_${storeId || 'default'}`, JSON.stringify(clean));
+    localStorage.setItem(`var_store_pos_${storeId || 'default'}`, JSON.stringify(clean));
     localStorage.setItem(SHARED_POS_COUNT_KEY(storeId), String(clean.length));
   } catch (e) {
     console.warn(e);
@@ -138,7 +138,7 @@ function getSavedToraPosConfig(storeId?: string, targetCount?: number): ToraPosI
   const count = targetCount ?? getSavedSharedPosCount(storeId);
   let list: ToraPosItem[] = [];
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(`shiftledger_tora_pos_${storeId || 'default'}`) : null;
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(`var_tora_pos_${storeId || 'default'}`) : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -162,7 +162,7 @@ function saveToraPosConfig(storeId: string | undefined, items: ToraPosItem[]): v
   try {
     if (typeof window === 'undefined') return;
     const clean = items.map((p) => ({ id: p.id, name: p.name, amount: '' }));
-    localStorage.setItem(`shiftledger_tora_pos_${storeId || 'default'}`, JSON.stringify(clean));
+    localStorage.setItem(`var_tora_pos_${storeId || 'default'}`, JSON.stringify(clean));
     localStorage.setItem(SHARED_POS_COUNT_KEY(storeId), String(clean.length));
   } catch (e) {
     console.warn(e);

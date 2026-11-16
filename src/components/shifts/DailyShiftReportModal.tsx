@@ -66,7 +66,7 @@ export const DailyShiftReportModal: React.FC<DailyShiftReportModalProps> = ({
         {/* Footer */}
         <div className="bg-white px-6 py-3.5 border-t border-slate-200 flex items-center justify-between shrink-0">
           <span className="text-micro text-slate-500 font-medium">
-            ShiftLedger Reporting Engine • Καταμέτρηση χωρίς διπλοχρεώσεις
+            var Reporting Engine • Καταμέτρηση χωρίς διπλοχρεώσεις
           </span>
           <button
             onClick={onClose}

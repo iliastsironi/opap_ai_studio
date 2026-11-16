@@ -44,7 +44,7 @@ export interface HandoverReceipt {
   read_at: string | null;
 }
 
-export const NOTIFICATIONS_REFRESH_EVENT = 'shiftledger:notifications-refresh';
+export const NOTIFICATIONS_REFRESH_EVENT = 'var:notifications-refresh';
 
 export function requestNotificationsRefresh(): void {
   window.dispatchEvent(new Event(NOTIFICATIONS_REFRESH_EVENT));

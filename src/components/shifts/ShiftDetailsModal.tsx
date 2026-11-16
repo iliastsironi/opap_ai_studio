@@ -31,7 +31,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { MAX_NOTES_LENGTH } from '../../lib/limits.ts';
 import { SUCCESS_MODAL_CLOSE_MS } from '../../lib/timing.ts';
 import { updateShiftInFirestore } from '../../services/shiftService.ts';
-import { ShiftLedgerSheet } from './ShiftLedgerSheet.tsx';
+import { ShiftSheet } from './ShiftSheet.tsx';
 import { ShiftReceiptPrintView, ShiftReceiptData } from './ShiftReceiptPrintView.tsx';
 import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
@@ -1624,7 +1624,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
           })()}
 
           {activeTab === 'SHEET' && (
-            <ShiftLedgerSheet shift={shift} readOnly={true} carriedCoinHandover={carriedCoins} />
+            <ShiftSheet shift={shift} readOnly={true} carriedCoinHandover={carriedCoins} />
           )}
 
           {activeTab === 'SUMMARY' && (

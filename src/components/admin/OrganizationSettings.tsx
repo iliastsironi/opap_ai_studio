@@ -93,7 +93,7 @@ export const OrganizationSettings: React.FC = () => {
           Ρυθμίσεις Οργανισμού & SaaS Συνδρομή
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Διαχείριση εταιρικών στοιχείων, πλάνου συνδρομής ShiftLedger SaaS & ενεργών ειδοποιήσεων.
+          Διαχείριση εταιρικών στοιχείων, πλάνου συνδρομής var SaaS & ενεργών ειδοποιήσεων.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export const OrganizationSettings: React.FC = () => {
             <div className="flex items-center space-x-2 mb-2">
               <span className="px-3 py-1 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5">
                 <Crown className="w-3.5 h-3.5 text-amber-400" />
-                <span>ShiftLedger Enterprise SaaS Plan</span>
+                <span>var Enterprise SaaS Plan</span>
               </span>
               <span className="inline-flex items-center space-x-1 text-emerald-400 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -117,7 +117,7 @@ export const OrganizationSettings: React.FC = () => {
             </div>
 
             <h2 className="text-2xl font-extrabold text-white">
-              {tradeName || legalName || 'ShiftLedger Organization'}
+              {tradeName || legalName || 'var Organization'}
             </h2>
             <p className="text-xs text-slate-300 mt-1 max-w-xl">
               Πλήρης πολυ-εταιρική άδεια με υποστήριξη απεριόριστων καταστημάτων ΟΠΑΠ / Play, αυτόματες ειδοποιήσεις Resend Email API, ασφαλή βάση Supabase & Live Audit Logging.

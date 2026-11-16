@@ -15,7 +15,7 @@ import { lazy, ComponentType } from 'react';
 // genuinely missing or broken chunk), the error is rethrown so ErrorBoundary
 // reports it, rather than reloading in a loop.
 
-const RELOAD_FLAG = 'shiftledger_chunk_reload';
+const RELOAD_FLAG = 'var_chunk_reload';
 
 // Browsers word this differently (Chrome "error loading dynamically imported
 // module", Firefox "error loading dynamically imported module", Safari

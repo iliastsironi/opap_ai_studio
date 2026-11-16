@@ -1,4 +1,4 @@
--- ShiftLedger — Reporting views & functions
+-- var — Reporting views & functions
 -- Replaces dailyAggregationService.ts / kpiEngine.ts's client-side JS
 -- aggregation (which fetches every matching shift document, unfiltered,
 -- and reduces it in the browser) with real SQL. This is the concrete

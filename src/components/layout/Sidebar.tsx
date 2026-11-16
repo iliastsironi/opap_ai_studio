@@ -1,3 +1,4 @@
+import { BesimplIcon, VarWordmark } from '../brand/Brand.tsx';
 import React, { useEffect, useState } from 'react';
 import {
   Building2,
@@ -156,11 +157,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
         {/* Brand Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-xs">
-              SL
-            </div>
+            <BesimplIcon size={32} className="shrink-0 shadow-xs rounded-lg" />
             <div>
-              <h1 className="text-sm font-bold text-slate-900 leading-tight">ShiftLedger</h1>
+              <h1 className="text-lg text-slate-900 leading-tight">
+                <VarWordmark />
+              </h1>
               <p className="text-micro tracking-wider text-slate-500 font-semibold">
                 {toGreekUpper('Διαχείριση Ταμείου & Βαρδιών')}
               </p>

@@ -18,7 +18,7 @@ import {
 // a manager can still override (see applyCountingDefaults, covered in
 // scratch_bundle.test.ts). The ceiling is threaded as an optional second
 // argument so every call site that only ever passes one argument (historical/
-// read-only views: ShiftDetailsModal.tsx, ShiftLedgerSheet.tsx) is provably
+// read-only views: ShiftDetailsModal.tsx, ShiftSheet.tsx) is provably
 // unaffected - that is the "historical data integrity" acceptance criterion.
 
 function scratchRow(overrides: Partial<ScratchTicketRow> = {}): ScratchTicketRow {
@@ -42,7 +42,7 @@ describe('hasBackSide with a store selling-mode ceiling', () => {
   });
 
   it('no storeMode argument (the historical/read-only display path) ignores store state entirely and derives purely from the row', () => {
-    // Simulates ShiftDetailsModal.tsx/ShiftLedgerSheet.tsx, which only ever
+    // Simulates ShiftDetailsModal.tsx/ShiftSheet.tsx, which only ever
     // call these functions with one argument over already-persisted rows -
     // a shift closed under Front+Back before a store switched to Front-only
     // must keep showing its real historical back-side data.

@@ -177,7 +177,7 @@ export const ShiftsManager: React.FC = () => {
   const vltMismatchCount = useVltMismatchCount(canCheckVlt, organization?.id, selectedStoreId, managerTab);
   const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE'>(() => {
     try {
-      const saved = localStorage.getItem('shiftledger_shifts_view_mode');
+      const saved = localStorage.getItem('var_shifts_view_mode');
       if (saved === 'CARDS' || saved === 'TABLE') return saved;
     } catch {}
     return 'TABLE';
@@ -186,7 +186,7 @@ export const ShiftsManager: React.FC = () => {
   const handleSetViewMode = (mode: 'CARDS' | 'TABLE') => {
     setViewMode(mode);
     try {
-      localStorage.setItem('shiftledger_shifts_view_mode', mode);
+      localStorage.setItem('var_shifts_view_mode', mode);
     } catch {}
   };
 

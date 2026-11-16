@@ -1,3 +1,4 @@
+import { BesimplIcon, BesimplLogo, VarWordmark } from '../brand/Brand.tsx';
 import React, { useState } from 'react';
 import {
   ArrowRight,
@@ -34,7 +35,7 @@ const REASSURANCE_POINTS = [
   {
     title: 'Μετράτε το ταμείο στο χέρι κάθε βράδυ;',
     description:
-      'Το ShiftLedger κάνει τους υπολογισμούς για εσάς — εσείς απλά πληκτρολογείτε αριθμούς, όπως σε μια αριθμομηχανή.',
+      'Το var κάνει τους υπολογισμούς για εσάς — εσείς απλά πληκτρολογείτε αριθμούς, όπως σε μια αριθμομηχανή.',
   },
   {
     title: 'Χάνετε το μέτρημα στα Λαχεία;',
@@ -131,11 +132,11 @@ const FAQS = [
   },
   {
     q: 'Λειτουργεί σε κινητό ή tablet;',
-    a: 'Ναι, το ShiftLedger λειτουργεί πλήρως σε κινητό, tablet και υπολογιστή, μέσα από τον browser.',
+    a: 'Ναι, το var λειτουργεί πλήρως σε κινητό, tablet και υπολογιστή, μέσα από τον browser.',
   },
   {
     q: 'Χρειάζομαι εγκατάσταση λογισμικού;',
-    a: 'Όχι, το ShiftLedger λειτουργεί απευθείας από τον browser — καμία εγκατάσταση ή ενημέρωση από εσάς.',
+    a: 'Όχι, το var λειτουργεί απευθείας από τον browser — καμία εγκατάσταση ή ενημέρωση από εσάς.',
   },
 ];
 
@@ -328,10 +329,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-slate-200">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-extrabold text-lg flex items-center justify-center shadow-lg shadow-indigo-600/20">
-              SL
-            </div>
-            <span className="font-extrabold text-lg tracking-tight text-slate-900">ShiftLedger</span>
+            <BesimplIcon size={40} className="rounded-xl shadow-lg" />
+            <VarWordmark className="text-2xl text-slate-900" />
           </div>
           <nav className="hidden lg:flex items-center space-x-6 text-sm font-semibold text-slate-600">
             {NAV_LINKS.map((link) => (
@@ -396,7 +395,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
               Δεν είστε &quot;τεχνολογικός&quot; τύπος; Δεν χρειάζεται.
             </h2>
             <p className="mt-3 text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Αν ξέρετε να στέλνετε μήνυμα στο Viber ή να διαβάζετε ένα email, θα νιώσετε άνετα με το ShiftLedger
+              Αν ξέρετε να στέλνετε μήνυμα στο Viber ή να διαβάζετε ένα email, θα νιώσετε άνετα με το var
               από την πρώτη μέρα.
             </p>
           </div>
@@ -467,7 +466,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Μια ματιά στην εφαρμογή</h2>
           <p className="mt-3 text-slate-500 max-w-xl mx-auto">
-            Πραγματικές οθόνες από το ShiftLedger — πατήστε πάνω σε ό,τι σας ενδιαφέρει.
+            Πραγματικές οθόνες από το var — πατήστε πάνω σε ό,τι σας ενδιαφέρει.
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-2 mb-10">
@@ -605,8 +604,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
 
       <footer className="border-t border-slate-100 py-8">
         <p className="text-center text-xs text-slate-500">
-          ShiftLedger — Πλατφόρμα Διαχείρισης &amp; Ταμειακού Ελέγχου Πρακτορείων ΟΠΑΠ
+          var — Πλατφόρμα Διαχείρισης &amp; Ταμειακού Ελέγχου Πρακτορείων ΟΠΑΠ
         </p>
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <span>από την</span>
+          <BesimplLogo tone="light" height={18} />
+        </div>
       </footer>
     </div>
   );

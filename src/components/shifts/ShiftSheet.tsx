@@ -58,7 +58,7 @@ export function scratchGrossOf(shift: Partial<Shift>): number {
   return roundCurrency(safeNum(shift.scratch_lotto_sales) + safeNum(shift.scratch_payouts));
 }
 
-interface ShiftLedgerSheetProps {
+interface ShiftSheetProps {
   shift?: Partial<Shift>;
   template?: ShiftTemplateConfig;
   readOnly?: boolean;
@@ -74,7 +74,7 @@ interface ShiftLedgerSheetProps {
   carriedCoinHandover?: number;
 }
 
-export const ShiftLedgerSheet: React.FC<ShiftLedgerSheetProps> = ({
+export const ShiftSheet: React.FC<ShiftSheetProps> = ({
   shift = {},
   template,
   readOnly = true,

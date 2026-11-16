@@ -138,7 +138,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = Object.fromEntries(
 // support path into a customer's organisation. Removing it would mean
 // rewriting five migrations to gain nothing.
 export const SYSTEM_ROLES: Role[] = [
-  { id: 'role_platform_admin', code: 'PLATFORM_ADMIN', name: 'Διαχειριστής Πλατφόρμας', description: 'Πλήρης πρόσβαση στην πλατφόρμα ShiftLedger', is_system: true, permissions: ROLE_PERMISSIONS.PLATFORM_ADMIN, created_at: nowIso },
+  { id: 'role_platform_admin', code: 'PLATFORM_ADMIN', name: 'Διαχειριστής Πλατφόρμας', description: 'Πλήρης πρόσβαση στην πλατφόρμα var', is_system: true, permissions: ROLE_PERMISSIONS.PLATFORM_ADMIN, created_at: nowIso },
   { id: 'role_org_owner', code: 'ORG_OWNER', name: 'Ιδιοκτήτης Οργανισμού', description: 'Πλήρης πρόσβαση στον οργανισμό, όλα τα καταστήματα και τις αναφορές', is_system: true, permissions: ROLE_PERMISSIONS.ORG_OWNER, created_at: nowIso },
   { id: 'role_store_manager', code: 'STORE_MANAGER', name: 'Διευθυντής Καταστήματος', description: 'Διαχείριση καταστήματος, βαρδιών, εξόδων και εγκρίσεων', is_system: true, permissions: ROLE_PERMISSIONS.STORE_MANAGER, created_at: nowIso },
   { id: 'role_employee', code: 'EMPLOYEE', name: 'Υπάλληλος', description: 'Καταχώρηση βάρδιας και καταμέτρηση ταμείου στο ανατεθειμένο κατάστημα', is_system: true, permissions: ROLE_PERMISSIONS.EMPLOYEE, created_at: nowIso },

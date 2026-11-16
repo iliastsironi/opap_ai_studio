@@ -1,4 +1,4 @@
--- ShiftLedger — Row Level Security
+-- var — Row Level Security
 -- Structural analog of firestore.rules' callerData()/belongsToOrg()/isElevatedRole().
 
 -- ============================================================

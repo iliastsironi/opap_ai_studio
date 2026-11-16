@@ -19,7 +19,7 @@ import { CustomerCreditDirectoryModal } from '../shifts/CustomerCreditDirectoryM
 import { formatCurrency } from '../../lib/formatters.ts';
 
 type SortMode = 'NUMBER' | 'NAME';
-const SORT_MODE_STORAGE_KEY = 'shiftledger_national_lottery_sort_mode';
+const SORT_MODE_STORAGE_KEY = 'var_national_lottery_sort_mode';
 
 function loadSortMode(): SortMode {
   try {

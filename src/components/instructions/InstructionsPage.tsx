@@ -87,7 +87,7 @@ export const InstructionsPage: React.FC = () => {
             <span>Κέντρο Βοήθειας & Εκπαίδευσης</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-            Οδηγίες Χρήσης & Λειτουργίας ShiftLedger
+            Οδηγίες Χρήσης & Λειτουργίας var
           </h1>
           <p className="text-slate-300 text-sm leading-relaxed">
             Αναλυτικός οδηγός βήμα-βήμα για κάθε ενότητα της εφαρμογής, τους τύπους υπολογισμού ταμείου, τις διαδικασίες βάρδιας και τις απαντήσεις στις συχνότερες απορίες.

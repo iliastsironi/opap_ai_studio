@@ -1,3 +1,4 @@
+import { BesimplIcon, BesimplLogo, VarWordmark } from '../brand/Brand.tsx';
 import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ShieldCheck, ArrowRight, Building2, UserCheck, UserPlus, LogIn, KeyRound, CheckCircle, Sparkles, ArrowLeft, MailCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -186,13 +187,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
         )}
         {/* Logo Branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white font-extrabold text-2xl shadow-lg shadow-indigo-600/30 mb-3">
-            SL
-          </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">ShiftLedger</h1>
+          <BesimplIcon size={56} className="mx-auto mb-3 rounded-2xl shadow-lg" />
+          <h1 className="text-3xl text-white">
+            <VarWordmark />
+          </h1>
           <p className="text-xs text-slate-500 mt-1">
             Πλατφόρμα Διαχείρισης & Ταμειακού Ελέγχου Πρακτορείων ΟΠΑΠ
           </p>
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-micro text-slate-500">
+            <span>από την</span>
+            <BesimplLogo tone="dark" height={16} />
+          </div>
         </div>
 
         {/* Tab Switcher: Sign In vs Sign Up */}
@@ -391,7 +396,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <span className="font-semibold text-slate-200">Ιδιοκτήτης (Owner)</span>
               </div>
               <span className="text-micro bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono">
-                owner@shiftledger.gr
+                OWNER
               </span>
             </button>
 
@@ -405,7 +410,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <span className="font-semibold text-slate-200">Διευθυντής Καταστήματος</span>
               </div>
               <span className="text-micro bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-mono">
-                manager@shiftledger.gr
+                MANAGER
               </span>
             </button>
 
@@ -419,7 +424,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ initialMode = 'signin', on
                 <span className="font-semibold text-slate-200">Υπάλληλος Βάρδιας</span>
               </div>
               <span className="text-micro bg-sky-950 text-sky-300 px-2 py-0.5 rounded font-mono">
-                employee@shiftledger.gr
+                EMPLOYEE
               </span>
             </button>
           </div>

@@ -40,7 +40,7 @@ export const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ children }) =>
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white" role="status" aria-live="polite">
         <div className="flex flex-col items-center space-y-4">
           <div aria-hidden="true" className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-300 font-medium">Φόρτωση ShiftLedger...</p>
+          <p className="text-slate-300 font-medium">Φόρτωση var...</p>
         </div>
       </div>
     );

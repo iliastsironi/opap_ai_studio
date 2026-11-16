@@ -1,5 +1,5 @@
 /**
- * Standard monetary and number formatters for ShiftLedger.
+ * Standard monetary and number formatters for var.
  * Mandate:
  * - € symbol
  * - Period as thousands separator (.)

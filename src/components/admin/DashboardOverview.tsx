@@ -149,7 +149,7 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
             <span className="text-slate-900 font-bold">Κεντρικό Ταμπλό Ελέγχου & KPIs</span>
           </div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>{organization?.trade_name || organization?.legal_name || 'ShiftLedger Store Manager'}</span>
+            <span>{organization?.trade_name || organization?.legal_name || 'var Store Manager'}</span>
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-200">
               {activeStoreName}
             </span>

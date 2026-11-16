@@ -213,8 +213,8 @@ export const DEFAULT_SCRATCH_PRESETS: ScratchTicketRow[] = [
   { id: 'scr_ethniko_x20', name: 'Εθνικό x 20€', category: 'Λαχεία', price: ETHNIKO_BUNDLE_PRICE, bundleSize: 0, startNo: '', endNo: '' },
 ];
 
-export const SCRATCH_CATALOG_STORAGE_KEY = 'shiftledger_scratch_catalog_v2';
-export const SCRATCH_STORE_INVENTORY_PREFIX = 'shiftledger_scratch_inv_';
+export const SCRATCH_CATALOG_STORAGE_KEY = 'var_scratch_catalog_v2';
+export const SCRATCH_STORE_INVENTORY_PREFIX = 'var_scratch_inv_';
 
 export function getSavedScratchCatalog(): ScratchTicketRow[] {
   try {
@@ -673,7 +673,7 @@ export type ScratchSellingMode = 'FRONT_AND_BACK' | 'FRONT_ONLY';
 // storeMode is optional and only ever narrows the result (never widens
 // it), so every existing call site with one argument - historical/
 // read-only views over already-persisted rows (ShiftDetailsModal.tsx,
-// ShiftLedgerSheet.tsx) - keeps deriving purely from the row's own
+// ShiftSheet.tsx) - keeps deriving purely from the row's own
 // persisted backSideEnabled, exactly as before. Only the live-editing
 // path (ShiftClosingWizard.tsx, via this file) passes storeMode.
 export function hasBackSide(row: ScratchTicketRow, storeMode?: ScratchSellingMode): boolean {

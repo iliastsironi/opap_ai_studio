@@ -47,18 +47,18 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
   const tempPassword = data.temporaryPassword;
   const orgName = data.organizationName || 'Πρακτορείο ΟΠΑΠ';
 
-  const subject = `Πρόσκληση Εγγραφής στο ShiftLedger - ${orgName}`;
+  const subject = `Πρόσκληση Εγγραφής στο var - ${orgName}`;
 
   const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #17212F; color: #f8fafc; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background-color: #4f46e5; color: white; font-weight: 800; font-size: 20px; padding: 12px 24px; border-radius: 12px; letter-spacing: 0.05em;">ShiftLedger</div>
+        <div style="display: inline-block; background-color: #17212F; color: #ffffff; font-weight: 800; font-size: 24px; padding: 12px 28px; border-radius: 14px; letter-spacing: -0.02em; border: 1px solid #35C9BE;">var<span style="color: #35C9BE;">.</span></div>
         <h2 style="color: #ffffff; margin-top: 16px; font-size: 22px;">Πρόσκληση Νέου Υπαλλήλου</h2>
       </div>
 
       <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">Γεια σας <strong>${fullName}</strong>,</p>
       <p style="color: #cbd5e1; font-size: 15px; line-height: 1.6;">
-        Έχετε προσκληθεί να συνδεθείτε στην πλατφόρμα <strong>ShiftLedger</strong> για τη διαχείριση και τον ταμειακό έλεγχο των καταστημάτων της <strong>${orgName}</strong>.
+        Έχετε προσκληθεί να συνδεθείτε στην πλατφόρμα <strong>var</strong> για τη διαχείριση και τον ταμειακό έλεγχο των καταστημάτων της <strong>${orgName}</strong>.
       </p>
 
       <div style="background-color: #1e293b; border: 1px solid #334155; padding: 20px; border-radius: 12px; margin: 24px 0;">
@@ -67,12 +67,12 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
         <p style="margin: 4px 0; color: #ffffff; font-size: 14px;"><strong>Ρόλος:</strong> ${data.roleName || 'Υπάλληλος'}</p>
         ${data.storeNames ? `<p style="margin: 4px 0; color: #ffffff; font-size: 14px;"><strong>Καταστήματα:</strong> ${data.storeNames}</p>` : ''}
         ${tempPassword ? `<p style="margin: 8px 0 0 0; color: #e2e8f0; font-size: 14px;">
-          <strong>Προσωρινός Κωδικός:</strong> <code style="background: #0f172a; padding: 3px 8px; border-radius: 6px; color: #818cf8; font-family: monospace;">${tempPassword}</code>
+          <strong>Προσωρινός Κωδικός:</strong> <code style="background: #17212F; padding: 3px 8px; border-radius: 6px; color: #35C9BE; font-family: monospace;">${tempPassword}</code>
         </p>` : ''}
       </div>
 
       <div style="text-align: center; margin: 32px 0;">
-        <a href="${inviteLink}" style="background-color: #4f46e5; color: white; text-decoration: none; font-weight: 700; padding: 14px 28px; border-radius: 12px; display: inline-block; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);">
+        <a href="${inviteLink}" style="background-color: #35C9BE; color: #17212F; text-decoration: none; font-weight: 700; padding: 14px 28px; border-radius: 12px; display: inline-block; font-size: 15px; box-shadow: 0 4px 12px rgba(53, 201, 190, 0.4);">
           Αποδοχή Πρόσκλησης & Είσοδος
         </a>
       </div>
@@ -86,7 +86,7 @@ export async function sendUserInviteEmailToEmployee(options: SendUserInviteOptio
   const textContent = `
 Γεια σας ${fullName},
 
-Έχετε προσκληθεί στο σύστημα ShiftLedger (${orgName}).
+Έχετε προσκληθεί στο σύστημα var (${orgName}).
 
 Σύνδεσμος Πρόσκλησης: ${inviteLink}
 Email: ${to}${tempPassword ? `\nΠροσωρινός Κωδικός: ${tempPassword}` : ''}
@@ -107,7 +107,7 @@ Email: ${to}${tempPassword ? `\nΠροσωρινός Κωδικός: ${tempPassw
 
   try {
     let response = await resend.emails.send({
-      from: `ShiftLedger System <${senderEmail}>`,
+      from: `var <${senderEmail}>`,
       to,
       subject,
       html: htmlContent,
@@ -117,7 +117,7 @@ Email: ${to}${tempPassword ? `\nΠροσωρινός Κωδικός: ${tempPassw
     if (response.error && senderEmail !== 'onboarding@resend.dev') {
       console.warn('[Resend] Custom sender error, falling back to onboarding@resend.dev:', response.error.message);
       response = await resend.emails.send({
-        from: 'ShiftLedger System <onboarding@resend.dev>',
+        from: 'var <onboarding@resend.dev>',
         to,
         subject,
         html: htmlContent,
@@ -171,12 +171,12 @@ export async function sendShiftSummaryEmailToManagers(options: SendShiftSummaryO
   const shiftTitle = data.shiftType === 'MORNING' ? 'Πρωινή Βάρδια' : data.shiftType === 'EVENING' ? 'Απογευματινή Βάρδια' : data.shiftType;
   const formattedDate = data.date || new Date().toLocaleDateString('el-GR');
 
-  const subject = `[ShiftLedger] Αναφορά Βάρδιας - ${data.storeName} (${shiftTitle}) [${formattedDiscrepancy}]`;
+  const subject = `[var] Αναφορά Βάρδιας - ${data.storeName} (${shiftTitle}) [${formattedDiscrepancy}]`;
 
   const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #17212F; color: #f8fafc; padding: 32px; border-radius: 16px; max-width: 600px; margin: 0 auto;">
       <div style="border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px;">
-        <span style="font-size: 11px; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em;">ShiftLedger System</span>
+        <span style="font-size: 11px; font-weight: 700; color: #35C9BE; text-transform: uppercase; letter-spacing: 0.05em;">var · BeSimpl</span>
         <h2 style="color: #ffffff; margin: 6px 0 0 0; font-size: 22px;">Αναφορά Κλεισίματος Βάρδιας</h2>
         <p style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">${data.storeName} &bull; ${shiftTitle} &bull; ${formattedDate}</p>
       </div>
@@ -228,7 +228,7 @@ export async function sendShiftSummaryEmailToManagers(options: SendShiftSummaryO
           </tr>` : ''}
           <tr>
             <td style="padding: 6px 0; color: #94a3b8; font-weight: 600;">Αναμενόμενο Υπόλοιπο:</td>
-            <td style="text-align: right; font-weight: 700; color: #818cf8;">${Number(data.expectedCash || 0).toFixed(2)} €</td>
+            <td style="text-align: right; font-weight: 700; color: #35C9BE;">${Number(data.expectedCash || 0).toFixed(2)} €</td>
           </tr>
         </table>
       </div>
@@ -239,7 +239,7 @@ export async function sendShiftSummaryEmailToManagers(options: SendShiftSummaryO
       </div>` : ''}
 
       <p style="font-size: 11px; color: #64748b; text-align: center; margin: 0;">
-        Αυτό το μήνυμα στάλθηκε αυτόματα από την πλατφόρμα ShiftLedger.
+        Αυτό το μήνυμα στάλθηκε αυτόματα από την πλατφόρμα var.
       </p>
     </div>
   `;
@@ -271,7 +271,7 @@ export async function sendShiftSummaryEmailToManagers(options: SendShiftSummaryO
 
   try {
     const response = await resend.emails.send({
-      from: `ShiftLedger System <${senderEmail}>`,
+      from: `var <${senderEmail}>`,
       to: recipientList,
       subject,
       html: htmlContent,
