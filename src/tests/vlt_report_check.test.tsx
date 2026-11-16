@@ -291,7 +291,7 @@ describe('το όνομα που βλέπει ο χρήστης: Report Allwynne
   it('η στήλη, το πεδίο, ο τίτλος, η περιγραφή και η ειδοποίηση το λένε Report Allwynnet', () => {
     expect(component).toContain('<th className="p-3 text-right">Report Allwynnet</th>');
     expect(component).toContain('aria-label={`Report Allwynnet ${formatDay(row.date)}`}');
-    expect(component).toContain("toGreekUpper('Ελεγχος VLT: βαρδιες και Report Allwynnet')");
+    expect(component).toContain("toGreekUpper('Report Allwynnet')");
     expect(component).toContain('νούμερο από το Report Allwynnet.');
     expect(component).toContain('Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες.');
   });
@@ -325,9 +325,9 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
   it('η καρτέλα είναι στις Βάρδιες, φορτώνει τεμπέλικα και την βλέπει μόνο ο διευθυντής και πάνω', () => {
     expect(manager).toContain("import('./VltReportCheck.tsx')");
     expect(manager).toContain('const canCheckVlt = isElevatedRole(roleCodes, permissions);');
-    expect(manager).toContain("{canCheckVlt && (\n                <button\n                  onClick={() => setManagerTab('VLT')}");
+    expect(manager).toMatch(/\{canCheckVlt && \(\s*<button\s+onClick=\{\(\) => setManagerTab\('VLT'\)\}/);
     expect(manager).toContain("managerTab === 'VLT' && canCheckVlt");
-    expect(manager).toContain("toGreekUpper('Ελεγχος VLT')");
+    expect(manager).toContain("toGreekUpper('Report Allwynnet')");
   });
 
   it('η ένδειξη πάνω στην καρτέλα μετράει στο παρασκήνιο και ξαναμετράει όταν αλλάζει καρτέλα', () => {
@@ -386,5 +386,57 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
 
   it('ό,τι διαβάζει από τις βάρδιες είναι μόνο ανάγνωση: καμία εγγραφή σε βάρδια', () => {
     expect(service).not.toMatch(/from\('shifts'\)[\s\S]{0,200}\.(update|upsert|insert|delete)\(/);
+  });
+});
+
+describe('η καρτέλα λέγεται Report Allwynnet', () => {
+  const manager = read('src/components/shifts/ShiftsManager.tsx');
+  const component = read('src/components/shifts/VltReportCheck.tsx');
+
+  it('το κουμπί της καρτέλας και ο τίτλος της οθόνης λένε Report Allwynnet', () => {
+    const tab = manager.slice(manager.indexOf("onClick={() => setManagerTab('VLT')}"), manager.indexOf("onClick={() => setManagerTab('VLT')}") + 700);
+    expect(tab).toContain("toGreekUpper('Report Allwynnet')");
+    expect(component).toContain("{toGreekUpper('Report Allwynnet')}");
+  });
+
+  it('το παλιό όνομα «Έλεγχος VLT» δεν φαίνεται πια πουθενά στην οθόνη', () => {
+    const visible = (code: string) => code.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+    expect(visible(manager)).not.toMatch(/Ελεγχος VLT|Έλεγχος VLT/);
+    expect(visible(component)).not.toMatch(/Ελεγχος VLT|Έλεγχος VLT/);
+  });
+});
+
+/**
+ * Η κεφαλίδα των Βαρδιών είχε όλα τα κουμπιά σε ένα ρευστό κουτί δίπλα στον
+ * τίτλο και έσπαγαν όπου τύχαινε: το «Έναρξη Νέας Βαρδιάς» έπεφτε μόνο του σε
+ * τρίτη γραμμή. Δύο σταθερές γραμμές: πάνω οι κύριες ενέργειες, κάτω οι καρτέλες
+ * αριστερά και τα δευτερεύοντα κουμπιά δεξιά.
+ */
+describe('η κεφαλίδα των Βαρδιών', () => {
+  const manager = read('src/components/shifts/ShiftsManager.tsx');
+  const header = manager.slice(manager.indexOf('{/* Top Header Card */}'), manager.indexOf('{/* Quick KPI Strip'));
+  const primaryGroup = header.slice(header.indexOf('{/* Κύριες ενέργειες'), header.indexOf('{/* Οι καρτέλες αριστερά'));
+  const tabsRow = header.slice(header.indexOf('{/* Οι καρτέλες αριστερά'));
+
+  it('η έναρξη νέας βάρδιας είναι στην ομάδα των κύριων ενεργειών, μαζί με την ανοιχτή βάρδια', () => {
+    expect(primaryGroup).toContain("setShowOpeningModal(true)");
+    expect(primaryGroup).toContain('openShifts.length === 1');
+    expect(primaryGroup).not.toContain("setManagerTab('SHIFTS')");
+  });
+
+  it('οι καρτέλες και τα δευτερεύοντα κουμπιά είναι σε δική τους γραμμή, με τις καρτέλες αριστερά', () => {
+    expect(tabsRow).toContain('justify-between');
+    expect(tabsRow.indexOf("setManagerTab('SHIFTS')")).toBeGreaterThan(-1);
+    expect(tabsRow.indexOf("setManagerTab('VLT')")).toBeGreaterThan(tabsRow.indexOf("setManagerTab('DISCREPANCIES')"));
+    expect(tabsRow.indexOf('setShowCreditDirectoryModal(true)')).toBeGreaterThan(tabsRow.indexOf("setManagerTab('VLT')"));
+    expect(tabsRow.indexOf('onClick={fetchShifts}')).toBeGreaterThan(tabsRow.indexOf('setShowCreditDirectoryModal(true)'));
+    expect(tabsRow).not.toContain('setShowOpeningModal(true)');
+  });
+
+  it('κανένα κουμπί δεν χάθηκε από την κεφαλίδα', () => {
+    for (const handle of ["setManagerTab('SHIFTS')", "setManagerTab('DISCREPANCIES')", "setManagerTab('VLT')", "setManagerTab('TEMPLATE')",
+                          'setShowCreditDirectoryModal(true)', 'onClick={fetchShifts}', 'setShowOpeningModal(true)', 'handleOpenWizard(openShifts[0])']) {
+      expect(header.split(handle).length - 1, handle).toBe(1);
+    }
   });
 });

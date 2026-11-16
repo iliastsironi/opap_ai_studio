@@ -531,7 +531,8 @@ export const ShiftsManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Top Actions & Tabs */}
+          {/* Κύριες ενέργειες: η βάρδια που τρέχει και η έναρξη νέας. Σε δική τους ομάδα,
+              ώστε το «Έναρξη Νέας Βαρδιάς» να μη πέφτει μόνο του σε τρίτη γραμμή. */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             {/* Open shift, reachable without scrolling or searching. The hero
                 card further down says the same thing in more detail; this is
@@ -595,66 +596,83 @@ export const ShiftsManager: React.FC = () => {
               </button>
             )}
 
-            {/* Manager Navigation Tabs */}
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 max-w-full overflow-x-auto">
+            {/* Primary Action Button */}
+            {canCreate && (
               <button
-                onClick={() => setManagerTab('SHIFTS')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
-                  managerTab === 'SHIFTS'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={() => setShowOpeningModal(true)}
+                className="transition px-4 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs whitespace-nowrap cursor-pointer"
               >
-                {toGreekUpper('Λιστα Βαρδιων')}
+                <Plus className="w-4 h-4" />
+                <span>{toGreekUpper('Εναρξη Νεας Βαρδιας')}</span>
               </button>
-              <button
-                onClick={() => setManagerTab('DISCREPANCIES')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                  managerTab === 'DISCREPANCIES'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Scale className="w-3.5 h-3.5" />
-                <span>{toGreekUpper('Αποκλισεις')}</span>
-              </button>
-              {canCheckVlt && (
-                <button
-                  onClick={() => setManagerTab('VLT')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                    managerTab === 'VLT'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Gamepad2 className="w-3.5 h-3.5" />
-                  <span>{toGreekUpper('Ελεγχος VLT')}</span>
-                  {vltMismatchCount > 0 && (
-                    <span
-                      role="status"
-                      aria-label={`${vltMismatchCount} ημέρες με διαφορά VLT`}
-                      className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-micro font-black flex items-center justify-center"
-                    >
-                      {vltMismatchCount}
-                    </span>
-                  )}
-                </button>
-              )}
-              {isOwnerOrAdmin && (
-                <button
-                  onClick={() => setManagerTab('TEMPLATE')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
-                    managerTab === 'TEMPLATE'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>{toGreekUpper('Διαμορφωση')}</span>
-                </button>
-              )}
-            </div>
+            )}
+          </div>
+        </div>
 
+        {/* Οι καρτέλες αριστερά, τα δευτερεύοντα κουμπιά δεξιά, πάντα στην ίδια γραμμή· στο κινητό
+            οι καρτέλες παίρνουν όλο το πλάτος και τα κουμπιά πέφτουν από κάτω, ευθυγραμμισμένα. */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 mt-4 pt-4 border-t border-slate-100">
+          {/* Manager Navigation Tabs */}
+          <div className="grid grid-cols-2 gap-1 w-full sm:w-auto sm:flex sm:items-center sm:gap-0 bg-slate-100/90 p-1 rounded-xl border border-slate-200 max-w-full sm:overflow-x-auto">
+            <button
+              onClick={() => setManagerTab('SHIFTS')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold justify-center text-center transition-colors cursor-pointer whitespace-nowrap ${
+                managerTab === 'SHIFTS'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {toGreekUpper('Λιστα Βαρδιων')}
+            </button>
+            <button
+              onClick={() => setManagerTab('DISCREPANCIES')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold justify-center text-center transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                managerTab === 'DISCREPANCIES'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>{toGreekUpper('Αποκλισεις')}</span>
+            </button>
+            {canCheckVlt && (
+              <button
+                onClick={() => setManagerTab('VLT')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold justify-center text-center transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                  managerTab === 'VLT'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Gamepad2 className="w-3.5 h-3.5" />
+                <span>{toGreekUpper('Report Allwynnet')}</span>
+                {vltMismatchCount > 0 && (
+                  <span
+                    role="status"
+                    aria-label={`${vltMismatchCount} ημέρες με διαφορά VLT`}
+                    className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-micro font-black flex items-center justify-center"
+                  >
+                    {vltMismatchCount}
+                  </span>
+                )}
+              </button>
+            )}
+            {isOwnerOrAdmin && (
+              <button
+                onClick={() => setManagerTab('TEMPLATE')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold justify-center text-center transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+                  managerTab === 'TEMPLATE'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>{toGreekUpper('Διαμορφωση')}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-2.5 ml-auto">
             {/* Customer Credit Directory Modal Trigger */}
             <button
               onClick={() => setShowCreditDirectoryModal(true)}
@@ -674,17 +692,6 @@ export const ShiftsManager: React.FC = () => {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
-
-            {/* Primary Action Button */}
-            {canCreate && (
-              <button
-                onClick={() => setShowOpeningModal(true)}
-                className="transition px-4 py-2 rounded-xl duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-xs whitespace-nowrap cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{toGreekUpper('Εναρξη Νεας Βαρδιας')}</span>
-              </button>
-            )}
           </div>
         </div>
 
