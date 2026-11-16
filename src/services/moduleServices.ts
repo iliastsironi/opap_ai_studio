@@ -4,6 +4,8 @@ import { updateShiftInFirestore } from './shiftService.ts';
 import { createSupplierInFirestore, fetchSuppliersFromFirestore } from './supplierService.ts';
 import { athensDateKey } from '../lib/pnlEngine.ts';
 import { rowsWrittenProblem } from '../lib/writeGuard.ts';
+import { tillExpensesOnly } from '../lib/expenseCategories.ts';
+import { fetchExpenseCategories } from './pnlService.ts';
 
 // ----------------------------------------------------
 // EXPENSES SERVICE (backed by the shift_expenses table - absorbs what used
@@ -119,11 +121,19 @@ export async function deleteExpenseInFirestore(id: string): Promise<void> {
 // PostgREST rejects an update containing an unknown column in full, which
 // is why expenses_paid_cash silently stopped syncing too whenever it was
 // bundled into the same call.
-async function syncShiftExpensesCashTotal(orgId: string, storeId: string, shiftId: string): Promise<void> {
-  const all = await fetchExpensesFromFirestore(orgId, storeId);
-  const total = all
-    .filter((e) => e.shift_id === shiftId)
-    .reduce((sum, e) => sum + (e.payment_method !== 'CARD' ? Number(e.amount) || 0 : 0), 0);
+export async function syncShiftExpensesCashTotal(orgId: string, storeId: string, shiftId: string): Promise<void> {
+  const [all, categories] = await Promise.all([
+    fetchExpensesFromFirestore(orgId, storeId),
+    fetchExpenseCategories(orgId),
+  ]);
+  // Με το ΙΔΙΟ φίλτρο που έχει η οθόνη του ταμείου (tillExpensesOnly): αν η
+  // κατηγορία λέει ότι δεν πληρώνεται από το συρτάρι, δεν μετράει εδώ - αλλιώς
+  // η οθόνη των εξόδων θα έγραφε στη βάρδια ένα άθροισμα διαφορετικό από
+  // εκείνο του κλεισίματος.
+  const total = tillExpensesOnly(
+    all.filter((e) => e.shift_id === shiftId),
+    categories
+  ).reduce((sum, e) => sum + (e.payment_method !== 'CARD' ? Number(e.amount) || 0 : 0), 0);
   await updateShiftInFirestore(shiftId, { expenses_paid_cash: total });
 }
 

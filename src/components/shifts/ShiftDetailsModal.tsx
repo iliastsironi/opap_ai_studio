@@ -37,6 +37,7 @@ import { HandoverReceipts } from '../notifications/HandoverReceipts.tsx';
 import { fetchShiftReconciliationExpenses, type ExpenseRecord } from '../../services/moduleServices.ts';
 import { expenseOrigin, isCarriedExpense } from '../../lib/expenseCarry.ts';
 import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
+import { tillExpensesOnly } from '../../lib/expenseCategories.ts';
 import { packIsGone, packWarning } from '../../lib/scratchPackWarning.ts';
 import { activePackLabel } from '../../lib/scratchOnTheCounter.ts';
 import { formatQuantity, quantityView } from '../../lib/lotteryQuantityView.ts';
@@ -178,7 +179,10 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
     return () => { cancelled = true; };
   }, [shift?.id]);
 
-  const ownExpenses = shiftExpenses.filter(
+  // Ό,τι δεν πληρώθηκε από το συρτάρι (έξοδα με κατηγορία «εκτός ταμείου», π.χ.
+  // πάγια) δεν είναι έξοδο της βάρδιας: ούτε στη λίστα ούτε στο άθροισμα.
+  const tillRows = tillExpensesOnly(shiftExpenses, expenseCategories);
+  const ownExpenses = tillRows.filter(
     (e) => !isCarriedExpense(e as any, shift?.id ?? '')
   );
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -542,7 +546,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               total: shift.custom_field_values?.expenses_gp_cash ?? shift.expenses_paid_cash,
               storedGp: shift.custom_field_values?.expenses_gp_cash,
               storedFnb: shift.custom_field_values?.expenses_fnb_cash,
-              rows: shiftExpenses,
+              rows: tillRows,
               categories: expenseCategories,
             });
             const expensesGpCashTotal = expenseSplit.gp;
@@ -1701,14 +1705,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                   their own, so this panel said «δεν υπάρχουν καταχωρημένα
                   έξοδα» on every shift ever opened - including one with two
                   rows against it. */}
-              {shiftExpenses.length > 0 ? (
+              {tillRows.length > 0 ? (
                 <div>
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
                     <Receipt className="w-4 h-4 text-indigo-600" />
                     <span>Έξοδα Βάρδιας ({ownExpenses.length})</span>
                   </h3>
                   <div className="space-y-2">
-                    {shiftExpenses.map((exp) => (
+                    {tillRows.map((exp) => (
                       <div
                         key={exp.id}
                         className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"

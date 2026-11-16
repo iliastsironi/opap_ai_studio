@@ -26,6 +26,7 @@ const inputClass =
 export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = ({ orgId, existing, onClose, onCreated }) => {
   const [label, setLabel] = useState('');
   const [side, setSide] = useState<ExpenseSide>('AGENCY');
+  const [paidFromTill, setPaidFromTill] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +40,8 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
     setIsSaving(true);
     setError(null);
     try {
-      onCreated(await createExpenseCategory(orgId, trimmed, side, existing.map((c) => c.key)));
+      // Έξοδο εταιρίας δεν περνάει ποτέ από ταμείο, οπότε ο διακόπτης δεν έχει νόημα εκεί.
+      onCreated(await createExpenseCategory(orgId, trimmed, side, existing.map((c) => c.key), side === 'COMPANY' ? true : paidFromTill));
       onClose();
     } catch (err: any) {
       setError(err.message || 'Η δημιουργία απέτυχε.');
@@ -112,6 +114,31 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
             βαραίνουν κανένα μαγαζί, πάνε στα Έξοδα Εταιρίας. Αλλάζει αργότερα.
           </p>
         </fieldset>
+
+        {side !== 'COMPANY' && (
+          <label
+            htmlFor="new-category-from-till"
+            className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+              paidFromTill ? 'border-slate-300 bg-white' : 'border-indigo-500 bg-indigo-50'
+            }`}
+          >
+            <input
+              id="new-category-from-till"
+              type="checkbox"
+              checked={paidFromTill}
+              onChange={(e) => setPaidFromTill(e.target.checked)}
+              className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+            />
+            <span className="text-sm">
+              <strong className="font-bold text-slate-800">Πληρώνεται από το ταμείο της βάρδιας</strong>
+              <span className="block text-micro text-slate-500 mt-0.5">
+                Αν το ξετσεκάρετε, τα έξοδα αυτής της κατηγορίας μένουν έξοδα του καταστήματος στο P&L, αλλά{' '}
+                <strong>δεν χρεώνουν ποτέ το ταμείο</strong> (π.χ. ενοίκιο που πάει με έμβασμα). Ισχύει από εδώ και πέρα·
+                οι κλεισμένες βάρδιες μένουν όπως είναι.
+              </span>
+            </span>
+          </label>
+        )}
 
         {error && <p className="text-xs font-bold text-rose-700">{error}</p>}
       </div>

@@ -7,6 +7,8 @@ import {
   updateAndSyncShiftExpense, ExpenseRecord,
 } from '../../services/moduleServices.ts';
 import { fetchActiveShiftFromFirestore } from '../../services/shiftService.ts';
+import { moveStoreExpenseToCompany, moveCompanyExpenseToStore, shiftStatusOf } from '../../services/expenseMoves.ts';
+import { categoryChangeBlock } from '../../lib/expenseMove.ts';
 import { fetchSuppliersFromFirestore } from '../../services/supplierService.ts';
 import { Shift, Supplier } from '../../types/index.ts';
 import { Pencil, Trash2 } from 'lucide-react';
@@ -24,6 +26,8 @@ import {
   canManageExpenseCategories,
   canRecordCompanyExpense,
   isCompanyCategory,
+  countsInTill,
+  isLiveShiftStatus,
   offerableCategories,
 } from '../../lib/expenseCategories.ts';
 import { roleCodesOf } from '../../lib/authCircles.ts';
@@ -148,6 +152,8 @@ export const ExpensesManager: React.FC = () => {
    * κατηγορία «ΕΦΚΑ δόσεις» με πλευρά COMPANY πάει κι αυτή στην εταιρία.
    */
   const isCompanyEntry = isCompanyCategory(category, categories);
+  /** Βγαίνει αυτή η κατηγορία από το συρτάρι της βάρδιας; (όχι για εταιρικά - αυτά δεν έχουν βάρδια) */
+  const categoryCountsInTill = countsInTill(category, categories);
   /**
    * Με ποια κατηγορία εμφανίζεται ένα έξοδο εταιρίας στη λίστα.
    *
@@ -341,28 +347,76 @@ export const ExpensesManager: React.FC = () => {
         return;
       }
 
-      if (editing && isCompanyEntry !== !!editing.isCompany) {
-        setCreateError(
-          'Ένα έξοδο δεν αλλάζει από έξοδο καταστήματος σε έξοδο εταιρίας. Σβήστε το και καταχωρήστε το ξανά.'
-        );
-        setSubmitting(false);
-        return;
-      }
-
       // ── Διόρθωση ────────────────────────────────────────────────────
-      // Το είδος του εξόδου δεν αλλάζει εδώ: ένα έξοδο καταστήματος και
-      // ένα εταιρικό ζουν σε διαφορετικούς πίνακες, οπότε η μετακίνηση
-      // δεν είναι διόρθωση πεδίου - είναι διαγραφή και νέα καταχώρηση,
-      // και πρέπει να φαίνεται έτσι στο ίχνος.
+      // Η κατηγορία αλλάζει ελεύθερα. Όταν αλλάζει και ο πίνακας (κατάστημα ↔
+      // εταιρία) το έξοδο ΜΕΤΑΚΙΝΕΙΤΑΙ: γράφεται στον νέο, σβήνεται από τον
+      // παλιό, και αν το σβήσιμο αποτύχει ακυρώνεται η εγγραφή - δες
+      // lib/expenseMove.ts. Μένει στο ίχνος ως διαγραφή και νέα εγγραφή.
       if (editing) {
-        if (editing.isCompany) {
+        const wasCompany = !!editing.isCompany;
+        const dateForRecord = expenseDate || editing.date || athensDateKey(new Date().toISOString());
+
+        if (wasCompany && isCompanyEntry) {
           await updateCompanyDailyExpense(editing.id, {
-            expenseDate: expenseDate || athensDateKey(new Date().toISOString()),
+            expenseDate: dateForRecord,
             payee: finalRecipient,
             amount: amountCheck.value,
             note: notes || null,
           });
+        } else if (!wasCompany && isCompanyEntry) {
+          await moveStoreExpenseToCompany(
+            {
+              id: editing.id,
+              organization_id: orgId,
+              store_id: editing.store_id,
+              shift_id: editing.shift_id,
+              recipient: finalRecipient,
+              amount: amountCheck.value,
+              notes: notes || undefined,
+              date: dateForRecord,
+            },
+            user?.id
+          );
+        } else if (wasCompany && !isCompanyEntry) {
+          if (!targetStoreId || targetStoreId === 'ALL') {
+            setCreateError('Διαλέξτε κατάστημα για το έξοδο.');
+            setSubmitting(false);
+            return;
+          }
+          await moveCompanyExpenseToStore(
+            {
+              id: editing.id,
+              organizationId: orgId,
+              payee: finalRecipient,
+              amount: amountCheck.value,
+              note: notes || null,
+              expenseDate: dateForRecord,
+            },
+            {
+              storeId: targetStoreId,
+              category,
+              paymentMethod,
+              userId: user?.id,
+              userName: user ? `${user.first_name} ${user.last_name}` : undefined,
+            }
+          );
         } else {
+          // Κατάστημα → κατάστημα. Αν η αλλαγή βγάζει το έξοδο από το ταμείο ή το
+          // βάζει σε αυτό, και η βάρδια του έχει ήδη κλείσει, δεν γίνεται: η
+          // κλεισμένη βάρδια μένει όπως είναι.
+          const status = await shiftStatusOf(editing.shift_id);
+          const blocked = categoryChangeBlock({
+            fromCountsInTill: countsInTill(editing.category, categories),
+            toCountsInTill: categoryCountsInTill,
+            toCompany: false,
+            shiftStatus: status,
+            shiftIsLive: isLiveShiftStatus(status),
+          });
+          if (blocked) {
+            setCreateError(blocked);
+            setSubmitting(false);
+            return;
+          }
           await updateAndSyncShiftExpense(
             {
               id: editing.id,
@@ -418,7 +472,9 @@ export const ExpensesManager: React.FC = () => {
             notes: notes || undefined,
             date: expenseDate || undefined,
           },
-          activeShift
+          // Μια κατηγορία «εκτός ταμείου» (π.χ. Πάγια Έξοδα) δεν δένεται στη
+          // βάρδια που τυχαίνει να είναι ανοιχτή.
+          categoryCountsInTill ? activeShift : null
         );
       }
 
@@ -967,7 +1023,13 @@ export const ExpensesManager: React.FC = () => {
                 </div>
               )}
 
-              {/* Active Shift Indicator */}
+              {/* Η βάρδια αφορά μόνο ΝΕΟ έξοδο καταστήματος που πληρώνεται από το
+                  ταμείο. Ένα έξοδο εταιρίας δεν δένεται ποτέ σε βάρδια (το
+                  addCompanyDailyExpense δεν παίρνει βάρδια), οπότε το μήνυμα εδώ
+                  έλεγε το αντίθετο από το γαλάζιο πλαίσιο από πάνω. Και μια
+                  κατηγορία «εκτός ταμείου» (π.χ. Πάγια Έξοδα) δεν χρεώνει το
+                  ταμείο όποια βάρδια κι αν είναι ανοιχτή. */}
+              {!editing && !isCompanyEntry && categoryCountsInTill && (
               <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2">
                 <Clock className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="text-micro leading-tight">
@@ -987,6 +1049,38 @@ export const ExpensesManager: React.FC = () => {
                   )}
                 </div>
               </div>
+              )}
+              {!editing && !isCompanyEntry && !categoryCountsInTill && (
+              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-start space-x-2">
+                <Building2 className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                <div className="text-micro leading-tight">
+                  <p className="font-bold text-slate-800">Δεν χρεώνεται στο ταμείο της βάρδιας</p>
+                  <p className="text-slate-600 mt-0.5">
+                    Η κατηγορία δεν πληρώνεται από το συρτάρι. Μένει έξοδο του καταστήματος στο P&amp;L και
+                    δεν αλλάζει το ταμείο καμίας βάρδιας.
+                  </p>
+                </div>
+              </div>
+              )}
+              {/* Η διόρθωση που αλλάζει πίνακα λέει ξεκάθαρα τι θα γίνει. */}
+              {editing && !editing.isCompany && isCompanyEntry && (
+              <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-micro leading-tight text-amber-900">
+                <p className="font-bold">Μετακίνηση στα Έξοδα Εταιρίας</p>
+                <p className="mt-0.5">
+                  Το έξοδο σβήνεται από το κατάστημα και γράφεται στα έξοδα εταιρίας. Ο τρόπος πληρωμής και ο αριθμός
+                  απόδειξης δεν κρατιούνται εκεί. Αν ανήκει σε βάρδια που έχει κλείσει, η βάρδια μένει όπως είναι.
+                </p>
+              </div>
+              )}
+              {editing && editing.isCompany && !isCompanyEntry && (
+              <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-micro leading-tight text-amber-900">
+                <p className="font-bold">Μετακίνηση σε κατάστημα</p>
+                <p className="mt-0.5">
+                  Το έξοδο σβήνεται από τα Έξοδα Εταιρίας και γράφεται στο κατάστημα που διαλέγετε, χωρίς βάρδια. Διαλέξτε
+                  κατάστημα και τρόπο πληρωμής.
+                </p>
+              </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1017,14 +1111,12 @@ export const ExpensesManager: React.FC = () => {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
                   >
-                    {/* Σε διόρθωση, μόνο κατηγορίες της ίδιας πλευράς.
-                        Ένα έξοδο καταστήματος και ένα εταιρικό ζουν σε
-                        διαφορετικούς πίνακες· η μετακίνηση δεν είναι αλλαγή
-                        πεδίου και δεν γίνεται από εδώ. */}
-                    {(editing
-                      ? categoryOptions.filter(
-                          (c) => isCompanyCategory(c.key, categories) === !!editing.isCompany
-                        )
+                    {/* Σε διόρθωση, ΟΛΕΣ οι κατηγορίες που προσφέρονται, και η
+                        τρέχουσα του εξόδου ακόμα κι αν αποσύρθηκε. Αν η νέα
+                        είναι της άλλης πλευράς (κατάστημα ↔ εταιρία), το
+                        έξοδο μετακινείται - δες το handleCreateExpense. */}
+                    {(editing && !offeredCategories.some((c) => c.key === editing.category)
+                      ? [...offeredCategories, ...categories.filter((c) => c.key === editing.category)]
                       : offeredCategories
                     ).map((c) => (
                       <option key={c.key} value={c.key}>{c.label}</option>

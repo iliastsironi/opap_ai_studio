@@ -257,6 +257,8 @@ const toCategory = (r: any): ExpenseCategoryDef => ({
   sortOrder: Number(r.sort_order) || 0,
   isActive: r.is_active !== false,
   isBuiltin: r.is_builtin === true,
+  // Λείπει η στήλη (πριν το 0084) ή είναι null: ναι, όπως ήταν πάντα.
+  paidFromTill: r.paid_from_till !== false,
 });
 
 /**
@@ -279,10 +281,11 @@ export async function createExpenseCategory(
   orgId: string,
   label: string,
   side: ExpenseSide,
-  existingKeys: string[]
+  existingKeys: string[],
+  paidFromTill = true
 ): Promise<ExpenseCategoryDef> {
   const trimmed = label.trim();
-  const payload = {
+  const payload: Record<string, unknown> = {
     organization_id: orgId,
     key: expenseCategoryKey(trimmed, existingKeys),
     label: trimmed,
@@ -290,6 +293,9 @@ export async function createExpenseCategory(
     sort_order: 500,
     is_active: true,
     is_builtin: false,
+    // Γράφεται ΜΟΝΟ όταν είναι όχι: η προεπιλογή της βάσης είναι ναι, και
+    // έτσι μια νέα κατηγορία με ταμείο δεν εξαρτάται από το αν έτρεξε το 0084.
+    ...(paidFromTill ? {} : { paid_from_till: false }),
   };
   const { data, error } = await supabase.from(CATEGORIES_TABLE).insert(payload).select('*').single();
   if (error) throw new Error(error.message);
@@ -299,12 +305,13 @@ export async function createExpenseCategory(
 /** Μετονομασία, αλλαγή πλευράς, απόσυρση. Το key δεν αλλάζει ποτέ. */
 export async function updateExpenseCategory(
   id: string,
-  patch: { label?: string; side?: ExpenseSide; isActive?: boolean }
+  patch: { label?: string; side?: ExpenseSide; isActive?: boolean; paidFromTill?: boolean }
 ): Promise<void> {
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.label !== undefined) payload.label = patch.label.trim();
   if (patch.side !== undefined) payload.side = patch.side;
   if (patch.isActive !== undefined) payload.is_active = patch.isActive;
+  if (patch.paidFromTill !== undefined) payload.paid_from_till = patch.paidFromTill;
   const { error } = await supabase.from(CATEGORIES_TABLE).update(payload).eq('id', id);
   if (error) throw new Error(error.message);
 }

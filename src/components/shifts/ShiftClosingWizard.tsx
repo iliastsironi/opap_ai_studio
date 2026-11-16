@@ -193,7 +193,7 @@ import { handoverCutoffBefore, isOwnShift } from '../../lib/handoverCutoff.ts';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from '../../lib/expenseSuppliers.ts';
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
-import { ExpenseCategoryDef, isCompanyCategory, isFnbCategory } from '../../lib/expenseCategories.ts';
+import { ExpenseCategoryDef, countsInTill, isCompanyCategory, isFnbCategory, tillExpensesOnly } from '../../lib/expenseCategories.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
 import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
@@ -241,12 +241,7 @@ function getLocalDraft(shiftId?: string): any {
  * κρύβεται από την οθόνη και να χρεώνεται ούτως ή άλλως - το χειρότερο
  * είδος λάθους, γιατί δεν υπάρχει τίποτα στην οθόνη να το δείξει.
  */
-export function tillExpensesOnly<T extends { category?: string | null }>(
-  expenses: readonly T[],
-  categories: readonly ExpenseCategoryDef[]
-): T[] {
-  return expenses.filter((e) => !isCompanyCategory(e.category, categories));
-}
+export { tillExpensesOnly };
 
 export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   shift,
@@ -266,7 +261,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * θα μπορούσε να το γράψει εδώ και θα χρέωνε το ταμείο του.
    */
   const tillCategoryOptions = expenseCategoryOptions.filter(
-    (c) => !isCompanyCategory(c.key, expenseCategories)
+    (c) => countsInTill(c.key, expenseCategories)
   );
   const canManage =
     roles.some(
