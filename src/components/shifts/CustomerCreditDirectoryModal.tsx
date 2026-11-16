@@ -6,7 +6,6 @@ import {
   Search,
   Sliders,
   DollarSign,
-  AlertTriangle,
   AlertCircle,
   CheckCircle2,
   Trash2,
@@ -39,6 +38,7 @@ import { Modal, ModalActions } from '../ui/Modal.tsx';
 import { ConfirmDialog } from '../ui/ConfirmDialog.tsx';
 import { IconButton } from '../ui/IconButton.tsx';
 import { MoneyField } from '../ui/MoneyField.tsx';
+import { CreditFigureCells } from './CreditFigureCells.tsx';
 import {
   CUSTOMER_SORT_OPTIONS,
   DEFAULT_CUSTOMER_SORT,
@@ -503,9 +503,9 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 font-extrabold uppercase tracking-wider text-micro">
                       <th className="p-3">Ονοματεπώνυμο / Τηλέφωνο</th>
                       <th className="p-3 text-center">Credit Score</th>
-                      <th className="p-3 text-right">Όριο Πίστωσης</th>
+                      <th className="p-3 text-right">Όριο</th>
                       <th className="p-3 text-right">Τρέχουσα Οφειλή</th>
-                      <th className="p-3 text-right">Διαθέσιμο Περιθώριο</th>
+                      <th className="p-3 text-right">Υπόλοιπο Ορίου</th>
                       <th className="p-3 text-center">Ενέργειες</th>
                     </tr>
                   </thead>
@@ -522,8 +522,6 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                       paginatedCustomers.map((cust) => {
                         const { limit, isUnlimited, tierConfig } = getCustomerCreditLimit(cust, tierConfigs);
                         const debt = cust.current_debt || 0;
-                        const available = isUnlimited ? Infinity : Math.max(0, limit - debt);
-                        const isOverLimit = !isUnlimited && debt > limit;
 
                         return (
                           <tr key={cust.id} className="hover:bg-indigo-50/30 transition-colors">
@@ -550,48 +548,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                               </span>
                             </td>
 
-                            <td className="p-3 text-right font-mono font-bold text-slate-700">
-                              {isUnlimited ? (
-                                <span className="text-purple-700 font-black">Απεριόριστο</span>
-                              ) : (
-                                formatCurrency(limit)
-                              )}
-                            </td>
-
-                            <td className="p-3 text-right font-mono">
-                              <span
-                                className={`font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
-                                  debt > 0
-                                    ? isOverLimit
-                                      ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                      : 'bg-amber-50 text-amber-900 border border-amber-200'
-                                    : 'text-slate-500'
-                                }`}
-                              >
-                                {isOverLimit && <AlertTriangle className="w-3 h-3 shrink-0" />}
-                                {formatCurrency(debt)}
-                                {isOverLimit && <span className="font-sans font-bold text-micro uppercase">Υπέρβαση</span>}
-                              </span>
-                            </td>
-
-                            <td className="p-3 text-right font-mono">
-                              {isUnlimited ? (
-                                <span className="text-emerald-600 font-black">Άπειρο</span>
-                              ) : (
-                                <span
-                                  className={`font-black inline-flex items-center gap-1 ${
-                                    available <= 0
-                                      ? 'text-rose-600 font-bold'
-                                      : available < 50
-                                      ? 'text-amber-600'
-                                      : 'text-emerald-700'
-                                  }`}
-                                >
-                                  {formatCurrency(available)}
-                                  {available <= 0 && <span className="font-sans font-bold text-micro uppercase">Μηδέν</span>}
-                                </span>
-                              )}
-                            </td>
+                            <CreditFigureCells debt={debt} limit={limit} isUnlimited={isUnlimited} />
 
                             <td className="p-3 text-center">
                               <div className="flex items-center justify-center space-x-1.5">
