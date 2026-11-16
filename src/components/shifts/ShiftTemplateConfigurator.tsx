@@ -13,17 +13,13 @@ import {
   Calculator,
   RefreshCcw,
   Edit3,
-  ArrowUp,
-  ArrowDown,
+  ChevronDown,
   Eye,
   Euro,
-  Hash,
   CheckSquare,
-  FileText,
   ShieldCheck,
   AlertCircle,
   Info,
-  Sparkles,
   X,
   Ticket,
 } from 'lucide-react';
@@ -59,6 +55,33 @@ import { INSPECTION_MODE_OPTIONS, normalizeInspectionMode } from '../../lib/insp
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { COLLECTION_MODE_OPTIONS, normalizeCollectionMode } from '../../lib/collectionSummary.ts';
 
+/**
+ * Μια ομάδα ρυθμίσεων που ανοιγοκλείνει, κλειστή από προεπιλογή.
+ *
+ * Ο ιδιοκτήτης: «εδώ γίνεται ένας χαμός, χάνεσαι και μπερδεύεσαι, πρέπει να είναι πιο απλή η
+ * διαμόρφωση». Οι ρυθμίσεις της φόρμας ήταν μία μακριά σελίδα με 20 διακόπτες και 17 τίτλους.
+ * Τώρα κάθε ομάδα είναι ένας τίτλος με μία γραμμή εξήγηση, και ανοίγει μόνο όποια χρειάζεται.
+ *
+ * Native <details>: το περιεχόμενο μένει στη σελίδα και όταν είναι κλειστό, οπότε ό,τι έχει
+ * αλλάξει ο χρήστης (και δεν έχει σωθεί ακόμα) δεν χάνεται όταν κλείσει μια ομάδα.
+ */
+const AdvancedSection: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({
+  title,
+  hint,
+  children,
+}) => (
+  <details className="group bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+    <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden hover:bg-slate-50">
+      <span className="min-w-0">
+        <span className="block text-sm font-extrabold text-slate-900">{title}</span>
+        {hint && <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>}
+      </span>
+      <ChevronDown className="w-4 h-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+    </summary>
+    <div className="px-2 sm:px-4 pb-4 pt-4 space-y-4 border-t border-slate-100">{children}</div>
+  </details>
+);
+
 export const ShiftTemplateConfigurator: React.FC = () => {
   const { organization, hasPermission } = useAuth();
   const { currentStore } = useTenant();
@@ -71,10 +94,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Active View Tab
-  const [activeTab, setActiveTab] = useState<'FIELDS' | 'PREVIEW' | 'MODULES' | 'CATALOG'>('FIELDS');
-
-  // Filter in Fields Tab
-  const [fieldFilter, setFieldFilter] = useState<'ALL' | 'SYSTEM' | 'CUSTOM' | 'REPORTS' | 'COUNTING'>('ALL');
+  // Δύο καρτέλες, όχι τέσσερις. Ο ιδιοκτήτης: αλλάζει συχνά μόνο τον κατάλογο σκρατς και τις
+  // τιμές, οπότε αυτός ανοίγει πρώτος. Όλα τα άλλα είναι «Για προχωρημένους», κλειστά.
+  const [activeTab, setActiveTab] = useState<'CATALOG' | 'FORM'>('CATALOG');
+  /** Η προεπισκόπηση υπαλλήλου ήταν τέταρτη καρτέλα· τώρα ανοίγει από κουμπί. */
+  const [showPreview, setShowPreview] = useState(false);
 
   // New / Edit Custom Field Modal State
   const [showFieldModal, setShowFieldModal] = useState(false);
@@ -294,15 +318,6 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     }));
   };
 
-  const handleToggleFieldRequired = (fieldId: string) => {
-    setTemplate((prev) => ({
-      ...prev,
-      custom_fields: (prev.custom_fields || []).map((f) =>
-        f.id === fieldId ? { ...f, required: !f.required } : f
-      ),
-    }));
-  };
-
   const handleRemoveCustomField = (id: string) => {
     const field = template.custom_fields?.find((f) => f.id === id);
     if (field?.isSystemManaged) {
@@ -315,76 +330,12 @@ export const ShiftTemplateConfigurator: React.FC = () => {
     }));
   };
 
-  const handleMoveField = (index: number, direction: 'UP' | 'DOWN') => {
-    const fields = [...(template.custom_fields || [])];
-    const targetIndex = direction === 'UP' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= fields.length) return;
-
-    const temp = fields[index];
-    fields[index] = fields[targetIndex];
-    fields[targetIndex] = temp;
-
-    // re-assign order
-    const updated = fields.map((f, idx) => ({ ...f, order: idx + 1 }));
-
-    setTemplate((prev) => ({
-      ...prev,
-      custom_fields: updated,
-    }));
-  };
-
   const customFieldsList = template.custom_fields || [];
 
-  const filteredFields = customFieldsList.filter((f) => {
-    if (fieldFilter === 'SYSTEM') return f.isSystemManaged || f.type === 'SYSTEM_MANAGED';
-    if (fieldFilter === 'CUSTOM') return !f.isSystemManaged && f.type !== 'SYSTEM_MANAGED';
-    if (fieldFilter === 'REPORTS') return f.section === 'REPORTS';
-    if (fieldFilter === 'COUNTING') return f.section === 'COUNTING';
-    return true;
-  });
-
-  const renderTypeBadge = (type: TemplateFieldConfig['type'], isSys?: boolean) => {
-    if (isSys || type === 'SYSTEM_MANAGED' || type === 'FORMULA') {
-      return (
-        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-micro font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-300 shadow-2xs">
-          <Lock className="w-3 h-3 text-indigo-600" />
-          <span>Συστημικό - Αυτόματος Υπολογισμός</span>
-        </span>
-      );
-    }
-    switch (type) {
-      case 'CURRENCY':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-micro font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <Euro className="w-3 h-3 text-emerald-600" />
-            <span>Ποσό σε Ευρώ (€)</span>
-          </span>
-        );
-      case 'NUMBER':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-micro font-extrabold bg-blue-100 text-blue-800 border border-blue-300">
-            <Hash className="w-3 h-3 text-blue-600" />
-            <span>Αριθμός</span>
-          </span>
-        );
-      case 'BOOLEAN':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-micro font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-            <CheckSquare className="w-3 h-3 text-amber-600" />
-            <span>Διακόπτης (Ναι/Όχι)</span>
-          </span>
-        );
-      case 'TEXT':
-        return (
-          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-micro font-extrabold bg-slate-200 text-slate-800 border border-slate-300">
-            <FileText className="w-3 h-3 text-slate-600" />
-            <span>Κείμενο / Σημείωση</span>
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
+  /** Τα αυτόματα πεδία (υπολογίζονται μόνα τους, δεν αλλάζουν) και όσα προσθέτει ο ιδιοκτήτης. */
+  const isAutoField = (f: TemplateFieldConfig) => !!f.isSystemManaged || f.type === 'SYSTEM_MANAGED';
+  const autoFields = customFieldsList.filter(isAutoField);
+  const extraFields = customFieldsList.filter((f) => !isAutoField(f));
 
   if (loading) {
     return (
@@ -448,9 +399,21 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={() => setShowResetConfirm(true)}
+              onClick={() => setShowPreview(true)}
+              className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Δες πώς το βλέπει ο υπάλληλος</span>
+            </button>
+
+            {/* Επαναφορά και Αποθήκευση αφορούν ΜΟΝΟ τις ρυθμίσεις φόρμας. Ο κατάλογος σκρατς
+                σώζεται μόνος του, γραμμή γραμμή· τα δύο κουμπιά πάνω του θα ήταν παραπλανητικά. */}
+            {activeTab === 'FORM' && (
+              <>
+              <button
+                onClick={() => setShowResetConfirm(true)}
               className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold text-xs shadow-2xs transition-colors cursor-pointer"
             >
               <RefreshCcw className="w-3.5 h-3.5" />
@@ -465,17 +428,8 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <Save className="w-4 h-4" />
               <span>{saving ? 'Αποθήκευση...' : 'Αποθήκευση Αλλαγών'}</span>
             </button>
-          </div>
-        </div>
-
-        {/* Automatic Math Reassurance Badge */}
-        <div className="bg-indigo-50/80 border border-indigo-200/90 rounded-xl p-3 text-xs text-indigo-950 flex items-start space-x-2.5">
-          <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-extrabold text-indigo-900">⚡ Σταθεροί & Αυτόματοι Υπολογισμοί: </span>
-            <span className="text-indigo-800">
-              Οι μαθηματικοί τύποι (Καθαρά ΟΠΑΠ, Σκρατς, VLTs, Αποκλίσεις Ταμείου & Καταμετρήσεις) υπολογίζονται <strong>αυτόματα</strong> από το σύστημα. Εσείς απλά επιλέγετε ποιες ενότητες και ποια προαιρετικά πεδία θα είναι διαθέσιμα στη φόρμα.
-            </span>
+            </>
+            )}
           </div>
         </div>
       </div>
@@ -523,239 +477,35 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         confirmLabel="Ναι, Επαναφορά"
       />
 
-      {/* Main Mode Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* Δύο καρτέλες: ο κατάλογος σκρατς (ό,τι αλλάζει συχνά) και οι ρυθμίσεις φόρμας (σπάνια). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-b border-slate-200 pb-3">
+        {(
+          [
+            { id: 'CATALOG', icon: Ticket, title: 'Κατάλογος Σκρατς & Τιμές', hint: 'Τι σκρατς πουλάει το κατάστημα και σε ποια τιμή' },
+            { id: 'FORM', icon: Sliders, title: 'Ρυθμίσεις Φόρμας', hint: 'Για προχωρημένους · αλλάζουν σπάνια' },
+          ] as const
+        ).map((tab) => (
           <button
-            onClick={() => setActiveTab('FIELDS')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-              activeTab === 'FIELDS'
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            aria-pressed={activeTab === tab.id}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
+              activeTab === tab.id
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            <Calculator className="w-4 h-4" />
-            <span>📋 Πεδία Φόρμας</span>
-            <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-micro font-mono">
-              {customFieldsList.length}
+            <tab.icon className="w-5 h-5 shrink-0" />
+            <span>
+              <span className="block text-sm font-extrabold">{tab.title}</span>
+              <span className={`block text-micro font-medium ${activeTab === tab.id ? 'text-indigo-100' : 'text-slate-500'}`}>
+                {tab.hint}
+              </span>
             </span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('MODULES')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-              activeTab === 'MODULES'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>⚙️ Ενότητες OPAP</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('CATALOG')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-              activeTab === 'CATALOG'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Ticket className="w-4 h-4" />
-            <span>🎫 Κατάλογος Σκρατς</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('PREVIEW')}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-              activeTab === 'PREVIEW'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Eye className="w-4 h-4" />
-            <span>👁️ Προεπισκόπηση Υπαλλήλου</span>
-          </button>
-        </div>
-
-        {activeTab === 'FIELDS' && (
-          <button
-            onClick={handleOpenAddField}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Προσθήκη Πεδίου</span>
-          </button>
-        )}
+        ))}
       </div>
-
-      {/* TAB 1: FIELDS BUILDER */}
-      {activeTab === 'FIELDS' && (
-        <div className="space-y-4">
-          {/* Filter Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200">
-            <div className="flex items-center space-x-1.5 overflow-x-auto text-xs">
-              <span className="text-slate-500 font-bold px-2">Φίλτρο:</span>
-              {[
-                { id: 'ALL', label: 'Όλα' },
-                { id: 'SYSTEM', label: '🔒 Αυτόματα (Συστημικά)' },
-                { id: 'CUSTOM', label: '✍️ Υπαλλήλων (Προς συμπλήρωση)' },
-                { id: 'REPORTS', label: '📊 Αναφορές (Αριστερά)' },
-                { id: 'COUNTING', label: '💵 Καταμέτρηση (Δεξιά)' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setFieldFilter(f.id as any)}
-                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors cursor-pointer ${
-                    fieldFilter === f.id
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="text-micro text-slate-500 font-medium">
-              Εμφάνιση {filteredFields.length} από {customFieldsList.length} πεδία
-            </div>
-          </div>
-
-          {/* Fields List */}
-          <div className="space-y-3">
-            {filteredFields.length === 0 ? (
-              <div className="p-8 text-center bg-white border border-dashed border-slate-200 rounded-2xl text-slate-500 space-y-2">
-                <Sliders className="w-8 h-8 mx-auto text-slate-300" />
-                <p className="text-sm font-bold text-slate-700">Δεν βρέθηκαν πεδία</p>
-                <p className="text-xs text-slate-500">Δοκιμάστε διαφορετικό φίλτρο.</p>
-              </div>
-            ) : (
-              filteredFields.map((field, idx) => {
-                const isSystem = field.isSystemManaged || field.type === 'SYSTEM_MANAGED';
-
-                return (
-                  <div
-                    key={field.id}
-                    className={`p-4 rounded-2xl border transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                      isSystem
-                        ? 'bg-gradient-to-r from-indigo-50/70 via-white to-slate-50/80 border-indigo-200/90 shadow-2xs'
-                        : field.enabled
-                        ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
-                        : 'bg-slate-50 border-slate-200 opacity-60'
-                    }`}
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-extrabold text-sm text-slate-900">{field.label}</span>
-                        {renderTypeBadge(field.type, isSystem)}
-                        <span className="text-micro font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
-                          Ενότητα: {field.section === 'REPORTS' ? 'Αναφορές' : 'Καταμέτρηση / Έξοδα'}
-                        </span>
-                        {field.required && (
-                          <span className="text-micro font-bold px-2 py-0.5 bg-rose-100 text-rose-700 rounded border border-rose-200">
-                            Υποχρεωτικό
-                          </span>
-                        )}
-                      </div>
-
-                      {field.description && (
-                        <p className="text-xs text-slate-500 flex items-center space-x-1">
-                          <Info className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
-                          <span>{field.description}</span>
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Actions & Toggles */}
-                    <div className="flex items-center space-x-2 border-t md:border-t-0 pt-2 md:pt-0 border-slate-100">
-                      {/* Reorder Buttons */}
-                      <div className="flex flex-col space-y-2">
-                        <button
-                          onClick={() => handleMoveField(idx, 'UP')}
-                          disabled={idx === 0}
-                          className="p-2.5 text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
-                          title="Μετακίνηση Πάνω"
-                          aria-label="Μετακίνηση Πάνω"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleMoveField(idx, 'DOWN')}
-                          disabled={idx === filteredFields.length - 1}
-                          className="p-2.5 text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
-                          title="Μετακίνηση Κάτω"
-                          aria-label="Μετακίνηση Κάτω"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Enabled Toggle */}
-                      <button
-                        onClick={() => handleToggleFieldEnabled(field.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5 ${
-                          field.enabled
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500 border border-slate-200'
-                        }`}
-                      >
-                        {field.enabled ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Ενεργό</span>
-                          </>
-                        ) : (
-                          <span>Ανενεργό</span>
-                        )}
-                      </button>
-
-                      {!isSystem ? (
-                        <>
-                          <button
-                            onClick={() => handleToggleFieldRequired(field.id)}
-                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                              field.required
-                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                            }`}
-                            title="Εναλλαγή Υποχρεωτικού Πεδίου"
-                          >
-                            {field.required ? 'Υποχρ.' : 'Προαιρ.'}
-                          </button>
-
-                          <button
-                            onClick={() => handleOpenEditField(field)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
-                            title="Επεξεργασία Πεδίου"
-                            aria-label="Επεξεργασία Πεδίου"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleRemoveCustomField(field.id)}
-                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                            title="Διαγραφή Πεδίου"
-                            aria-label="Διαγραφή Πεδίου"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 text-micro font-bold rounded-xl flex items-center space-x-1">
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          <span>Προστατευμένο</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
 
       {/* TAB: SCRATCH & LOTTERY CATALOGUE
           Which games the store sells and in what order. Kept in the database
@@ -819,29 +569,18 @@ export const ShiftTemplateConfigurator: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: INTERACTIVE LIVE PREVIEW */}
-      {activeTab === 'PREVIEW' && (
+      {/* Πώς το βλέπει ο υπάλληλος: παράθυρο που ανοίγει από το κουμπί της κεφαλίδας, όχι καρτέλα. */}
+      <Modal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        headerStyle="bordered"
+        title="Πώς το βλέπει ο υπάλληλος"
+        size="xl"
+      >
         <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-6 shadow-xl border border-slate-800">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-sm">
-                <Eye className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-white">
-                  Ζωντανή Προεπισκόπηση Υπαλλήλου (Employee Closing Preview)
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Έτσι εμφανίζεται η φόρμα κλεισίματος βάρδιας στους υπαλλήλους με τα ενεργά συστημικά & προσαρμοσμένα πεδία.
-                </p>
-              </div>
-            </div>
-
-            <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/30 flex items-center space-x-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Interactive Live Preview</span>
-            </span>
-          </div>
+          <p className="text-xs text-slate-400 border-b border-slate-800 pb-4">
+            Έτσι εμφανίζεται η φόρμα κλεισίματος βάρδιας στους υπαλλήλους, με τα ενεργά αυτόματα και επιπλέον πεδία.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* LEFT COLUMN: REPORTS */}
@@ -1013,10 +752,20 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {activeTab === 'FORM' && (
+        <p className="text-xs text-slate-500 px-1">
+          Αυτές οι ρυθμίσεις αλλάζουν σπάνια. Ανοίξτε μόνο όποια ομάδα χρειάζεστε και πατήστε «Αποθήκευση Αλλαγών» πάνω δεξιά.
+        </p>
       )}
 
       {/* TAB 3: SUBSYSTEM MODULES */}
-      {activeTab === 'MODULES' && (
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Ενότητες που βλέπει η βάρδια"
+          hint="Ποια παιχνίδια και υποσυστήματα εμφανίζονται: Σκρατς, Tora, Ιππόδρομος, VLTs, FnB…"
+        >
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
@@ -1107,6 +856,97 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             })}
           </div>
         </div>
+        </AdvancedSection>
+      )}
+
+      {/* Επιπλέον πεδία: μόνο όσα μπορεί να αλλάξει ο ιδιοκτήτης. Τα αυτόματα (υπολογίζονται μόνα
+          τους, δεν αλλάζουν) είναι μία γραμμή στο τέλος αντί για έξι κάρτες με τέσσερα σήματα. */}
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Επιπλέον πεδία"
+          hint={`${extraFields.length} πεδία που συμπληρώνει ο υπάλληλος στο κλείσιμο, π.χ. κατάθεση στο χρηματοκιβώτιο`}
+        >
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-500 max-w-xl">
+                Άνοιξε ή κλείσε όποιο πεδίο θέλεις. Το «Υποχρεωτικό» και η ετικέτα αλλάζουν από το μολύβι.
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenAddField}
+                className="flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Προσθήκη Πεδίου</span>
+              </button>
+            </div>
+
+            {extraFields.length === 0 ? (
+              <p className="text-xs text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-xl">
+                Δεν υπάρχουν επιπλέον πεδία.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {extraFields.map((field) => (
+                  <li key={field.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className={`font-bold text-sm ${field.enabled ? 'text-slate-900' : 'text-slate-400'}`}>
+                        {field.label}
+                      </span>
+                      {field.required && (
+                        <span className="ml-2 text-micro font-bold px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded border border-rose-200">
+                          Υποχρεωτικό
+                        </span>
+                      )}
+                      {field.description && <p className="text-xs text-slate-500 mt-0.5">{field.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!!field.enabled}
+                        aria-label={`${field.label}: ${field.enabled ? 'ενεργό' : 'ανενεργό'}`}
+                        onClick={() => handleToggleFieldEnabled(field.id)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          field.enabled
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                        }`}
+                      >
+                        {field.enabled ? 'Ενεργό' : 'Ανενεργό'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditField(field)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
+                        title="Επεξεργασία Πεδίου"
+                        aria-label="Επεξεργασία Πεδίου"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCustomField(field.id)}
+                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                        title="Διαγραφή Πεδίου"
+                        aria-label="Διαγραφή Πεδίου"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {autoFields.length > 0 && (
+              <p className="text-xs text-slate-500 border-t border-slate-100 pt-3">
+                <strong className="text-slate-700">Αυτόματα ({autoFields.length}):</strong>{' '}
+                {autoFields.map((f) => f.label).join(' · ')}. Υπολογίζονται μόνα τους, εμφανίζονται πάντα και δεν αλλάζουν.
+              </p>
+            )}
+          </div>
+        </AdvancedSection>
       )}
 
       {/* TAB 3 (cont.): HOW THIS STORE COUNTS
@@ -1114,7 +954,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           shift-opening screen, typed by the employee whose till they measure.
           They decide what counts as a shortage and what the drawer is weighed
           against, so they belong to the Owner. */}
-      {activeTab === 'MODULES' && (
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Κανόνες ταμείου & βάρδιας"
+          hint="Πάγιο ταμείο, κέρματα, όριο απόκλισης, βάρδιες την ημέρα, τερματικά POS"
+        >
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
           <div className="border-b border-slate-100 pb-3">
             <h3 className="font-extrabold text-slate-900 text-sm">Κανόνες Ταμείου & Βάρδιας</h3>
@@ -1509,10 +1353,15 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </button>
           </div>
         </div>
+        </AdvancedSection>
       )}
 
       {/* TAB 3 (cont.): SCRATCH/LOTTERY COUNTING DEFAULTS */}
-      {activeTab === 'MODULES' && (
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Καταμέτρηση σκρατς & λαχείων"
+          hint="Πώληση μπροστά και πίσω, λαχεία σε πεντάδες"
+        >
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
@@ -1578,11 +1427,16 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             })}
           </div>
         </div>
+        </AdvancedSection>
       )}
 
       {/* TAB 3 (cont.): SCRATCH SELLING MODE - hard per-store ceiling, distinct
           from the soft scratch_backside_default toggle above. Owner-only. */}
-      {activeTab === 'MODULES' && (
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Λειτουργία πώλησης σκρατς"
+          hint="Πώς πουλάει σκρατς το κατάστημα — μόνο ο ιδιοκτήτης"
+        >
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
@@ -1620,6 +1474,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             )}
           </div>
         </div>
+        </AdvancedSection>
       )}
 
       {/* TAB 3 (cont.): three more Owner-only "how this store sells" settings -
@@ -1627,7 +1482,11 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           simple setTemplate + top-level "Αποθήκευση Αλλαγών" save as the
           generic module toggles, just gated Owner-only instead of canEdit
           since these are policy, not form-layout, decisions. */}
-      {activeTab === 'MODULES' && (
+      {activeTab === 'FORM' && (
+        <AdvancedSection
+          title="Λοιπές ρυθμίσεις καταστήματος"
+          hint="Εθνικό Λαχείο, μονάδα μέτρησης λαχείων — μόνο ο ιδιοκτήτης"
+        >
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-5">
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
@@ -1776,6 +1635,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
           </div>
 
         </div>
+        </AdvancedSection>
       )}
 
       {showScratchModeModal && (
