@@ -126,10 +126,12 @@ export const ExpensesManager: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
   /**
-   * «Χρέωση στο ταμείο της βάρδιας που τρέχει». Ξεκινά ΑΤΣΕΚΑΡΙΣΤΟ: ό,τι δεν
-   * τσεκάρει κανείς δεν χρεώνεται σε κανένα ταμείο, καταχωρείται μόνο στα έξοδα.
+   * «Χρέωση στο ταμείο της βάρδιας που τρέχει». Ξεκινά ΤΣΕΚΑΡΙΣΜΕΝΟ, όπως
+   * χρεωνόταν πάντα κάθε έξοδο καταστήματος· το ξετσεκάρει όποιος δεν θέλει να
+   * χρεωθεί κανένα ταμείο και το έξοδο καταχωρείται μόνο στα έξοδα. (Ένα έξοδο
+   * εταιρίας δεν έχει τσεκ: είναι πάντα ανεξάρτητο.)
    */
-  const [chargeToTill, setChargeToTill] = useState(false);
+  const [chargeToTill, setChargeToTill] = useState(true);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [recipient, setRecipient] = useState('');
   const [customRecipient, setCustomRecipient] = useState('');
@@ -159,12 +161,14 @@ export const ExpensesManager: React.FC = () => {
   /** Χρεωνόταν ήδη στο ταμείο το έξοδο που διορθώνεται; (Λείπει η στήλη = ναι, όπως κάθε παλιό έξοδο.) */
   const wasCharged = !!editing && !editing.isCompany && editing.charged_to_till !== false;
   /**
-   * Μπορεί να τσεκαριστεί η χρέωση; Χρειάζεται βάρδια που τρέχει. Σε διόρθωση
-   * ενός έξοδου που ήδη χρεώνεται μένει ενεργό, ώστε να βγαίνει από το ταμείο.
+   * Το τσεκ όπως ισχύει. Δεν χρειάζεται ανοιχτή βάρδια για να μείνει τσεκαρισμένο:
+   * ένα έξοδο που γράφεται ανάμεσα σε πρωινή και βραδινή (καμία βάρδια ανοιχτή)
+   * πέφτει στο ταμείο της ΗΜΕΡΑΣ - ο υπολογισμός ταμείου (0044) αθροίζει όλα τα έξοδα
+   * του καταστήματος για την ημερομηνία - και η βραδινή το βρίσκει όταν κλείσει.
+   * Αν το τσεκ μπλοκαριζόταν εδώ, αυτά τα έξοδα θα έβγαιναν από το ταμείο και η
+   * βραδινή θα έβγαινε πλεονασματική.
    */
-  const canCharge = !!activeShift || wasCharged;
-  /** Το τσεκ όπως ισχύει ΠΡΑΓΜΑΤΙΚΑ: τσεκαρισμένο κι έγκυρο. (Αν άλλαξε το κατάστημα και δεν έχει βάρδια, δεν μετράει.) */
-  const effectiveCharge = chargeToTill && canCharge;
+  const effectiveCharge = chargeToTill;
   /**
    * Με ποια κατηγορία εμφανίζεται ένα έξοδο εταιρίας στη λίστα.
    *
@@ -298,7 +302,7 @@ export const ExpensesManager: React.FC = () => {
     setCustomRecipient('');
     setReceiptNumber('');
     setNotes('');
-    setChargeToTill(false);
+    setChargeToTill(true);
   };
 
   /**
@@ -434,7 +438,10 @@ export const ExpensesManager: React.FC = () => {
             return;
           }
           const unCharge = wasCharged && !effectiveCharge;
-          const newlyCharged = !wasCharged && effectiveCharge && !!activeShift;
+          const newlyCharged = !wasCharged && effectiveCharge;
+          // Με βάρδια που τρέχει, δένεται σε αυτήν· χωρίς, μένει ελεύθερο και το
+          // βρίσκει το ταμείο της ημέρας (δες effectiveCharge).
+          const tiesToRunningShift = newlyCharged && !!activeShift;
           await updateAndSyncShiftExpense(
             {
               id: editing.id,
@@ -451,11 +458,12 @@ export const ExpensesManager: React.FC = () => {
               notes: notes || undefined,
               date: expenseDate || undefined,
               ...(unCharge ? { charged_to_till: false, shift_id: null } : {}),
-              ...(newlyCharged ? { charged_to_till: true, shift_id: activeShift!.id } : {}),
+              ...(newlyCharged ? { charged_to_till: true } : {}),
+              ...(tiesToRunningShift ? { shift_id: activeShift!.id } : {}),
             }
           );
           // Η βάρδια που το κρατούσε ξαναμετρήθηκε μέσα στο updateAndSync· η νέα, εδώ.
-          if (newlyCharged) {
+          if (tiesToRunningShift) {
             await syncShiftExpensesCashTotal(orgId, editing.store_id, activeShift!.id).catch((err) =>
               console.warn('Could not sync expenses_paid_cash after charging an expense:', err)
             );
@@ -497,11 +505,11 @@ export const ExpensesManager: React.FC = () => {
             receipt_number: receiptNumber || undefined,
             notes: notes || undefined,
             date: expenseDate || undefined,
-            charged_to_till: !!(effectiveCharge && activeShift),
+            charged_to_till: effectiveCharge,
           },
-          // Δένεται στη βάρδια που τρέχει ΜΟΝΟ αν το ζήτησε ο χρήστης. Αλλιώς δεν
-          // χρεώνεται σε κανένα ταμείο και καταχωρείται μόνο στα έξοδα.
-          effectiveCharge && activeShift ? activeShift : null
+          // Δένεται στη βάρδια που τρέχει όταν το τσεκ είναι πατημένο (και υπάρχει βάρδια).
+          // Ξετσεκαρισμένο: δεν χρεώνεται σε κανένα ταμείο, καταχωρείται μόνο στα έξοδα.
+          effectiveCharge ? activeShift : null
         );
       }
 
@@ -657,7 +665,7 @@ export const ExpensesManager: React.FC = () => {
               // «νέο έξοδο» πρέπει να είναι νέο έξοδο.
               setEditing(null);
               setCreateError(null);
-              setChargeToTill(false);
+              setChargeToTill(true);
               setShowModal(true);
             }}
             className="transition px-4 py-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center space-x-2 shadow-xs cursor-pointer"
@@ -1061,15 +1069,14 @@ export const ExpensesManager: React.FC = () => {
                 htmlFor="expense-charge-till"
                 className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors ${
                   effectiveCharge ? 'bg-indigo-50/70 border-indigo-200' : 'bg-slate-50 border-slate-200'
-                } ${canCharge ? 'cursor-pointer' : 'opacity-70'}`}
+                } cursor-pointer`}
               >
                 <input
                   id="expense-charge-till"
                   type="checkbox"
                   checked={effectiveCharge}
-                  disabled={!canCharge}
                   onChange={(e) => setChargeToTill(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
                 />
                 <span className="text-micro leading-tight">
                   <strong className="block font-bold text-slate-900">
@@ -1081,10 +1088,11 @@ export const ExpensesManager: React.FC = () => {
                     )}
                   </strong>
                   <span className="block text-slate-600 mt-0.5">
-                    {effectiveCharge
-                      ? 'Το έξοδο αφαιρείται από το ταμείο και μεταφέρεται αυτόματα στο κλείσιμο της βάρδιας.'
-                      : 'Δεν χρεώνεται σε κανένα ταμείο· καταχωρείται μόνο στα έξοδα.'}
-                    {!canCharge && ' Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή.'}
+                    {!effectiveCharge
+                      ? 'Δεν χρεώνεται σε κανένα ταμείο· καταχωρείται μόνο στα έξοδα.'
+                      : activeShift
+                        ? 'Το έξοδο αφαιρείται από το ταμείο και μεταφέρεται αυτόματα στο κλείσιμο της βάρδιας.'
+                        : 'Δεν υπάρχει ανοιχτή βάρδια αυτή τη στιγμή· θα μετρήσει στο ταμείο της ημερομηνίας του εξόδου, με την επόμενη βάρδια που θα κλείσει.'}
                   </span>
                 </span>
               </label>
