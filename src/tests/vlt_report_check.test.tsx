@@ -233,7 +233,7 @@ describe('ο πίνακας και η ειδοποίηση', () => {
     const html = table();
     const head = html.slice(html.indexOf('<thead>'), html.indexOf('</thead>'));
     expect(head.indexOf('Από τις βάρδιες')).toBeGreaterThan(0);
-    expect(head.indexOf('Report portal')).toBeGreaterThan(head.indexOf('Από τις βάρδιες'));
+    expect(head.indexOf('Report Allwynnet')).toBeGreaterThan(head.indexOf('Από τις βάρδιες'));
     expect(html).toContain('1.200,00');       // βάρδιες 15/11
     expect(html).toContain('value="1250"');   // report 15/11, γραμμένο στο πεδίο
   });
@@ -285,6 +285,35 @@ describe('ο πίνακας και η ειδοποίηση', () => {
 
 /* -------------------------------------------------------------- το καλώδιο */
 
+describe('το όνομα που βλέπει ο χρήστης: Report Allwynnet', () => {
+  const component = read('src/components/shifts/VltReportCheck.tsx');
+
+  it('η στήλη, το πεδίο, ο τίτλος, η περιγραφή και η ειδοποίηση το λένε Report Allwynnet', () => {
+    expect(component).toContain('<th className="p-3 text-right">Report Allwynnet</th>');
+    expect(component).toContain('aria-label={`Report Allwynnet ${formatDay(row.date)}`}');
+    expect(component).toContain("toGreekUpper('Ελεγχος VLT: βαρδιες και Report Allwynnet')");
+    expect(component).toContain('νούμερο από το Report Allwynnet.');
+    expect(component).toContain('Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες.');
+  });
+
+  it('το παλιό όνομα «portal» δεν φαίνεται πια πουθενά στην οθόνη', () => {
+    const visible = component.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(visible).not.toMatch(/Report portal/i);
+    expect(visible).not.toContain('report του portal');
+  });
+
+  it('το ονομάζει σωστά και η ειδοποίηση που ζωγραφίζεται', () => {
+    const banner = renderToStaticMarkup(
+      <VltAlertBanner
+        mismatches={buildVltDayRows({ shifts: [shift({ at: EVENING, vlts_cash_in: 100 })], reports: [{ store_id: 'lamia', report_date: '2026-11-15', amount: 150 }] })}
+        storeName={(id) => id}
+      />
+    );
+    expect(banner).toContain('Report Allwynnet');
+    expect(banner).not.toMatch(/portal/i);
+  });
+});
+
 describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () => {
   const manager = read('src/components/shifts/ShiftsManager.tsx');
   const service = read('src/services/vltReportService.ts');
@@ -334,7 +363,7 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
     expect(service).toContain("delete({ count: 'exact' })");
     expect(service).toContain('rowsWrittenProblem(count)');
     expect(service).toContain('reports: reportError ? [] :');
-    expect(component).toContain('Δεν φορτώθηκαν τα reports.');
+    expect(component).toContain('Δεν φορτώθηκαν τα Report Allwynnet.');
   });
 
   it('οι βάρδιες ζητούνται με περιθώριο ημερών, γιατί η ημέρα μιας βάρδιας είναι ημέρα Αθήνας', () => {

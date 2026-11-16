@@ -49,14 +49,14 @@ export const VltAlertBanner: React.FC<{
           Διαφορά στα μετρητά VLT σε {mismatches.length} {mismatches.length === 1 ? 'ημέρα' : 'ημέρες'}
         </p>
         <p className="text-rose-800 mt-0.5">
-          Το report του portal δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες. Ελέγξτε το νούμερο του report και, αν είναι
+          Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες. Ελέγξτε το νούμερο του Report Allwynnet και, αν είναι
           σωστό, τις βάρδιες εκείνης της ημέρας.
         </p>
         <ul className="mt-2 space-y-1">
           {mismatches.map((r) => (
             <li key={r.key} className="font-mono text-rose-900">
               <strong>{formatDay(r.date)}</strong> · {storeName(r.storeId)}: βάρδιες {formatCurrency(r.shiftsAmount)} ·
-              report {formatCurrency(r.report ?? 0)} · διαφορά <strong>{signed(r.difference ?? 0)}</strong>
+              Report Allwynnet {formatCurrency(r.report ?? 0)} · διαφορά <strong>{signed(r.difference ?? 0)}</strong>
             </li>
           ))}
         </ul>
@@ -109,7 +109,7 @@ export const VltCheckTable: React.FC<{
             <th className="p-3">Ημέρα</th>
             {showStore && <th className="p-3">Κατάστημα</th>}
             <th className="p-3 text-right">Από τις βάρδιες</th>
-            <th className="p-3 text-right">Report portal</th>
+            <th className="p-3 text-right">Report Allwynnet</th>
             <th className="p-3 text-right">Έλεγχος</th>
           </tr>
         </thead>
@@ -143,7 +143,7 @@ export const VltCheckTable: React.FC<{
                       readOnly={readOnly}
                       nonNegative
                       placeholder="—"
-                      aria-label={`Report portal ${formatDay(row.date)}`}
+                      aria-label={`Report Allwynnet ${formatDay(row.date)}`}
                       onChange={(next) => onDraftChange?.(row.key, next)}
                       onBlur={() => onCommit?.(row)}
                       className={`w-28 px-2.5 py-1.5 rounded-lg border text-right font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 ${
@@ -275,11 +275,11 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-            {toGreekUpper('Ελεγχος VLT: βαρδιες και report')}
+            {toGreekUpper('Ελεγχος VLT: βαρδιες και Report Allwynnet')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
             Δίπλα στα μετρητά στα VLTs που έγραψαν οι βάρδιες (το σύνολο της ημέρας, από την τελευταία βάρδια) γράψτε ένα
-            νούμερο από το report του portal. Συγκρίνεται μόνο όταν έχουν κλείσει όλες οι βάρδιες της ημέρας.
+            νούμερο από το Report Allwynnet. Συγκρίνεται μόνο όταν έχουν κλείσει όλες οι βάρδιες της ημέρας.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
 
       {reportsError && (
         <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-          <strong>Δεν φορτώθηκαν τα reports.</strong> Φαίνονται μόνο τα νούμερα των βαρδιών ({reportsError}). Αν είναι η
+          <strong>Δεν φορτώθηκαν τα Report Allwynnet.</strong> Φαίνονται μόνο τα νούμερα των βαρδιών ({reportsError}). Αν είναι η
           πρώτη φορά που ανοίγετε αυτή την καρτέλα, ο πίνακας των reports δεν έχει δημιουργηθεί ακόμα.
         </div>
       )}
