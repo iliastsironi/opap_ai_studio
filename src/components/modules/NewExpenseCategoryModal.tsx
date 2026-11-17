@@ -12,6 +12,12 @@ interface NewExpenseCategoryModalProps {
   onCreated: (category: ExpenseCategoryDef) => void;
 }
 
+const SIDE_CHOICES: Array<[ExpenseSide, string, string]> = [
+  ['AGENCY', 'Πρακτορείο', 'Έξοδα του πρακτορείου ΟΠΑΠ: μετράνε στην κερδοφορία του.'],
+  ['FNB', 'Καφές (F&B)', 'Έξοδα του καφέ και της εστίασης: μετράνε στην κερδοφορία του καφέ.'],
+  ['COMPANY', 'Εταιρία', 'ΕΦΚΑ, ΙΚΑ, εφορία: δεν βαραίνουν κανένα μαγαζί, πάνε στα Έξοδα Εταιρίας.'],
+];
+
 const inputClass =
   'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-brand';
 
@@ -56,6 +62,7 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
       icon={Tags}
       headerStyle="bordered"
       size="md"
+      layer="stacked"
       bodyAsForm
       onSubmit={handleSubmit}
       footer={<ModalActions onCancel={onClose} isSaving={isSaving} disabled={!canSave} />}
@@ -80,19 +87,16 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
         </div>
 
         <fieldset>
-          <legend className="block text-xs font-bold text-slate-600 mb-1">Σε ποια δουλειά ανήκει</legend>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {(
-              [
-                ['AGENCY', 'Πρακτορείο'],
-                ['FNB', 'Καφές (F&B)'],
-                ['COMPANY', 'Εταιρία'],
-              ] as Array<[ExpenseSide, string]>
-            ).map(([value, text]) => (
+          <legend className="block text-xs font-bold text-slate-600 mb-1.5">Σε ποια δουλειά ανήκει</legend>
+          {/* Κάθε επιλογή λέει τι σημαίνει, εκεί που διαλέγεται: η πλευρά
+              κρίνει σε ποια κερδοφορία πέφτει το έξοδο, και ένα όνομα μόνο του
+              («Εταιρία») δεν το εξηγεί. */}
+          <div className="space-y-2">
+            {SIDE_CHOICES.map(([value, text, hint]) => (
               <label
                 key={value}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${
-                  side === value ? 'border-brand bg-indigo-50 text-indigo-900' : 'border-slate-300 bg-white text-slate-700'
+                className={`flex items-start gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+                  side === value ? 'border-brand bg-indigo-50' : 'border-slate-300 bg-white hover:bg-slate-50'
                 }`}
               >
                 <input
@@ -101,16 +105,16 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
                   value={value}
                   checked={side === value}
                   onChange={() => setSide(value)}
-                  className="w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
+                  className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
                 />
-                <span className="text-sm font-bold">{text}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-slate-900">{text}</span>
+                  <span className="block text-micro text-slate-600 mt-0.5">{hint}</span>
+                </span>
               </label>
             ))}
           </div>
-          <p className="text-micro text-slate-500 mt-1.5">
-            Καθορίζει πού μετράνε τα έξοδα αυτής της κατηγορίας στο P&L. <strong>Εταιρία</strong> για ΕΦΚΑ, ΙΚΑ, εφορία: δεν
-            βαραίνουν κανένα μαγαζί, πάνε στα Έξοδα Εταιρίας. Αλλάζει αργότερα.
-          </p>
+          <p className="text-micro text-slate-500 mt-2">Αλλάζει αργότερα, από την «Επεξεργασία κατηγοριών».</p>
         </fieldset>
 
         {error && <p className="text-xs font-bold text-rose-700">{error}</p>}

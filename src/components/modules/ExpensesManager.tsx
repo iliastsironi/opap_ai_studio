@@ -1118,42 +1118,16 @@ export const ExpensesManager: React.FC = () => {
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-baseline justify-between gap-2 mb-1">
-                    <label htmlFor="expense-category" className="block text-slate-700 font-semibold">Κατηγορία</label>
-                    {/* Η δημιουργία ζει δίπλα στο πεδίο, όχι σε οθόνη
-                        ρυθμίσεων: τη στιγμή που λείπει μια κατηγορία είναι
-                        ακριβώς η στιγμή που κάποιος καταχωρεί το έξοδο.
-
-                        Μόνο για όποιον θα τον δεχτεί και η βάση. Κρύβεται
-                        αντί να απενεργοποιηθεί: ο υπάλληλος δεν αποκτάει
-                        ποτέ αυτό το δικαίωμα μέσα από αυτή τη φόρμα, οπότε
-                        ένα γκρίζο κουμπί θα ήταν μόνιμος θόρυβος. Η λίστα
-                        από κάτω του δίνει ήδη ό,τι μπορεί να γράψει. */}
-                    {canManageCategories && (
-                      <span className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setManageCategoriesOpen(true)}
-                          className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
-                        >
-                          Επεξεργασία κατηγοριών
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewCategoryOpen(true)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                        >
-                          + Νέα κατηγορία
-                        </button>
-                      </span>
-                    )}
-                  </div>
+                {/* Η κατηγορία έχει δική της γραμμή σε όλο το πλάτος. Δίπλα στο
+                    «Ποσό» έπεφτε σε στήλη των ~190px, και τα δύο κουμπιά της
+                    πατούσαν πάνω στην ετικέτα του διπλανού πεδίου. */}
+                <div className="sm:col-span-2">
+                  <label htmlFor="expense-category" className="block text-slate-700 font-semibold mb-1">Κατηγορία</label>
                   <select
                     id="expense-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"
+                    className="w-full border border-slate-300 rounded-lg p-2.5 bg-white font-medium"
                   >
                     {/* Σε διόρθωση, ΟΛΕΣ οι κατηγορίες που προσφέρονται, και η
                         τρέχουσα του εξόδου ακόμα κι αν αποσύρθηκε. Αν η νέα
@@ -1166,6 +1140,35 @@ export const ExpensesManager: React.FC = () => {
                       <option key={c.key} value={c.key}>{c.label}</option>
                     ))}
                   </select>
+                  {/* Η δημιουργία ζει δίπλα στο πεδίο, όχι σε οθόνη
+                      ρυθμίσεων: τη στιγμή που λείπει μια κατηγορία είναι
+                      ακριβώς η στιγμή που κάποιος καταχωρεί το έξοδο.
+
+                      Μόνο για όποιον θα τον δεχτεί και η βάση. Κρύβεται
+                      αντί να απενεργοποιηθεί: ο υπάλληλος δεν αποκτάει
+                      ποτέ αυτό το δικαίωμα μέσα από αυτή τη φόρμα, οπότε
+                      ένα γκρίζο κουμπί θα ήταν μόνιμος θόρυβος. Η λίστα
+                      από πάνω του δίνει ήδη ό,τι μπορεί να γράψει. */}
+                  {canManageCategories && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewCategoryOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <Plus aria-hidden="true" className="w-3.5 h-3.5" />
+                        Νέα κατηγορία
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManageCategoriesOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <Pencil aria-hidden="true" className="w-3.5 h-3.5" />
+                        Επεξεργασία κατηγοριών
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="expense-amount" className="block text-slate-700 font-semibold mb-1">Ποσό (€)</label>
@@ -1178,8 +1181,6 @@ export const ExpensesManager: React.FC = () => {
                     className="w-full border border-slate-300 rounded-lg p-2 font-mono font-bold text-slate-900 bg-white"
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Το βιβλίο της εταιρίας δεν κρατάει τρόπο πληρωμής, και
                     ένα πεδίο που συμπληρώνεται και πετιέται είναι χειρότερο
                     από ένα πεδίο που λείπει. */}

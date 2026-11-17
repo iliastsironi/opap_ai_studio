@@ -181,9 +181,9 @@ const screenAs = (...codes: string[]) => {
   return renderToStaticMarkup(<ExpensesManager />);
 };
 
-const BUTTON = '+ Νέα κατηγορία';
+const BUTTON = 'Νέα κατηγορία';
 
-describe('το κουμπί «+ Νέα κατηγορία» στη φόρμα του εξόδου', () => {
+describe('το κουμπί «Νέα κατηγορία» στη φόρμα του εξόδου', () => {
   it('ο υπάλληλος δεν το βλέπει καθόλου', () => {
     const html = screenAs('EMPLOYEE');
     expect(html).not.toContain(BUTTON);

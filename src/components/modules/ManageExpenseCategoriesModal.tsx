@@ -32,6 +32,8 @@ export const ManageExpenseCategoriesModal: React.FC<ManageExpenseCategoriesModal
   onChanged,
 }) => {
   const ordered = sortCategories(categories);
+  const visibleCount = ordered.filter((c) => c.isActive).length;
+  const hiddenCount = ordered.length - visibleCount;
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -90,6 +92,7 @@ export const ManageExpenseCategoriesModal: React.FC<ManageExpenseCategoriesModal
       icon={Tags}
       headerStyle="bordered"
       size="lg"
+      layer="stacked"
       footer={
         <button
           type="button"
@@ -101,10 +104,17 @@ export const ManageExpenseCategoriesModal: React.FC<ManageExpenseCategoriesModal
       }
     >
       <div className="space-y-3 text-sm" data-testid="manage-expense-categories">
-        <p className="text-xs text-slate-500">
-          Αλλάξτε το όνομα, τη σειρά ή κρύψτε όσες δεν χρησιμοποιείτε. Το νέο όνομα φαίνεται αμέσως και στα
-          παλιά έξοδα. Μια κρυμμένη κατηγορία δεν προτείνεται για νέα έξοδα, αλλά τα παλιά της έξοδα μένουν.
-        </p>
+        <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-xs text-slate-600">
+          <p>
+            Γράψτε πάνω στο όνομα για να το αλλάξετε, χρησιμοποιήστε τα βελάκια για τη σειρά, και το μάτι για να
+            κρύψετε όσες δεν χρησιμοποιείτε. Το νέο όνομα φαίνεται αμέσως και στα παλιά έξοδα. Μια κρυμμένη κατηγορία
+            δεν προτείνεται για νέα έξοδα, αλλά τα παλιά της έξοδα μένουν.
+          </p>
+          <p>Η αλλαγή πλευράς αλλάζει και τα παλιά έξοδα αυτής της κατηγορίας στο P&L.</p>
+          <p className="font-bold text-slate-700">
+            {visibleCount} ορατές{hiddenCount > 0 ? ` · ${hiddenCount} κρυμμένες` : ''}
+          </p>
+        </div>
 
         {globalError && <p className="text-xs font-bold text-rose-700">{globalError}</p>}
 
@@ -214,11 +224,6 @@ export const ManageExpenseCategoriesModal: React.FC<ManageExpenseCategoriesModal
                   {!c.isActive && <span className="text-micro font-bold text-slate-500">Κρυμμένη στα νέα έξοδα</span>}
                 </div>
 
-                {canChangeSide(c) && (
-                  <p className="pl-8 text-micro text-slate-500">
-                    Η αλλαγή πλευράς αλλάζει και τα παλιά έξοδα αυτής της κατηγορίας στο P&L.
-                  </p>
-                )}
                 {error && <p className="pl-8 text-micro font-bold text-rose-700">{error}</p>}
               </li>
             );

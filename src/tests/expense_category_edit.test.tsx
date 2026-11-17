@@ -185,10 +185,31 @@ describe('η οθόνη επεξεργασίας', () => {
     expect(src).toContain('disabled={busy || (c.isActive && !canHide)}');
   });
 
-  it('το κουμπί «Επεξεργασία κατηγοριών» είναι δίπλα στο «+ Νέα κατηγορία», μόνο για όποιον τις διαχειρίζεται', () => {
+  it('τα κουμπιά «Νέα κατηγορία» και «Επεξεργασία κατηγοριών» είναι κάτω από το πεδίο, μόνο για όποιον τις διαχειρίζεται', () => {
     const m = read('src/components/modules/ExpensesManager.tsx');
-    expect(m).toMatch(/\{canManageCategories && \(\s*<span className="flex items-center gap-3">\s*<button[\s\S]*?Επεξεργασία κατηγοριών[\s\S]*?\+ Νέα κατηγορία/);
+    expect(m).toMatch(/\{canManageCategories && \(\s*<div className="mt-2 flex flex-wrap items-center gap-2">\s*<button[\s\S]*?Νέα κατηγορία[\s\S]*?Επεξεργασία κατηγοριών/);
     expect(m).toMatch(/\{manageCategoriesOpen && canManageCategories && \(\s*<ManageExpenseCategoriesModal/);
     expect(m).toContain('onChanged={() => void reloadCategories()}');
+  });
+
+  it('η κατηγορία έχει δική της γραμμή σε όλο το πλάτος: τα κουμπιά δεν πατούν πάνω στο «Ποσό»', () => {
+    const m = read('src/components/modules/ExpensesManager.tsx');
+    const at = m.indexOf('htmlFor="expense-category"');
+    expect(at).toBeGreaterThan(0);
+    // Η ετικέτα είναι μόνη της: τίποτα (κουμπιά, σύνδεσμοι) δεν μοιράζεται τη γραμμή της.
+    expect(m.slice(at, m.indexOf('</label>', at))).not.toContain('<button');
+    // Και το κουτί της απλώνεται και στις δύο στήλες, πριν το «Ποσό».
+    expect(m.slice(m.lastIndexOf('<div', at - 1), at)).toContain('sm:col-span-2');
+    expect(m.indexOf('htmlFor="expense-amount"')).toBeGreaterThan(m.indexOf('Επεξεργασία κατηγοριών'));
+  });
+
+  it('τα παράθυρα κατηγοριών ανοίγουν πάνω από τη φόρμα του εξόδου (stacked)', () => {
+    expect(src).toContain('layer="stacked"');
+    expect(read('src/components/modules/NewExpenseCategoryModal.tsx')).toContain('layer="stacked"');
+  });
+
+  it('η προειδοποίηση για την αλλαγή πλευράς γράφεται μία φορά, όχι σε κάθε κατηγορία', () => {
+    const count = src.split('Η αλλαγή πλευράς αλλάζει και τα παλιά έξοδα').length - 1;
+    expect(count).toBe(1);
   });
 });
