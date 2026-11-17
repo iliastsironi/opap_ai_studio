@@ -68,6 +68,7 @@ import {
 } from '../../lib/scratchPackHistory.ts';
 import { isPackOpening, startNoForNewPack } from '../../lib/scratchPackOpening.ts';
 import { displayedRowCount } from '../../lib/lotteryQuantityView.ts';
+import { addToGroup, categoryFor, isWellPlaced, moveToGroupEnd } from '../../lib/scratchCatalogOrder.ts';
 import {
   belowEarlierShift, restoreEarlierFinals,
   type BelowEarlier, type FloorReading, type FloorSide, type RestoreResult,
@@ -141,6 +142,16 @@ export interface ScratchTicketRow {
   // lottery named without the word a scratch card. Rows that predate the
   // column leave it undefined and keep being inferred exactly as before.
   kind?: 'SCRATCH' | 'LOTTERY';
+  /**
+   * Κρυφό: ο ιδιοκτήτης δεν λειτουργεί αυτό το παιχνίδι αυτή την περίοδο.
+   *
+   * Κρύβεται ΜΟΝΟ από τον πίνακα του ταμείου - ποτέ από τα `rows` ή τα σύνολα,
+   * όπως οι εποχικές εκδόσεις. Μια πώληση που έχει ήδη καταχωρηθεί μένει
+   * μετρημένη, και η θέση ενός ανοιγμένου πακέτου δεν χάνεται: όταν το παιχνίδι
+   * ξαναεμφανιστεί, συνεχίζει από εκεί που έμεινε. Ζει στον κατάλογο
+   * (scratch_catalog.is_active = false), όχι στη γραμμή της βάρδιας.
+   */
+  hidden?: boolean;
 }
 
 /**
@@ -1798,6 +1809,9 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     const updated = rows.map((r) => {
       if (r.id !== id) return r;
       const nextRow = { ...r, [field]: value };
+      // Η κατηγορία ακολουθεί την τιμή («Σκρατς 5€» = σκρατς των 5 €), ώστε μια
+      // γραμμή που άλλαξε τιμή να μη μένει με την κατηγορία της παλιάς.
+      if (field === 'price' && !isLotteryRow(nextRow)) nextRow.category = categoryFor(nextRow);
       // Admin editing the initial piece total (startNo) on a bundle-tracked
       // row must recompute endNo in the same update - endNo = startNo - sold
       // is an invariant the backend trigger enforces (0008), so leaving a
@@ -2087,10 +2101,28 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
       startNo: '0',
       endNo: '',
     };
-    const updated = [...rows, newRow];
+    newRow.category = categoryFor(newRow);
+    // Στο τέλος της ομάδας της τιμής του και όχι στο τέλος της λίστας, δηλαδή
+    // μετά τα λαχεία: τα 5 € μένουν μαζί με τα 5 €.
+    const updated = addToGroup(rows, newRow);
     onChangeRows(updated);
     saveScratchCatalog(updated);
     setEditingRowId(newRow.id);
+  };
+
+  /**
+   * Τέλος της επεξεργασίας μιας γραμμής: αν η τιμή της την έβγαλε από την ομάδα
+   * της, πηγαίνει στο τέλος της νέας. Όχι σε κάθε ψηφίο (το «10» περνάει από το
+   * «1»), και όχι αν στέκεται ήδη σωστά - ένα «OK» δεν μετακινεί τίποτα.
+   */
+  const finishEditing = (id: string) => {
+    const i = rows.findIndex((r) => r.id === id);
+    if (i !== -1 && !isLotteryRow(rows[i]) && Number(rows[i].price) > 0 && !isWellPlaced(rows, i)) {
+      const updated = moveToGroupEnd(rows, id);
+      onChangeRows(updated);
+      saveScratchCatalog(updated);
+    }
+    setEditingRowId(null);
   };
 
   const handleRemoveRow = (id: string) => {
@@ -2203,10 +2235,11 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     })
   );
   const visibleRows =
-    hiddenSeasonal.length === 0 && awaitingRows.length === 0
+    hiddenSeasonal.length === 0 && awaitingRows.length === 0 && !rows.some((r) => r.hidden)
       ? rows
       : rows.filter(
-          (r) => !hiddenSeasonal.includes(r.id) && !awaitingRows.some((a) => a.id === r.id)
+          (r) =>
+            !r.hidden && !hiddenSeasonal.includes(r.id) && !awaitingRows.some((a) => a.id === r.id)
         );
 
   // Group rows by category
@@ -3189,7 +3222,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               {isEditing && (
                                 <button
                                   type="button"
-                                  onClick={() => setEditingRowId(null)}
+                                  onClick={() => finishEditing(row.id)}
                                   className="text-xs font-bold text-indigo-600 hover:text-indigo-800 px-1.5 py-1 cursor-pointer"
                                 >
                                   OK

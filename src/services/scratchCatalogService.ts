@@ -35,6 +35,8 @@ interface CatalogRow {
   sort_order: number;
   game_no: string | null;
   pack_pieces: number | null;
+  /** false = κρυφό παιχνίδι: ο ιδιοκτήτης δεν το λειτουργεί αυτή την περίοδο. */
+  is_active: boolean | null;
 }
 
 const toTicketRow = (r: CatalogRow): ScratchTicketRow => ({
@@ -49,6 +51,11 @@ const toTicketRow = (r: CatalogRow): ScratchTicketRow => ({
   ...(r.game_no ? { gameNo: String(r.game_no).trim() } : {}),
   ...(r.pack_pieces ? { packPieces: r.pack_pieces } : {}),
   backSideEnabled: r.back_side_enabled,
+  // Επιστρέφεται ΜΕ τη σημαία και όχι φιλτραρισμένο: οι γραμμές των βαρδιών
+  // περνούν από εδώ (μεταφορά αρχικού, συγχώνευση), και ένα κρυφό παιχνίδι με
+  // ανοιγμένο πακέτο δεν πρέπει να χάσει τη θέση του. Το κρύβει ο πίνακας του
+  // ταμείου, όχι η ανάγνωση.
+  ...(r.is_active === false ? { hidden: true } : {}),
 });
 
 /**
@@ -72,7 +79,7 @@ export async function fetchScratchCatalog(
   try {
     // A store's own list wins; the organisation-wide list (store_id NULL) is
     // the fallback, the same precedence shift_templates already uses.
-    let q = supabase.from(TABLE).select('*').eq('organization_id', orgId).eq('is_active', true);
+    let q = supabase.from(TABLE).select('*').eq('organization_id', orgId);
     q = storeId ? q.or(`store_id.eq.${storeId},store_id.is.null`) : q.is('store_id', null);
     const { data, error } = await q.order('sort_order', { ascending: true });
     if (error) throw error;
@@ -119,7 +126,7 @@ export async function fetchScratchCatalogForEditing(
   storeId?: string
 ): Promise<{ rows: ScratchTicketRow[]; fromDatabase: boolean }> {
   try {
-    let q = supabase.from(TABLE).select('code').eq('organization_id', orgId).eq('is_active', true);
+    let q = supabase.from(TABLE).select('code').eq('organization_id', orgId);
     q = storeId ? q.or(`store_id.eq.${storeId},store_id.is.null`) : q.is('store_id', null);
     const { data, error } = await q.limit(1);
     if (error) throw error;
@@ -195,7 +202,9 @@ function toCatalogRow(
     pack_pieces: row.packPieces && row.packPieces > 0 ? row.packPieces : null,
     back_side_enabled: row.backSideEnabled !== false,
     sort_order: sortOrder,
-    is_active: true,
+    // Κρυφό = ανενεργό. Η γραμμή μένει στον κατάλογο, στη θέση και με τις
+    // τιμές της, και ξαναεμφανίζεται με ένα κλικ.
+    is_active: row.hidden !== true,
     updated_at: new Date().toISOString(),
   };
 }

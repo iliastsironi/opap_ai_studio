@@ -600,8 +600,7 @@ export const ExpensesManager: React.FC = () => {
   const filteredExpenses = periodExpenses.filter((e) => {
     const matchesSearch =
       (e.notes || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (e.recipient || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.id.toLowerCase().includes(searchQuery.toLowerCase());
+      (e.recipient || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'ALL' || e.category === selectedCategory;
     const matchesDay = !selectedDay || e.date === selectedDay;
     return matchesSearch && matchesCategory && matchesDay;
@@ -901,7 +900,7 @@ export const ExpensesManager: React.FC = () => {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
-                <th className="px-4 py-3">{toGreekUpper('ID / Ημερομηνια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Ημερομηνια')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Προμηθευτης / Παραληπτης')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Κατηγορια')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Σημειωσεις / Περιγραφη')}</th>
@@ -923,15 +922,14 @@ export const ExpensesManager: React.FC = () => {
               ) : (
                 paginatedExpenses.map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono">
-                      <p className="font-bold text-slate-900">{exp.id}</p>
-                      {/* exp.date is the day the money was spent; created_at is
-                          when the row was written. The August import wrote all
-                          94 of its rows on one September evening, so created_at
-                          showed the whole month under the wrong date. */}
-                      <p className="text-micro text-slate-500">
-                        {new Date(`${exp.date}T00:00:00`).toLocaleDateString('el-GR')}
-                      </p>
+                    {/* The date, and nothing else: the row's internal id is a
+                        36-character code nobody reads out or acts on. exp.date
+                        is the day the money was spent; created_at is when the
+                        row was written. The August import wrote all 94 of its
+                        rows on one September evening, so created_at showed the
+                        whole month under the wrong date. */}
+                    <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
+                      {new Date(`${exp.date}T00:00:00`).toLocaleDateString('el-GR')}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-800">{exp.recipient || '—'}</td>
                     <td className="px-4 py-3">{getCategoryBadge(exp.category)}</td>

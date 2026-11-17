@@ -77,7 +77,9 @@ export async function fetchWarehouseGames(
     .from('scratch_catalog')
     .select('code,name,price,game_no,pack_pieces')
     .eq('organization_id', orgId)
-    .eq('is_active', true)
+    // Ούτε εδώ φιλτράρει το «κρυφό»: ένα παιχνίδι που δεν λειτουργείς αυτή την
+    // περίοδο μπορεί να φτάσει σε παράδοση, και πρέπει να αναγνωρίζεται και να
+    // παραλαμβάνεται κανονικά. Το κρύβει μόνο ο πίνακας του ταμείου.
     .not('game_no', 'is', null);
   q = storeId ? q.or(`store_id.eq.${storeId},store_id.is.null`) : q.is('store_id', null);
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowDown, ArrowUp, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import {
   DEFAULT_SCRATCH_PRESETS,
   isLotteryRow,
@@ -11,8 +11,20 @@ import {
   saveScratchCatalog,
 } from '../../services/scratchCatalogService.ts';
 import { MAX_LABEL_LENGTH } from '../../lib/limits.ts';
-import { bundleSizeProblem } from '../../lib/scratchBarcode.ts';
+import { packPieces } from '../../lib/scratchBarcode.ts';
 import { NumericField } from '../ui/NumericField.tsx';
+import {
+  addToGroup,
+  categoryFor,
+  groupRows,
+  isGrouped,
+  isWellPlaced,
+  moveToGroupEnd,
+  offeredPrices,
+  priceLabel,
+  runsOf,
+  type CatalogRun,
+} from '../../lib/scratchCatalogOrder.ts';
 
 /**
  * The Owner's list of games: what the store sells, what each costs, and the
@@ -35,6 +47,32 @@ export const ScratchCatalogEditor: React.FC<{
   // False while the catalogue exists only in this browser, which is what the
   // tills are counting with until somebody saves it here.
   const [fromDatabase, setFromDatabase] = useState(true);
+  // Η προσθήκη ρωτάει ΠΡΩΤΑ την τιμή: από αυτήν κρίνεται η ομάδα και η κατηγορία,
+  // οπότε η νέα γραμμή πηγαίνει κατευθείαν στη θέση της και όχι στο τέλος της λίστας.
+  const [adding, setAdding] = useState(false);
+  const [customPrice, setCustomPrice] = useState(0);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  // Αληθές όταν ο κατάλογος που φορτώθηκε είχε σκρατς εκτός της ομάδας της τιμής τους
+  // (π.χ. ένα 5 € που μπήκε από το ταμείο μετά τα λαχεία) και η οθόνη το ομαδοποίησε.
+  // Δεν έχει αποθηκευτεί: το ταμείο μετράει με την παλιά σειρά μέχρι το «Αποθήκευση».
+  const [regroupedOnLoad, setRegroupedOnLoad] = useState(false);
+
+  // Οι ομάδες όπως εμφανίζονται: συνεχόμενα τμήματα της ίδιας τιμής (ή «λαχεία»).
+  const runs: CatalogRun[] = runsOf(rows);
+  const runByIndex: number[] = [];
+  runs.forEach((run, n) => {
+    for (let i = run.start; i <= run.end; i++) runByIndex[i] = n;
+  });
+
+  useEffect(() => {
+    if (!focusId) return;
+    const el = document.getElementById(`catalog-name-${focusId}`) as HTMLInputElement | null;
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.focus();
+    }
+    setFocusId(null);
+  }, [focusId, rows]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +80,12 @@ export const ScratchCatalogEditor: React.FC<{
     fetchScratchCatalogForEditing(orgId, storeId ?? undefined)
       .then(({ rows: catalog, fromDatabase: stored }) => {
         if (cancelled) return;
-        setRows(catalog);
+        // Τα σκρατς μπαίνουν στην ομάδα της τιμής τους μόλις ανοίξει η οθόνη: ένα 5 €
+        // που κάθεται μετά τα λαχεία πάει με τα 5 €. Μόνο στην οθόνη - η σειρά που
+        // μετράει το ταμείο αλλάζει όταν πατηθεί «Αποθήκευση καταλόγου».
+        const grouped = isGrouped(catalog) ? catalog : groupRows(catalog);
+        setRows(grouped);
+        setRegroupedOnLoad(grouped !== catalog);
         setFromDatabase(stored);
       })
       .finally(() => {
@@ -55,12 +98,46 @@ export const ScratchCatalogEditor: React.FC<{
 
   const update = (index: number, patch: Partial<ScratchTicketRow>) => {
     setMessage(null);
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const next = { ...r, ...patch };
+        // Η κατηγορία δεν γράφεται με το χέρι: βγαίνει από την τιμή και το είδος,
+        // ώστε «Σκρατς 5€» να σημαίνει πάντα σκρατς των 5 €.
+        if ('price' in patch || 'kind' in patch) next.category = categoryFor(next);
+        return next;
+      })
+    );
+  };
+
+  /** Αλλαγή είδους: η γραμμή αλλάζει ομάδα, άρα πάει αμέσως στο τέλος της νέας. */
+  const changeKind = (index: number, kind: 'SCRATCH' | 'LOTTERY') => {
+    const id = rows[index]?.id;
+    update(index, { kind });
+    if (id) setRows((prev) => moveToGroupEnd(prev, id));
+  };
+
+  /**
+   * Όταν τελειώσει η πληκτρολόγηση της τιμής (όχι σε κάθε ψηφίο: το «10» περνάει
+   * από το «1»): αν η γραμμή βγήκε από την ομάδα της, πηγαίνει στο τέλος της νέας.
+   * Αν δεν βγήκε, δεν κουνιέται - ένα απλό κλικ στο κουτάκι δεν αλλάζει σειρά.
+   */
+  const regroupAfterPrice = (id: string) => {
+    setRows((prev) => {
+      const i = prev.findIndex((r) => r.id === id);
+      if (i === -1) return prev;
+      // Άδειο ή μηδέν κουτάκι = ο χρήστης δεν έχει γράψει ακόμα την τιμή: δεν μετακινείται.
+      if (!isLotteryRow(prev[i]) && !(Number(prev[i].price) > 0)) return prev;
+      return isWellPlaced(prev, i) ? prev : moveToGroupEnd(prev, id);
+    });
   };
 
   const move = (index: number, delta: number) => {
     const target = index + delta;
     if (target < 0 || target >= rows.length) return;
+    // Μόνο μέσα στην ομάδα: αλλιώς ένα βελάκι θα έβαζε ένα σκρατς των 5 €
+    // ανάμεσα στα 2 € και θα έσπαγε την ομαδοποίηση.
+    if (runByIndex[index] !== runByIndex[target]) return;
     setMessage(null);
     setRows((prev) => {
       const next = [...prev];
@@ -69,22 +146,38 @@ export const ScratchCatalogEditor: React.FC<{
     });
   };
 
-  const addGame = () => {
+  const addGame = (kind: 'SCRATCH' | 'LOTTERY', price: number) => {
+    if (kind === 'SCRATCH' && !(price > 0)) {
+      setError('Γράψτε πρώτα την τιμή του σκρατς.');
+      return;
+    }
     setMessage(null);
-    setRows((prev) => [
-      ...prev,
-      {
-        // Stable and unique: the catalogue is keyed on this, and a game added
-        // on two devices at once must not collide on one id.
-        id: `scr_custom_${Date.now().toString(36)}`,
-        name: '',
-        category: 'Σκρατς',
-        kind: 'SCRATCH',
-        price: 0,
-        startNo: '',
-        endNo: '',
-      },
-    ]);
+    setError(null);
+    // Stable and unique: the catalogue is keyed on this, and a game added
+    // on two devices at once must not collide on one id.
+    const row: ScratchTicketRow = {
+      id: `scr_custom_${Date.now().toString(36)}`,
+      name: '',
+      category: '',
+      kind,
+      price: kind === 'LOTTERY' ? price || 2 : price,
+      startNo: '',
+      endNo: '',
+      // Κάθε σκρατς μετράει μπρος και πίσω· τα λαχεία δεν έχουν πίσω.
+      ...(kind === 'SCRATCH' ? { backSideEnabled: true } : {}),
+    };
+    row.category = categoryFor(row);
+    // Στο τέλος της ομάδας της τιμής του, όχι στο τέλος της λίστας.
+    setRows((prev) => addToGroup(prev, row));
+    setAdding(false);
+    setCustomPrice(0);
+    setFocusId(row.id);
+  };
+
+  /** Σε κατάλογο που έχει μετακινηθεί με το χέρι: οι ομάδες ξανά μαζί, μια φορά, όταν το ζητήσει ο χρήστης. */
+  const regroupAll = () => {
+    setMessage(null);
+    setRows((prev) => groupRows(prev));
   };
 
   const removeGame = (index: number) => {
@@ -103,21 +196,21 @@ export const ScratchCatalogEditor: React.FC<{
       setError(`Η γραμμή ${unnamed + 1} δεν έχει όνομα παιχνιδιού.`);
       return;
     }
-    // Ένα σκρατς με αδύνατη πεντάδα μετριέται σαν λαχείο και δεν το λέει
-    // πουθενά. Σταματάει εδώ αντί να το ανακαλύψει κανείς στο ταμείο.
-    const badBundle = rows.findIndex(
-      (r) => !isLotteryRow(r) && bundleSizeProblem(r.price, r.bundleSize, r.packPieces) !== null
-    );
-    if (badBundle !== -1) {
-      const r = rows[badBundle];
-      setError(`«${r.name || `Γραμμή ${badBundle + 1}`}»: ${bundleSizeProblem(r.price, r.bundleSize, r.packPieces)}`);
-      return;
-    }
     setSaving(true);
     setError(null);
     setMessage(null);
     try {
-      await saveScratchCatalog(orgId, storeId, rows);
+      // Ό,τι δεν ρυθμίζεται πια από εδώ γράφεται ως κανόνας: κάθε σκρατς έχει
+      // μπρος ΚΑΙ πίσω (το «μόνο μπροστά» είναι ρύθμιση του καταστήματος, στη
+      // Λειτουργία πώλησης σκρατς), και κανένα σκρατς δεν μετριέται σε πεντάδες -
+      // ένα σκρατς με «πακέτο» μετριέται σαν λαχείο, και αυτό έκανε το «Δώρο 5€»
+      // να εμφανίζεται ως λαχείο. Τα λαχεία κρατούν ό,τι έχουν.
+      const toSave = rows.map((r) =>
+        isLotteryRow(r) ? r : { ...r, bundleSize: undefined, backSideEnabled: true }
+      );
+      await saveScratchCatalog(orgId, storeId, toSave);
+      setRows(toSave);
+      setRegroupedOnLoad(false);
 
       // Ο 4ψήφιος είναι του ΟΠΑΠ, όχι του μαγαζιού: ένα παιχνίδι που μπήκε
       // εδώ λείπει από τα υπόλοιπα καταστήματα μέχρι να ξαναγραφεί με το
@@ -130,7 +223,7 @@ export const ScratchCatalogEditor: React.FC<{
       let spread = '';
       if (storeId) {
         try {
-          const report = await addNewGamesToOtherStores(orgId, storeId, rows);
+          const report = await addNewGamesToOtherStores(orgId, storeId, toSave);
           const added = report.filter((r) => r.added.length > 0);
           if (added.length > 0) {
             spread =
@@ -162,6 +255,7 @@ export const ScratchCatalogEditor: React.FC<{
   }
 
   const scratchCount = rows.filter((r) => !isLotteryRow(r)).length;
+  const hiddenCount = rows.filter((r) => r.hidden).length;
 
   return (
     <div className="space-y-4">
@@ -169,8 +263,9 @@ export const ScratchCatalogEditor: React.FC<{
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm">Κατάλογος Σκρατς & Λαχείων</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            {rows.length} παιχνίδια — {scratchCount} σκρατς, {rows.length - scratchCount} λαχεία.
-            Η σειρά εδώ είναι η σειρά που μετράει το ταμείο.
+            {rows.length} παιχνίδια — {scratchCount} σκρατς, {rows.length - scratchCount} λαχεία
+            {hiddenCount > 0 && `, ${hiddenCount} ${hiddenCount === 1 ? 'κρυφό' : 'κρυφά'}`}.
+            Η σειρά εδώ είναι η σειρά που μετράει το ταμείο. Τα κρυφά δεν φαίνονται στο ταμείο.
           </p>
         </div>
         {canEdit && (
@@ -184,7 +279,8 @@ export const ScratchCatalogEditor: React.FC<{
             </button>
             <button
               type="button"
-              onClick={addGame}
+              onClick={() => setAdding((open) => !open)}
+              aria-expanded={adding}
               className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
@@ -203,12 +299,89 @@ export const ScratchCatalogEditor: React.FC<{
         )}
       </div>
 
+      {canEdit && adding && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+          <div>
+            <p className="text-xs font-black text-slate-800">Τι τιμή έχει το νέο σκρατς;</p>
+            <p className="text-micro text-slate-500 mt-0.5">
+              Θα μπει στο τέλος της ομάδας της τιμής του, με κατηγορία «Σκρατς …€».
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {offeredPrices(rows).map((price) => (
+              <button
+                key={price}
+                type="button"
+                onClick={() => addGame('SCRATCH', price)}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-black hover:border-brand hover:bg-indigo-50 transition-colors cursor-pointer"
+              >
+                {priceLabel(price)} €
+              </button>
+            ))}
+            <span className="inline-flex items-center gap-1.5">
+              <NumericField
+                min={0}
+                decimals={2}
+                value={customPrice}
+                blankWhenZero
+                placeholder="Άλλη τιμή"
+                aria-label="Άλλη τιμή για το νέο σκρατς"
+                onChange={setCustomPrice}
+                className="w-24 px-2.5 py-2 rounded-xl border border-slate-300 font-mono font-bold text-slate-900 bg-white text-right text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => addGame('SCRATCH', customPrice)}
+                disabled={!(customPrice > 0)}
+                className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-40 cursor-pointer disabled:cursor-default"
+              >
+                Προσθήκη
+              </button>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => addGame('LOTTERY', 2)}
+            className="text-micro font-bold text-slate-600 underline underline-offset-2 hover:text-slate-900 cursor-pointer"
+          >
+            Είναι λαχείο, όχι σκρατς
+          </button>
+        </div>
+      )}
+
+      {canEdit && regroupedOnLoad && (
+        <div className="text-xs text-slate-800 bg-indigo-50 border border-brand rounded-xl p-3 space-y-0.5">
+          <span className="font-black block">Τα σκρατς μπήκαν στις ομάδες της τιμής τους</span>
+          <span className="block">
+            Κάποιο σκρατς ήταν εκτός της ομάδας του (π.χ. ένα 5 € μετά τα λαχεία) και πήγε με τα
+            υπόλοιπα της τιμής του. Στο ταμείο θα ισχύσει όταν πατήσετε{' '}
+            <strong>Αποθήκευση καταλόγου</strong>.
+          </span>
+        </div>
+      )}
+
+      {canEdit && !isGrouped(rows) && (
+        <div className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+          <span>
+            Τα σκρατς δεν είναι ομαδοποιημένα ανά τιμή. Η σειρά εδώ είναι η σειρά που μετράει το ταμείο,
+            γι' αυτό δεν άλλαξε μόνη της.
+          </span>
+          <button
+            type="button"
+            onClick={regroupAll}
+            className="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-bold cursor-pointer"
+          >
+            Ομαδοποίηση ανά τιμή
+          </button>
+        </div>
+      )}
+
       {!fromDatabase && (
         <div className="text-xs text-amber-900 bg-amber-50 border border-amber-300 rounded-xl p-3 space-y-1">
           <span className="font-black block">Ο κατάλογος δεν έχει αποθηκευτεί ακόμα</span>
           <span className="block">
             Αυτά είναι όσα μετράει <strong>αυτός ο browser</strong> — κάθε μηχάνημα μπορεί να
-            έχει διαφορετική λίστα και διαφορετικές τιμές. Πατήστε <strong>Αποθήκευση</strong>
+            έχει διαφορετική λίστα και διαφορετικές τιμές. Πατήστε <strong>Αποθήκευση</strong>{' '}
             μία φορά και θα ισχύει για όλους.
           </span>
         </div>
@@ -235,26 +408,51 @@ export const ScratchCatalogEditor: React.FC<{
               <th className="py-2 pr-2 w-32">Είδος</th>
               <th className="py-2 pr-2 w-28">Κατηγορία</th>
               <th className="py-2 pr-2 w-24">Τιμή (€)</th>
-              <th className="py-2 pr-2 w-24">Πακέτο</th>
               <th className="py-2 pr-2 w-24" title="Τα πρώτα 4 ψηφία του barcode">Αρ. παιχν.</th>
-              <th className="py-2 pr-2 w-24" title="Δελτία ανά πακέτο, όταν δεν ισχύει ο κανόνας 300/τιμή">Δελτία</th>
-              <th className="py-2 pr-2 w-20">Πίσω</th>
+              <th
+                className="py-2 pr-2 w-24"
+                title="Δελτία ανά πακέτο: υπολογίζονται μόνα τους από την τιμή (300 € / τιμή)"
+              >
+                Δελτία
+              </th>
+              <th
+                className="py-2 pr-2 w-16 text-center"
+                title="Κρυφό: το παιχνίδι δεν φαίνεται στο ταμείο, αλλά μένει στον κατάλογο"
+              >
+                Ορατό
+              </th>
               <th className="py-2 w-10" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => {
-              const bundleProblem = isLotteryRow(row)
-                ? null
-                : bundleSizeProblem(row.price, row.bundleSize, row.packPieces);
+              const run = runs[runByIndex[index]];
+              const firstOfRun = run.start === index;
               return (
-              <tr key={row.id} className="border-b border-slate-100 last:border-0">
+              <React.Fragment key={row.id}>
+              {firstOfRun && (
+                <tr>
+                  <td colSpan={9} className="pt-4 pb-1.5">
+                    <span className="inline-flex items-baseline gap-2">
+                      <span className="text-micro font-black uppercase tracking-wider text-slate-800">{run.title}</span>
+                      <span className="text-micro text-slate-400">
+                        {run.end - run.start + 1} {run.end === run.start ? 'παιχνίδι' : 'παιχνίδια'}
+                        {(() => {
+                          const hiddenHere = rows.slice(run.start, run.end + 1).filter((r) => r.hidden).length;
+                          return hiddenHere > 0 ? ` · ${hiddenHere} ${hiddenHere === 1 ? 'κρυφό' : 'κρυφά'}` : '';
+                        })()}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              )}
+              <tr className={`border-b border-slate-100 last:border-0 ${row.hidden ? 'bg-slate-50' : ''}`}>
                 <td className="py-2 pr-2">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => move(index, -1)}
-                      disabled={!canEdit || index === 0}
+                      disabled={!canEdit || index === run.start}
                       aria-label={`Μετακίνηση του ${row.name || 'παιχνιδιού'} πιο πάνω`}
                       className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
                     >
@@ -263,7 +461,7 @@ export const ScratchCatalogEditor: React.FC<{
                     <button
                       type="button"
                       onClick={() => move(index, 1)}
-                      disabled={!canEdit || index === rows.length - 1}
+                      disabled={!canEdit || index === run.end}
                       aria-label={`Μετακίνηση του ${row.name || 'παιχνιδιού'} πιο κάτω`}
                       className="p-1 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 cursor-pointer disabled:cursor-default"
                     >
@@ -273,19 +471,25 @@ export const ScratchCatalogEditor: React.FC<{
                 </td>
                 <td className="py-2 pr-2">
                   <input
+                    id={`catalog-name-${row.id}`}
                     value={row.name}
                     maxLength={MAX_LABEL_LENGTH}
                     disabled={!canEdit}
                     onChange={(e) => update(index, { name: e.target.value })}
                     placeholder="Όνομα παιχνιδιού"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-bold text-slate-900 bg-white disabled:bg-slate-50"
+                    className={`w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-bold bg-white disabled:bg-slate-50 ${
+                      row.hidden ? 'text-slate-400' : 'text-slate-900'
+                    }`}
                   />
+                  {row.hidden && (
+                    <span className="block mt-1 text-micro font-bold text-slate-500">Κρυφό στο ταμείο</span>
+                  )}
                 </td>
                 <td className="py-2 pr-2">
                   <select
                     value={row.kind ?? (isLotteryRow(row) ? 'LOTTERY' : 'SCRATCH')}
                     disabled={!canEdit}
-                    onChange={(e) => update(index, { kind: e.target.value as 'SCRATCH' | 'LOTTERY' })}
+                    onChange={(e) => changeKind(index, e.target.value as 'SCRATCH' | 'LOTTERY')}
                     className="w-full px-2 py-1.5 rounded-lg border border-slate-200 font-bold text-slate-700 bg-white disabled:bg-slate-50 cursor-pointer"
                   >
                     <option value="SCRATCH">Σκρατς</option>
@@ -293,14 +497,14 @@ export const ScratchCatalogEditor: React.FC<{
                   </select>
                 </td>
                 <td className="py-2 pr-2">
-                  <input
-                    value={row.category ?? ''}
-                    maxLength={MAX_LABEL_LENGTH}
-                    disabled={!canEdit}
-                    onChange={(e) => update(index, { category: e.target.value })}
-                    placeholder="Σκρατς 2€"
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white disabled:bg-slate-50"
-                  />
+                  {/* Δεν γράφεται: βγαίνει από την τιμή και το είδος, ώστε οι ομάδες
+                      και τα «Σκρατς 5€» του ταμείου να λένε πάντα ό,τι ισχύει. */}
+                  <span
+                    title="Η κατηγορία ακολουθεί την τιμή. Αλλάξτε την τιμή για να αλλάξει."
+                    className="inline-block w-full px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold whitespace-nowrap"
+                  >
+                    {row.category || categoryFor(row)}
+                  </span>
                 </td>
                 <td className="py-2 pr-2">
                   <NumericField
@@ -310,34 +514,9 @@ export const ScratchCatalogEditor: React.FC<{
                     disabled={!canEdit}
                     aria-label={`Τιμή για ${row.name || "το παιχνίδι"}`}
                     onChange={(next) => update(index, { price: next })}
+                    onBlur={() => regroupAfterPrice(row.id)}
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono font-bold text-slate-900 bg-white disabled:bg-slate-50 text-right"
                   />
-                </td>
-                <td className="py-2 pr-2">
-                  {/* Pieces per bundle - 5 for a πεντάδα. The bundle's price
-                      follows from the piece price, so a πεντάδα of a €2 game
-                      is €10 without anyone entering that separately. */}
-                  <NumericField
-                    min={0}
-                    decimals={0}
-                    value={row.bundleSize ?? 0}
-                    disabled={!canEdit}
-                    placeholder="—"
-                    title="Τεμάχια ανά πακέτο (π.χ. 5 για πεντάδα). Κενό για μεμονωμένα."
-                    aria-label={`Τεμάχια ανά πακέτο για ${row.name || "το παιχνίδι"}`}
-                    onChange={(next) => update(index, { bundleSize: next > 1 ? next : undefined })}
-                    className={`w-full px-2.5 py-1.5 rounded-lg border font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right ${
-                      bundleProblem ? 'border-rose-400 text-rose-700' : 'border-slate-200'
-                    }`}
-                  />
-                  {/* Το λάθος φαίνεται στη γραμμή του, όχι μόνο στην
-                      αποθήκευση: τα δύο αριθμητικά κουτάκια είναι δίπλα-δίπλα
-                      και ο αριθμός παιχνιδιού πέφτει εύκολα στο αριστερό. */}
-                  {bundleProblem && (
-                    <span className="block mt-1 text-micro font-bold text-rose-600 leading-tight max-w-[12rem]">
-                      {bundleProblem}
-                    </span>
-                  )}
                 </td>
                 {/* Ο αριθμός παιχνιδιού: ό,τι σκανάρεται πρώτο στην αποθήκη.
                     Κενό σημαίνει «δεν μπαίνει στην αποθήκη», που είναι σωστό
@@ -360,44 +539,86 @@ export const ScratchCatalogEditor: React.FC<{
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-center tracking-widest"
                   />
                 </td>
-                {/* Δελτία ανά πακέτο. Κενό = ο κανόνας 300/τιμή. Το 7ΑΡΙ Χ50
-                    είναι η μόνη εξαίρεση σήμερα: 15 δελτία, 750 €. */}
+                {/* Δελτία ανά πακέτο: βγαίνουν ΜΟΝΑ τους από την τιμή (300 € / τιμή),
+                    δεν γράφονται. Αν ο αριθμός είναι άλλος - το 7ΑΡΙ Χ50 έχει 15 - γράφεται
+                    πάνω στον αυτόματο, και μένει εκεί μέχρι να ξαναγραφτεί ο ίδιος. */}
                 <td className="py-2 pr-2">
-                  <NumericField
-                    min={0}
-                    decimals={0}
-                    value={row.packPieces ?? 0}
-                    disabled={!canEdit}
-                    placeholder="—"
-                    title="Δελτία ανά πακέτο. Κενό = 300 € / τιμή."
-                    aria-label={`Δελτία ανά πακέτο για ${row.name || 'το παιχνίδι'}`}
-                    onChange={(next) => update(index, { packPieces: next > 0 ? next : undefined })}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 font-mono text-slate-700 bg-white disabled:bg-slate-50 text-right"
-                  />
+                  {isLotteryRow(row) ? (
+                    <span className="text-micro text-slate-400" title="Τα λαχεία δεν έχουν πακέτο με δελτία.">
+                      —
+                    </span>
+                  ) : (
+                    (() => {
+                      const auto = packPieces(row.price);
+                      const shown = packPieces(row.price, row.packPieces);
+                      const overridden = !!row.packPieces && row.packPieces !== auto;
+                      return (
+                        <NumericField
+                          min={0}
+                          decimals={0}
+                          value={shown ?? 0}
+                          blankWhenZero
+                          disabled={!canEdit}
+                          placeholder="—"
+                          title={
+                            overridden
+                              ? `Ορίστηκε με το χέρι. Αυτόματα θα ήταν ${auto ?? '—'}. Γράψτε ξανά ${auto ?? 'τον αριθμό'} για να γυρίσει στον αυτόματο.`
+                              : auto
+                              ? `Αυτόματα: 300 € / ${row.price} € = ${auto} δελτία ανά πακέτο.`
+                              : 'Η τιμή δεν διαιρεί τα 300 €: γράψτε πόσα δελτία έχει το πακέτο.'
+                          }
+                          aria-label={`Δελτία ανά πακέτο για ${row.name || 'το παιχνίδι'}`}
+                          // Ό,τι ισούται με τον αυτόματο δεν αποθηκεύεται ως «εξαίρεση».
+                          onChange={(next) =>
+                            update(index, {
+                              packPieces: next > 0 && next !== auto ? next : undefined,
+                            })
+                          }
+                          className={`w-full px-2.5 py-1.5 rounded-lg border font-mono text-right disabled:bg-slate-50 ${
+                            overridden
+                              ? 'border-amber-300 bg-amber-50 font-bold text-slate-900'
+                              : 'border-slate-200 bg-slate-50 text-slate-500'
+                          }`}
+                        />
+                      );
+                    })()
+                  )}
                 </td>
-                <td className="py-2 pr-2">
-                  {/* Στα λαχεία δεν προσφέρεται καθόλου: το ταμείο δεν
-                      ζωγραφίζει πίσω πλευρά σε λαχείο (hasBackSide), οπότε
-                      ένα τσεκ εδώ θα ήταν διακόπτης που δεν ανάβει τίποτα.
-                      Και το κουτάκι ΕΔΕΙΧΝΕ τσεκαρισμένο σε κάθε λαχείο,
-                      γιατί `!== false` διαβάζει το άγραφο ως ναι - η οθόνη
-                      έλεγε «πουλάει από πίσω» για γραμμές που δεν μπορούν. */}
+                {/* Κρυφό / ορατό. Δεν διαγράφει τίποτα: το παιχνίδι μένει στη θέση του
+                    και ξαναεμφανίζεται με ένα κλικ. Για τα σκρατς που δεν λειτουργεί
+                    το μαγαζί αυτή την περίοδο. */}
+                <td className="py-2 pr-2 text-center">
                   {isLotteryRow(row) ? (
                     <span
                       className="text-micro text-slate-400"
-                      title="Τα λαχεία δεν έχουν πίσω πλευρά — είναι απόθεμα κλήρωσης, όχι πακέτο με δύο άκρα."
+                      title="Τα εποχικά λαχεία έχουν δικό τους διακόπτη στις ρυθμίσεις."
                     >
                       —
                     </span>
                   ) : (
-                    <input
-                      type="checkbox"
-                      checked={row.backSideEnabled !== false}
+                    <button
+                      type="button"
+                      onClick={() => update(index, { hidden: row.hidden ? undefined : true })}
                       disabled={!canEdit}
-                      onChange={(e) => update(index, { backSideEnabled: e.target.checked })}
-                      aria-label={`Πώληση από το πίσω μέρος για ${row.name || 'το παιχνίδι'}`}
-                      className="w-4 h-4 accent-indigo-600 cursor-pointer disabled:cursor-default"
-                    />
+                      aria-pressed={!!row.hidden}
+                      aria-label={
+                        row.hidden
+                          ? `Εμφάνιση του ${row.name || 'παιχνιδιού'} στο ταμείο`
+                          : `Απόκρυψη του ${row.name || 'παιχνιδιού'} από το ταμείο`
+                      }
+                      title={
+                        row.hidden
+                          ? 'Κρυφό: δεν φαίνεται στο ταμείο. Πατήστε για να εμφανιστεί.'
+                          : 'Ορατό στο ταμείο. Πατήστε για να κρυφτεί (δεν διαγράφεται).'
+                      }
+                      className={`p-1.5 rounded-lg border transition-colors cursor-pointer disabled:cursor-default ${
+                        row.hidden
+                          ? 'border-slate-300 bg-slate-200 text-slate-500 hover:bg-slate-300'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {row.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   )}
                 </td>
                 <td className="py-2">
@@ -412,6 +633,7 @@ export const ScratchCatalogEditor: React.FC<{
                   </button>
                 </td>
               </tr>
+              </React.Fragment>
               );
             })}
           </tbody>

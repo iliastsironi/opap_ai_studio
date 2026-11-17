@@ -28,6 +28,8 @@ export interface GameCodes {
   gameNo: string;
   /** «ΓΑΤΑ 2€», όπως διαβάζεται. */
   label: string;
+  /** Η τιμή του παιχνιδιού, ή 0 όταν δεν είναι γνωστή. Από αυτήν βγαίνει η κατηγορία. */
+  price: number;
   codes: CodeEntry[];
 }
 
@@ -76,7 +78,7 @@ export function codesByGame(packs: ReadonlyArray<CodePack> | null | undefined): 
       hasPrice && !name.includes(`${price}€`) ? `${name} ${price}€` : name;
 
     if (!games.has(key)) {
-      games.set(key, { key, gameNo: str(pack?.game_no), label, codes: [] });
+      games.set(key, { key, gameNo: str(pack?.game_no), label, price: hasPrice ? price : 0, codes: [] });
     }
     games.get(key)!.codes.push({ code, status: str(pack?.status), repeated: false });
   }
@@ -91,9 +93,14 @@ export function codesByGame(packs: ReadonlyArray<CodePack> | null | undefined): 
         (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9) || a.code.localeCompare(b.code)
     );
   }
-  // Ανά αριθμό παιχνιδιού: η ίδια σειρά που έχει και ο κατάλογος, ώστε το
-  // μάτι να ξέρει πού να πάει.
-  out.sort((a, b) => a.gameNo.localeCompare(b.gameNo) || a.label.localeCompare(b.label));
+  // Ανά κατηγορία (τιμή), και μέσα σε κάθε μία ανά αριθμό παιχνιδιού: η ίδια
+  // σειρά που έχει και ο κατάλογος, ώστε το μάτι να ξέρει πού να πάει. Ό,τι δεν
+  // έχει τιμή πάει τελευταίο.
+  const rank = (g: GameCodes) => (g.price > 0 ? Math.round(g.price * 100) : Number.MAX_SAFE_INTEGER);
+  out.sort(
+    (a, b) =>
+      rank(a) - rank(b) || a.gameNo.localeCompare(b.gameNo) || a.label.localeCompare(b.label)
+  );
   return out;
 }
 

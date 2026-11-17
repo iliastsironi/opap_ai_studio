@@ -113,8 +113,7 @@ export const IncidentsManager: React.FC = () => {
   const filteredIncidents = incidents.filter(
     (inc) =>
       inc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inc.id.toLowerCase().includes(searchQuery.toLowerCase())
+      inc.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / INCIDENTS_PAGE_SIZE));
@@ -192,7 +191,7 @@ export const IncidentsManager: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold">
-                <th className="px-4 py-3">{toGreekUpper('ID / Ημερομηνια')}</th>
+                <th className="px-4 py-3">{toGreekUpper('Ημερομηνια')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Τιτλος / Κατηγορια')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Σοβαροτητα')}</th>
                 <th className="px-4 py-3">{toGreekUpper('Περιγραφη')}</th>
@@ -213,9 +212,8 @@ export const IncidentsManager: React.FC = () => {
               ) : (
                 paginatedIncidents.map((inc) => (
                   <tr key={inc.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono">
-                      <p className="font-bold text-slate-900">{inc.id}</p>
-                      <p className="text-micro text-slate-500">{new Date(inc.created_at).toLocaleString('el-GR')}</p>
+                    <td className="px-4 py-3 font-bold text-slate-900 whitespace-nowrap">
+                      {new Date(inc.created_at).toLocaleString('el-GR')}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-bold text-slate-800">{inc.title}</p>

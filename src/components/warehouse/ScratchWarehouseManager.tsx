@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Boxes, Check, PackagePlus, Pencil, RotateCcw, Search, Trash2, Truck, Undo2,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
 import { packProgress, positionKey, progressTone, type ProgressRow } from '../../lib/packProgress.ts';
 import { warehouseStartState } from '../../lib/warehouseHandover.ts';
 import { codesByGame, repeatedCodes, totalCodes } from '../../lib/warehouseCodeList.ts';
+import { groupByPrice } from '../../lib/warehouseGroups.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { Modal } from '../ui/Modal.tsx';
@@ -277,7 +278,11 @@ export const ScratchWarehouseManager: React.FC = () => {
    * απλώς βρίσκεται σε άλλη καρτέλα - ακριβώς το λάθος που φτιάχνουμε.
    */
   const allCodes = useMemo(() => codesByGame(packs), [packs]);
-  const [codesOpen, setCodesOpen] = useState(true);
+  // Κλειστή από μόνη της: με δεκάδες κωδικούς η λίστα έσπρωχνε τα πακέτα που
+  // δουλεύει κανείς κάθε μέρα κάτω από την οθόνη. Η επικεφαλίδα μένει ορατή με
+  // το πλήθος και τους διπλούς, οπότε η ειδοποίηση δεν χάνεται - ανοίγει με ένα
+  // πάτημα όταν ρωτιέται «τον έχω ήδη περάσει αυτόν τον κωδικό;».
+  const [codesOpen, setCodesOpen] = useState(false);
 
   const visible = useMemo(() => {
     const needle = digitsOnly(search) || search.trim().toLowerCase();
@@ -305,6 +310,11 @@ export const ScratchWarehouseManager: React.FC = () => {
         : a.received_at.localeCompare(b.received_at)
     );
   }, [packs, positions, search, sortKey, statusFilter]);
+
+  // Η αποθήκη ανά κατηγορία με βάση την τιμή: «Σκρατς 2€», «Σκρατς 5€»... Μέσα σε κάθε
+  // ομάδα μένει η σειρά που διάλεξε ο χρήστης (ανά κωδικό ή ανά ημερομηνία).
+  const visibleGroups = useMemo(() => groupByPrice(visible, (p) => p.unit_price), [visible]);
+  const codeGroups = useMemo(() => groupByPrice(allCodes, (g) => g.price), [allCodes]);
 
   /** Ο σαρωτής δίνει 14 ψηφία στο πρώτο πεδίο. Σπάσ' τα. */
   const onGameNoInput = (raw: string) => {
@@ -635,44 +645,56 @@ export const ScratchWarehouseManager: React.FC = () => {
                 Γκρι στο ράφι · μπλε προς παράδοση · πράσινο στο μαγαζί · διαγραμμένο
                 αποσυρμένο.
               </p>
-              {allCodes.map((game) => (
-                <div
-                  key={game.key}
-                  className="flex items-start gap-2 flex-wrap py-1 border-b border-slate-50 last:border-0"
-                >
-                  <span className="text-micro font-bold text-slate-700 min-w-[140px] shrink-0">
-                    {game.label}
-                    {game.gameNo && (
-                      <span className="text-slate-400 font-mono"> ·{game.gameNo}</span>
-                    )}
-                  </span>
-                  <span className="flex items-center gap-1 flex-wrap">
-                    {game.codes.map((entry, i) => (
-                      <span
-                        key={`${entry.code}_${i}`}
-                        title={`${entry.code} — ${
-                          entry.status === 'IN_WAREHOUSE'
-                            ? 'στο ράφι'
-                            : entry.status === 'PENDING_DELIVERY'
-                            ? 'προς παράδοση'
-                            : entry.status === 'IN_STORE'
-                            ? 'στο μαγαζί'
-                            : 'αποσυρμένο'
-                        }${entry.repeated ? ' · ο ΙΔΙΟΣ κωδικός υπάρχει δύο φορές σε αυτό το παιχνίδι' : ''}`}
-                        className={`font-mono text-micro px-1.5 py-0.5 rounded-md border ${
-                          entry.status === 'IN_STORE'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : entry.status === 'PENDING_DELIVERY'
-                            ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
-                            : entry.status === 'WITHDRAWN'
-                            ? 'bg-slate-50 border-slate-200 text-slate-400 line-through'
-                            : 'bg-slate-50 border-slate-200 text-slate-600'
-                        } ${entry.repeated ? 'ring-1 ring-amber-400' : ''}`}
-                      >
-                        {entry.code}
-                      </span>
-                    ))}
-                  </span>
+              {codeGroups.map((group) => (
+                <div key={group.key} className="pt-1.5 first:pt-0">
+                  <p className="flex items-baseline gap-2 pb-1">
+                    <span className="text-micro font-black uppercase tracking-wider text-slate-800">
+                      {toGreekUpper(group.title)}
+                    </span>
+                    <span className="text-micro text-slate-400">
+                      {totalCodes(group.items)} {totalCodes(group.items) === 1 ? 'κωδικός' : 'κωδικοί'}
+                    </span>
+                  </p>
+                  {group.items.map((game) => (
+                  <div
+                    key={game.key}
+                    className="flex items-start gap-2 flex-wrap py-1 border-b border-slate-50 last:border-0"
+                  >
+                    <span className="text-micro font-bold text-slate-700 min-w-[140px] shrink-0">
+                      {game.label}
+                      {game.gameNo && (
+                        <span className="text-slate-400 font-mono"> ·{game.gameNo}</span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1 flex-wrap">
+                      {game.codes.map((entry, i) => (
+                        <span
+                          key={`${entry.code}_${i}`}
+                          title={`${entry.code} — ${
+                            entry.status === 'IN_WAREHOUSE'
+                              ? 'στο ράφι'
+                              : entry.status === 'PENDING_DELIVERY'
+                              ? 'προς παράδοση'
+                              : entry.status === 'IN_STORE'
+                              ? 'στο μαγαζί'
+                              : 'αποσυρμένο'
+                          }${entry.repeated ? ' · ο ΙΔΙΟΣ κωδικός υπάρχει δύο φορές σε αυτό το παιχνίδι' : ''}`}
+                          className={`font-mono text-micro px-1.5 py-0.5 rounded-md border ${
+                            entry.status === 'IN_STORE'
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                              : entry.status === 'PENDING_DELIVERY'
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                              : entry.status === 'WITHDRAWN'
+                              ? 'bg-slate-50 border-slate-200 text-slate-400 line-through'
+                              : 'bg-slate-50 border-slate-200 text-slate-600'
+                          } ${entry.repeated ? 'ring-1 ring-amber-400' : ''}`}
+                        >
+                          {entry.code}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                ))}
                 </div>
               ))}
             </div>
@@ -763,6 +785,7 @@ export const ScratchWarehouseManager: React.FC = () => {
             <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Παιχνιδι')}</th>
+                <th className="text-right p-2.5 font-black">{toGreekUpper('Τιμη')}</th>
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Κωδικος')}</th>
                 <th className="text-left p-2.5 font-black">{toGreekUpper('Παρελαβη')}</th>
                 <th className="text-left p-2.5 font-black">
@@ -781,7 +804,24 @@ export const ScratchWarehouseManager: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {visible.map((pack) => {
+              {visibleGroups.map((group) => (
+              <Fragment key={group.key}>
+              <tr className="bg-slate-50">
+                <td colSpan={7} className="px-2.5 pt-3 pb-1.5">
+                  <span className="inline-flex items-baseline gap-2">
+                    <span className="text-micro font-black uppercase tracking-wider text-slate-800">
+                      {toGreekUpper(group.title)}
+                    </span>
+                    <span className="text-micro text-slate-400">
+                      {group.items.length} {group.items.length === 1 ? 'πακέτο' : 'πακέτα'} ·{' '}
+                      {formatCurrency(
+                        group.items.reduce((t, p) => t + (Number(p.pieces) || 0) * (Number(p.unit_price) || 0), 0)
+                      )}
+                    </span>
+                  </span>
+                </td>
+              </tr>
+              {group.items.map((pack) => {
                 const days = daysInWarehouse(pack.received_at);
                 const tone = agingTone(days);
                 const label = agingLabel(days);
@@ -789,9 +829,10 @@ export const ScratchWarehouseManager: React.FC = () => {
                   <tr key={pack.id} className={TONE_ROW[tone]}>
                     <td className="p-2.5">
                       <span className="font-bold text-slate-900">{pack.game_name}</span>
-                      <span className="block text-micro text-slate-500">
-                        {formatCurrency(pack.unit_price)} · {pack.pieces} δελτία
-                      </span>
+                      <span className="block text-micro text-slate-500">{pack.pieces} δελτία</span>
+                    </td>
+                    <td className="p-2.5 text-right font-mono font-black text-slate-900 whitespace-nowrap">
+                      {formatCurrency(pack.unit_price)}
                     </td>
                     <td className="p-2.5 font-mono text-slate-700">
                       {pack.game_no} · {pack.pack_code}
@@ -997,6 +1038,8 @@ export const ScratchWarehouseManager: React.FC = () => {
                   </tr>
                 );
               })}
+              </Fragment>
+              ))}
             </tbody>
           </table>
         )}

@@ -124,9 +124,22 @@ describe('η οθόνη τη δείχνει χωρίς να ρωτάει το φ
     expect(screen).not.toContain('codesByGame(visible)');
   });
 
-  it('είναι ανοιχτή από μόνη της', () => {
-    expect(screen).toContain('useState(true)');
+  it('είναι κλειστή από μόνη της: η λίστα δεν σπρώχνει τα πακέτα της ημέρας κάτω', () => {
+    expect(screen).toContain('const [codesOpen, setCodesOpen] = useState(false);');
+    expect(screen).not.toContain('const [codesOpen, setCodesOpen] = useState(true);');
     expect(screen).toContain('Ολοι οι κωδικοι');
+  });
+
+  it('κλειστή, η επικεφαλίδα δείχνει ακόμα το πλήθος και τους διπλούς, και λέει «Εμφάνιση»', () => {
+    expect(screen).toContain("{codesOpen ? 'Απόκρυψη' : 'Εμφάνιση'}");
+    expect(screen).toContain('totalCodes(allCodes)');
+    expect(screen).toContain('repeatedCodes(allCodes) > 0');
+    // η ίδια η λίστα μπαίνει μόνο όταν είναι ανοιχτή
+    expect(screen).toMatch(/\{codesOpen && \(\s*<div/);
+  });
+
+  it('ανοίγει με ένα πάτημα στην επικεφαλίδα', () => {
+    expect(screen).toContain('onClick={() => setCodesOpen((v) => !v)}');
   });
 
   it('λέει τι σημαίνει κάθε χρώμα', () => {
