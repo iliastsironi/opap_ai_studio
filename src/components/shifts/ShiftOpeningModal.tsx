@@ -17,6 +17,7 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { resolveOpeningSafe } from '../../lib/safeBundles.ts';
+import { handoverFigures as computeHandoverFigures, shouldAskAcceptance, acceptanceRecord, type HandoverFigures } from '../../lib/handoverAcceptance.ts';
 import { openBlockedReason } from '../../lib/shiftOpenRules.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType, nextShiftType } from '../../lib/shiftTypeOptions.ts';
@@ -125,6 +126,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const [floatCoins, setFloatCoins] = useState<number>(50);
   const [configuredThreshold, setConfiguredThreshold] = useState<number>(15);
   const [morningCoinsCarryOver, setMorningCoinsCarryOver] = useState<boolean>(true);
+  // Μόνο στο Play (0094): τα χαρτονομίσματα της πρώτης βάρδιας είναι όσα μέτρησε το βράδυ, χωρίς
+  // πάγιο. Κλειστό μέχρι να το πει ρητά το πρότυπο του καταστήματος - το πρακτορείο δεν αλλάζει.
+  const [morningNotesCarryOver, setMorningNotesCarryOver] = useState<boolean>(false);
+  // Η παραλαβή που ζητά αποδοχή (μόνο βάρδιες μετά την πρώτη της ημέρας, μόνο όπου το ζητά το
+  // κατάστημα). Null = δεν ζητείται. Δεν μετράει τίποτα: δείχνει και κρατά ότι αποδέχτηκε.
+  const [handoverToAccept, setHandoverToAccept] = useState<HandoverFigures | null>(null);
+  const [handoverAccepted, setHandoverAccepted] = useState<boolean>(false);
   // What today started on, when this shift is continuing a day rather than
   // starting one. Null means this IS the day's first shift.
   // How many shifts this store runs, so the type dropdown offers its shifts
@@ -302,6 +310,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setConfiguredThreshold(Number(config?.discrepancy_threshold ?? 15));
         const carryCoins = (config as any)?.morning_coins_carry_over !== false;
         setMorningCoinsCarryOver(carryCoins);
+        // === true: ένα πρότυπο που δεν φορτώθηκε ή δεν έχει τη στήλη (πριν το 0094) δεν αλλάζει
+        // τα χαρτονομίσματα κανενός καταστήματος.
+        const carryNotes = (config as any)?.morning_notes_carry_over === true;
+        setMorningNotesCarryOver(carryNotes);
 
         const perDay = Number(config?.shifts_per_day) === 2 ? 2 : 3;
         setShiftsPerDay(perDay);
@@ -351,6 +363,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           notes: floatNotes,
           coins: floatCoins,
           morningCoinsCarryOver: carryCoins,
+          morningNotesCarryOver: carryNotes,
         };
 
         let resolvedFloat = { notes: floatNotes, coins: floatCoins };
@@ -514,6 +527,22 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         }
         setInspectionSkipped(false);
         setInspectionError(null);
+
+        // Η αποδοχή παραλαβής: μόνο βάρδιες ΜΕΤΑ την πρώτη της ημέρας, μόνο όπου την ζητά το
+        // κατάστημα. Δεν μετράει τίποτα - δείχνει τι άφησε η προηγούμενη και ζητά ένα «αποδέχομαι».
+        setHandoverToAccept(
+          (() => {
+            const figures = computeHandoverFigures(prev, { safeEnabled });
+            return shouldAskAcceptance({
+              enabled: (config as any)?.handover_acceptance_enabled,
+              continuingDay: !!todaySnapshot,
+              figures,
+            })
+              ? figures
+              : null;
+          })()
+        );
+        setHandoverAccepted(false);
       } catch (e) {
         console.warn('Error loading previous shift:', e);
       } finally {
@@ -571,6 +600,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     // Enter σε πεδίο υποβάλλει φόρμα χωρίς να περάσει από το κουμπί.
     if (blockedReason) {
       setError(blockedReason);
+      return;
+    }
+
+    // Η παραλαβή δεν ανοίγει χωρίς αποδοχή: είναι ακριβώς ό,τι ζητήθηκε από το Play.
+    if (handoverToAccept && !handoverAccepted) {
+      setError('Αποδεχτείτε πρώτα την παραλαβή από την προηγούμενη βάρδια.');
       return;
     }
 
@@ -734,6 +769,19 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // Το χρηματοκιβώτιο που περιέχεται στο opening_cash: οι δεσμίδες μετράνε ως
           // μετρητά, οπότε το άνοιγμα τις κουβαλάει (0089).
           opening_safe: safeNum,
+          // Σημάδι ότι αυτή η βάρδια ανήκει σε κατάστημα που κρατά τα χαρτονομίσματα το βράδυ: στο
+          // κλείσιμο δεν υπάρχει φάκελος χαρτονομισμάτων. Μόνο όπου ισχύει· το πρακτορείο δεν το παίρνει.
+          ...(morningNotesCarryOver ? { notes_carry_over: true } : {}),
+          // Η αποδοχή της παραλαβής: ποιος, πότε, και τι είδε. Δεν είναι επιθεώρηση: δεν μετρήθηκε τίποτα.
+          ...(handoverToAccept && handoverAccepted
+            ? {
+                handover_acceptance: acceptanceRecord(
+                  handoverToAccept,
+                  { userId: effectiveOperatorId || null, name: effectiveOperatorName },
+                  new Date()
+                ),
+              }
+            : {}),
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -811,7 +859,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       </button>
       <button
         type="submit"
-        disabled={loading || fetchingPrev || blockedReason !== null}
+        disabled={loading || fetchingPrev || blockedReason !== null || (handoverToAccept !== null && !handoverAccepted)}
         title={blockedReason ?? undefined}
         className="px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
       >
@@ -1060,11 +1108,13 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     : 'Πρωτη Βαρδια Ημερας — Αρχικο Ταμειο Διαχειριστη')}
                 </span>
                 <span className="text-micro text-amber-800 font-medium">
-                  Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος και ισχύουν για
-                  όλη την ημέρα.
-                  {morningCoinsCarryOver
-                    ? ' Τα κέρματα κρατούν ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ, αν έχει καταμετρηθεί.'
-                    : ' Τα κέρματα ξεκινούν από το ορισμένο αρχικό ταμείο.'}
+                  {morningNotesCarryOver
+                    ? 'Δεν υπάρχει πάγιο ποσό: τα χαρτονομίσματα και τα κέρματα κρατούν ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ, αν έχει καταμετρηθεί, και ισχύουν για όλη την ημέρα.'
+                    : 'Τα ποσά έρχονται από τη Διαμόρφωση του καταστήματος και ισχύουν για όλη την ημέρα.'}
+                  {!morningNotesCarryOver &&
+                    (morningCoinsCarryOver
+                      ? ' Τα κέρματα κρατούν ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ, αν έχει καταμετρηθεί.'
+                      : ' Τα κέρματα ξεκινούν από το ορισμένο αρχικό ταμείο.')}
                 </span>
               </div>
             </div>
@@ -1095,6 +1145,59 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   </span>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Η αποδοχή παραλαβής (Play, βάρδιες μετά την πρώτη): τι άφησε η προηγούμενη βάρδια, όπως
+              το μέτρησε στο κλείσιμο. Δεν είναι επιθεώρηση - δεν μετράει τίποτα και δεν γράφει
+              έλλειμμα· ζητά μόνο ένα «αποδέχομαι», γιατί τα ποσά είναι μεγάλα. */}
+          {handoverToAccept && (
+            <div
+              className="p-4 rounded-xl border-2 border-indigo-300 bg-indigo-50/60 space-y-3"
+              data-testid="handover-acceptance"
+            >
+              <div>
+                <p className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                  {toGreekUpper('Παραλαβη απο την προηγουμενη βαρδια')}
+                </p>
+                <p className="text-micro text-indigo-900 mt-0.5">
+                  {handoverToAccept.fromOperatorName
+                    ? `Άφησε ο/η ${handoverToAccept.fromOperatorName}, όπως το μέτρησε στο κλείσιμο.`
+                    : 'Όπως το μέτρησε η προηγούμενη βάρδια στο κλείσιμο.'}
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 rounded-lg bg-white border border-indigo-200">
+                  <dt className="text-micro font-bold text-slate-500">💵 {toGreekUpper('Χαρτονομισματα')}</dt>
+                  <dd className="text-sm font-black font-mono text-slate-900">{formatCurrency(handoverToAccept.notes)}</dd>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white border border-indigo-200">
+                  <dt className="text-micro font-bold text-slate-500">🪙 {toGreekUpper('Κερματα')}</dt>
+                  <dd className="text-sm font-black font-mono text-slate-900">{formatCurrency(handoverToAccept.coins)}</dd>
+                </div>
+                {handoverToAccept.safe > 0 && (
+                  <div className="p-2.5 rounded-lg bg-white border border-indigo-200">
+                    <dt className="text-micro font-bold text-slate-500">🏦 {toGreekUpper('Χρηματοκιβωτιο')}</dt>
+                    <dd className="text-sm font-black font-mono text-slate-900">{formatCurrency(handoverToAccept.safe)}</dd>
+                  </div>
+                )}
+                <div className="p-2.5 rounded-lg bg-indigo-900 border border-indigo-950">
+                  <dt className="text-micro font-bold text-indigo-200">{toGreekUpper('Συνολο')}</dt>
+                  <dd className="text-sm font-black font-mono text-white">{formatCurrency(handoverToAccept.total)}</dd>
+                </div>
+              </dl>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={handoverAccepted}
+                  disabled={loading}
+                  onChange={(e) => setHandoverAccepted(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
+                />
+                <span className="text-xs font-bold text-indigo-950">
+                  Έλαβα και αποδέχομαι την παραλαβή των παραπάνω ποσών.
+                </span>
+              </label>
             </div>
           )}
 
@@ -1285,6 +1388,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 : ''}
               {continuingDay
                 ? 'Τα ποσά είναι αυτά που όρισε η πρώτη βάρδια της ημέρας και δεν αλλάζουν μέσα στην ημέρα.'
+                : morningNotesCarryOver
+                ? 'Τα χαρτονομίσματα και τα κέρματα είναι όσα μέτρησε το προηγούμενο βράδυ, όταν έχουν καταμετρηθεί.'
                 : morningCoinsCarryOver
                 ? 'Προκαθορισμένα από τη Διαμόρφωση. Τα κέρματα μεταφέρονται από το προηγούμενο βράδυ όταν έχουν καταμετρηθεί.'
                 : 'Προκαθορισμένα από τη Διαμόρφωση.'}

@@ -427,8 +427,18 @@ export interface ShiftTemplateConfig {
   /** Μονάδα ανά λαχείο (0059): {"scr_laiko":"BUNDLES"}. */
   lottery_units?: Record<string, 'BUNDLES' | 'PIECES' | 'DUAL'>;
   pos_batch_close_enabled?: boolean;
-  /** Η στήλη «Χρηματοκιβώτιο» (δεσμίδες) στην καταμέτρηση. Ανοιχτή από προεπιλογή (0087). */
+  /** Η στήλη «Χρηματοκιβώτιο» (δεσμίδες) στην καταμέτρηση. Του Play: κλειστή εξ ορισμού (0087, 0093). */
   safe_count_enabled?: boolean;
+  /**
+   * Τα χαρτονομίσματα της πρώτης βάρδιας της ημέρας είναι όσα μέτρησε το προηγούμενο βράδυ,
+   * όπως τα κέρματα - χωρίς πάγιο ποσό (0094). Του Play: κλειστό παντού αλλού.
+   */
+  morning_notes_carry_over?: boolean;
+  /**
+   * Οι βάρδιες μετά την πρώτη της ημέρας δείχνουν τι παραλαμβάνουν και ζητούν μόνο αποδοχή,
+   * χωρίς μέτρημα (0094). Του Play: κλειστό παντού αλλού.
+   */
+  handover_acceptance_enabled?: boolean;
   /** Τεμάχια ανά δεσμίδα ανά ονομαστική αξία: {"5":50,"50":20,"100":10} (0087). */
   safe_bundle_sizes?: Record<string, number>;
   // Org/store-level defaults for how never-explicitly-configured Σκρατς/

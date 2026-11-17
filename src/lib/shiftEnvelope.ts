@@ -50,6 +50,13 @@ export interface EnvelopeInput {
    * decided to raise, and every envelope after it was wrong by more.
    */
   floatNotes: number | string | null | undefined;
+  /**
+   * The store keeps ALL its notes overnight (a PLAY hall: no fixed float, no
+   * envelope for the notes). Nothing is handed over, so the figure above is not
+   * a float to measure against: the whole drawer stays and is tomorrow's
+   * opening. Undefined/false is the agency's rule, unchanged.
+   */
+  notesCarryOver?: boolean;
   /** Cash already moved to the safe during the shift, if any. */
   safeDrops?: number | string | null | undefined;
   /**
@@ -112,7 +119,9 @@ export interface Envelope {
 export function calculateEnvelope(input: EnvelopeInput): Envelope {
   const notes = num(input.countedNotes);
   const coins = num(input.countedCoins);
-  const floatNotes = num(input.floatNotes);
+  // Everything stays when the store carries its notes: there is no float to
+  // exceed, so the envelope is empty and the drawer is never «short of float».
+  const floatNotes = input.notesCarryOver === true ? notes : num(input.floatNotes);
   const drops = num(input.safeDrops);
   // Unsigned: the operator pays in, they are never paid out from here.
   const settlement = round2(Math.max(0, num(input.discrepancySettlement)));

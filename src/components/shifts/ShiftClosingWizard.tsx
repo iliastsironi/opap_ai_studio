@@ -793,6 +793,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
         // Κλειστό εκτός αν το κατάστημα το άνοιξε ρητά (0087): είναι του Play, όχι του πρακτορείου.
         setSafeCountEnabled((config as any).safe_count_enabled === true);
+        // Ή η βάρδια άνοιξε ήδη με το σημάδι, ή το πρότυπο το λέει ρητά. Ποτέ από «δεν ξέρω».
+        setNotesCarryOver(
+          (shift.custom_field_values as any)?.notes_carry_over === true ||
+            (config as any).morning_notes_carry_over === true
+        );
         if (!storedSafeSizesRef.current) {
           setSafeBundleSizes(normalizeBundleSizes((config as any).safe_bundle_sizes));
         }
@@ -1225,6 +1230,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   );
   // Κλειστό μέχρι να πει το πρότυπο του καταστήματος το αντίθετο (μόνο το Play το ανοίγει).
   const [safeCountEnabled, setSafeCountEnabled] = useState(false);
+  // Μόνο στο Play (0094): τα χαρτονομίσματα μένουν στο ταμείο και είναι το αρχικό της επόμενης
+  // μέρας - δεν υπάρχει πάγιο ούτε φάκελος χαρτονομισμάτων. Το σημάδι μπαίνει στη βάρδια όταν
+  // ανοίγει· το πρότυπο φορτώνει μετά, και το πρακτορείο δεν το παίρνει ποτέ.
+  const [notesCarryOver, setNotesCarryOver] = useState(
+    () => (shift.custom_field_values as any)?.notes_carry_over === true
+  );
   const safeCount = safeCountEnabled ? buildSafeCount(safeBundles, safeBundleSizes) : null;
   const [denominations, setDenominations] = useState<Record<string, number>>(
     shift.counted_denominations || localDraft?.counted_denominations || {}
@@ -1691,6 +1702,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     // smaller by exactly the top-up and quietly turned it into tomorrow's
     // opening capital.
     floatNotes: safeNum(openingNotesAmount),
+    // Κατάστημα χωρίς πάγιο (Play): κανένα χαρτονόμισμα δεν φεύγει σε φάκελο, όλα μένουν
+    // και είναι το αρχικό της επόμενης μέρας.
+    notesCarryOver,
     // Nothing left the till through a withdrawal - something arrived.
     safeDrops: safeAmountOut(totalSafeDrops(safeDrops), safeDirection),
     discrepancySettlement: settlementCash,
@@ -4038,7 +4052,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   >
                     {formatCurrency(envelope.amount)}
                   </span>
-                  <span className="text-micro text-slate-500">ταμείο − πάγιο κεφάλαιο</span>
+                  <span className="text-micro text-slate-500">
+                    {notesCarryOver ? 'δεν παραδίδονται — μένουν στο ταμείο' : 'ταμείο − πάγιο κεφάλαιο'}
+                  </span>
                 </div>
                 <div
                   className={`p-2.5 rounded-xl border ${

@@ -58,6 +58,12 @@ export const PLAY_TEMPLATE_OVERRIDES = {
   // The hall counts its safe in bundles, as a third column of the till count (0087).
   // The agency does not: this is the switch that keeps it Play-only.
   safe_count_enabled: true,
+  // No fixed amount in a hall (0094): what the evening counts - notes as well as
+  // coins - is the next morning's opening, and nothing is handed over in an
+  // envelope. Switched on ONLY here: the agency's float and envelope are untouched.
+  morning_notes_carry_over: true,
+  // A later shift sees what it takes over and accepts it; nothing is counted.
+  handover_acceptance_enabled: true,
 } as const;
 
 /** The switches a PLAY hall turns off, for telling somebody what changed. */

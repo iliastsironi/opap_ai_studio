@@ -37,6 +37,11 @@ export interface ClosedShiftCash {
   discrepancy_baseline?: number | string | null;
   discrepancy_threshold?: number | string | null;
   discrepancy_settlement?: string | null;
+  /**
+   * Stamped at opening on a shift of a store that carries its notes overnight
+   * (a PLAY hall): nothing above a float is handed over, because there is none.
+   */
+  custom_field_values?: { notes_carry_over?: unknown } | null;
 }
 
 export interface ShiftHandover {
@@ -92,6 +97,7 @@ export function shiftHandover(shift: ClosedShiftCash | null | undefined): ShiftH
     countedNotes: split.banknotes,
     countedCoins: split.coins,
     floatNotes: num(s.opening_cash_notes),
+    notesCarryOver: s.custom_field_values?.notes_carry_over === true,
     // Το bank_deposits πρώτο, όπως και στο shift_day_collection.
     safeDrops: s.bank_deposits ?? s.safe_drop,
     coinHandover: s.coin_handover,

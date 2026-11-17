@@ -1363,6 +1363,58 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
               )}
             </button>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.morning_notes_carry_over === true}
+              disabled={!canManageScratchMode}
+              onClick={() =>
+                canManageScratchMode &&
+                setTemplate((prev) => ({ ...prev, morning_notes_carry_over: prev.morning_notes_carry_over !== true }))
+              }
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.morning_notes_carry_over === true ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Χαρτονομίσματα: μεταφορά από το προηγούμενο βράδυ (χωρίς πάγιο)</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Η πρώτη βάρδια της ημέρας ανοίγει με όσα χαρτονομίσματα μέτρησε το βράδυ, όπως τα κέρματα. Κανένα χαρτονόμισμα δεν παραδίδεται σε φάκελο. Για καταστήματα χωρίς πάγιο ποσό (Play). Στο πρακτορείο μένει κλειστό: εκεί ισχύει το πάγιο.
+                </span>
+              </span>
+              {template.morning_notes_carry_over === true ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={template.handover_acceptance_enabled === true}
+              disabled={!canManageScratchMode}
+              onClick={() =>
+                canManageScratchMode &&
+                setTemplate((prev) => ({ ...prev, handover_acceptance_enabled: prev.handover_acceptance_enabled !== true }))
+              }
+              className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
+                canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
+              } ${template.handover_acceptance_enabled === true ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <span>
+                <span className="block text-xs font-bold text-slate-900">Αποδοχή παραλαβής στις επόμενες βάρδιες</span>
+                <span className="block text-micro text-slate-500 mt-0.5">
+                  Οι βάρδιες μετά την πρώτη της ημέρας δείχνουν τι παραλαμβάνουν από την προηγούμενη και ζητούν μόνο αποδοχή. Δεν μετράνε τίποτα και δεν γράφουν έλλειμμα. Για καταστήματα με μεγάλα ποσά (Play).
+                </span>
+              </span>
+              {template.handover_acceptance_enabled === true ? (
+                <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
+              ) : (
+                <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
+              )}
+            </button>
           </div>
 
           {template.safe_count_enabled === true && (

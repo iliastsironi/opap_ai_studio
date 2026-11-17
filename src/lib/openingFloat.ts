@@ -83,6 +83,16 @@ export interface ConfiguredFloat {
    * this became a choice.
    */
   morningCoinsCarryOver?: boolean;
+  /**
+   * Whether the day's first shift inherits the night's NOTES too, like the coins.
+   *
+   * The agency's notes reset to the float because the envelope took everything
+   * above it. A PLAY hall has no fixed float and no envelope for the notes: what
+   * the evening counted stays in the drawer and is tomorrow's opening. Only a
+   * store that says so (=== true) gets this; undefined and false are the
+   * agency's rule, unchanged.
+   */
+  morningNotesCarryOver?: boolean;
 }
 
 export interface OpeningFloat {
@@ -170,6 +180,28 @@ export function resolveOpeningFloat(
     // Nothing to carry. The configured float beats a zero that only means
     // «the last shift never did anything».
     return { notes: configured.notes, coins: configured.coins, carriedOver: false, topUpsInherited: 0, shortfall: 0 };
+  }
+
+  // A PLAY hall: no fixed float, so the night's count IS the morning's opening -
+  // notes the same way coins always were. Before the agency's rules below, so
+  // nothing in them can cap the notes at a float that does not exist.
+  if (configured.morningNotesCarryOver === true) {
+    const carriedNotes = num(previous!.notes);
+    const carriedCoinsToo = num(previous!.coins);
+    return {
+      // Nobody counted the notes (a close that did not break them down): the
+      // configured figure beats a zero, as it does for the coins.
+      notes: carriedNotes > 0 ? round2(carriedNotes) : configured.notes,
+      coins:
+        configured.morningCoinsCarryOver === false
+          ? configured.coins
+          : carriedCoinsToo > 0
+          ? carriedCoinsToo
+          : configured.coins,
+      carriedOver: false,
+      topUpsInherited: 0,
+      shortfall: 0,
+    };
   }
 
   if (configured.morningCoinsCarryOver === false) {

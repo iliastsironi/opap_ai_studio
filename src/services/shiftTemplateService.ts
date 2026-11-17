@@ -42,6 +42,11 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   // αλλαγή «στο ταμείο του Play», αλλά μπήκε ανοιχτή σε κάθε κατάστημα και βγήκε και
   // στο πρακτορείο. Το PLAY το ανοίγει από το storeTypeDefaults.
   safe_count_enabled: false,
+  // Του Play (0094). Στο πρακτορείο τα χαρτονομίσματα ξαναγυρίζουν στο πάγιο κάθε πρωί
+  // (ο φάκελος παίρνει ό,τι περισσεύει) και καμία βάρδια δεν ζητά αποδοχή παραλαβής: ό,τι
+  // αλλάξει εδώ αλλάζει τα ταμεία των πρακτορείων, γι' αυτό είναι ΚΛΕΙΣΤΑ εξ ορισμού.
+  morning_notes_carry_over: false,
+  handover_acceptance_enabled: false,
   safe_bundle_sizes: { ...DEFAULT_SAFE_BUNDLE_SIZES },
   // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
   // Λαχεία: plain pieces) - existing orgs see zero behavior change until an
