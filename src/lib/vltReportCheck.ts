@@ -235,3 +235,91 @@ export function shiftDateKey(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+
+/**
+ * Το σύνολο του μήνα και η απόκλιση, για την οθόνη του ελέγχου.
+ *
+ * «Γράψε σύνολο μήνα γενικά και απόκλιση στον έλεγχο VLTs.»
+ *
+ *   shiftsTotal    ό,τι έγραψαν οι βάρδιες σε ΟΛΕΣ τις ημέρες του μήνα
+ *   reportTotal    ό,τι έγραψε το Report Allwynnet στις ημέρες που έχει report
+ *   comparedShifts οι βάρδιες ΜΟΝΟ των ημερών που συγκρίθηκαν (είχαν report και είχαν κλείσει όλες)
+ *   deviation      report − βάρδιες στις ημέρες που συγκρίθηκαν: η απόκλιση του μήνα
+ *
+ * ΓΙΑΤΙ Η ΑΠΟΚΛΙΣΗ ΔΕΝ ΕΙΝΑΙ reportTotal − shiftsTotal. Μια ημέρα που περιμένει ακόμα το report
+ * έχει βάρδιες και κανένα report· αν έμπαινε στη σύγκριση, η απόκλιση θα έβγαινε
+ * αρνητική κατά ολόκληρο τον τζίρο της και θα έδειχνε ότι «λείπουν» λεφτά που απλά δεν
+ * έχουν συγκριθεί ακόμα. Η απόκλιση μετράει μόνο ημέρες που έχουν και τα δύο νούμερα.
+ *
+ * Οι εγκεκριμένες διαφορές μένουν μέσα στην απόκλιση (το ποσό δεν βγήκε), και φαίνονται
+ * χωριστά: «εκ των οποίων εγκεκριμένες».
+ *
+ * Σε λεπτά με ακέραιους, όπως κάθε άθροισμα χρημάτων εδώ.
+ */
+export interface VltMonthSummary {
+  shiftsTotal: number;
+  reportTotal: number;
+  /** Οι βάρδιες μόνο των ημερών που συγκρίθηκαν. */
+  comparedShifts: number;
+  /** Το report μόνο των ημερών που συγκρίθηκαν. */
+  comparedReports: number;
+  /** report − βάρδιες στις ημέρες που συγκρίθηκαν. */
+  deviation: number;
+  /** Το μέρος της απόκλισης που έχει εγκριθεί από υπεύθυνο. */
+  approvedDeviation: number;
+  comparedDays: number;
+  differentDays: number;
+  approvedDays: number;
+  /** Ημέρες με βάρδιες που περιμένουν ακόμα report, και πόσα ευρώ είναι. */
+  awaitingDays: number;
+  awaitingAmount: number;
+  /** Ημέρες που δεν συγκρίνονται γιατί μια βάρδια τους είναι ακόμα ανοιχτή. */
+  openDays: number;
+}
+
+export function summariseVltMonth(rows: ReadonlyArray<VltDayRow>): VltMonthSummary {
+  let shifts = 0, reports = 0, comparedShifts = 0, comparedReports = 0, approvedDev = 0;
+  let comparedDays = 0, differentDays = 0, approvedDays = 0, awaitingDays = 0, awaitingAmount = 0, openDays = 0;
+
+  for (const r of rows) {
+    shifts += toCents(r.shiftsAmount);
+    if (r.report !== null) reports += toCents(r.report);
+
+    if (r.status === 'MATCH' || r.status === 'DIFFERENT') {
+      comparedDays += 1;
+      comparedShifts += toCents(r.shiftsAmount);
+      comparedReports += toCents(r.report);
+      if (r.status === 'DIFFERENT') {
+        differentDays += 1;
+        if (r.approval) {
+          approvedDays += 1;
+          approvedDev += toCents(r.difference);
+        }
+      }
+    } else if (r.status === 'AWAITING_REPORT') {
+      // Μια ημέρα χωρίς βάρδιες και χωρίς report δεν υπάρχει ως γραμμή· εδώ όλες έχουν τουλάχιστον βάρδια.
+      if (toCents(r.shiftsAmount) !== 0) {
+        awaitingDays += 1;
+        awaitingAmount += toCents(r.shiftsAmount);
+      }
+    } else if (r.status === 'SHIFTS_OPEN') {
+      openDays += 1;
+    }
+  }
+
+  return {
+    shiftsTotal: fromCents(shifts),
+    reportTotal: fromCents(reports),
+    comparedShifts: fromCents(comparedShifts),
+    comparedReports: fromCents(comparedReports),
+    deviation: fromCents(comparedReports - comparedShifts),
+    approvedDeviation: fromCents(approvedDev),
+    comparedDays,
+    differentDays,
+    approvedDays,
+    awaitingDays,
+    awaitingAmount: fromCents(awaitingAmount),
+    openDays,
+  };
+}

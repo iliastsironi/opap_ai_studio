@@ -37,6 +37,7 @@ import {
   fetchCompanyDailyExpenses,
 } from '../../services/pnlService.ts';
 import { NewExpenseCategoryModal } from './NewExpenseCategoryModal.tsx';
+import { ManageExpenseCategoriesModal } from './ManageExpenseCategoriesModal.tsx';
 import { MoneyField } from '../ui/MoneyField.tsx';
 import { StoreTransfersPanel } from './StoreTransfersPanel.tsx';
 
@@ -188,6 +189,7 @@ export const ExpensesManager: React.FC = () => {
    */
   const offeredCategories = offerableCategories(categories, roleCodesOf(roles), permissions);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
 
   const loadExpenses = async () => {
     setLoading(true);
@@ -1129,13 +1131,22 @@ export const ExpensesManager: React.FC = () => {
                         ένα γκρίζο κουμπί θα ήταν μόνιμος θόρυβος. Η λίστα
                         από κάτω του δίνει ήδη ό,τι μπορεί να γράψει. */}
                     {canManageCategories && (
-                      <button
-                        type="button"
-                        onClick={() => setNewCategoryOpen(true)}
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
-                      >
-                        + Νέα κατηγορία
-                      </button>
+                      <span className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setManageCategoriesOpen(true)}
+                          className="text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                        >
+                          Επεξεργασία κατηγοριών
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewCategoryOpen(true)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                        >
+                          + Νέα κατηγορία
+                        </button>
+                      </span>
                     )}
                   </div>
                   <select
@@ -1314,6 +1325,14 @@ export const ExpensesManager: React.FC = () => {
         ]}
         onConfirm={handleDeleteExpense}
       />
+
+      {manageCategoriesOpen && canManageCategories && (
+        <ManageExpenseCategoriesModal
+          categories={categories}
+          onClose={() => setManageCategoriesOpen(false)}
+          onChanged={() => void reloadCategories()}
+        />
+      )}
 
       {newCategoryOpen && canManageCategories && (
         <NewExpenseCategoryModal

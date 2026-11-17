@@ -1441,7 +1441,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                         <div className="flex items-center space-x-2">
                           <span className="w-2 h-2 rounded-full bg-indigo-400"></span>
                           <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-200">
-                            Πιστώσεις & Εισπράξεις Πελατών Βάρδιας (Τεφτέρι)
+                            Χρεώσεις πελατών & εισπράξεις βάρδιας
                           </h3>
                         </div>
                         <span className="text-micro font-mono font-bold text-indigo-300 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-800/60">

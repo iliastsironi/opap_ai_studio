@@ -199,7 +199,7 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-rose-800">Υπάρχει οφειλή στο Τεφτέρι</p>
+              <p className="text-xs font-bold text-rose-800">Υπάρχει οφειλή στις Χρεώσεις πελατών</p>
               <p className="text-micro text-rose-700 mt-0.5">
                 Προηγούμενη έκδοση: {debtWarning.editionLabel} · Κληρώσεις: {debtWarning.drawCodes.map((c) => DRAW_LABELS[c]).join(', ')} · Υπόλοιπο: {formatCurrency(debtWarning.currentDebt)}
               </p>
@@ -208,7 +208,7 @@ export const NationalLotteryCustomerCard: React.FC<NationalLotteryCustomerCardPr
                 onClick={() => onOpenTefteri(customer.full_name)}
                 className="mt-1.5 text-micro font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
               >
-                Άνοιγμα καρτέλας στο Τεφτέρι <ExternalLink className="w-3 h-3" />
+                Άνοιγμα καρτέλας στις Χρεώσεις πελατών <ExternalLink className="w-3 h-3" />
               </button>
             </div>
           </div>

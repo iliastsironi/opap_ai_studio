@@ -680,7 +680,7 @@ export const ShiftsManager: React.FC = () => {
               title="Διαχείριση Πιστώσεων, Πελατών & Ορίων Credit Score"
             >
               <UserCheck className="w-4 h-4 text-indigo-600" />
-              <span className="hidden sm:inline">{toGreekUpper('Τεφτερι & Πιστωσεις')}</span>
+              <span className="hidden sm:inline">{toGreekUpper('Χρεωσεις πελατων')}</span>
             </button>
 
             {/* Refresh Button */}
@@ -1678,7 +1678,7 @@ export const ShiftsManager: React.FC = () => {
                   <span className="text-micro text-amber-950">
                     {option === 'KEEP'
                       ? 'Να μείνουν — ο πελάτης χρωστάει ακόμα, αλλά η χρέωση δεν θα δείχνει πια από ποια βάρδια ήρθε.'
-                      : 'Να σβηστούν κι αυτές — το υπόλοιπο του πελάτη στο τεφτέρι μειώνεται αντίστοιχα.'}
+                      : 'Να σβηστούν κι αυτές — το υπόλοιπο του πελάτη μειώνεται αντίστοιχα.'}
                   </span>
                 </label>
               ))}

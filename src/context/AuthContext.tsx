@@ -1,3 +1,4 @@
+import { mergePermissions } from '../lib/extraPermissions.ts';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase.ts';
@@ -291,7 +292,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setRoles([activeRole]);
       setOrganization(activeOrg);
-      setPermissions(activePerms);
+      // Ό,τι του δόθηκε προσωπικά (0091), πάνω από τον ρόλο του.
+      setPermissions(mergePermissions(activePerms, uData?.extra_permissions));
 
       // Τα καταστήματα αυτού του χρήστη. Κρατιόντουσαν εδώ από την πρώτη
       // μέρα και δεν φορτώνονταν ποτέ - το setAssignedStores υπήρχε μόνο

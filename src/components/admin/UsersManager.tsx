@@ -1,3 +1,4 @@
+import { hasWarehouseGrant, offersWarehouseGrant, withWarehouseGrant } from '../../lib/extraPermissions.ts';
 import React, { useEffect, useState } from 'react';
 import { UserPlus, Shield, Store as StoreIcon, Mail, Phone, CheckCircle2, Send, Edit2, Trash2, X, ChevronLeft, ChevronRight, Users, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -60,6 +61,8 @@ export const UsersManager: React.FC = () => {
   const [editRoleCode, setEditRoleCode] = useState('EMPLOYEE');
   const [editStatus, setEditStatus] = useState<'ACTIVE' | 'INACTIVE' | 'PENDING'>('ACTIVE');
   const [editStoreIds, setEditStoreIds] = useState<string[]>([]);
+  // Πρόσβαση στη διαχείριση της Αποθήκης Σκρατς, για υπάλληλο (0091).
+  const [editWarehouse, setEditWarehouse] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
@@ -80,6 +83,7 @@ export const UsersManager: React.FC = () => {
     // From user_store_assignments, loaded with the user list. `u.stores` and
     // `u.assigned_stores` were never populated by anything.
     setEditStoreIds((u.store_ids as string[]) ?? []);
+    setEditWarehouse(hasWarehouseGrant(u.extra_permissions));
     setEditError(null);
     setShowEditModal(true);
   };
@@ -106,6 +110,11 @@ export const UsersManager: React.FC = () => {
         employee_code: editEmployeeCode,
         role_code: editRoleCode,
         status: editStatus,
+        // ΜΟΝΟ όταν άλλαξε: η στήλη υπάρχει από το 0091, και μια άγνωστη στήλη ρίχνει όλη την αποθήκευση
+        // (PostgREST απορρίπτει ολόκληρη την εντολή). Έτσι οι κανονικές αλλαγές δεν εξαρτώνται από αυτήν.
+        ...(editWarehouse !== hasWarehouseGrant(editingUser.extra_permissions)
+          ? { extra_permissions: withWarehouseGrant(editingUser.extra_permissions, editWarehouse) }
+          : {}),
       });
 
       // Store access lives in its own table, which is why passing it here never
@@ -891,6 +900,30 @@ export const UsersManager: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* Πρόσβαση στην Αποθήκη Σκρατς, για όποιον δεν είναι ήδη διευθυντής ή πάνω. Ο υπάλληλος μένει
+                  υπάλληλος: παίρνει μόνο αυτό. */}
+              {offersWarehouseGrant(editRoleCode) && (
+                <label
+                  className="flex items-start justify-between gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer"
+                  data-testid="warehouse-grant"
+                >
+                  <span>
+                    <span className="block text-xs font-bold text-slate-800">Διαχείριση Αποθήκης Σκρατς</span>
+                    <span className="block text-micro text-slate-500 mt-0.5">
+                      Μπορεί να παραλαμβάνει, να μεταφέρει, να αποσύρει και να διαγράφει πακέτα, όπως ένας διευθυντής.
+                      Μόνο σε αυτή την οθόνη: όλα τα υπόλοιπα μένουν όπως του τα δίνει ο ρόλος του.
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={editWarehouse}
+                    onChange={(e) => setEditWarehouse(e.target.checked)}
+                    aria-label="Διαχείριση Αποθήκης Σκρατς"
+                    className="w-4 h-4 mt-0.5 text-indigo-600 rounded border-slate-300 shrink-0"
+                  />
+                </label>
+              )}
 
               <div>
                 <label htmlFor="edit-status" className="block text-xs font-bold text-slate-700 uppercase mb-1">Κατάσταση Χρήστη</label>

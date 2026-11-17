@@ -296,17 +296,36 @@ export async function createExpenseCategory(
   return toCategory(data);
 }
 
-/** Μετονομασία, αλλαγή πλευράς, απόσυρση. Το key δεν αλλάζει ποτέ. */
+/**
+ * Μετονομασία, αλλαγή πλευράς, απόκρυψη, σειρά. Το key δεν αλλάζει ποτέ.
+ *
+ * Μετράει τις γραμμές: ένα UPDATE που το RLS φιλτράρει απαντά 204 χωρίς σφάλμα, και ένα
+ * «αποθηκεύτηκε» που δεν έγραψε τίποτα θα έδειχνε στην οθόνη ένα όνομα που στη βάση δεν άλλαξε.
+ */
 export async function updateExpenseCategory(
   id: string,
-  patch: { label?: string; side?: ExpenseSide; isActive?: boolean }
+  patch: { label?: string; side?: ExpenseSide; isActive?: boolean; sortOrder?: number }
 ): Promise<void> {
   const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.label !== undefined) payload.label = patch.label.trim();
   if (patch.side !== undefined) payload.side = patch.side;
   if (patch.isActive !== undefined) payload.is_active = patch.isActive;
-  const { error } = await supabase.from(CATEGORIES_TABLE).update(payload).eq('id', id);
+  if (patch.sortOrder !== undefined) payload.sort_order = patch.sortOrder;
+  const { error, count } = await supabase
+    .from(CATEGORIES_TABLE)
+    .update(payload, { count: 'exact' })
+    .eq('id', id);
   if (error) throw new Error(error.message);
+  if (count === 0) {
+    throw new Error('Η αλλαγή δεν αποθηκεύτηκε — ίσως δεν έχετε δικαίωμα ή η κατηγορία έχει σβηστεί.');
+  }
+}
+
+/** Γράφει τη νέα σειρά: μόνο όσες γραμμές άλλαξαν. */
+export async function reorderExpenseCategories(changes: ReadonlyArray<{ id: string; sortOrder: number }>): Promise<void> {
+  for (const change of changes) {
+    await updateExpenseCategory(change.id, { sortOrder: change.sortOrder });
+  }
 }
 
 // ------------------------------------------------------------------

@@ -110,7 +110,7 @@ describe('η επιλογή για τις χρεώσεις δεν έχει πρ�
   it('marks the credits line as undecided rather than kept', () => {
     const line = deletionLines(withCredits, null).find((l) => l.label === 'Χρεώσεις πελατών')!;
     expect(line.detail).toContain('διαλέξτε');
-    expect(line.detail).not.toContain('παραμένει στο τεφτέρι');
+    expect(line.detail).not.toContain('παραμένει στις χρεώσεις πελατών');
   });
 
   it('agrees with needsCreditChoice, which is the same question', () => {

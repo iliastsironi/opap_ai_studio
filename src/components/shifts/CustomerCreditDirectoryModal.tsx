@@ -332,7 +332,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
       title="Διαχείριση Πιστώσεων & Credit Score Πελατών"
       badge={
         <span className="text-micro bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full font-bold border border-indigo-400/30">
-          Τεφτέρι Καταστήματος
+          Χρεώσεις πελατών καταστήματος
         </span>
       }
       subtitle="4 Κατηγορίες Αξιοπιστίας (A+, A, B, C) με αυστηρό έλεγχο ορίων δανεισμού."
@@ -399,7 +399,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                 <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 flex items-center justify-between">
                   <div>
                     <span className="text-micro font-extrabold text-rose-700 uppercase tracking-wider block">
-                      Συνολικό Ανοιχτό Τεφτέρι
+                      Συνολικές ανοιχτές χρεώσεις
                     </span>
                     <span className="text-xl font-black text-rose-950 font-mono">
                       {formatCurrency(totalOutstandingDebt)}

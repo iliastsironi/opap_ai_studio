@@ -112,13 +112,13 @@ export const NationalLotteryEditionRolloverModal: React.FC<NationalLotteryEditio
             <Row label="Συνδρομητές με εκκρεμείς κληρώσεις" value={String(preview.customersWithPendingCount)} />
             <Row label="Εκκρεμείς κληρώσεις (σύνολο)" value={String(preview.totalPendingTickets)} />
             <Row
-              label="Οφειλή που θα μεταφερθεί στο Τεφτέρι"
+              label="Οφειλή που θα μεταφερθεί στις Χρεώσεις πελατών"
               value={formatCurrency(preview.totalDebtToTransfer)}
               emphasize
             />
             {preview.customersWithPendingCount > 0 && (
               <p className="text-micro text-amber-700 pt-1">
-                Οι παραπάνω εκκρεμείς κληρώσεις θα καταγραφούν ως οφειλή στο Τεφτέρι πριν μηδενιστούν οι κληρώσεις
+                Οι παραπάνω εκκρεμείς κληρώσεις θα καταγραφούν ως οφειλή στις Χρεώσεις πελατών πριν μηδενιστούν οι κληρώσεις
                 της νέας έκδοσης. Καμία ιστορική καταχώρηση δεν αλλάζει.
               </p>
             )}

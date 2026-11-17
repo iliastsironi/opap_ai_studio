@@ -104,7 +104,7 @@ export function deletionLines(
         (disposition === null
           ? ' — διαλέξτε παρακάτω τι θα τις γίνει'
           : disposition === 'KEEP'
-          ? ' — το χρέος παραμένει στο τεφτέρι'
+          ? ' — το χρέος παραμένει στις χρεώσεις πελατών'
           : ''),
       fate: disposition === 'DELETE' ? 'GOES' : 'DETACHES',
     });

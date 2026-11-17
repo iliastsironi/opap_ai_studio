@@ -125,6 +125,11 @@ export interface User {
   must_change_password?: boolean;
   /** The address is a login handle at the staff domain, not a mailbox. */
   has_placeholder_email?: boolean;
+  /**
+   * Δικαιώματα που δόθηκαν σε αυτόν τον χρήστη πάνω από τον ρόλο του (0091), π.χ.
+   * scratch_warehouse.manage για έναν υπάλληλο που χειρίζεται την αποθήκη.
+   */
+  extra_permissions?: string[];
   created_at: string;
   updated_at: string;
 }

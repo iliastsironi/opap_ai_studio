@@ -1,3 +1,4 @@
+import { ETHNIKO_ROW_ID } from '../../lib/ethnikoLottery.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
 import {
   DEFAULT_SAFE_BUNDLE_SIZES,
@@ -1564,33 +1565,6 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <span className="text-xs text-slate-500 font-medium">Μόνο ο Ιδιοκτήτης μπορεί να τις αλλάξει</span>
           </div>
 
-          <div
-            onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }))}
-            role="switch"
-            aria-checked={template.show_national_lottery}
-            aria-label="Εμφάνιση Εθνικού Λαχείου"
-            tabIndex={canManageScratchMode ? 0 : -1}
-            onKeyDown={(e) => {
-              if (canManageScratchMode && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }));
-              }
-            }}
-            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand ${
-              canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
-            } ${template.show_national_lottery ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
-          >
-            <div>
-              <h4 className="text-xs font-bold text-slate-900">Εμφάνιση Εθνικού Λαχείου</h4>
-              <p className="text-micro text-slate-500 mt-0.5">Πολλά καταστήματα δεν διαχειρίζονται Εθνικό Λαχείο - αποκρύπτει την ενότητα από το μενού τους.</p>
-            </div>
-            {template.show_national_lottery ? (
-              <ToggleRight className="w-6 h-6 text-indigo-600 flex-shrink-0" />
-            ) : (
-              <ToggleLeft className="w-6 h-6 text-slate-500 flex-shrink-0" />
-            )}
-          </div>
-
           {/* Όλα τα λαχεία, μία φορά, με τον ίδιο τρόπο (0059).
               The unit used to be answered in three different shapes and three
               different places - a boolean per seasonal edition, a selling
@@ -1610,7 +1584,12 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <div className="space-y-2">
               {lotteryRows.map((row) => {
                 const seasonal = isSeasonalEditionRow(row.id);
-                const on = !seasonal || isSeasonalEditionEnabled(row.id, template as any);
+                // Το Εθνικό δεν είναι εποχικό, αλλά έχει κι αυτό διακόπτη εμφάνισης, στη γραμμή του
+                // όπως οι υπόλοιπες: αν το κατάστημα δεν το διαχειρίζεται, κρύβει την ενότητα από το μενού.
+                const isNational = row.id === ETHNIKO_ROW_ID;
+                const on = isNational
+                  ? template.show_national_lottery !== false
+                  : !seasonal || isSeasonalEditionEnabled(row.id, template as any);
                 const unit = unitFor(row.id, template.lottery_units, template as any, row.bundleSize);
                 return (
                   <div
@@ -1619,7 +1598,14 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       on ? 'bg-white border-slate-200' : 'bg-white/60 border-slate-200 opacity-60'
                     }`}
                   >
-                    <span className="text-xs font-bold text-slate-900 min-w-0">{row.name}</span>
+                    <span className="text-xs font-bold text-slate-900 min-w-0">
+                      {row.name}
+                      {isNational && (
+                        <span className="block text-micro font-medium text-slate-500">
+                          Αν κλείσει, η ενότητα Εθνικό Λαχείο κρύβεται από το μενού του καταστήματος
+                        </span>
+                      )}
+                    </span>
 
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Το Εθνικό πουλιέται μόνο σε πεντάδες - its 20 € IS
@@ -1683,6 +1669,25 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                                 prev as any
                               ),
                             }))
+                          }
+                          className={canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'}
+                        >
+                          {on ? (
+                            <ToggleRight className="w-6 h-6 text-indigo-600" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-slate-500" />
+                          )}
+                        </button>
+                      ) : isNational ? (
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          aria-label="Εμφάνιση Εθνικού Λαχείου"
+                          disabled={!canManageScratchMode}
+                          onClick={() =>
+                            canManageScratchMode &&
+                            setTemplate((prev) => ({ ...prev, show_national_lottery: prev.show_national_lottery === false }))
                           }
                           className={canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'}
                         >

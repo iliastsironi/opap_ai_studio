@@ -9,7 +9,7 @@ import { formatCurrency } from '../../lib/formatters.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
 import { currentMonthKey, daysOfMonth, monthLabel, shiftMonthKey, weekdayLabel } from '../../lib/pnlEngine.ts';
-import { buildVltDayRows, vltMismatches, type VltDayRow } from '../../lib/vltReportCheck.ts';
+import { buildVltDayRows, summariseVltMonth, vltMismatches, type VltDayRow, type VltMonthSummary } from '../../lib/vltReportCheck.ts';
 import {
   approveVltDifference,
   deleteVltReport,
@@ -90,6 +90,65 @@ export const VltAlertBanner: React.FC<{
           ))}
         </ul>
         {approveError && <p className="mt-2 font-bold text-rose-900">{approveError}</p>}
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------ σύνολο μήνα */
+
+/**
+ * Το σύνολο του μήνα και η απόκλιση, πάνω από τον πίνακα.
+ *
+ * Η απόκλιση είναι μόνο των ημερών που συγκρίθηκαν (είχαν report και είχαν κλείσει όλες οι βάρδιες):
+ * μια ημέρα που περιμένει ακόμα το report δεν είναι «έλλειμμα» κατά ολόκληρο τον τζίρο της.
+ */
+export const VltMonthSummaryStrip: React.FC<{ summary: VltMonthSummary; monthText: string }> = ({ summary, monthText }) => {
+  const dev = summary.deviation;
+  const tone = dev === 0 ? 'text-emerald-700' : 'text-rose-700';
+  const box = 'p-3.5 rounded-2xl border bg-white';
+  return (
+    <div data-testid="vlt-month-summary" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={`${box} border-slate-200`}>
+        <span className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block">
+          Σύνολο μήνα · βάρδιες
+        </span>
+        <span className="text-lg font-black font-mono text-slate-900 block mt-0.5">{formatCurrency(summary.shiftsTotal)}</span>
+        <span className="text-micro text-slate-500">VLT {monthText}, από τις βάρδιες</span>
+      </div>
+      <div className={`${box} border-slate-200`}>
+        <span className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block">
+          Σύνολο μήνα · Report Allwynnet
+        </span>
+        <span className="text-lg font-black font-mono text-slate-900 block mt-0.5">{formatCurrency(summary.reportTotal)}</span>
+        <span className="text-micro text-slate-500">όσα reports έχουν γραφτεί</span>
+      </div>
+      <div className={`${box} ${dev === 0 ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-300 bg-rose-50/60'}`}>
+        <span className="text-micro font-extrabold text-slate-600 uppercase tracking-wider block">Απόκλιση μήνα</span>
+        <span className={`text-lg font-black font-mono block mt-0.5 ${tone}`} data-testid="vlt-month-deviation">
+          {summary.comparedDays === 0 ? '—' : dev === 0 ? formatCurrency(0) : signed(dev)}
+        </span>
+        <span className="text-micro text-slate-500">
+          {summary.comparedDays === 0
+            ? 'καμία ημέρα δεν συγκρίθηκε ακόμα'
+            : `report − βάρδιες, σε ${summary.comparedDays} ${summary.comparedDays === 1 ? 'ημέρα' : 'ημέρες'} που συγκρίθηκαν`}
+        </span>
+        {summary.approvedDays > 0 && (
+          <span className="text-micro font-bold text-emerald-700 block mt-0.5">
+            εκ των οποίων εγκεκριμένες: {signed(summary.approvedDeviation)} ({summary.approvedDays})
+          </span>
+        )}
+      </div>
+      <div className={`${box} border-slate-200`}>
+        <span className="text-micro font-extrabold text-slate-500 uppercase tracking-wider block">Δεν συγκρίθηκαν ακόμα</span>
+        <span className="text-lg font-black font-mono text-slate-900 block mt-0.5">
+          {summary.awaitingDays + summary.openDays}{' '}
+          <span className="text-xs font-bold text-slate-500">{summary.awaitingDays + summary.openDays === 1 ? 'ημέρα' : 'ημέρες'}</span>
+        </span>
+        <span className="text-micro text-slate-500">
+          {summary.awaitingDays > 0 ? `${summary.awaitingDays} περιμένουν report (${formatCurrency(summary.awaitingAmount)})` : 'κανένα report σε αναμονή'}
+          {summary.openDays > 0 ? ` · ${summary.openDays} με βάρδια σε εξέλιξη` : ''}
+        </span>
       </div>
     </div>
   );
@@ -322,6 +381,7 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
   }, [load]);
 
   const mismatches = useMemo(() => vltMismatches(rows), [rows]);
+  const monthSummary = useMemo(() => summariseVltMonth(rows), [rows]);
 
   /**
    * Έγκριση της διαφοράς μιας ημέρας από υπεύθυνο: η ειδοποίηση πάνω σταματά, η γραμμή μένει
@@ -455,6 +515,8 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
         approvingKey={approvingKey}
         approveError={approveError}
       />
+
+      {rows.length > 0 && <VltMonthSummaryStrip summary={monthSummary} monthText={monthLabel(month)} />}
 
       {reportsError && (
         <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">

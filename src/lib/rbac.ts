@@ -44,6 +44,9 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_shifts.view', code: 'shifts.view', module: 'Shifts', description: 'Προβολή ενότητας Βαρδιών & Ταμείου' },
   { id: 'perm_expenses.view', code: 'expenses.view', module: 'Expenses', description: 'Προβολή ενότητας Εξόδων' },
   { id: 'perm_suppliers.view', code: 'suppliers.view', module: 'Suppliers', description: 'Προβολή ενότητας Προμηθευτών' },
+  // Δίνεται ΑΝΑ ΧΡΗΣΤΗ (users.extra_permissions, 0091), όχι μέσω ρόλου: ένας υπάλληλος που χειρίζεται
+  // την αποθήκη, χωρίς να γίνει διευθυντής. Δεν υπάρχει σε κανέναν ρόλο εδώ επίτηδες.
+  { id: 'perm_scratch_warehouse.manage', code: 'scratch_warehouse.manage', module: 'Store', description: 'Αποθήκη Σκρατς - χειρισμός πακέτων (παραλαβή, μεταφορά, απόσυρση, διαγραφή) από υπάλληλο που του δόθηκε πρόσβαση' },
   { id: 'perm_scratch_warehouse.view', code: 'scratch_warehouse.view', module: 'Store', description: 'Αποθήκη Σκρατς - παραλαβή, μεταφορά στο μαγαζί, απόσυρση' },
   // Managers and owners only, per UAT. Mirrored by incidents_select in
   // 0022_scope_shift_visibility.sql, which is auth_is_elevated() - so
