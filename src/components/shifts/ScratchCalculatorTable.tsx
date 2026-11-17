@@ -3,6 +3,7 @@ import {
   Plus,
   Trash2,
   RotateCcw,
+  RefreshCw,
   Sparkles,
   Hash,
   Edit2,
@@ -1627,6 +1628,12 @@ interface ScratchCalculatorTableProps {
    * ξαναζητούσε πληκτρολογημένο κωδικό.
    */
   warehouseInUse?: boolean;
+  /**
+   * Ξαναδιαβάζει τα παραδομένα πακέτα τώρα. Η αποθήκη αλλάζει από άλλη συσκευή, και
+   * το μήνυμα «περιμένει παράδοση» πρέπει να έχει διέξοδο όταν ο ιδιοκτήτης μόλις
+   * παρέδωσε το πακέτο (η οθόνη ξαναρωτάει και μόνη της, αλλά όχι αμέσως).
+   */
+  onRefreshWarehouse?: () => Promise<void>;
   /** Το πακέτο βγήκε στον πάγκο: η αποθήκη πρέπει να το μάθει. */
   onPackTaken?: (packId: string) => Promise<void>;
   /**
@@ -1671,6 +1678,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   warehouseInUse = false,
   onPackTaken,
   onPackReturned,
+  onRefreshWarehouse,
   catalogEditable = false,
   earlierShiftRows = null,
 }) => {
@@ -1728,6 +1736,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   /** Ποιο πακέτο της αποθήκης βγαίνει στον πάγκο (0065). */
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [newPackError, setNewPackError] = useState<string | null>(null);
+  const [refreshingWarehouse, setRefreshingWarehouse] = useState(false);
   // Only asked for when the price does not divide 300 and the pack size
   // cannot be derived.
   const [newPackRemainder, setNewPackRemainder] = useState<string>('');
@@ -2395,6 +2404,26 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
               κατάστημα — δεν πωλούνται ακόμα, γι' αυτό δεν μετριούνται εδώ. Μπαίνουν μόνα
               τους μόλις παραδοθεί το πρώτο πακέτο.
             </p>
+            {/* Αν η αποθήκη το παρέδωσε μόλις τώρα, η οθόνη το μαθαίνει μόνη της σε
+                λίγα δευτερόλεπτα· το κουμπί το κάνει αμέσως. */}
+            {onRefreshWarehouse && (
+              <button
+                type="button"
+                disabled={refreshingWarehouse}
+                onClick={async () => {
+                  setRefreshingWarehouse(true);
+                  try {
+                    await onRefreshWarehouse();
+                  } finally {
+                    setRefreshingWarehouse(false);
+                  }
+                }}
+                className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-amber-300 bg-white text-micro font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-60 cursor-pointer disabled:cursor-default"
+              >
+                <RefreshCw aria-hidden="true" className={`w-3 h-3 ${refreshingWarehouse ? 'animate-spin' : ''}`} />
+                {refreshingWarehouse ? 'Έλεγχος…' : 'Παραδόθηκε ήδη; Ανανέωση'}
+              </button>
+            )}
           </div>
         </div>
       )}

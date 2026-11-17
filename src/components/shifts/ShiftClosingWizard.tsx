@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { startAutoRefresh, type AutoRefresh } from '../../lib/autoRefresh.ts';
 import {
   ChevronLeft,
   ChevronRight,
@@ -652,27 +653,36 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     };
   }, [shift.organization_id, shift.store_id, organization]);
 
+  // Η λίστα των πακέτων δεν διαβάζεται μία φορά. Η αποθήκη αλλάζει από ΑΛΛΗ
+  // συσκευή (ο ιδιοκτήτης παραδίδει πακέτα ενώ η οθόνη του ταμείου είναι ανοιχτή
+  // από το πρωί), και μια λίστα που διαβάστηκε στο άνοιγμα έλεγε «περιμένει
+  // παράδοση» για πακέτο που ήταν ήδη παραδομένο. Ξαναδιαβάζεται κάθε λίγα
+  // δευτερόλεπτα όσο φαίνεται η σελίδα, μόλις ξαναγυρίσει κάποιος σε αυτήν, και
+  // με το κουμπί «Ανανέωση» του μηνύματος.
+  const warehouseRefresh = useRef<AutoRefresh | null>(null);
   useEffect(() => {
-    let cancelled = false;
     const orgId = shift.organization_id || organization!.id;
-    Promise.all([
+    const loop = startAutoRefresh({
       // Παραδομένα ΚΑΙ στο ράφι: το παράθυρο ανοίγει μόνο τα πρώτα, αλλά
       // χρειάζεται τα δεύτερα για να πει «υπάρχει, δεν σου παραδόθηκε».
-      fetchPacksForTill(orgId, shift.store_id),
-      storeUsesWarehouse(orgId, shift.store_id),
-    ])
-      .then(([packs, inUse]) => {
-        if (cancelled) return;
+      load: () => Promise.all([fetchPacksForTill(orgId, shift.store_id), storeUsesWarehouse(orgId, shift.store_id)]),
+      apply: ([packs, inUse]) => {
         setWarehousePacks(packs);
         setWarehouseInUse(inUse);
-      })
+      },
       // Σιωπηλά: μια αποθήκη που δεν διαβάζεται αφήνει το ταμείο όπως ήταν
       // πριν υπάρξει, που είναι η ασφαλής κατάσταση. Το να μπλοκάρει το
       // κλείσιμο επειδή δεν φόρτωσε μια λίστα θα ήταν χειρότερο από το να
       // λείπει ο έλεγχος προέλευσης για μία βάρδια.
-      .catch((err) => console.warn('[ShiftClosingWizard] could not read the warehouse:', err));
+      onError: (err) => console.warn('[ShiftClosingWizard] could not read the warehouse:', err),
+      isVisible: () => typeof document === 'undefined' || document.visibilityState === 'visible',
+      target: typeof document === 'undefined' ? null : document,
+    });
+    warehouseRefresh.current = loop;
+    void loop.refresh();
     return () => {
-      cancelled = true;
+      loop.stop();
+      warehouseRefresh.current = null;
     };
   }, [shift.organization_id, shift.store_id, organization]);
 
@@ -2816,8 +2826,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 warehousePacks={warehousePacks}
                 warehouseInUse={warehouseInUse}
                 earlierShiftRows={earlierShiftRows}
+                onRefreshWarehouse={async () => {
+                  await warehouseRefresh.current?.refresh();
+                }}
                 onPackTaken={async (packId) => {
                   await movePackToStore(packId, shift.id);
+                  // Ό,τι ερώτημα ήταν στον αέρα πριν την παραλαβή θα γύριζε το
+                  // πακέτο στη λίστα, ενώ πια είναι στον πάγκο.
+                  warehouseRefresh.current?.supersede();
                   setWarehousePacks((prev) => prev.filter((p) => p.id !== packId));
                 }}
                 onPackReturned={async (catalogCode, packCode) => {
@@ -2826,7 +2842,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                   // Ξαναδιαβάζεται αντί να μπει πίσω στη λίστα από μνήμη: το
                   // πακέτο μπορεί να έχει αναιρεθεί μετά από επαναφόρτωση,
                   // οπότε δεν υπάρχει τίποτα αποθηκευμένο να ξαναμπεί.
-                  setWarehousePacks(await fetchPacksForTill(orgId, shift.store_id));
+                  await warehouseRefresh.current?.refresh();
                 }}
               />
 
