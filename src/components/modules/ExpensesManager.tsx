@@ -876,7 +876,7 @@ export const ExpensesManager: React.FC = () => {
               placeholder="Αναζήτηση με περιγραφή, προμηθευτή ή ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 w-full border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              className="pl-9 pr-4 py-2 w-full border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-brand focus:outline-hidden"
             />
           </div>
 
@@ -886,7 +886,7 @@ export const ExpensesManager: React.FC = () => {
               id="expenses-category-filter"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 bg-white focus:ring-2 focus:ring-brand focus:outline-hidden"
             >
               <option value="ALL">Όλες οι Κατηγορίες</option>
               <option value="CLEANING">Καθαριότητα</option>
@@ -1076,7 +1076,7 @@ export const ExpensesManager: React.FC = () => {
                   type="checkbox"
                   checked={effectiveCharge}
                   onChange={(e) => setChargeToTill(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"
+                  className="w-4 h-4 mt-0.5 text-indigo-600 rounded focus:ring-brand cursor-pointer"
                 />
                 <span className="text-micro leading-tight">
                   <strong className="block font-bold text-slate-900">
@@ -1233,7 +1233,7 @@ export const ExpensesManager: React.FC = () => {
                   id="expense-supplier"
                   value={selectedSupplierId}
                   onChange={(e) => handleSupplierSelect(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white font-medium text-slate-800 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 bg-white font-medium text-slate-800 text-sm focus:border-brand focus:ring-1 focus:ring-brand"
                   required={selectedSupplierId !== 'CUSTOM' && !recipient}
                 >
                   <option value="">-- Επιλέξτε Προμηθευτή από τη Λίστα --</option>

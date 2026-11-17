@@ -520,7 +520,7 @@ export const DiscrepancyLedger: React.FC = () => {
                   maxLength={MAX_NOTES_LENGTH}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="π.χ. Πληρώθηκε σε μετρητά 14/10"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-brand focus:outline-hidden"
                 />
               </div>
             )}

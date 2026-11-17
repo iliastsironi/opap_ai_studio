@@ -36,7 +36,7 @@ interface PayrollRowModalProps {
 }
 
 const inputClass =
-  'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500';
+  'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-brand';
 
 export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month, stores, row, users, onClose, onSave }) => {
   const [storeId, setStoreId] = useState('');
@@ -167,7 +167,7 @@ export const PayrollRowModal: React.FC<PayrollRowModalProps> = ({ isOpen, month,
                 type="checkbox"
                 checked={dualRole}
                 onChange={(e) => setDualRole(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-brand cursor-pointer"
               />
               <span className="text-xs font-bold text-slate-700">
                 Διττός ρόλος — καλύπτει και πρακτορείο και καφέ

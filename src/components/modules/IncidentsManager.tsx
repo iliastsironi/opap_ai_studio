@@ -183,7 +183,7 @@ export const IncidentsManager: React.FC = () => {
               placeholder="Αναζήτηση συμβάντων..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 w-full border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              className="pl-9 pr-4 py-2 w-full border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-brand focus:outline-hidden"
             />
           </div>
         </div>
@@ -327,7 +327,7 @@ export const IncidentsManager: React.FC = () => {
                   id="incident-store"
                   value={targetStoreId}
                   onChange={(e) => setTargetStoreId(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-indigo-500"
+                  className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-brand"
                 >
                   {stores.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -346,7 +346,7 @@ export const IncidentsManager: React.FC = () => {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 font-bold focus:outline-hidden focus:border-indigo-500"
+                  className="w-full border border-slate-300 rounded-lg p-2 font-bold focus:outline-hidden focus:border-brand"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -356,7 +356,7 @@ export const IncidentsManager: React.FC = () => {
                     id="incident-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-indigo-500"
+                    className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-brand"
                   >
                     <option value="DISCREPANCY">Χρηματική Απόκλιση</option>
                     <option value="EQUIPMENT">Εξοπλισμός / VLT</option>
@@ -371,7 +371,7 @@ export const IncidentsManager: React.FC = () => {
                     id="incident-severity"
                     value={severity}
                     onChange={(e) => setSeverity(e.target.value as any)}
-                    className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-indigo-500"
+                    className="w-full border border-slate-300 rounded-lg p-2 bg-white focus:outline-hidden focus:border-brand"
                   >
                     <option value="LOW">Χαμηλή (Low)</option>
                     <option value="MEDIUM">Μεσαία (Medium)</option>
@@ -390,7 +390,7 @@ export const IncidentsManager: React.FC = () => {
                   placeholder="Αναλυτικές πληροφορίες για το συμβάν..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full border border-slate-300 rounded-lg p-2 focus:outline-hidden focus:border-brand"
                 />
               </div>
             </div>

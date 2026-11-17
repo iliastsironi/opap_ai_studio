@@ -119,7 +119,7 @@ export const NationalLotteryCustomerFormModal: React.FC<NationalLotteryCustomerF
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="π.χ. Γιώργος Παπαδόπουλος"
-            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white focus:outline-hidden focus:border-indigo-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white focus:outline-hidden focus:border-brand"
           />
         </div>
 
@@ -134,7 +134,7 @@ export const NationalLotteryCustomerFormModal: React.FC<NationalLotteryCustomerF
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="π.χ. 697 123 4567"
-            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 bg-white font-mono focus:outline-hidden focus:border-indigo-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 bg-white font-mono focus:outline-hidden focus:border-brand"
           />
         </div>
 
@@ -149,7 +149,7 @@ export const NationalLotteryCustomerFormModal: React.FC<NationalLotteryCustomerF
             value={lotteryNumber}
             onChange={(e) => setLotteryNumber(e.target.value)}
             placeholder="π.χ. 4471"
-            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 bg-white focus:outline-hidden focus:border-indigo-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 bg-white focus:outline-hidden focus:border-brand"
           />
         </div>
 
@@ -183,7 +183,7 @@ export const NationalLotteryCustomerFormModal: React.FC<NationalLotteryCustomerF
             maxLength={MAX_NOTES_LENGTH}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 bg-white focus:outline-hidden focus:border-indigo-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 bg-white focus:outline-hidden focus:border-brand"
           />
         </div>
       </div>

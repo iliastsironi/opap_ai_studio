@@ -237,9 +237,9 @@ export const StoresManager: React.FC = () => {
                       handleSelectStore(st);
                     }
                   }}
-                  className={`w-full text-left p-4 rounded-xl border transition-colors cursor-pointer group relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`w-full text-left p-4 rounded-xl border transition-colors cursor-pointer group relative focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand ${
                     isSelected
-                      ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
+                      ? 'bg-indigo-50/70 border-indigo-400 ring-2 ring-brand/20 shadow-xs'
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
@@ -462,7 +462,7 @@ export const StoresManager: React.FC = () => {
                     onChange={(e) => setStoreCode(e.target.value)}
                     placeholder="π.χ. STR-01"
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500 font-mono"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand font-mono"
                   />
                 </div>
 
@@ -476,7 +476,7 @@ export const StoresManager: React.FC = () => {
                     value={storePosCount}
                     onChange={(e) => setStorePosCount(parseInt(e.target.value) || 0)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500 font-bold"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand font-bold"
                   />
                 </div>
               </div>
@@ -491,7 +491,7 @@ export const StoresManager: React.FC = () => {
                   onChange={(e) => setStoreName(e.target.value)}
                   placeholder="π.χ. Πρακτορείο ΟΠΑΠ - Χαλάνδρι"
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -501,7 +501,7 @@ export const StoresManager: React.FC = () => {
                   id="store-type"
                   value={storeType}
                   onChange={(e) => setStoreType(e.target.value as StoreType)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 >
                   <option value="OPAP_AGENCY">Πρακτορείο ΟΠΑΠ (OPAP Agency)</option>
                   <option value="PLAY_STORE">PLAY OPAP Store (VLTs)</option>
@@ -520,7 +520,7 @@ export const StoresManager: React.FC = () => {
                   value={storeAddress}
                   onChange={(e) => setStoreAddress(e.target.value)}
                   placeholder="π.χ. Λεωφ. Πεντέλης 10"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -534,7 +534,7 @@ export const StoresManager: React.FC = () => {
                     value={storePhone}
                     onChange={(e) => setStorePhone(e.target.value)}
                     placeholder="210 6812345"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
 
@@ -547,7 +547,7 @@ export const StoresManager: React.FC = () => {
                     value={storeHours}
                     onChange={(e) => setStoreHours(e.target.value)}
                     placeholder="08:00 - 23:30"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -590,7 +590,7 @@ export const StoresManager: React.FC = () => {
                   onChange={(e) => setNewDeptCode(e.target.value)}
                   placeholder="π.χ. PLAY_VLT, FNB, LOTTERY"
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500 font-mono"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand font-mono"
                 />
               </div>
 
@@ -604,7 +604,7 @@ export const StoresManager: React.FC = () => {
                   onChange={(e) => setNewDeptName(e.target.value)}
                   placeholder="π.χ. Τμήμα Τερματικών VLT PLAY"
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 

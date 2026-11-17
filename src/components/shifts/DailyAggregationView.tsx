@@ -192,7 +192,7 @@ export const DailyAggregationView: React.FC<DailyAggregationViewProps> = ({
                 type="date"
                 value={selectedDate}
                 onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-sm"
+                className="bg-transparent text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand rounded-sm"
               />
             </div>
 

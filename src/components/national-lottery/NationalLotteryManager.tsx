@@ -209,7 +209,7 @@ export const NationalLotteryManager: React.FC = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Αναζήτηση με όνομα, τηλέφωνο ή αριθμό λαχείου..."
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-hidden focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-hidden focus:border-brand"
               />
             </div>
             <div className="flex items-center bg-slate-100 rounded-xl p-1 shrink-0" role="group" aria-label="Ταξινόμηση λίστας συνδρομητών">

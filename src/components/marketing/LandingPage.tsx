@@ -326,22 +326,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
   return (
     <div className="min-h-screen bg-white text-slate-900">
       {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-slate-200">
+      <header className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm border-b border-white/10">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
           <div className="flex items-center space-x-3">
-            <BesimplIcon size={40} className="rounded-xl shadow-lg" />
-            <VarWordmark className="text-2xl text-slate-900" />
+            <BesimplIcon size={40} className="rounded-xl ring-1 ring-white/15" />
+            <VarWordmark className="text-2xl text-white" />
           </div>
-          <nav className="hidden lg:flex items-center space-x-6 text-sm font-semibold text-slate-600">
+          <nav className="hidden lg:flex items-center space-x-6 text-sm font-semibold text-slate-300">
             {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} className="hover:text-indigo-600 transition-colors">
+              <a key={link.href} href={link.href} className="hover:text-brand transition-colors">
                 {link.label}
               </a>
             ))}
           </nav>
           <button
             onClick={onSignIn}
-            className="inline-flex items-center space-x-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+            className="inline-flex items-center space-x-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
           >
             <LogIn className="w-4 h-4" />
             <span>Σύνδεση</span>
@@ -350,36 +350,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-indigo-100 rounded-full blur-3xl pointer-events-none opacity-60" />
+      <section className="relative overflow-hidden bg-slate-900">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-brand/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-40 -left-32 w-96 h-96 bg-brand/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-14 pb-20 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-block text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+            <span className="inline-block text-xs font-bold text-brand bg-brand/10 border border-brand/30 px-3 py-1 rounded-full">
               Φτιαγμένο για πρακτορεία ΟΠΑΠ
             </span>
-            <h1 className="mt-5 text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight text-slate-900">
-              Ο ψηφιακός συνεργάτης για το πρακτορείο σας
+            <h1 className="mt-5 text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight text-white">
+              Ο ψηφιακός <span className="text-brand">συνεργάτης</span> για το πρακτορείο σας
             </h1>
-            <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed">
+            <p className="mt-5 text-base sm:text-lg text-slate-300 leading-relaxed">
               Βάρδιες, ταμείο, Σκρατς &amp; Λαχεία, τεφτέρι πελατών και αναφορές — όλα σε ένα σύστημα,
               χτισμένο ειδικά για πρακτορεία ΟΠΑΠ. Απλό στη χρήση, όσο κι αν δεν είστε "τεχνολογικός" τύπος.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-start gap-3">
               <button
                 onClick={onStartTrial}
-                className="transition w-full sm:w-auto inline-flex items-center justify-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 cursor-pointer"
+                className="transition w-full sm:w-auto inline-flex items-center justify-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-brand hover:bg-indigo-300 text-slate-900 font-bold py-3.5 px-7 rounded-xl shadow-lg shadow-brand/25 cursor-pointer"
               >
                 <span>Δωρεάν Δοκιμή 30 Ημερών</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
                 onClick={onSignIn}
-                className="w-full sm:w-auto inline-flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold py-3.5 px-7 rounded-xl transition-colors cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-transparent hover:bg-white/10 border border-white/25 text-white font-semibold py-3.5 px-7 rounded-xl transition-colors cursor-pointer"
               >
                 Έχω ήδη λογαριασμό
               </button>
             </div>
-            <p className="mt-4 text-sm text-slate-500">Χωρίς πιστωτική κάρτα. Ακυρώστε όποτε θέλετε.</p>
+            <p className="mt-4 text-sm text-slate-400">Χωρίς πιστωτική κάρτα. Ακυρώστε όποτε θέλετε.</p>
           </div>
           <BrowserFrame>
             <DashboardPreview />
@@ -425,9 +426,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="transition bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-indigo-200 hover:shadow-sm "
+              className="transition bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs hover:border-brand hover:shadow-sm "
             >
-              <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center mb-4">
+              <div className="w-11 h-11 rounded-xl bg-slate-900 text-brand flex items-center justify-center mb-4">
                 <feature.icon className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-slate-900">{feature.title}</h3>
@@ -447,9 +448,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {HOW_IT_WORKS.map((step, i) => (
               <div key={step.title} className="text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-white border border-slate-200 shadow-2xs text-indigo-600 flex items-center justify-center relative">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-white border border-slate-200 shadow-2xs text-slate-900 flex items-center justify-center relative">
                   <step.icon className="w-6 h-6" />
-                  <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-brand text-slate-900 text-xs font-black flex items-center justify-center">
                     {i + 1}
                   </span>
                 </div>
@@ -509,21 +510,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 key={plan.name}
                 className={`relative rounded-2xl p-7 flex flex-col ${
                   plan.highlight
-                    ? 'bg-indigo-600 shadow-2xl shadow-indigo-600/20'
+                    ? 'bg-slate-900 ring-1 ring-brand/40 shadow-2xl shadow-slate-900/20'
                     : 'bg-white border border-slate-200 shadow-2xs'
                 }`}
               >
                 {plan.badge && (
-                  <span className="absolute -top-3 right-6 bg-emerald-500 text-emerald-950 text-micro font-bold px-3 py-1 rounded-full">
+                  <span className="absolute -top-3 right-6 bg-brand text-slate-900 text-micro font-bold px-3 py-1 rounded-full">
                     {plan.badge}
                   </span>
                 )}
-                <h3 className={`font-bold ${plan.highlight ? 'text-indigo-100' : 'text-slate-500'}`}>{plan.name}</h3>
+                <h3 className={`font-bold ${plan.highlight ? 'text-brand' : 'text-slate-500'}`}>{plan.name}</h3>
                 <div className="mt-2 flex items-baseline space-x-1.5">
                   <span className={`text-3xl font-extrabold ${plan.highlight ? 'text-white' : 'text-slate-900'}`}>
                     {plan.price}
                   </span>
-                  <span className={plan.highlight ? 'text-indigo-100 text-sm' : 'text-slate-500 text-sm'}>
+                  <span className={plan.highlight ? 'text-slate-300 text-sm' : 'text-slate-500 text-sm'}>
                     {plan.period}
                   </span>
                 </div>
@@ -531,9 +532,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                   {plan.perks.map((perk) => (
                     <li key={perk} className="flex items-start space-x-2 text-sm">
                       <CheckCircle2
-                        className={`w-4 h-4 mt-0.5 shrink-0 ${plan.highlight ? 'text-indigo-200' : 'text-emerald-500'}`}
+                        className={`w-4 h-4 mt-0.5 shrink-0 ${plan.highlight ? 'text-brand' : 'text-emerald-500'}`}
                       />
-                      <span className={plan.highlight ? 'text-indigo-50' : 'text-slate-600'}>{perk}</span>
+                      <span className={plan.highlight ? 'text-slate-200' : 'text-slate-600'}>{perk}</span>
                     </li>
                   ))}
                 </ul>
@@ -541,7 +542,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                   onClick={onStartTrial}
                   className={`mt-7 w-full py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
                     plan.highlight
-                      ? 'bg-white text-indigo-700 hover:bg-indigo-50'
+                      ? 'bg-brand text-slate-900 font-bold hover:bg-indigo-300'
                       : 'bg-slate-900 hover:bg-slate-800 text-white'
                   }`}
                 >
@@ -556,7 +557,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24 max-w-3xl mx-auto px-4 sm:px-6 py-16 border-t border-slate-100">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 mb-4">
+          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-900 text-brand mb-4">
             <HelpCircle className="w-5 h-5" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Συχνές Ερωτήσεις</h2>
@@ -569,7 +570,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
                 <button
                   onClick={() => setOpenFaq(isOpen ? null : i)}
                   aria-expanded={isOpen}
-                  className="w-full flex items-center justify-between gap-3 text-left p-5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
+                  className="w-full flex items-center justify-between gap-3 text-left p-5 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
                 >
                   <span className="font-bold text-slate-900 text-base">{faq.q}</span>
                   <ChevronDown
@@ -584,17 +585,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartTrial, onSignIn
       </section>
 
       {/* Footer CTA */}
-      <section className="bg-slate-50 border-t border-slate-100">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 py-16">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white mb-5 shadow-lg shadow-indigo-600/20">
+      <section className="relative overflow-hidden bg-slate-900">
+        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[28rem] h-56 bg-brand/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative max-w-4xl mx-auto text-center px-4 sm:px-6 py-16">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand text-slate-900 mb-5 shadow-lg shadow-brand/20">
             <Clock className="w-6 h-6" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Έτοιμοι να σταματήσετε να μετράτε ταμείο στο χαρτί;
           </h2>
           <button
             onClick={onStartTrial}
-            className="transition mt-7 inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3.5 px-7 rounded-xl shadow-lg shadow-indigo-600/25 cursor-pointer"
+            className="transition mt-7 inline-flex items-center space-x-2 duration-150 ease-out active:scale-[0.97] disabled:active:scale-100 bg-brand hover:bg-indigo-300 text-slate-900 font-bold py-3.5 px-7 rounded-xl shadow-lg shadow-brand/25 cursor-pointer"
           >
             <span>Ξεκινήστε τη Δωρεάν Δοκιμή σας</span>
             <ArrowRight className="w-4 h-4" />

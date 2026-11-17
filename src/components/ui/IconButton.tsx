@@ -19,7 +19,7 @@ const ICON_SIZE_CLASSES: Record<IconButtonSize, string> = {
 
 const TONE_CLASSES: Record<IconButtonTone, string> = {
   neutral: 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-slate-400',
-  primary: 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus-visible:ring-indigo-500',
+  primary: 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 focus-visible:ring-brand',
   danger: 'text-slate-500 hover:text-rose-600 hover:bg-rose-50 focus-visible:ring-rose-500',
   success: 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 focus-visible:ring-emerald-500',
 };

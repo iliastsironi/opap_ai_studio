@@ -121,7 +121,7 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => voi
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
             <div>
@@ -134,7 +134,7 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; onClose: () => voi
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand"
               />
             </div>
             {password.length > 0 && problem && <p className="text-xs text-amber-700">{problem}</p>}

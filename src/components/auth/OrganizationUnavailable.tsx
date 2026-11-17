@@ -42,7 +42,7 @@ export const OrganizationUnavailable: React.FC = () => {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="transition w-full py-2.5 rounded-xl duration-150 ease-out active:scale-[0.99] bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm inline-flex items-center justify-center gap-2 cursor-pointer"
+            className="transition w-full py-2.5 rounded-xl duration-150 ease-out active:scale-[0.99] bg-brand hover:bg-indigo-300 text-slate-900 font-bold text-sm inline-flex items-center justify-center gap-2 cursor-pointer"
           >
             <RefreshCw className="w-4 h-4" />
             Δοκιμάστε ξανά

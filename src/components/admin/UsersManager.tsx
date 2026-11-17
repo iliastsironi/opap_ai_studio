@@ -656,7 +656,7 @@ export const UsersManager: React.FC = () => {
                     onChange={(e) => setInviteFirstName(e.target.value)}
                     placeholder="Γιώργος"
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -669,7 +669,7 @@ export const UsersManager: React.FC = () => {
                     onChange={(e) => setInviteLastName(e.target.value)}
                     placeholder="Παπαδόπουλος"
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -711,7 +711,7 @@ export const UsersManager: React.FC = () => {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="employee@company.gr"
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                   <p className="text-micro text-slate-500 mt-1">
                     Στέλνεται σύνδεσμος· ο χρήστης ορίζει μόνος του τον κωδικό και κανείς άλλος δεν τον βλέπει.
@@ -730,7 +730,7 @@ export const UsersManager: React.FC = () => {
                     onChange={(e) => setInviteUsername(e.target.value.toLowerCase())}
                     placeholder="giorgos"
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                   <p className="text-micro text-slate-500 mt-1">
                     Λατινικοί χαρακτήρες, αριθμοί, τελεία, παύλα. Ο κωδικός δημιουργείται αυτόματα και
@@ -749,7 +749,7 @@ export const UsersManager: React.FC = () => {
                   value={invitePhone}
                   onChange={(e) => setInvitePhone(e.target.value)}
                   placeholder="+30 697 0000000"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -759,7 +759,7 @@ export const UsersManager: React.FC = () => {
                   id="invite-role"
                   value={inviteRoleCode}
                   onChange={(e) => setInviteRoleCode(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.code}>
@@ -832,7 +832,7 @@ export const UsersManager: React.FC = () => {
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -844,7 +844,7 @@ export const UsersManager: React.FC = () => {
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -859,7 +859,7 @@ export const UsersManager: React.FC = () => {
                     value={editEmployeeCode}
                     onChange={(e) => setEditEmployeeCode(e.target.value)}
                     placeholder="EMP-001"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -871,7 +871,7 @@ export const UsersManager: React.FC = () => {
                     value={editPhone}
                     onChange={(e) => setEditPhone(e.target.value)}
                     placeholder="+30 697 0000000"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -882,7 +882,7 @@ export const UsersManager: React.FC = () => {
                   id="edit-role"
                   value={editRoleCode}
                   onChange={(e) => setEditRoleCode(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-brand"
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.code}>
@@ -898,7 +898,7 @@ export const UsersManager: React.FC = () => {
                   id="edit-status"
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-brand"
                 >
                   <option value="ACTIVE">Ενεργός (Active)</option>
                   <option value="INACTIVE">Απενεργοποιημένος (Inactive)</option>

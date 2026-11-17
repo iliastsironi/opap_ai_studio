@@ -106,7 +106,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-brand"
             />
           </div>
           <div>
@@ -130,7 +130,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             maxLength={MAX_LABEL_LENGTH}
             onChange={(e) => setRecipient(e.target.value)}
             placeholder="π.χ. Κάβα Ζωγράφου"
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <datalist id="pnl-expense-suppliers">
             {suppliers.map((supplier) => (
@@ -148,7 +148,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               id="expense-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               {storeCategories.map((c) => (
                 <option key={c.key} value={c.key}>
@@ -171,7 +171,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
               <label
                 key={value}
                 className={`flex-1 text-center px-3 py-2 rounded-xl border font-bold cursor-pointer ${
-                  paymentMethod === value ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-300 text-slate-700'
+                  paymentMethod === value ? 'border-brand bg-indigo-50 text-indigo-800' : 'border-slate-300 text-slate-700'
                 }`}
               >
                 <input

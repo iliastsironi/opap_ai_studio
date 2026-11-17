@@ -106,7 +106,7 @@ export const OrganizationSettings: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div>
             <div className="flex items-center space-x-2 mb-2">
-              <span className="px-3 py-1 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5">
+              <span className="px-3 py-1 bg-indigo-500/20 border border-brand/40 text-indigo-300 rounded-full text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5">
                 <Crown className="w-3.5 h-3.5 text-amber-400" />
                 <span>var Enterprise SaaS Plan</span>
               </span>
@@ -202,7 +202,7 @@ export const OrganizationSettings: React.FC = () => {
               value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -216,7 +216,7 @@ export const OrganizationSettings: React.FC = () => {
               value={tradeName}
               onChange={(e) => setTradeName(e.target.value)}
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -243,7 +243,7 @@ export const OrganizationSettings: React.FC = () => {
                 type="text"
                 value={taxOffice}
                 onChange={(e) => setTaxOffice(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
               />
             </div>
           </div>
@@ -257,7 +257,7 @@ export const OrganizationSettings: React.FC = () => {
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -271,7 +271,7 @@ export const OrganizationSettings: React.FC = () => {
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
               />
             </div>
 
@@ -284,7 +284,7 @@ export const OrganizationSettings: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
               />
             </div>
           </div>

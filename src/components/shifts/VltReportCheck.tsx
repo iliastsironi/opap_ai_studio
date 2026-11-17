@@ -146,7 +146,7 @@ export const VltCheckTable: React.FC<{
                       aria-label={`Report Allwynnet ${formatDay(row.date)}`}
                       onChange={(next) => onDraftChange?.(row.key, next)}
                       onBlur={() => onCommit?.(row)}
-                      className={`w-28 px-2.5 py-1.5 rounded-lg border text-right font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 ${
+                      className={`w-28 px-2.5 py-1.5 rounded-lg border text-right font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-brand ${
                         error ? 'border-rose-400' : 'border-slate-300'
                       }`}
                     />

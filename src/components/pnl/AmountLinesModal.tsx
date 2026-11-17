@@ -113,7 +113,7 @@ export const AmountLinesModal: React.FC<AmountLinesModalProps> = ({
             }}
             placeholder="Νέα γραμμή, π.χ. Λογιστής"
             aria-label="Όνομα νέας γραμμής"
-            className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <button
             type="button"

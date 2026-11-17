@@ -40,7 +40,7 @@ export const MoneyInput: React.FC<MoneyInputProps> = ({ id, label, value, onChan
       placeholder="0,00"
       onChange={(e) => onChange(e.target.value)}
       className={`w-full px-3 py-2 rounded-xl border text-sm text-right font-mono tabular-nums focus:outline-hidden focus:ring-2 ${
-        invalid ? 'border-rose-400 bg-rose-50 focus:ring-rose-500' : 'border-slate-300 bg-white focus:ring-indigo-500'
+        invalid ? 'border-rose-400 bg-rose-50 focus:ring-rose-500' : 'border-slate-300 bg-white focus:ring-brand'
       }`}
     />
   );

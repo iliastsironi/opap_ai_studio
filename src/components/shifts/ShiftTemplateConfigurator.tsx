@@ -618,7 +618,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                           onChange={(next) =>
                             setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                           }
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-brand"
                         />
                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">€</span>
                       </div>
@@ -629,7 +629,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         onChange={(next) =>
                           setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                         }
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-brand"
                       />
                     ) : field.type === 'BOOLEAN' ? (
                       <button
@@ -660,7 +660,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         onChange={(e) =>
                           setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand"
                       />
                     )}
                   </div>
@@ -702,7 +702,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                           onChange={(next) =>
                             setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                           }
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-emerald-400 focus:outline-none focus:border-brand"
                         />
                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">€</span>
                       </div>
@@ -713,7 +713,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         onChange={(next) =>
                           setPreviewValues((prev) => ({ ...prev, [field.key]: next }))
                         }
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-right font-mono font-bold text-white focus:outline-none focus:border-brand"
                       />
                     ) : field.type === 'BOOLEAN' ? (
                       <button
@@ -744,7 +744,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                         onChange={(e) =>
                           setPreviewValues((prev) => ({ ...prev, [field.key]: e.target.value }))
                         }
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand"
                       />
                     )}
                   </div>
@@ -835,7 +835,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       handleToggleModule(mod.key);
                     }
                   }}
-                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand ${
                     isEnabled
                       ? 'bg-indigo-50/50 border-indigo-200'
                       : 'bg-slate-50 border-slate-200 opacity-60'
@@ -1406,7 +1406,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                       handleToggleModule(mod.key);
                     }
                   }}
-                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  className={`p-4 rounded-xl border transition-colors cursor-pointer flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand ${
                     isEnabled
                       ? 'bg-indigo-50/50 border-indigo-200'
                       : 'bg-slate-50 border-slate-200 opacity-60'
@@ -1508,7 +1508,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                 setTemplate((prev) => ({ ...prev, show_national_lottery: !prev.show_national_lottery }));
               }
             }}
-            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            className={`p-4 rounded-xl border transition-colors flex items-center justify-between focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand ${
               canManageScratchMode ? 'cursor-pointer' : 'cursor-not-allowed'
             } ${template.show_national_lottery ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200 opacity-60'}`}
           >
@@ -1753,7 +1753,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                   id="req_check_modal"
                   checked={fieldRequired}
                   onChange={(e) => setFieldRequired(e.target.checked)}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-brand cursor-pointer"
                 />
                 <label htmlFor="req_check_modal" className="font-bold text-slate-800 cursor-pointer">
                   Υποχρεωτικό πεδίο κατά το κλείσιμο βάρδιας

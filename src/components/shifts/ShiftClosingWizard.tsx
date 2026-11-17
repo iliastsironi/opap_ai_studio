@@ -2373,7 +2373,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     εισπράξεις χωρίς να είναι εισπράξεις - και ποτέ δεν
                     επιλέχθηκε: και οι 29 τακτοποιήσεις στα ζωντανά δεδομένα
                     είναι χρεώσεις. */}
-                <div className="rounded-xl border-2 border-indigo-500 bg-indigo-50 p-3">
+                <div className="rounded-xl border-2 border-brand bg-indigo-50 p-3">
                   <span className="block text-sm font-bold text-slate-900">
                     Αποθήκευση ελλείμματος
                   </span>
@@ -2447,7 +2447,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2 mb-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-brand/30">
                 {shift.store_name} • {shift.register_id}
               </span>
               <span className="text-xs text-slate-500 font-mono">
@@ -2491,7 +2491,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 onClick={() => handleStepChange(step.num)}
                 className={`flex flex-col items-center py-2.5 px-2 rounded-2xl text-center transition-colors cursor-pointer ${
                   isActive
-                    ? 'bg-indigo-600 text-white font-extrabold shadow-md scale-102 ring-2 ring-indigo-400'
+                    ? 'bg-brand text-slate-900 font-extrabold shadow-md scale-102'
                     : isDone
                     ? 'bg-slate-800/80 text-emerald-400 font-bold hover:bg-slate-800'
                     : 'bg-slate-800/30 text-slate-400 hover:bg-slate-800/60'
@@ -2550,7 +2550,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={openingNotesAmount}
                     disabled={!floatEditableByEmployee}
                     onChange={(next) => setOpeningNotesAmount(next)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -2562,7 +2562,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={openingCoinsAmount}
                     disabled={!floatEditableByEmployee}
                     onChange={(next) => setOpeningCoinsAmount(next)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -2610,7 +2610,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       onChange={(next) =>
                         setTopUps((prev) => prev.map((v, i) => (i === idx ? next : v)))
                       }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                     />
                   </div>
                 ))}
@@ -2792,7 +2792,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       placeholder="0.00"
                       className={`w-full pl-3.5 pr-8 py-2.5 rounded-xl border text-base font-black font-mono shadow-2xs transition-colors ${
                         scratchSalesManualOverride
-                          ? 'border-indigo-400 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500'
+                          ? 'border-indigo-400 bg-white text-slate-900 focus:ring-2 focus:ring-brand'
                           : 'border-emerald-300 bg-emerald-50/50 text-emerald-950 cursor-default'
                       }`}
                     />
@@ -2890,7 +2890,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                                 maxLength={MAX_LABEL_LENGTH}
                                 value={item.name}
                                 onChange={(e) => handleUpdatePosItem(item.id, 'name', e.target.value)}
-                                className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
+                                className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-brand focus:outline-hidden px-1 py-0.5 min-w-0"
                                 placeholder={`TORA DIRECT #${idx + 1}`}
                               />
                             ) : (
@@ -2907,7 +2907,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                             value={item.amount}
                             onChange={(next) => handleUpdatePosItem(item.id, 'amount', next)}
                             placeholder="0.00"
-                            className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
                           />
                           <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                         </div>
@@ -2928,7 +2928,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       value={cleverPointTotal}
                       onChange={(next) => setCleverPointTotal(next)}
                       placeholder="0.00"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                     />
                   </div>
                 </div>
@@ -2950,7 +2950,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       value={ippodromosBalance}
                       onChange={(next) => setIppodromosBalance(next)}
                       placeholder="0.00"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                     />
                   </div>
                 </div>
@@ -2977,7 +2977,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         value={vltsIn}
                         onChange={(next) => setVltsIn(next)}
                         placeholder="0.00"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                       />
                     </div>
                     <div>
@@ -2994,7 +2994,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono ${
                           signedVltsOut < 0
                             ? 'border-rose-300 text-rose-700 bg-white focus:ring-2 focus:ring-rose-500'
-                            : 'border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500'
+                            : 'border-slate-300 text-slate-900 bg-white focus:ring-2 focus:ring-brand'
                         }`}
                       />
                       <p className="text-micro text-slate-500 mt-1">
@@ -3024,7 +3024,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       className={`w-full px-3.5 py-2.5 rounded-xl border text-base font-bold font-mono bg-white ${
                         safeNum(pameStoiximaBalance) < 0
                           ? 'border-rose-300 text-rose-700 focus:ring-2 focus:ring-rose-500'
-                          : 'border-slate-300 text-slate-900 focus:ring-2 focus:ring-indigo-500'
+                          : 'border-slate-300 text-slate-900 focus:ring-2 focus:ring-brand'
                       }`}
                     />
                   </div>
@@ -3054,7 +3054,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={arithmoGross}
                     onChange={(next) => setArithmoGross(next)}
                     placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                   />
                 </div>
 
@@ -3090,7 +3090,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={arithmoVouchers}
                     onChange={(next) => setArithmoVouchers(next)}
                     placeholder="0.00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                   />
                 </div>
               </div>
@@ -3598,7 +3598,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         value={posBatchTotal}
                         onChange={setPosBatchTotal}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
                       />
                       <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                     </div>
@@ -3618,7 +3618,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                         value={posAfterClose}
                         onChange={setPosAfterClose}
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                        className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
                       />
                       <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                     </div>
@@ -3674,7 +3674,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           maxLength={MAX_LABEL_LENGTH}
                           value={item.name}
                           onChange={(e) => handleUpdateStorePosItem(item.id, 'name', e.target.value)}
-                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0"
+                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-brand focus:outline-hidden px-1 py-0.5 min-w-0"
                           placeholder={`Pos #${idx + 1}`}
                         />
                       ) : (
@@ -3690,7 +3690,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       value={item.amount}
                       onChange={(next) => handleUpdateStorePosItem(item.id, 'amount', next)}
                       placeholder="0.00"
-                      className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                      className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
                     />
                     <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                   </div>
@@ -3736,7 +3736,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                               prev.map((r, i) => (i === idx ? { ...r, label: e.target.value } : r))
                             )
                           }
-                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-hidden px-1 py-0.5 min-w-0 flex-1"
+                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-brand focus:outline-hidden px-1 py-0.5 min-w-0 flex-1"
                           placeholder={machineLabel(idx)}
                         />
                       ) : (
@@ -3766,7 +3766,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                           )
                         }
                         placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 font-black font-mono text-base shadow-2xs"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
                       />
                       <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
                     </div>
@@ -3853,7 +3853,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={newSafeDropAmount}
                     onChange={(next) => setNewSafeDropAmount(next)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                   />
                 </div>
                 <div className="flex-1 min-w-40">
@@ -3867,7 +3867,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     value={newSafeDropNote}
                     onChange={(e) => setNewSafeDropNote(e.target.value)}
                     placeholder="προαιρετικά"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                   />
                 </div>
                 <button
@@ -4531,7 +4531,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               onChange={(e) => setEmployeeNotes(e.target.value)}
               placeholder="Γράψτε τυχόν παρατηρήσεις ή αιτιολογήστε τυχόν αποκλίσεις..."
               rows={3}
-              className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-sm text-slate-900 focus:ring-2 focus:ring-brand"
             />
           </div>
 
@@ -4549,7 +4549,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               onChange={(e) => setHandoverMessage(e.target.value)}
               placeholder="π.χ. Ο κ. Παπαδόπουλος θα περάσει να εξοφλήσει. Το VLT 3 κολλάει."
               rows={3}
-              className="w-full px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50/40 text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50/40 text-sm text-slate-900 focus:ring-2 focus:ring-brand"
             />
             <p className="text-xs text-slate-500 mt-1">
               Εμφανίζεται ως αναδυόμενο μήνυμα στους συναδέλφους μετά την υποβολή.

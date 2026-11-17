@@ -69,7 +69,7 @@ export const ForcePasswordChange: React.FC<{ reason?: 'ISSUED' | 'RECOVERY' }> =
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 shadow-xl">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 border border-brand/30 flex items-center justify-center shrink-0">
             <KeyRound className="w-5 h-5" />
           </div>
           <div>
@@ -113,7 +113,7 @@ export const ForcePasswordChange: React.FC<{ reason?: 'ISSUED' | 'RECOVERY' }> =
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-hidden focus:border-brand focus:ring-1 focus:ring-brand"
             />
           </div>
 
@@ -128,7 +128,7 @@ export const ForcePasswordChange: React.FC<{ reason?: 'ISSUED' | 'RECOVERY' }> =
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 px-4 text-sm text-white focus:outline-hidden focus:border-brand focus:ring-1 focus:ring-brand"
             />
           </div>
 
@@ -137,7 +137,7 @@ export const ForcePasswordChange: React.FC<{ reason?: 'ISSUED' | 'RECOVERY' }> =
           <button
             type="submit"
             disabled={saving || !!problem}
-            className="transition w-full py-2.5 rounded-xl duration-150 ease-out active:scale-[0.99] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="transition w-full py-2.5 rounded-xl duration-150 ease-out active:scale-[0.99] disabled:active:scale-100 bg-brand hover:bg-indigo-300 text-slate-900 font-black text-sm inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ShieldCheck className="w-4 h-4" />
             {saving ? 'Αποθήκευση…' : 'Αποθήκευση κωδικού'}

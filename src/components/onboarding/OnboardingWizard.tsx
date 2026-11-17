@@ -154,7 +154,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               onChange={(e) => setLegalName(e.target.value)}
               placeholder="π.χ. Gaming Retail Α.Ε."
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -168,7 +168,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               onChange={(e) => setTradeName(e.target.value)}
               placeholder="π.χ. OPAP Store Network Athens"
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -183,7 +183,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 onChange={(e) => setVatNumber(e.target.value)}
                 placeholder="094883920"
                 required
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
               />
             </div>
 
@@ -196,7 +196,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
                 value={taxOffice}
                 onChange={(e) => setTaxOffice(e.target.value)}
                 placeholder="ΦΑΕ ΑΘΗΝΩΝ"
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
               />
             </div>
           </div>
@@ -242,7 +242,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               onChange={(e) => setStoreCode(e.target.value)}
               placeholder="STR-001"
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -256,7 +256,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               onChange={(e) => setStoreName(e.target.value)}
               placeholder="π.χ. Πρακτορείο ΟΠΑΠ - Κέντρο"
               required
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             />
           </div>
 
@@ -266,7 +266,7 @@ export const OnboardingWizard: React.FC<{ onComplete: () => void }> = ({ onCompl
               id="onboarding-store-type"
               value={storeType}
               onChange={(e) => setStoreType(e.target.value as StoreType)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-indigo-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:border-brand"
             >
               <option value="OPAP_AGENCY">Πρακτορείο ΟΠΑΠ (OPAP Agency)</option>
               <option value="PLAY_STORE">PLAY OPAP Store (VLTs)</option>

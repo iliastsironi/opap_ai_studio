@@ -13,7 +13,7 @@ interface NewExpenseCategoryModalProps {
 }
 
 const inputClass =
-  'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500';
+  'w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm focus:outline-hidden focus:ring-2 focus:ring-brand';
 
 /**
  * Μια νέα κατηγορία εξόδων, με το όνομα που θέλει ο ιδιοκτήτης.
@@ -92,7 +92,7 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
               <label
                 key={value}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${
-                  side === value ? 'border-indigo-500 bg-indigo-50 text-indigo-900' : 'border-slate-300 bg-white text-slate-700'
+                  side === value ? 'border-brand bg-indigo-50 text-indigo-900' : 'border-slate-300 bg-white text-slate-700'
                 }`}
               >
                 <input
@@ -101,7 +101,7 @@ export const NewExpenseCategoryModal: React.FC<NewExpenseCategoryModalProps> = (
                   value={value}
                   checked={side === value}
                   onChange={() => setSide(value)}
-                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  className="w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
                 />
                 <span className="text-sm font-bold">{text}</span>
               </label>

@@ -840,7 +840,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 id="opening-store"
                 value={selectedStoreId}
                 onChange={(e) => setSelectedStoreId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-brand focus:border-brand"
                 required
               >
                 <option value="">-- Επιλέξτε Κατάστημα --</option>
@@ -871,7 +871,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     id="opening-operator"
                     value={effectiveOperatorId}
                     onChange={(e) => setOperatorId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-brand focus:border-brand"
                   >
                     {staff.length === 0 && user && (
                       <option value={user.id}>
@@ -923,7 +923,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                           )
                         )
                       }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-brand focus:border-brand"
                     />
                     <input
                       aria-label="Ώρα έναρξης, 24ωρη μορφή"
@@ -946,7 +946,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                           setOpenedAtTime(splitLocalDateTime(openedAt).time);
                         }
                       }}
-                      className={`w-24 px-3 py-2 rounded-xl border bg-white text-xs font-bold text-center font-mono focus:ring-2 focus:ring-indigo-500 ${
+                      className={`w-24 px-3 py-2 rounded-xl border bg-white text-xs font-bold text-center font-mono focus:ring-2 focus:ring-brand ${
                         normalizeTime24(openedAtTime) === null && openedAtTime !== ''
                           ? 'border-rose-300 text-rose-700'
                           : 'border-slate-200 text-slate-900'
@@ -973,7 +973,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     shiftTypeTouched.current = true;
                     setShiftType(e.target.value as ShiftType);
                   }}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-brand focus:border-brand"
                 >
                   {/* From the store's own shifts_per_day. The «(Αυτόματο)»
                       these labels used to carry became a lie too: whether the
@@ -1150,7 +1150,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
-                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand'
                     }`}
                     required
                   />
@@ -1180,7 +1180,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                     className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
                       isAutoFetched
                         ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
-                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-indigo-500'
+                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand'
                     }`}
                     required
                   />
@@ -1239,7 +1239,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   : 'Π.χ. Παραδόθηκαν 200€ από τον διαχειριστή, όλα τα τερματικά λειτουργικά...'
               }
               rows={2}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:ring-2 focus:ring-brand focus:border-brand"
             />
           </div>
       </div>

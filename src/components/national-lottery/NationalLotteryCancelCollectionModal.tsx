@@ -69,7 +69,7 @@ export const NationalLotteryCancelCollectionModal: React.FC<NationalLotteryCance
               value={reason}
               onChange={(e) => setReason(e.target.value.slice(0, MAX_NOTES_LENGTH))}
               rows={2}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-hidden focus:border-brand"
               placeholder="π.χ. Λάθος πελάτης"
             />
           </div>

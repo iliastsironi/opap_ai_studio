@@ -99,7 +99,7 @@ export const CommissionEntryModal: React.FC<CommissionEntryModalProps> = ({
             required
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
         </div>
 
@@ -135,7 +135,7 @@ export const CommissionEntryModal: React.FC<CommissionEntryModalProps> = ({
             }}
             placeholder="Άλλη γραμμή προμήθειας"
             aria-label="Όνομα νέας γραμμής προμήθειας"
-            className="flex-1 px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
           <button
             type="button"
@@ -158,7 +158,7 @@ export const CommissionEntryModal: React.FC<CommissionEntryModalProps> = ({
             maxLength={MAX_NOTES_LENGTH}
             onChange={(e) => setNote(e.target.value)}
             placeholder="π.χ. Εκκαθάριση εβδομάδας 18–24/08"
-            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-brand"
           />
         </div>
 

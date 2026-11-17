@@ -90,7 +90,7 @@ const COST_MIX_META: Record<CostMixKey, { label: string; color: string }> = {
 // Literal strings, never interpolated: these reach the DOM as inline styles,
 // but keeping them as plain constants matches how Badge.tsx handles the same
 // problem for Tailwind's scanner and stays greppable.
-const SUPPLIER_COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+const SUPPLIER_COLORS = ['#17212f', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
 // Percentages to one decimal with a Greek comma, forced to sum to 100,0.
 // Rounding each slice independently lands on 99,9 or 100,1 often enough that a
@@ -469,7 +469,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   id="overview-scope"
                   value={overviewScope}
                   onChange={(e) => setOverviewScope(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-brand focus:outline-hidden cursor-pointer"
                 >
                   <option value={SCOPE_ALL}>Σύνολο Εταιρείας</option>
                   <option value={SCOPE_AGENCY}>Μόνο Πρακτορείο</option>
@@ -625,7 +625,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     value={chartFrom}
                     max={chartTo || undefined}
                     onChange={(e) => setChartFrom(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-brand focus:outline-hidden cursor-pointer"
                   />
                   <label htmlFor="chart-to" className="text-micro font-bold text-slate-500 uppercase tracking-wider">Έως</label>
                   <input
@@ -634,7 +634,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                     value={chartTo}
                     min={chartFrom || undefined}
                     onChange={(e) => setChartTo(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden cursor-pointer"
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-brand focus:outline-hidden cursor-pointer"
                   />
                   {(chartFrom || chartTo) && (
                     <button
@@ -675,8 +675,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                       formatter={(value: any, name: any) => [formatCurrency(Number(value) || 0), name]}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Bar dataKey="revenue" name="Συνολικά Έσοδα (€)" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                    <Bar dataKey="countedCash" name="Καταμετρημένο Ταμείο (€)" fill="#0d9488" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="revenue" name="Συνολικά Έσοδα (€)" fill="#17212f" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="countedCash" name="Καταμετρημένο Ταμείο (€)" fill="#35c9be" radius={[4, 4, 0, 0]} maxBarSize={48} />
                   </BarChart>
                 </ResponsiveContainer>
                 )}
@@ -898,7 +898,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   placeholder="Αναζήτηση υπαλλήλου..."
                   value={employeeSearch}
                   onChange={(e) => setEmployeeSearch(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-brand"
                 />
 
                 <label htmlFor="employee-kpi-store-filter" className="sr-only">Φίλτρο καταστήματος</label>
@@ -906,7 +906,7 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({ onNavigate }) =>
                   id="employee-kpi-store-filter"
                   value={selectedFilterStore}
                   onChange={(e) => setSelectedFilterStore(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-brand cursor-pointer"
                 >
                   <option value="ALL">Όλα τα Καταστήματα</option>
                   {stores.map((s) => (

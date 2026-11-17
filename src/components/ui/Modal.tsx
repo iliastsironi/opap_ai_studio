@@ -124,7 +124,7 @@ export const Modal: React.FC<ModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Κλείσιμο"
-              className="inline-flex items-center justify-center w-10 h-10 -my-2 -mr-2 shrink-0 ml-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="inline-flex items-center justify-center w-10 h-10 -my-2 -mr-2 shrink-0 ml-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               <X className="w-5 h-5" />
             </button>
@@ -146,7 +146,7 @@ export const Modal: React.FC<ModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Κλείσιμο"
-              className="inline-flex items-center justify-center w-10 h-10 -my-2 -mr-2 shrink-0 ml-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="inline-flex items-center justify-center w-10 h-10 -my-2 -mr-2 shrink-0 ml-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               <X className="w-5 h-5" />
             </button>

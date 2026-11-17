@@ -176,8 +176,8 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
         <div
           className={`flex items-center p-0.5 rounded-lg border shadow-2xs transition-colors gap-0.5 shrink-0 ${
             isDark
-              ? 'bg-slate-950 border-slate-700 focus-within:border-indigo-500'
-              : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100'
+              ? 'bg-slate-950 border-slate-700 focus-within:border-brand'
+              : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-brand focus-within:ring-2 focus-within:ring-indigo-100'
           }`}
         >
           <button

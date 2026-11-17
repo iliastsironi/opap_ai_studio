@@ -450,7 +450,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Αναζήτηση με όνομα ή τηλέφωνο..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand"
                   />
                 </div>
 
@@ -484,7 +484,7 @@ export const CustomerCreditDirectoryModal: React.FC<CustomerCreditDirectoryModal
                     id="customer-sort"
                     value={customerSort}
                     onChange={(e) => setCustomerSort(normalizeCustomerSort(e.target.value))}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-800 cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand/20 focus:border-brand"
                   >
                     {CUSTOMER_SORT_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>

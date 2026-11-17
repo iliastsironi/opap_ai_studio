@@ -216,7 +216,7 @@ export const QuickCashDialog: React.FC<{
                 value={amount}
                 onChange={(next) => setAmount(next)}
                 placeholder="0.00"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-extrabold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
               />
             </div>
 
@@ -231,7 +231,7 @@ export const QuickCashDialog: React.FC<{
                   value={movedAt}
                   max={localDateTimeValue(new Date())}
                   onChange={(e) => setMovedAt(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                 />
                 <p className="text-micro text-slate-500 mt-1">
                   Η ώρα που κινήθηκαν τα χρήματα, όχι η ώρα καταχώρησης.
@@ -250,7 +250,7 @@ export const QuickCashDialog: React.FC<{
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="π.χ. ψιλά από το χρηματοκιβώτιο"
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 bg-white focus:ring-2 focus:ring-brand"
               />
             </div>
           </>

@@ -89,7 +89,7 @@ const OPEN_SHIFT_STATUSES = ['OPEN', 'DRAFT_CLOSING', 'CORRECTION_REQUESTED', 'R
 
 const LazyLoadingFallback: React.FC = () => (
   <div className="flex items-center justify-center py-24">
-    <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+    <div className="w-8 h-8 border-4 border-brand border-t-transparent rounded-full animate-spin" />
   </div>
 );
 import { toGreekUpper } from '../../lib/greekTypography.ts';
@@ -1156,7 +1156,7 @@ export const ShiftsManager: React.FC = () => {
                   placeholder="Αναζήτηση με χειριστή, κατάστημα, ταμείο..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 font-medium text-xs text-slate-800 bg-white placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-brand/20 focus:border-brand"
                 />
               </div>
 
@@ -1408,7 +1408,7 @@ export const ShiftsManager: React.FC = () => {
                             setDetailsShift(s);
                           }
                         }}
-                        className={`transition-colors cursor-pointer group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${
+                        className={`transition-colors cursor-pointer group focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
                           s.status === 'SUBMITTED'
                             ? 'bg-amber-50/40 hover:bg-amber-100/60 border-l-4 border-l-amber-500'
                             : s.status === 'OPEN'

@@ -366,7 +366,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                             }
                             handleUpdateCredit(idx, 'customer_id', val);
                           }}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-900 bg-white focus:ring-2 focus:ring-brand"
                         >
                           <option value="">-- Επιλέξτε Πελάτη --</option>
                           {customers.map((c) => {
@@ -436,7 +436,7 @@ export const CustomerCreditSection: React.FC<CustomerCreditSectionProps> = ({
                         className={`w-full px-3 py-2 rounded-xl border text-sm font-black font-mono ${
                           isOverLimit
                             ? 'bg-rose-50 border-rose-400 text-rose-950 focus:ring-rose-500'
-                            : 'bg-white border-slate-300 text-slate-900 focus:ring-indigo-500'
+                            : 'bg-white border-slate-300 text-slate-900 focus:ring-brand'
                         }`}
                       />
                       <span className="absolute right-3 top-2 text-xs font-bold text-slate-500">€</span>

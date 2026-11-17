@@ -22,6 +22,47 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ---------------------------------------------------------------
+     BRAND COLOURS - the one place the app's colours come from the logo.
+
+     The logo is two colours: ink #17212F and turquoise #35C9BE. The app's
+     primary role was always played by Tailwind's `indigo` (about 1,100 class
+     uses), so rather than rename every class, the `indigo` scale is redefined
+     here to be the brand's. Change the logo's colours and this block is the
+     only thing that moves.
+
+     How the scale reads:
+       50-300   turquoise tints  -> selected rows, chips, text on dark panels
+       400      the turquoise    -> dots, accents on dark
+       500      lighter ink      -> the hover of a button (600 -> 500)
+       600      INK              -> buttons, links, icons: the primary colour
+       700-950  darker ink       -> pressed, dark panels, headings
+     The focus ring and the active border are the turquoise itself
+     (`ring-brand`, `border-brand`): the one place the logo's second colour
+     shows on every screen. White on turquoise is only ~2:1, so turquoise is
+     never a button fill - the buttons are ink.
+
+     The semantic colours stay as they are on purpose: emerald = ok,
+     amber = careful, rose = problem. A brand colour must not be able to
+     look like "something is wrong" or "all is well".
+     --------------------------------------------------------------- */
+  --color-brand: #35c9be;
+  --color-indigo-50: #eefaf9;
+  --color-indigo-100: #d8f5f2;
+  --color-indigo-200: #b2eae5;
+  --color-indigo-300: #7fdbd3;
+  --color-indigo-400: #35c9be;
+  --color-indigo-500: #2c3e55;
+  --color-indigo-600: #17212f;
+  --color-indigo-700: #111926;
+  --color-indigo-800: #0d141f;
+  --color-indigo-900: #0a1019;
+  --color-indigo-950: #060a11;
+  /* The neutral scaffold's darkest two steps are the logo's ink too, so the
+     sidebar and the dark headers are the same dark as the logo's tile. */
+  --color-slate-900: #17212f;
+  --color-slate-950: #0e151f;
 }
 
 /* ---------------------------------------------------------------

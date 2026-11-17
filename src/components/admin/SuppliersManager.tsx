@@ -472,7 +472,7 @@ export const SuppliersManager: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Αναζήτηση με επωνυμία, ΑΦΜ ή κωδικό..."
-                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-brand focus:bg-white transition-colors"
               />
             </div>
 
@@ -482,7 +482,7 @@ export const SuppliersManager: React.FC = () => {
                 id="suppliers-category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-indigo-500 transition-colors cursor-pointer"
+                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:border-brand transition-colors cursor-pointer"
               >
                 <option value="ALL">Όλες οι Κατηγορίες ({suppliers.length})</option>
                 {categoryOptions.map(({ key: catKey, label }) => (
@@ -674,7 +674,7 @@ export const SuppliersManager: React.FC = () => {
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
                 placeholder="Αναζήτηση κωδικού παραγγελίας ή προμηθευτή..."
-                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-hidden focus:border-brand focus:bg-white transition-colors"
               />
             </div>
 
@@ -1050,7 +1050,7 @@ export const SuppliersManager: React.FC = () => {
                   value={orderSupplierId}
                   onChange={(e) => setOrderSupplierId(e.target.value)}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-brand"
                 >
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -1069,7 +1069,7 @@ export const SuppliersManager: React.FC = () => {
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -1080,7 +1080,7 @@ export const SuppliersManager: React.FC = () => {
                     value={orderDate}
                     onChange={(e) => setOrderDate(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -1094,7 +1094,7 @@ export const SuppliersManager: React.FC = () => {
                   rows={3}
                   placeholder="π.χ. 20x Κιβώτια Αναψυκτικά 330ml, 5x Ρολά θερμικού χαρτιού..."
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1106,7 +1106,7 @@ export const SuppliersManager: React.FC = () => {
                     type="date"
                     value={orderExpectedDelivery}
                     onChange={(e) => setOrderExpectedDelivery(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -1116,7 +1116,7 @@ export const SuppliersManager: React.FC = () => {
                     value={Number(orderAmount) || 0}
                     onChange={(next) => setOrderAmount(next)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -1129,7 +1129,7 @@ export const SuppliersManager: React.FC = () => {
                   value={orderNotes}
                   onChange={(e) => setOrderNotes(e.target.value)}
                   placeholder="π.χ. Παράδοση πρωινές ώρες"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1170,7 +1170,7 @@ export const SuppliersManager: React.FC = () => {
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value)}
                     required
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -1179,7 +1179,7 @@ export const SuppliersManager: React.FC = () => {
                     id="supplier-category"
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value as Supplier['category'])}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:outline-hidden focus:border-brand"
                   >
                     {categoryOptions.map(({ key: catKey, label }) => (
                       <option key={catKey} value={catKey}>
@@ -1199,7 +1199,7 @@ export const SuppliersManager: React.FC = () => {
                   onChange={(e) => setFormCompanyName(e.target.value)}
                   placeholder="π.χ. Coca-Cola 3Ε Ελλάδος Α.Β.Ε.Ε."
                   required
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1211,7 +1211,7 @@ export const SuppliersManager: React.FC = () => {
                   value={formTradeName}
                   onChange={(e) => setFormTradeName(e.target.value)}
                   placeholder="π.χ. Coca Cola 3E"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1224,7 +1224,7 @@ export const SuppliersManager: React.FC = () => {
                     value={formVat}
                     onChange={(e) => setFormVat(e.target.value)}
                     placeholder="094012345"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -1235,7 +1235,7 @@ export const SuppliersManager: React.FC = () => {
                     value={formTaxOffice}
                     onChange={(e) => setFormTaxOffice(e.target.value)}
                     placeholder="ΦΑΕ ΑΘΗΝΩΝ"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -1249,7 +1249,7 @@ export const SuppliersManager: React.FC = () => {
                     value={formPhone}
                     onChange={(e) => setFormPhone(e.target.value)}
                     placeholder="+30 210 0000000"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
                 <div>
@@ -1260,7 +1260,7 @@ export const SuppliersManager: React.FC = () => {
                     value={formEmail}
                     onChange={(e) => setFormEmail(e.target.value)}
                     placeholder="supplier@company.gr"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                   />
                 </div>
               </div>
@@ -1273,7 +1273,7 @@ export const SuppliersManager: React.FC = () => {
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
                   placeholder="Λεωφ. Αθηνών 112, Αθήνα"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1283,7 +1283,7 @@ export const SuppliersManager: React.FC = () => {
                   id="supplier-balance"
                   value={Number(formBalance) || 0}
                   onChange={(next) => setFormBalance(next)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 
@@ -1295,7 +1295,7 @@ export const SuppliersManager: React.FC = () => {
                   onChange={(e) => setFormNotes(e.target.value)}
                   rows={2}
                   placeholder="Στοιχεία επικοινωνίας πωλητή, ημέρες παράδοσης..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-brand"
                 />
               </div>
 

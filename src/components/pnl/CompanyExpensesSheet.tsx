@@ -33,7 +33,7 @@ const LINE_EDITORS: Record<PnlCompanyCostKind, { title: string; defaults: string
 
 const MAX_PAYEE_SHORTCUTS = 10;
 
-const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500';
+const inputClass = 'w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-brand';
 
 interface DailyExpenseModalProps {
   month: string;
@@ -135,7 +135,7 @@ const DailyExpenseModal: React.FC<DailyExpenseModalProps> = ({ month, payees, on
                 onClick={() => setPayee(name)}
                 aria-pressed={payee === name}
                 className={`px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer ${
-                  payee === name ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                  payee === name ? 'border-brand bg-indigo-50 text-indigo-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 {name}

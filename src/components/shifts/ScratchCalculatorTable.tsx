@@ -2582,7 +2582,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 maxLength={MAX_LABEL_LENGTH}
                                 value={row.name}
                                 onChange={(e) => handleUpdateRow(row.id, 'name', e.target.value)}
-                                className="w-full px-2 py-1 border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                                className="w-full px-2 py-1 border border-indigo-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-1 focus:ring-brand"
                               />
                             </div>
                           ) : (
@@ -2686,7 +2686,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 onChange={(next) =>
                                   handleUpdateRow(row.id, 'price', next)
                                 }
-                                className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-indigo-500"
+                                className="w-16 px-1.5 py-1 text-right border border-indigo-300 rounded-lg text-xs font-black text-slate-950 bg-white focus:ring-1 focus:ring-brand"
                               />
                               {isBundleTracked && !isLaikoBundlesOnly && (
                                 <p className="text-micro text-slate-500 mt-0.5 whitespace-nowrap">
@@ -2828,7 +2828,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                 onChange={(e) => handleUpdateRow(row.id, 'manualQty', e.target.value.replace(/[^0-9]/g, ''))}
                                 placeholder="0"
                                 title="Πλήθος που πωλήθηκε αυτή τη βάρδια"
-                                className="w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700"
+                                className="w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-slate-100 disabled:text-slate-700"
                               />
                               {frontQty > 0 && (
                                 <span className="text-micro font-bold text-indigo-500 block mt-0.5">{frontQty} {rowCountNoun}</span>
@@ -2872,7 +2872,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                   className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                     rowErrors.length > 0
                                       ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
-                                      : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                      : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-700'
                                   }`}
                                 />
                                 {/* Sells only whole πεντάδες - no loose-piece field to fill in. Store
@@ -2901,7 +2901,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                                     className={`w-full min-w-[34px] text-center px-0.5 py-2 rounded-lg text-sm font-mono font-black shadow-2xs transition-colors ${
                                       rowErrors.length > 0
                                         ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
-                                        : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                        : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-700'
                                     }`}
                                   />
                                 )}
@@ -2977,7 +2977,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                               className={`w-full text-center px-2 py-1.5 rounded-lg text-xs font-mono font-black shadow-2xs transition-colors ${
                                 isInvalidScratchEnd || hasCrossingError
                                   ? 'border-2 border-rose-500 bg-rose-50 text-rose-900 focus:ring-2 focus:ring-rose-500'
-                                  : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:text-slate-700'
+                                  : 'border-2 border-indigo-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-slate-100 disabled:text-slate-700'
                               }`}
                               title={
                                 isInvalidScratchEnd
@@ -3388,7 +3388,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                   value={cancelBundles}
                   onChange={(e) => setCancelBundles(e.target.value.replace(/\D/g, ''))}
                   placeholder="0"
-                  className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border-2 border-indigo-300 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-brand"
                 />
               </div>
 
@@ -3624,7 +3624,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
                 value={newPackStartNo}
                 onChange={(e) => setNewPackStartNo(e.target.value)}
                 disabled={!canEditPackStart}
-                className={`w-full px-3 py-2 border-2 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2 border-2 rounded-xl font-mono font-black text-center text-base focus:ring-2 focus:ring-brand ${
                   canEditPackStart
                     ? 'border-indigo-300'
                     : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'

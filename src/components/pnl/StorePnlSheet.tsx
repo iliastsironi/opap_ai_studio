@@ -190,7 +190,7 @@ export const StorePnlSheet: React.FC<StorePnlSheetProps> = ({ result, orgId, use
                 onStoreChange(e.target.value);
                 setNotice(null);
               }}
-              className="max-w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="max-w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-brand"
             >
               {result.stores.map((s) => {
                 const active = result.units.some((unit) => unit.storeId === s.store.id && unit.hasActivity);

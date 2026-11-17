@@ -141,7 +141,7 @@ export const NationalLotteryEditionRolloverModal: React.FC<NationalLotteryEditio
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             placeholder="π.χ. 2026-14"
-            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 bg-white focus:outline-hidden focus:border-indigo-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 bg-white focus:outline-hidden focus:border-brand"
           />
         </div>
       </div>
