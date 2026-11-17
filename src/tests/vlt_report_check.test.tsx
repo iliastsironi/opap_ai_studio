@@ -291,7 +291,7 @@ describe('το όνομα που βλέπει ο χρήστης: Report Allwynne
   it('η στήλη, το πεδίο, ο τίτλος, η περιγραφή και η ειδοποίηση το λένε Report Allwynnet', () => {
     expect(component).toContain('<th className="p-3 text-right">Report Allwynnet</th>');
     expect(component).toContain('aria-label={`Report Allwynnet ${formatDay(row.date)}`}');
-    expect(component).toContain("toGreekUpper('Report Allwynnet')");
+    expect(component).toContain("toGreekUpper('Ελεγχος VLTs: βαρδιες και Report Allwynnet')");
     expect(component).toContain('νούμερο από το Report Allwynnet.');
     expect(component).toContain('Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες.');
   });
@@ -327,7 +327,7 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
     expect(manager).toContain('const canCheckVlt = isElevatedRole(roleCodes, permissions);');
     expect(manager).toMatch(/\{canCheckVlt && \(\s*<button\s+onClick=\{\(\) => setManagerTab\('VLT'\)\}/);
     expect(manager).toContain("managerTab === 'VLT' && canCheckVlt");
-    expect(manager).toContain("toGreekUpper('Report Allwynnet')");
+    expect(manager).toContain("toGreekUpper('Ελεγχος VLTs')");
   });
 
   it('η ένδειξη πάνω στην καρτέλα μετράει στο παρασκήνιο και ξαναμετράει όταν αλλάζει καρτέλα', () => {
@@ -389,20 +389,25 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
   });
 });
 
-describe('η καρτέλα λέγεται Report Allwynnet', () => {
+describe('η καρτέλα λέγεται Έλεγχος VLTs, και η στήλη Report Allwynnet', () => {
   const manager = read('src/components/shifts/ShiftsManager.tsx');
   const component = read('src/components/shifts/VltReportCheck.tsx');
 
-  it('το κουμπί της καρτέλας και ο τίτλος της οθόνης λένε Report Allwynnet', () => {
+  it('το κουμπί της καρτέλας και ο τίτλος της οθόνης λένε Έλεγχος VLTs', () => {
     const tab = manager.slice(manager.indexOf("onClick={() => setManagerTab('VLT')}"), manager.indexOf("onClick={() => setManagerTab('VLT')}") + 700);
-    expect(tab).toContain("toGreekUpper('Report Allwynnet')");
-    expect(component).toContain("{toGreekUpper('Report Allwynnet')}");
+    expect(tab).toContain("toGreekUpper('Ελεγχος VLTs')");
+    expect(component).toContain("{toGreekUpper('Ελεγχος VLTs: βαρδιες και Report Allwynnet')}");
   });
 
-  it('το παλιό όνομα «Έλεγχος VLT» δεν φαίνεται πια πουθενά στην οθόνη', () => {
-    const visible = (code: string) => code.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
-    expect(visible(manager)).not.toMatch(/Ελεγχος VLT|Έλεγχος VLT/);
-    expect(visible(component)).not.toMatch(/Ελεγχος VLT|Έλεγχος VLT/);
+  /**
+   * Ο πράκτορας: «το όνομα της κατηγορίας για τα VLT check έγινε κι αυτό Allwyn report· βάλτο
+   * Έλεγχος VLTs όπως ήταν». Το «Report Allwynnet» είναι το όνομα του νούμερου που γράφει ο
+   * χρήστης (η στήλη), όχι της καρτέλας.
+   */
+  it('η καρτέλα ΔΕΝ λέγεται Report Allwynnet - μόνο η στήλη και τα κείμενα που μιλούν για το report', () => {
+    const tab = manager.slice(manager.indexOf("onClick={() => setManagerTab('VLT')}"), manager.indexOf("onClick={() => setManagerTab('VLT')}") + 700);
+    expect(tab).not.toMatch(/Report Allwynnet/i);
+    expect(component).toContain('<th className="p-3 text-right">Report Allwynnet</th>');
   });
 });
 

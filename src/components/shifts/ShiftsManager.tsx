@@ -645,7 +645,7 @@ export const ShiftsManager: React.FC = () => {
                 }`}
               >
                 <Gamepad2 className="w-3.5 h-3.5" />
-                <span>{toGreekUpper('Report Allwynnet')}</span>
+                <span>{toGreekUpper('Ελεγχος VLTs')}</span>
                 {vltMismatchCount > 0 && (
                   <span
                     role="status"

@@ -275,7 +275,7 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
-            {toGreekUpper('Report Allwynnet')}
+            {toGreekUpper('Ελεγχος VLTs: βαρδιες και Report Allwynnet')}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
             Δίπλα στα μετρητά στα VLTs που έγραψαν οι βάρδιες (το σύνολο της ημέρας, από την τελευταία βάρδια) γράψτε ένα
