@@ -36,7 +36,12 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   // agency's closing screen changes until somebody does.
   pos_batch_close_enabled: false,
   // Η τρίτη στήλη της καταμέτρησης, το χρηματοκιβώτιο σε δεσμίδες (0087).
-  safe_count_enabled: true,
+  //
+  // ΚΛΕΙΣΤΟ εξ ορισμού. Είναι του PLAY: το πρακτορείο δεν μετράει χρηματοκιβώτιο σε
+  // δεσμίδες και η καταμέτρησή του είναι όπως πάντα. Ο ιδιοκτήτης είχε ζητήσει την
+  // αλλαγή «στο ταμείο του Play», αλλά μπήκε ανοιχτή σε κάθε κατάστημα και βγήκε και
+  // στο πρακτορείο. Το PLAY το ανοίγει από το storeTypeDefaults.
+  safe_count_enabled: false,
   safe_bundle_sizes: { ...DEFAULT_SAFE_BUNDLE_SIZES },
   // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
   // Λαχεία: plain pieces) - existing orgs see zero behavior change until an

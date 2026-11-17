@@ -791,8 +791,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // switch a shop onto a different POS arithmetic by accident.
         setPosBatchCloseEnabled(config.pos_batch_close_enabled === true);
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
-        // Ανοιχτό εκτός αν το κατάστημα το έκλεισε ρητά (0087).
-        setSafeCountEnabled((config as any).safe_count_enabled !== false);
+        // Κλειστό εκτός αν το κατάστημα το άνοιξε ρητά (0087): είναι του Play, όχι του πρακτορείου.
+        setSafeCountEnabled((config as any).safe_count_enabled === true);
         if (!storedSafeSizesRef.current) {
           setSafeBundleSizes(normalizeBundleSizes((config as any).safe_bundle_sizes));
         }
@@ -1223,7 +1223,8 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [safeBundleSizes, setSafeBundleSizes] = useState<Record<string, number>>(
     () => storedSafeCount?.sizes ?? { ...DEFAULT_SAFE_BUNDLE_SIZES }
   );
-  const [safeCountEnabled, setSafeCountEnabled] = useState(true);
+  // Κλειστό μέχρι να πει το πρότυπο του καταστήματος το αντίθετο (μόνο το Play το ανοίγει).
+  const [safeCountEnabled, setSafeCountEnabled] = useState(false);
   const safeCount = safeCountEnabled ? buildSafeCount(safeBundles, safeBundleSizes) : null;
   const [denominations, setDenominations] = useState<Record<string, number>>(
     shift.counted_denominations || localDraft?.counted_denominations || {}

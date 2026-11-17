@@ -55,6 +55,9 @@ export const PLAY_TEMPLATE_OVERRIDES = {
   // The machines pay out more than they take, so the safe feeds the drawer
   // rather than the other way round (0058).
   safe_direction: 'WITHDRAW',
+  // The hall counts its safe in bundles, as a third column of the till count (0087).
+  // The agency does not: this is the switch that keeps it Play-only.
+  safe_count_enabled: true,
 } as const;
 
 /** The switches a PLAY hall turns off, for telling somebody what changed. */

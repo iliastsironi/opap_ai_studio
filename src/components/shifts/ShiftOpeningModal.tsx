@@ -117,7 +117,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // Το τρίτο κομμάτι του αρχικού ταμείου: το χρηματοκιβώτιο, με όσο το άφησε το
   // προηγούμενο βράδυ. Οι δεσμίδες μετράνε ως μετρητά στο κλείσιμο, άρα το άνοιγμα τις περιέχει.
   const [openingSafe, setOpeningSafe] = useState<string>('0.00');
-  const [safeCountEnabled, setSafeCountEnabled] = useState(true);
+  // Κλειστό μέχρι να πει το πρότυπο του καταστήματος το αντίθετο (μόνο το Play το ανοίγει).
+  const [safeCountEnabled, setSafeCountEnabled] = useState(false);
   // The store's configured starting float. Defaults match what this screen
   // used to hardcode, so nothing moves until an Owner sets their own.
   const [floatNotes, setFloatNotes] = useState<number>(150);
@@ -284,7 +285,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setFloatNotes(floatNotes);
         setFloatCoins(floatCoins);
         setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
-        const safeEnabled = (config as any)?.safe_count_enabled !== false;
+        // === true, όχι !== false: ένα πρότυπο που δεν φορτώθηκε ή δεν έχει τη στήλη
+        // δεν ανοίγει το χρηματοκιβώτιο σε πρακτορείο.
+        const safeEnabled = (config as any)?.safe_count_enabled === true;
         setSafeCountEnabled(safeEnabled);
         // Σε τι μετράει το μαγαζί κάθε λαχείο. Η επιθεώρηση το χρειάζεται για
         // να δείξει πεντάδες εκεί που το ταμείο δείχνει πεντάδες - ο αριθμός

@@ -1340,15 +1340,15 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             <button
               type="button"
               role="switch"
-              aria-checked={template.safe_count_enabled !== false}
+              aria-checked={template.safe_count_enabled === true}
               disabled={!canManageScratchMode}
               onClick={() =>
                 canManageScratchMode &&
-                setTemplate((prev) => ({ ...prev, safe_count_enabled: prev.safe_count_enabled === false }))
+                setTemplate((prev) => ({ ...prev, safe_count_enabled: prev.safe_count_enabled !== true }))
               }
               className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
                 canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
-              } ${template.safe_count_enabled !== false ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+              } ${template.safe_count_enabled === true ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
             >
               <span>
                 <span className="block text-xs font-bold text-slate-900">Χρηματοκιβώτιο στην καταμέτρηση (δεσμίδες)</span>
@@ -1357,7 +1357,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
                   μετρητά της βάρδιας: μπαίνουν στο σύνολο καταμέτρησης και στην απόκλιση.
                 </span>
               </span>
-              {template.safe_count_enabled !== false ? (
+              {template.safe_count_enabled === true ? (
                 <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
               ) : (
                 <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
@@ -1365,7 +1365,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
             </button>
           </div>
 
-          {template.safe_count_enabled !== false && (
+          {template.safe_count_enabled === true && (
             <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3" data-testid="safe-bundle-sizes">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
