@@ -79,6 +79,7 @@ import {
   awaitingDelivery,
   readyPackCount,
 } from '../../lib/scratchOnTheCounter.ts';
+import { openedPackCount, type PackAtCounter } from '../../lib/scratchPackRepair.ts';
 
 export interface ScratchTicketRow {
   id: string;
@@ -1629,6 +1630,11 @@ interface ScratchCalculatorTableProps {
    */
   warehouseInUse?: boolean;
   /**
+   * Τα πακέτα που είναι ήδη στον πάγκο. Ένα παιχνίδι που έχει πακέτο εκεί δεν
+   * «περιμένει παράδοση», ακόμα κι αν η γραμμή δεν το γράφει.
+   */
+  warehouseOpenPacks?: PackAtCounter[];
+  /**
    * Ξαναδιαβάζει τα παραδομένα πακέτα τώρα. Η αποθήκη αλλάζει από άλλη συσκευή, και
    * το μήνυμα «περιμένει παράδοση» πρέπει να έχει διέξοδο όταν ο ιδιοκτήτης μόλις
    * παρέδωσε το πακέτο (η οθόνη ξαναρωτάει και μόνη της, αλλά όχι αμέσως).
@@ -1679,6 +1685,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
   onPackTaken,
   onPackReturned,
   onRefreshWarehouse,
+  warehouseOpenPacks,
   catalogEditable = false,
   earlierShiftRows = null,
 }) => {
@@ -2239,6 +2246,7 @@ export const ScratchCalculatorTable: React.FC<ScratchCalculatorTableProps> = ({
     awaitingDelivery({
       row: r,
       readyPacks: readyPackCount(warehousePacks, r.id),
+      packsAtCounter: openedPackCount(warehouseOpenPacks, r.id),
       warehouseInUse,
       isLottery: isLotteryRow(r),
     })

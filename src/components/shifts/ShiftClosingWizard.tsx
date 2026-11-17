@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { startAutoRefresh, type AutoRefresh } from '../../lib/autoRefresh.ts';
+import { restoreForgottenPacks } from '../../lib/scratchPackRepair.ts';
+import { startNoForNewPack } from '../../lib/scratchPackOpening.ts';
 import {
   ChevronLeft,
   ChevronRight,
@@ -58,6 +60,8 @@ import {
   applyLotteryProductShapes,
   applyLotteryUnits,
   ScratchSellingMode,
+  getPackageMaxNumber,
+  formatTicketNumber,
 } from './ScratchCalculatorTable.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { fetchScratchCatalog } from '../../services/scratchCatalogService.ts';
@@ -215,7 +219,7 @@ import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { discrepancyTone, discrepancyClasses } from '../../lib/discrepancyTone.ts';
 import { NumericField } from '../ui/NumericField.tsx';
 import {
-  fetchPacksForTill, movePackToStore, returnPackToWarehouse, storeUsesWarehouse,
+  fetchPacksForTill, fetchPacksAtCounter, movePackToStore, returnPackToWarehouse, storeUsesWarehouse,
   type WarehousePack,
 } from '../../services/scratchWarehouseService.ts';
 
@@ -527,6 +531,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   // αντί να λέμε κάτι λάθος.
   const [earlierShiftRows, setEarlierShiftRows] = useState<any[] | null>(null);
   const [warehouseInUse, setWarehouseInUse] = useState(false);
+  // Τα πακέτα που είναι ΗΔΗ στον πάγκο. Η αποθήκη τα ξέρει ακόμα κι όταν η γραμμή του
+  // προχείρου έχασε τον κωδικό τους (δες lib/scratchPackRepair.ts).
+  const [packsAtCounter, setPacksAtCounter] = useState<WarehousePack[]>([]);
 
   // Fills the org/store admin default (Configurator -> "Καταμέτρηση Σκρατς &
   // Λαχείων") into any scratch row still on its historical hardcoded
@@ -665,10 +672,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     const loop = startAutoRefresh({
       // Παραδομένα ΚΑΙ στο ράφι: το παράθυρο ανοίγει μόνο τα πρώτα, αλλά
       // χρειάζεται τα δεύτερα για να πει «υπάρχει, δεν σου παραδόθηκε».
-      load: () => Promise.all([fetchPacksForTill(orgId, shift.store_id), storeUsesWarehouse(orgId, shift.store_id)]),
-      apply: ([packs, inUse]) => {
+      load: () =>
+        Promise.all([
+          fetchPacksForTill(orgId, shift.store_id),
+          storeUsesWarehouse(orgId, shift.store_id),
+          fetchPacksAtCounter(orgId, shift.store_id),
+        ]),
+      apply: ([packs, inUse, atCounter]) => {
         setWarehousePacks(packs);
         setWarehouseInUse(inUse);
+        setPacksAtCounter(atCounter);
       },
       // Σιωπηλά: μια αποθήκη που δεν διαβάζεται αφήνει το ταμείο όπως ήταν
       // πριν υπάρξει, που είναι η ασφαλής κατάσταση. Το να μπλοκάρει το
@@ -685,6 +698,24 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       warehouseRefresh.current = null;
     };
   }, [shift.organization_id, shift.store_id, organization]);
+
+  // Πακέτο που παραλήφθηκε σε ΑΥΤΗ τη βάρδια και η γραμμή δεν το γράφει (το πρόχειρο
+  // ξαναγράφτηκε από παλιό αντίγραφο): ξαναγράφεται από την αποθήκη, που δεν χάνεται.
+  // Η ίδια λίστα επιστρέφει όταν δεν υπάρχει τίποτα να γίνει, άρα δεν κάνει κύκλο.
+  useEffect(() => {
+    const restored = restoreForgottenPacks(scratchRows, packsAtCounter, shift.id, {
+      isLottery: (row) => isLotteryRow(row),
+      figuresFor: (row) => {
+        const maxNo = getPackageMaxNumber(row.price, (row as any).packPieces);
+        return {
+          startNo: startNoForNewPack(row, standingOrders),
+          backEndNo: maxNo === null ? '' : formatTicketNumber(maxNo),
+        };
+      },
+    });
+    if (restored !== scratchRows) handleScratchRowsChange(restored as ScratchTicketRow[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packsAtCounter, scratchRows, shift.id]);
 
   // Last night's POS tail, from the database rather than from memory. Runs
   // for every shift: the figure is harmless when the switch is off, and
@@ -2825,6 +2856,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 standingOrders={standingOrders}
                 warehousePacks={warehousePacks}
                 warehouseInUse={warehouseInUse}
+                warehouseOpenPacks={packsAtCounter}
                 earlierShiftRows={earlierShiftRows}
                 onRefreshWarehouse={async () => {
                   await warehouseRefresh.current?.refresh();

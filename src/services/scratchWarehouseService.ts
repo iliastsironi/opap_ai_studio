@@ -210,6 +210,17 @@ export async function fetchPacksForTill(orgId: string, storeId: string): Promise
   return fetchWarehousePacks(orgId, storeId, UNOPENED_STATUSES);
 }
 
+/**
+ * Τα πακέτα που είναι ήδη στον πάγκο (παραλήφθηκαν από το ταμείο).
+ *
+ * Ξεχωριστά από το fetchPacksForTill επίτηδες: εκείνο φέρνει μόνο ό,τι δεν
+ * έχει ανοίξει, και το «παραδομένο/στο ράφι» της οθόνης του παραλαβής
+ * διαβάζεται από εκεί. Αυτά εδώ λένε ποια παιχνίδια ΤΡΕΧΟΥΝ, και με ποια βάρδια.
+ */
+export async function fetchPacksAtCounter(orgId: string, storeId: string): Promise<WarehousePack[]> {
+  return fetchWarehousePacks(orgId, storeId, ['IN_STORE']);
+}
+
 export interface ReceivePackInput {
   orgId: string;
   storeId: string;

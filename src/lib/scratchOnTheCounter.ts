@@ -69,6 +69,11 @@ export interface AwaitingInput {
   /** Αν το κατάστημα χρησιμοποιεί αποθήκη (0076). */
   warehouseInUse: boolean;
   isLottery: boolean;
+  /**
+   * Πόσα πακέτα αυτού του παιχνιδιού είναι ΗΔΗ στον πάγκο (παραλήφθηκαν).
+   * Η αποθήκη το ξέρει ακόμα κι όταν η γραμμή του προχείρου το έχασε.
+   */
+  packsAtCounter?: number;
 }
 
 /**
@@ -80,12 +85,15 @@ export interface AwaitingInput {
  *   - κατάστημα χωρίς αποθήκη: δεν υπάρχει παράδοση να περιμένεις,
  *   - λαχείο: δεν έρχεται σε πακέτα 300 €, έχει δική του παραλαβή ανά
  *     κλήρωση (lib/lotteryDelivery.ts),
- *   - παιχνίδι που έχει μετρηθεί: τρέχει, ό,τι κι αν λέει η αποθήκη.
+ *   - παιχνίδι που έχει μετρηθεί: τρέχει, ό,τι κι αν λέει η αποθήκη,
+ *   - παιχνίδι με πακέτο ήδη στον πάγκο: τρέχει, ό,τι κι αν λέει η γραμμή.
  */
 export function awaitingDelivery(input: AwaitingInput): boolean {
   if (!input.warehouseInUse) return false;
   if (input.isLottery) return false;
   if (everCounted(input.row)) return false;
+  // Πακέτο που έχει ήδη παραληφθεί = το παιχνίδι τρέχει, όσα κι αν λέει η γραμμή.
+  if ((input.packsAtCounter ?? 0) > 0) return false;
   return input.readyPacks === 0;
 }
 
