@@ -198,9 +198,15 @@ export const DashboardOverview: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       {/* Μέχρι πότε φτάνουν τα παρακάτω. Χωρίς αυτή τη γραμμή το σύνολο
           διαβάζεται ως «τώρα», και τώρα είναι ό,τι ακριβώς δεν είναι: τα
-          ταμεία που τρέχουν μπαίνουν μόλις κλείσουν. */}
+          ταμεία που τρέχουν μπαίνουν μόλις κλείσουν.
+
+          Το κενό από κάτω είναι ρητά `mb-4` (16px, πιο σφιχτό από τα 24px του
+          space-y-6, γιατί η γραμμή ανήκει στα cards). ΟΧΙ αρνητικό margin: στο
+          Tailwind v4 το space-y γράφει το κενό ως margin-bottom του
+          προηγούμενου στοιχείου, οπότε το `-mb-2` δεν το «μείωνε» - το
+          αντικαθιστούσε με -8px και τα cards ανέβαιναν πάνω στο κείμενο. */}
       {hasRealShifts && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 -mb-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 mb-4">
           <Clock className="w-3.5 h-3.5 text-slate-400" />
           {countedThrough ? (
             <span>
