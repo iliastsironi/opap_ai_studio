@@ -24,6 +24,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import { toGreekUpper } from '../../lib/greekTypography.ts';
+import { isProvider } from '../../lib/provider.ts';
 
 interface SidebarProps {
   currentTab: string;
@@ -38,6 +39,8 @@ interface NavItem {
   icon: LucideIcon;
   /** One code, or several: the item opens for a user who holds ANY of them. */
   perm?: string | string[];
+  /** Only the platform provider (support) sees it - never the customer, owner included. */
+  providerOnly?: boolean;
 }
 
 interface NavSection {
@@ -80,7 +83,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'stores', label: 'Καταστήματα & Τμήματα', icon: StoreIcon, perm: 'store.view' },
       { id: 'users', label: 'Χρήστες & Ρόλοι', icon: Users, perm: ['users.view', 'roles.manage'] },
       { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
-      { id: 'audit', label: 'Καταγραφές Ελέγχου (Audit)', icon: History, perm: 'audit.view' },
+      { id: 'audit', label: 'Καταγραφές Ελέγχου (Audit)', icon: History, perm: 'audit.view', providerOnly: true },
       { id: 'org_settings', label: 'Ρυθμίσεις Οργανισμού', icon: Settings, perm: 'org.settings' },
     ],
   },
@@ -131,7 +134,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
           !item.perm ||
           (Array.isArray(item.perm) ? item.perm.some((p) => hasPermission(p)) : hasPermission(item.perm))
       )
-      .filter((item) => item.id !== 'national_lottery' || showNationalLottery),
+      .filter((item) => item.id !== 'national_lottery' || showNationalLottery)
+      .filter((item) => !item.providerOnly || isProvider(roles.map((r) => r.code))),
   })).filter((section) => section.items.length > 0);
 
   const selectTab = (tabId: string) => {

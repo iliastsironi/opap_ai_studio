@@ -7,6 +7,7 @@ import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
 import { ShieldAlert, Clock, Receipt, Truck, Users, ShieldCheck } from 'lucide-react';
 import { TabbedSection, type SectionTab } from './components/layout/TabbedSection.tsx';
 import { lazyWithRetry, clearChunkReloadFlag } from './lib/lazyWithRetry.ts';
+import { PROVIDER_ONLY_TABS, isProvider } from './lib/provider.ts';
 
 const ExpensesManager = lazyWithRetry(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
 const IncidentsManager = lazyWithRetry(() => import('./components/modules/IncidentsManager.tsx').then((m) => ({ default: m.IncidentsManager })));
@@ -61,14 +62,18 @@ const TAB_PERMISSIONS: Record<string, string | string[]> = {
 };
 
 function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurrentTab: (t: string) => void }) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, roles } = useAuth();
 
   const requiredPerm = TAB_PERMISSIONS[currentTab];
-  const allowed = !requiredPerm
+  const allowedByPermission = !requiredPerm
     ? true
     : Array.isArray(requiredPerm)
       ? requiredPerm.some((perm) => hasPermission(perm))
       : hasPermission(requiredPerm);
+  // Οι καρτέλες του παρόχου (υποστήριξη) δεν ανοίγουν σε κανέναν πελάτη, ούτε
+  // στον ιδιοκτήτη που κατά τα άλλα έχει όλα τα δικαιώματα.
+  const allowed =
+    allowedByPermission && (!PROVIDER_ONLY_TABS.includes(currentTab) || isProvider(roles.map((r) => r.code)));
 
   if (!allowed) {
     return (

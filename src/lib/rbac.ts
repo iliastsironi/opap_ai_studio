@@ -37,7 +37,7 @@ export const SYSTEM_PERMISSIONS: Permission[] = [
   { id: 'perm_payroll.edit', code: 'payroll.edit', module: 'Payroll', description: 'Επεξεργασία στοιχείων μισθοδοσίας' },
   { id: 'perm_reports.organization.view', code: 'reports.organization.view', module: 'Reports', description: 'Προβολή συγκεντρωτικών αναφορών οργανισμού' },
   { id: 'perm_reports.store.view', code: 'reports.store.view', module: 'Reports', description: 'Προβολή αναφορών καταστήματος' },
-  { id: 'perm_audit.view', code: 'audit.view', module: 'Audit', description: 'Προβολή καταγραφών ελέγχου (Audit Logs)' },
+  { id: 'perm_audit.view', code: 'audit.view', module: 'Audit', description: 'Προβολή καταγραφών ελέγχου (Audit Logs) — μόνο για την υποστήριξη της πλατφόρμας' },
   // Module-view codes App.tsx's TAB_PERMISSIONS already gates tabs on, with
   // no equivalent in the original seed list.
   { id: 'perm_dashboard.view', code: 'dashboard.view', module: 'Dashboard', description: 'Προβολή κεντρικού πίνακα ελέγχου (KPIs)' },
