@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, RefreshCw, Undo2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useTenant } from '../../context/TenantContext.tsx';
 import { Badge } from '../ui/Badge.tsx';
@@ -10,7 +10,13 @@ import { toGreekUpper } from '../../lib/greekTypography.ts';
 import { MAX_CURRENCY_AMOUNT, parseNonNegativeAmount } from '../../lib/limits.ts';
 import { currentMonthKey, daysOfMonth, monthLabel, shiftMonthKey, weekdayLabel } from '../../lib/pnlEngine.ts';
 import { buildVltDayRows, vltMismatches, type VltDayRow } from '../../lib/vltReportCheck.ts';
-import { deleteVltReport, fetchVltCheckData, saveVltReport } from '../../services/vltReportService.ts';
+import {
+  approveVltDifference,
+  deleteVltReport,
+  fetchVltCheckData,
+  revokeVltApproval,
+  saveVltReport,
+} from '../../services/vltReportService.ts';
 
 /**
  * Έλεγχος VLT: τα μετρητά στα μηχανήματα όπως τα έγραψαν οι βάρδιες, δίπλα στο
@@ -39,27 +45,51 @@ const signed = (n: number): string => `${n > 0 ? '+' : n < 0 ? '−' : ''}${form
 export const VltAlertBanner: React.FC<{
   mismatches: ReadonlyArray<VltDayRow>;
   storeName: (storeId: string) => string;
-}> = ({ mismatches, storeName }) => {
+  /** Έγκριση της διαφοράς μιας ημέρας από υπεύθυνο. Χωρίς αυτό δεν υπάρχουν κουμπιά. */
+  onApprove?: (row: VltDayRow) => void;
+  /** Το κλειδί της γραμμής που εγκρίνεται αυτή τη στιγμή. */
+  approvingKey?: string | null;
+  approveError?: string | null;
+}> = ({ mismatches, storeName, onApprove, approvingKey, approveError }) => {
   if (mismatches.length === 0) return null;
   return (
     <div role="alert" className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 flex items-start gap-3">
       <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-      <div className="text-xs">
+      <div className="text-xs min-w-0 flex-1">
         <p className="font-extrabold text-rose-900 text-sm">
           Διαφορά στα μετρητά VLT σε {mismatches.length} {mismatches.length === 1 ? 'ημέρα' : 'ημέρες'}
         </p>
         <p className="text-rose-800 mt-0.5">
-          Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες. Ελέγξτε το νούμερο του Report Allwynnet και, αν είναι
-          σωστό, τις βάρδιες εκείνης της ημέρας.
+          Το Report Allwynnet δεν ταιριάζει με ό,τι έγραψαν οι βάρδιες. Ελέγξτε το νούμερο του Report Allwynnet
+          και, αν είναι σωστό, τις βάρδιες εκείνης της ημέρας. Αν η διαφορά είναι γνωστή και αποδεκτή, εγκρίνετέ την.
         </p>
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-2 space-y-1.5">
           {mismatches.map((r) => (
-            <li key={r.key} className="font-mono text-rose-900">
-              <strong>{formatDay(r.date)}</strong> · {storeName(r.storeId)}: βάρδιες {formatCurrency(r.shiftsAmount)} ·
-              Report Allwynnet {formatCurrency(r.report ?? 0)} · διαφορά <strong>{signed(r.difference ?? 0)}</strong>
+            <li key={r.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-rose-900">
+              <span>
+                <strong>{formatDay(r.date)}</strong> · {storeName(r.storeId)}: βάρδιες {formatCurrency(r.shiftsAmount)} ·
+                Report Allwynnet {formatCurrency(r.report ?? 0)} · διαφορά <strong>{signed(r.difference ?? 0)}</strong>
+              </span>
+              {onApprove && r.reportId && (
+                <button
+                  type="button"
+                  onClick={() => onApprove(r)}
+                  disabled={approvingKey === r.key}
+                  aria-label={`Έγκριση διαφοράς ${formatDay(r.date)}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-rose-300 text-rose-900 font-sans font-extrabold text-micro hover:bg-rose-100 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                >
+                  {approvingKey === r.key ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3 h-3" />
+                  )}
+                  Έγκριση διαφοράς
+                </button>
+              )}
             </li>
           ))}
         </ul>
+        {approveError && <p className="mt-2 font-bold text-rose-900">{approveError}</p>}
       </div>
     </div>
   );
@@ -67,15 +97,64 @@ export const VltAlertBanner: React.FC<{
 
 /* -------------------------------------------------------------------- πίνακας */
 
-const StatusCell: React.FC<{ row: VltDayRow }> = ({ row }) => {
+const approvalTitle = (row: VltDayRow): string => {
+  const who = row.approval?.by ? ` από ${row.approval.by}` : ' από υπεύθυνο';
+  const when = row.approval?.at ? ` στις ${new Date(row.approval.at).toLocaleString('el-GR')}` : '';
+  return `Η διαφορά ${signed(row.approval?.amount ?? 0)} εγκρίθηκε${who}${when}`;
+};
+
+const StatusCell: React.FC<{
+  row: VltDayRow;
+  onApprove?: (row: VltDayRow) => void;
+  onRevoke?: (row: VltDayRow) => void;
+  busy?: boolean;
+}> = ({ row, onApprove, onRevoke, busy }) => {
   switch (row.status) {
     case 'MATCH':
       return <Badge tone="success" icon={CheckCircle2}>ΤΑΙΡΙΑΖΕΙ</Badge>;
     case 'DIFFERENT':
       return (
-        <Badge tone="danger" icon={AlertTriangle} mono>
-          ΔΙΑΦΟΡΑ {signed(row.difference ?? 0)}
-        </Badge>
+        <span className="inline-flex flex-col items-end gap-1">
+          {/* Η διαφορά μένει κόκκινη ακόμα κι όταν εγκριθεί: το ποσό δεν βγήκε. */}
+          <Badge tone="danger" icon={AlertTriangle} mono>
+            ΔΙΑΦΟΡΑ {signed(row.difference ?? 0)}
+          </Badge>
+          {row.approval ? (
+            <span className="inline-flex items-center gap-1.5" data-vlt-approval="approved">
+              <span title={approvalTitle(row)}>
+                <Badge tone="success" icon={CheckCircle2}>
+                  ΕΓΚΡΙΘΗΚΕ{row.approval.by ? ` · ${row.approval.by}` : ''}
+                </Badge>
+              </span>
+              {onRevoke && (
+                <button
+                  type="button"
+                  onClick={() => onRevoke(row)}
+                  disabled={busy}
+                  aria-label={`Αναίρεση έγκρισης ${formatDay(row.date)}`}
+                  title="Αναίρεση της έγκρισης: η διαφορά ξαναβγάζει ειδοποίηση"
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer disabled:opacity-60"
+                >
+                  <Undo2 className="w-3 h-3" />
+                </button>
+              )}
+            </span>
+          ) : (
+            onApprove &&
+            row.reportId && (
+              <button
+                type="button"
+                onClick={() => onApprove(row)}
+                disabled={busy}
+                aria-label={`Έγκριση διαφοράς ${formatDay(row.date)}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-300 bg-white text-micro font-extrabold text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                Έγκριση διαφοράς
+              </button>
+            )
+          )}
+        </span>
       );
     case 'SHIFTS_OPEN':
       return (
@@ -100,7 +179,23 @@ export const VltCheckTable: React.FC<{
   readOnly?: boolean;
   onDraftChange?: (key: string, value: string) => void;
   onCommit?: (row: VltDayRow) => void;
-}> = ({ rows, storeName, showStore, drafts, savingKey, rowErrors = {}, readOnly, onDraftChange, onCommit }) => (
+  onApprove?: (row: VltDayRow) => void;
+  onRevoke?: (row: VltDayRow) => void;
+  approvingKey?: string | null;
+}> = ({
+  rows,
+  storeName,
+  showStore,
+  drafts,
+  savingKey,
+  rowErrors = {},
+  readOnly,
+  onDraftChange,
+  onCommit,
+  onApprove,
+  onRevoke,
+  approvingKey,
+}) => (
   <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
     <div className="overflow-x-auto">
       <table className="w-full text-left text-xs border-collapse">
@@ -121,6 +216,7 @@ export const VltCheckTable: React.FC<{
               <tr
                 key={row.key}
                 data-vlt-status={row.status}
+                data-vlt-approved={row.approval ? 'true' : undefined}
                 className={row.status === 'DIFFERENT' ? 'bg-rose-50/60' : 'hover:bg-indigo-50/30 transition-colors'}
               >
                 <td className="p-3">
@@ -154,7 +250,12 @@ export const VltCheckTable: React.FC<{
                   {error && <p className="text-micro font-bold text-rose-700 mt-1 text-right">{error}</p>}
                 </td>
                 <td className="p-3 text-right">
-                  <StatusCell row={row} />
+                  <StatusCell
+                    row={row}
+                    onApprove={readOnly ? undefined : onApprove}
+                    onRevoke={readOnly ? undefined : onRevoke}
+                    busy={approvingKey === row.key}
+                  />
                 </td>
               </tr>
             );
@@ -180,6 +281,8 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [approvingKey, setApprovingKey] = useState<string | null>(null);
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   const storeName = useCallback(
     (storeId: string) => {
@@ -219,6 +322,43 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
   }, [load]);
 
   const mismatches = useMemo(() => vltMismatches(rows), [rows]);
+
+  /**
+   * Έγκριση της διαφοράς μιας ημέρας από υπεύθυνο: η ειδοποίηση πάνω σταματά, η γραμμή μένει
+   * κόκκινη με τικ. Γράφεται η ΣΥΓΚΕΚΡΙΜΕΝΗ διαφορά που φαίνεται τώρα στην οθόνη.
+   */
+  const approve = async (row: VltDayRow) => {
+    if (!row.reportId || row.difference === null) return;
+    setApprovingKey(row.key);
+    setApproveError(null);
+    try {
+      await approveVltDifference({
+        reportId: row.reportId,
+        difference: row.difference,
+        userId: user?.id,
+        userName: user ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() : null,
+      });
+      await load();
+    } catch (e: any) {
+      setApproveError(e?.message || 'Η διαφορά δεν εγκρίθηκε.');
+    } finally {
+      setApprovingKey(null);
+    }
+  };
+
+  const revoke = async (row: VltDayRow) => {
+    if (!row.reportId) return;
+    setApprovingKey(row.key);
+    setApproveError(null);
+    try {
+      await revokeVltApproval(row.reportId);
+      await load();
+    } catch (e: any) {
+      setApproveError(e?.message || 'Η έγκριση δεν αναιρέθηκε.');
+    } finally {
+      setApprovingKey(null);
+    }
+  };
   const showStore = !selectedStoreId || selectedStoreId === 'ALL';
 
   const commit = async (row: VltDayRow) => {
@@ -308,7 +448,13 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
         </div>
       </div>
 
-      <VltAlertBanner mismatches={mismatches} storeName={storeName} />
+      <VltAlertBanner
+        mismatches={mismatches}
+        storeName={storeName}
+        onApprove={canEdit ? approve : undefined}
+        approvingKey={approvingKey}
+        approveError={approveError}
+      />
 
       {reportsError && (
         <div role="status" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
@@ -338,6 +484,9 @@ export const VltReportCheck: React.FC<{ canEdit?: boolean }> = ({ canEdit = true
           readOnly={!canEdit}
           onDraftChange={(key, value) => setDrafts((prev) => ({ ...prev, [key]: value }))}
           onCommit={commit}
+          onApprove={approve}
+          onRevoke={revoke}
+          approvingKey={approvingKey}
         />
       )}
     </div>

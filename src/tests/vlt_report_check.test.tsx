@@ -372,7 +372,7 @@ describe('οι Βάρδιες, η βάση και οι υπηρεσίες', () =
   });
 
   it('η ίδια η καρτέλα δείχνει την ειδοποίηση πάνω από τον πίνακα, με τις γραμμές που διαφέρουν', () => {
-    const at = component.indexOf('<VltAlertBanner mismatches={mismatches} storeName={storeName} />');
+    const at = component.search(/<VltAlertBanner\s+mismatches=\{mismatches\}\s+storeName=\{storeName\}/);
     expect(at).toBeGreaterThan(0);
     expect(at).toBeLessThan(component.indexOf('<VltCheckTable'));
     expect(component).toContain('const mismatches = useMemo(() => vltMismatches(rows), [rows]);');

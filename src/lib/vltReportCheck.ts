@@ -45,6 +45,18 @@ export interface VltReportInput {
   report_date: string;
   amount: unknown;
   note?: string | null;
+  /** Η διαφορά που εγκρίθηκε από υπεύθυνο, ή null/άγραφη (0090). */
+  approved_difference?: unknown;
+  approved_at?: string | null;
+  approved_by_name?: string | null;
+}
+
+/** Μια εγκεκριμένη διαφορά: ποιος, πότε, και ποια διαφορά ακριβώς. */
+export interface VltApproval {
+  /** Η διαφορά που εγκρίθηκε, σε ευρώ. */
+  amount: number;
+  by: string | null;
+  at: string | null;
 }
 
 export type VltDayStatus =
@@ -75,6 +87,12 @@ export interface VltDayRow {
   /** report − βάρδιες, σε ευρώ· null όταν δεν υπάρχει τίποτα να συγκριθεί. */
   difference: number | null;
   status: VltDayStatus;
+  /**
+   * Η έγκριση της διαφοράς από υπεύθυνο, ΜΟΝΟ όταν ισχύει ακόμα: η εγκεκριμένη
+   * διαφορά είναι ίση με την τρέχουσα. Αν άλλαξε το report ή μια βάρδια και η διαφορά
+   * είναι άλλη, είναι null - μια έγκριση δεν μεταφέρεται σε διαφορετικά νούμερα.
+   */
+  approval: VltApproval | null;
 }
 
 /**
@@ -173,6 +191,15 @@ export function buildVltDayRows(input: {
     const reportAmount = report ? fromCents(toCents(report.amount)) : null;
 
     const { status, difference } = compareVltDay({ shiftsAmount, shiftsFinal, report: reportAmount });
+
+    // Εγκεκριμένη μόνο αν υπάρχει διαφορά ΚΑΙ είναι ακριβώς αυτή που εγκρίθηκε, σε λεπτά.
+    const approvedRaw = report?.approved_difference;
+    const hasApproval = approvedRaw !== null && approvedRaw !== undefined && approvedRaw !== '';
+    const approval: VltApproval | null =
+      status === 'DIFFERENT' && hasApproval && difference !== null && toCents(approvedRaw) === toCents(difference)
+        ? { amount: fromCents(toCents(approvedRaw)), by: report?.approved_by_name ?? null, at: report?.approved_at ?? null }
+        : null;
+
     rows.push({
       key,
       storeId,
@@ -185,6 +212,7 @@ export function buildVltDayRows(input: {
       note: report?.note ?? null,
       difference,
       status,
+      approval,
     });
   }
 
@@ -192,9 +220,13 @@ export function buildVltDayRows(input: {
   return rows.sort((a, b) => b.date.localeCompare(a.date) || a.storeId.localeCompare(b.storeId));
 }
 
-/** Οι γραμμές που ειδοποιούν. */
+/**
+ * Οι γραμμές που ειδοποιούν: οι διαφορές που ΔΕΝ έχουν εγκριθεί. Μια εγκεκριμένη διαφορά
+ * δεν βγάζει πια το κόκκινο notice πάνω ούτε μετράει στην ένδειξη της καρτέλας - αλλά η
+ * γραμμή της μένει κοκκινισμένη, με τικ, γιατί το ποσό ακόμα δεν βγήκε.
+ */
 export function vltMismatches(rows: ReadonlyArray<VltDayRow>): VltDayRow[] {
-  return rows.filter((r) => r.status === 'DIFFERENT');
+  return rows.filter((r) => r.status === 'DIFFERENT' && !r.approval);
 }
 
 /** Μια ημερομηνία κλειδί (YYYY-MM-DD) μετατοπισμένη κατά n ημέρες. */

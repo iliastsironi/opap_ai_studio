@@ -9,6 +9,7 @@ import { shiftDateKey, type VltReportInput, type VltShiftInput } from '../lib/vl
  */
 
 const REPORTS_TABLE = 'vlt_portal_reports';
+const APPROVAL_COLUMNS = 'approved_difference, approved_at, approved_by_name';
 
 export interface VltReportRecord extends VltReportInput {
   id: string;
@@ -49,18 +50,28 @@ export async function fetchVltCheckData(
   const { data: shiftRows, error: shiftError } = await shiftQuery.order('opened_at', { ascending: true });
   if (shiftError) throw new Error(shiftError.message || 'Αποτυχία φόρτωσης βαρδιών');
 
-  let reportQuery = supabase
-    .from(REPORTS_TABLE)
-    .select('id, store_id, report_date, amount, note')
-    .eq('organization_id', orgId)
-    .gte('report_date', from)
-    .lte('report_date', to);
-  if (storeIds) reportQuery = reportQuery.in('store_id', [...storeIds]);
-  const { data: reportRows, error: reportError } = await reportQuery;
+  const reportsFor = (columns: string) => {
+    let q = supabase
+      .from(REPORTS_TABLE)
+      .select(columns)
+      .eq('organization_id', orgId)
+      .gte('report_date', from)
+      .lte('report_date', to);
+    if (storeIds) q = q.in('store_id', [...storeIds]);
+    return q;
+  };
+  let { data: reportRows, error: reportError } = await reportsFor(
+    `id, store_id, report_date, amount, note, ${APPROVAL_COLUMNS}`
+  );
+  // Οι στήλες της έγκρισης υπάρχουν μόνο μετά το 0090. Μέχρι τότε, ο έλεγχος δουλεύει όπως πριν
+  // (χωρίς έγκριση) αντί να χάσει όλα τα reports.
+  if (reportError && /approved_/.test(reportError.message ?? '')) {
+    ({ data: reportRows, error: reportError } = await reportsFor('id, store_id, report_date, amount, note'));
+  }
 
   return {
     shifts: (shiftRows ?? []) as VltShiftInput[],
-    reports: reportError ? [] : ((reportRows ?? []) as VltReportRecord[]),
+    reports: reportError ? [] : ((reportRows ?? []) as unknown as VltReportRecord[]),
     reportsError: reportError ? reportError.message || 'Αποτυχία φόρτωσης reports' : null,
   };
 }
@@ -95,6 +106,50 @@ export async function saveVltReport(params: {
     .single();
   if (error) throw new Error(error.message || 'Το report δεν αποθηκεύτηκε.');
   return String((data as { id: string }).id);
+}
+
+/**
+ * Έγκριση διαφοράς από υπεύθυνο. Γράφεται ΠΟΙΑ διαφορά εγκρίθηκε: αν αλλάξει το report ή μια
+ * βάρδια, η έγκριση δεν ισχύει πια (δες buildVltDayRows). Μετράει τις γραμμές: ένα UPDATE που
+ * το RLS φιλτράρει απαντά 204 χωρίς σφάλμα, και το «εγκρίθηκε» δεν πρέπει να είναι ψέμα.
+ */
+export async function approveVltDifference(params: {
+  reportId: string;
+  difference: number;
+  userId?: string | null;
+  userName?: string | null;
+}): Promise<void> {
+  const { error, count } = await supabase
+    .from(REPORTS_TABLE)
+    .update(
+      {
+        approved_difference: Math.round(params.difference * 100) / 100,
+        approved_at: new Date().toISOString(),
+        approved_by_user_id: params.userId ?? null,
+        approved_by_name: params.userName?.trim() || null,
+      },
+      { count: 'exact' }
+    )
+    .eq('id', params.reportId);
+  if (error) throw new Error(error.message || 'Η διαφορά δεν εγκρίθηκε.');
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Η διαφορά δεν εγκρίθηκε — ίσως δεν έχετε δικαίωμα ή το report έχει σβηστεί.');
+  }
+}
+
+/** Αναίρεση της έγκρισης: η διαφορά ξαναβγάζει ειδοποίηση. */
+export async function revokeVltApproval(reportId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from(REPORTS_TABLE)
+    .update(
+      { approved_difference: null, approved_at: null, approved_by_user_id: null, approved_by_name: null },
+      { count: 'exact' }
+    )
+    .eq('id', reportId);
+  if (error) throw new Error(error.message || 'Η έγκριση δεν αναιρέθηκε.');
+  if (rowsWrittenProblem(count)) {
+    throw new Error('Η έγκριση δεν αναιρέθηκε — ίσως δεν έχετε δικαίωμα ή το report έχει σβηστεί.');
+  }
 }
 
 /** Σβήνει το report μιας ημέρας. Μετράει τις γραμμές: ένα DELETE που το RLS φιλτράρει δεν σφάλλει. */
