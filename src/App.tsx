@@ -4,7 +4,8 @@ import { installEnterAdvancesFocus } from './lib/enterAdvancesFocus.ts';
 import { TenantProvider } from './context/TenantContext.tsx';
 import { ProtectedLayout } from './components/layout/ProtectedLayout.tsx';
 import { ShiftsManager } from './components/shifts/ShiftsManager.tsx';
-import { ShieldAlert, Clock } from 'lucide-react';
+import { ShieldAlert, Clock, Receipt, Truck, Users, ShieldCheck } from 'lucide-react';
+import { TabbedSection, type SectionTab } from './components/layout/TabbedSection.tsx';
 import { lazyWithRetry, clearChunkReloadFlag } from './lib/lazyWithRetry.ts';
 
 const ExpensesManager = lazyWithRetry(() => import('./components/modules/ExpensesManager.tsx').then((m) => ({ default: m.ExpensesManager })));
@@ -20,7 +21,6 @@ const RolesManager = lazyWithRetry(() => import('./components/admin/RolesManager
 const AuditLogViewer = lazyWithRetry(() => import('./components/admin/AuditLogViewer.tsx').then((m) => ({ default: m.AuditLogViewer })));
 const OrganizationSettings = lazyWithRetry(() => import('./components/admin/OrganizationSettings.tsx').then((m) => ({ default: m.OrganizationSettings })));
 const SuppliersManager = lazyWithRetry(() => import('./components/admin/SuppliersManager.tsx').then((m) => ({ default: m.SuppliersManager })));
-const OnboardingWizard = lazyWithRetry(() => import('./components/onboarding/OnboardingWizard.tsx').then((m) => ({ default: m.OnboardingWizard })));
 const InstructionsPage = lazyWithRetry(() => import('./components/instructions/InstructionsPage.tsx').then((m) => ({ default: m.InstructionsPage })));
 const CopilotPage = lazyWithRetry(() => import('./components/copilot/CopilotPage.tsx').then((m) => ({ default: m.CopilotPage })));
 
@@ -30,17 +30,27 @@ const ModuleLoadingFallback: React.FC = () => (
   </div>
 );
 
-const TAB_PERMISSIONS: Record<string, string> = {
+// Δύο θέσεις του μενού κρύβουν δύο οθόνες η καθεμία (έξοδα + προμηθευτές,
+// χρήστες + ρόλοι), με τη μπάρα καρτελών από πάνω. Η θέση ανοίγει αν ο χρήστης
+// δικαιούται ΟΠΟΙΑΔΗΠΟΤΕ από τις δύο· η μπάρα δείχνει μόνο όσες δικαιούται.
+const FINANCE_TABS: SectionTab[] = [
+  { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view', Component: ExpensesManager },
+  { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view', Component: SuppliersManager },
+];
+
+const PEOPLE_TABS: SectionTab[] = [
+  { id: 'users', label: 'Χρήστες & Αναθέσεις', icon: Users, perm: 'users.view', Component: UsersManager },
+  { id: 'roles', label: 'Ρόλοι & Δικαιώματα', icon: ShieldCheck, perm: 'roles.manage', Component: RolesManager },
+];
+
+const TAB_PERMISSIONS: Record<string, string | string[]> = {
   dashboard: 'dashboard.view',
   stores: 'store.view',
-  users: 'users.view',
-  roles: 'roles.manage',
+  users: PEOPLE_TABS.map((t) => t.perm!),
   audit: 'audit.view',
   org_settings: 'org.settings',
-  onboarding: 'org.settings',
   shifts: 'shifts.view',
-  expenses: 'expenses.view',
-  suppliers: 'suppliers.view',
+  expenses: FINANCE_TABS.map((t) => t.perm!),
   incidents: 'incidents.view',
   national_lottery: 'national_lottery.view',
   scratch_warehouse: 'scratch_warehouse.view',
@@ -54,8 +64,13 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
   const { hasPermission } = useAuth();
 
   const requiredPerm = TAB_PERMISSIONS[currentTab];
+  const allowed = !requiredPerm
+    ? true
+    : Array.isArray(requiredPerm)
+      ? requiredPerm.some((perm) => hasPermission(perm))
+      : hasPermission(requiredPerm);
 
-  if (requiredPerm && !hasPermission(requiredPerm)) {
+  if (!allowed) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center space-y-4 max-w-md mx-auto my-12 shadow-xs">
         <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto font-bold">
@@ -89,9 +104,7 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
     case 'shifts':
       return <ShiftsManager />;
     case 'expenses':
-      return <ExpensesManager />;
-    case 'suppliers':
-      return <SuppliersManager />;
+      return <TabbedSection label="Έξοδα & Προμηθευτές" tabs={FINANCE_TABS} />;
     case 'incidents':
       return <IncidentsManager />;
     case 'national_lottery':
@@ -109,15 +122,11 @@ function AppContent({ currentTab, setCurrentTab }: { currentTab: string; setCurr
     case 'stores':
       return <StoresManager />;
     case 'users':
-      return <UsersManager />;
-    case 'roles':
-      return <RolesManager />;
+      return <TabbedSection label="Χρήστες & Ρόλοι" tabs={PEOPLE_TABS} />;
     case 'audit':
       return <AuditLogViewer />;
     case 'org_settings':
       return <OrganizationSettings />;
-    case 'onboarding':
-      return <OnboardingWizard onComplete={() => setCurrentTab('dashboard')} />;
     default:
       return <ShiftsManager />;
   }

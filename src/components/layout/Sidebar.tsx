@@ -4,17 +4,14 @@ import {
   Building2,
   Store as StoreIcon,
   Users,
-  ShieldCheck,
   History,
   Settings,
-  PlusCircle,
   LayoutDashboard,
   Clock,
   Receipt,
   AlertTriangle,
   ChevronRight,
   BarChart3,
-  Truck,
   BookOpen,
   Sparkles,
   Boxes,
@@ -39,7 +36,8 @@ interface NavItem {
   id: string;
   label: string;
   icon: LucideIcon;
-  perm?: string;
+  /** One code, or several: the item opens for a user who holds ANY of them. */
+  perm?: string | string[];
 }
 
 interface NavSection {
@@ -50,6 +48,10 @@ interface NavSection {
 // Ordered by how often the work happens, not by who owns it: the daily shift
 // and cash work sits at the top for every role, administration near the
 // bottom (empty and hidden for staff anyway, since each item is permission-gated).
+//
+// Two items stand for two screens each, with a tab bar on the page itself
+// (see TabbedSection): «Έξοδα & Προμηθευτές» and «Χρήστες & Ρόλοι». They open
+// for a user who may see EITHER screen, hence the list of permissions.
 const NAV_SECTIONS: NavSection[] = [
   // Εθνικό Λαχείο used to sit in its own «Παιχνίδια & Πωλήσεις» section
   // alongside ΟΠΑΠ, VLTs and FnB. With those three gone it was the only item
@@ -60,29 +62,26 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'dashboard', label: 'Επισκόπηση (Dashboard)', icon: LayoutDashboard, perm: 'dashboard.view' },
       { id: 'shifts', label: 'Βάρδιες & Ταμείο', icon: Clock, perm: 'shifts.view' },
-      { id: 'expenses', label: 'Έξοδα & Δαπάνες', icon: Receipt, perm: 'expenses.view' },
       { id: 'national_lottery', label: 'Εθνικό Λαχείο', icon: Landmark, perm: 'national_lottery.view' },
       { id: 'scratch_warehouse', label: 'Αποθήκη Σκρατς', icon: Boxes, perm: 'scratch_warehouse.view' },
-      { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
       { id: 'incidents', label: 'Συμβάντα & Αποκλίσεις', icon: AlertTriangle, perm: 'incidents.view' },
     ],
   },
   {
     title: 'Οικονομικά',
     items: [
+      { id: 'expenses', label: 'Έξοδα & Προμηθευτές', icon: Receipt, perm: ['expenses.view', 'suppliers.view'] },
       { id: 'reports', label: 'Αναφορές & Analytics', icon: BarChart3, perm: 'reports.view' },
-      { id: 'suppliers', label: 'Προμηθευτές', icon: Truck, perm: 'suppliers.view' },
     ],
   },
   {
     title: 'Διαχείριση & Ασφάλεια',
     items: [
       { id: 'stores', label: 'Καταστήματα & Τμήματα', icon: StoreIcon, perm: 'store.view' },
-      { id: 'users', label: 'Χρήστες & Αναθέσεις', icon: Users, perm: 'users.view' },
-      { id: 'roles', label: 'Ρόλοι & Δικαιώματα', icon: ShieldCheck, perm: 'roles.manage' },
+      { id: 'users', label: 'Χρήστες & Ρόλοι', icon: Users, perm: ['users.view', 'roles.manage'] },
+      { id: 'roster', label: 'Πρόγραμμα Βαρδιών', icon: Calendar, perm: 'roster.view' },
       { id: 'audit', label: 'Καταγραφές Ελέγχου (Audit)', icon: History, perm: 'audit.view' },
       { id: 'org_settings', label: 'Ρυθμίσεις Οργανισμού', icon: Settings, perm: 'org.settings' },
-      { id: 'onboarding', label: 'Νέο Κατάστημα / Οργανισμός', icon: PlusCircle, perm: 'org.settings' },
     ],
   },
   {
@@ -127,7 +126,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, isO
   const visibleSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items
-      .filter((item) => !item.perm || hasPermission(item.perm))
+      .filter(
+        (item) =>
+          !item.perm ||
+          (Array.isArray(item.perm) ? item.perm.some((p) => hasPermission(p)) : hasPermission(item.perm))
+      )
       .filter((item) => item.id !== 'national_lottery' || showNationalLottery),
   })).filter((section) => section.items.length > 0);
 
