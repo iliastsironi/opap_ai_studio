@@ -45,6 +45,9 @@ export const InspectionHandoverSummary: React.FC<{
   tone?: 'indigo' | 'amber';
 }> = ({ lines, tone = 'indigo' }) => {
   const h = useMemo(() => inspectionHandover(lines), [lines]);
+  // Η τρίτη στήλη υπάρχει όταν το κατάστημα μετράει χρηματοκιβώτιο: και μια
+  // δήλωση «0 €» είναι δήλωση, δεν είναι απουσία.
+  const hasSafe = (lines ?? []).some((l) => l.kind === 'SAFE');
   const frame = tone === 'amber'
     ? 'bg-amber-100/60 border-amber-300'
     : 'bg-white/80 border-indigo-200';
@@ -54,7 +57,8 @@ export const InspectionHandoverSummary: React.FC<{
       <span className="text-micro font-black uppercase tracking-wider text-slate-500 block mb-1.5">
         Παραλαμβάνετε
       </span>
-      <div className="grid grid-cols-2 gap-2">
+      {/* Τα τρία κομμάτια, χωριστά: χαρτονομίσματα, κέρματα, χρηματοκιβώτιο. */}
+      <div className={`grid gap-2 ${hasSafe ? 'grid-cols-3' : 'grid-cols-2'}`}>
         <div>
           <span className="text-micro text-slate-500 block">Χαρτονομίσματα</span>
           <span className="text-lg font-black font-mono text-slate-900 block leading-tight">
@@ -67,6 +71,14 @@ export const InspectionHandoverSummary: React.FC<{
             {formatCurrency(h.coins)}
           </span>
         </div>
+        {hasSafe && (
+          <div data-testid="handover-safe">
+            <span className="text-micro text-slate-500 block">Χρηματοκιβώτιο</span>
+            <span className="text-lg font-black font-mono text-slate-900 block leading-tight">
+              {formatCurrency(h.safe)}
+            </span>
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-slate-300/70">
         <span className="text-micro font-black uppercase tracking-wider text-slate-600">
@@ -135,17 +147,22 @@ export const ShiftInspectionPanel: React.FC<{
   const sections: { kind: InspectionLine['kind'][]; title: string; hint: string }[] = [
     {
       kind: ['CASH'],
-      title: '1. Αρχικό Κεφάλαιο (Χαρτονομίσματα)',
+      title: 'Αρχικό Κεφάλαιο (Χαρτονομίσματα)',
       hint: 'Προκαθορισμένο από τη Διαμόρφωση. Μετρήστε το και διορθώστε αν διαφέρει.',
     },
     {
       kind: ['COINS'],
-      title: '2. Κέρματα',
+      title: 'Κέρματα',
       hint: 'Ό,τι έμεινε στο συρτάρι από το προηγούμενο βράδυ.',
     },
     {
+      kind: ['SAFE'],
+      title: 'Χρηματοκιβώτιο (δεσμίδες)',
+      hint: 'Ό,τι μέτρησε το προηγούμενο βράδυ στο χρηματοκιβώτιο. Μετρήστε τις δεσμίδες και διορθώστε αν διαφέρει.',
+    },
+    {
       kind: ['SCRATCH', 'LOTTERY'],
-      title: '3. Σκρατς & Λαχεία',
+      title: 'Σκρατς & Λαχεία',
       hint: 'Στα σκρατς ελέγχετε τον αύξοντα αριθμό, στα λαχεία το πλήθος που παραλαμβάνετε — στη μονάδα που μετράει το μαγαζί.',
     },
   ];
@@ -199,15 +216,16 @@ export const ShiftInspectionPanel: React.FC<{
           δουλειά. */}
       <InspectionHandoverSummary lines={lines} />
 
-      {sections.map((section) => {
+      {sections
+        .filter((section) => lines.some((l) => section.kind.includes(l.kind)))
+        .map((section, shownIndex) => {
         const sectionLines = lines.filter((l) => section.kind.includes(l.kind));
-        if (sectionLines.length === 0) return null;
 
         return (
           <div key={section.title} className="space-y-2">
             <div>
               <span className="text-micro font-black text-slate-700 uppercase tracking-wider block">
-                {section.title}
+                {shownIndex + 1}. {section.title}
               </span>
               <span className="text-micro text-slate-500">{section.hint}</span>
             </div>
@@ -215,7 +233,7 @@ export const ShiftInspectionPanel: React.FC<{
             <div className="space-y-1.5">
               {sectionLines.map((line) => {
                 const finding = lineFinding(line);
-                const isMoney = line.kind === 'CASH' || line.kind === 'COINS';
+                const isMoney = line.kind === 'CASH' || line.kind === 'COINS' || line.kind === 'SAFE';
                 // Η μονάδα που μετράει το μαγαζί. Στα χρήματα δεν ισχύει.
                 const view = quantityView(
                   { id: line.rowId, bundleSize: line.bundleSize, price: line.unitPrice },
@@ -374,7 +392,15 @@ export const ShiftInspectionPanel: React.FC<{
  * from whichever end of the row carries the handover position.
  */
 export function buildInspectionLines(
-  resolvedFloat: { notes: number; coins: number },
+  resolvedFloat: {
+    notes: number;
+    coins: number;
+    /**
+     * Το χρηματοκιβώτιο που δηλώθηκε, σε ευρώ. Ορισμένο όταν το κατάστημα μετράει
+     * χρηματοκιβώτιο: τότε υπάρχει γραμμή, ακόμα και για 0 €. Αόριστο = καμία γραμμή.
+     */
+    safe?: number | null;
+  },
   declaredScratchRows: any[]
 ): InspectionLine[] {
   const lines: InspectionLine[] = [
@@ -393,6 +419,18 @@ export function buildInspectionLines(
       found: null,
     },
   ];
+
+  // Τρίτο κομμάτι των μετρητών: οι δεσμίδες του χρηματοκιβωτίου. Μετράνε ως
+  // μετρητά, οπότε ό,τι λείπει από το δηλωμένο χρεώνεται όπως τα χαρτονομίσματα.
+  if (resolvedFloat.safe !== undefined && resolvedFloat.safe !== null) {
+    lines.push({
+      key: 'safe',
+      label: 'Χρηματοκιβώτιο (δεσμίδες)',
+      kind: 'SAFE',
+      expected: Number(resolvedFloat.safe) || 0,
+      found: null,
+    });
+  }
 
   for (const row of declaredScratchRows ?? []) {
     // The handover position is the row's closing figure when it has one,

@@ -19,12 +19,15 @@ import { mergesVltAndExpenses, visibleSteps } from '../lib/closingSteps.ts';
 import { CashDenominationCounter } from '../components/shifts/CashDenominationCounter.tsx';
 import { SafeCountSummary } from '../components/shifts/SafeCountSummary.tsx';
 import { calculateCountedCash } from '../services/financialCalculator.ts';
+import { auditCountedCash, auditGrossCount } from '../lib/countedCashAudit.ts';
 
 /**
  * Τρία πράγματα από τον ιδιοκτήτη:
  *  1. στο ταμείο του PLAY, τα VLTs και τα έξοδα είναι μία οθόνη·
  *  2. η καταμέτρηση έχει τρίτη στήλη, το χρηματοκιβώτιο, σε δεσμίδες (5/10/20 € ανά 50,
- *     50 € ανά 20, τα υπόλοιπα ανά 10) - ρυθμιζόμενο από τον admin, και ΞΕΧΩΡΙΣΤΑ από την απόκλιση·
+ *     50 € ανά 20, τα υπόλοιπα ανά 10) - ρυθμιζόμενο από τον admin. ΜΕΤΡΑΝΕ ΩΣ ΜΕΤΡΗΤΑ,
+ *     κανονικά, στο σύνολο καταμέτρησης και στην απόκλιση (αρχικά είχε ζητηθεί ξεχωριστή
+ *     καταμέτρηση· ο ιδιοκτήτης άλλαξε γνώμη: «οι δεσμίδες θέλουμε να μετράνε σαν μετρητά»)·
  *  3. τα «Μετρητά στα VLTs» (το κουτί με τα ILink) φεύγουν εντελώς.
  */
 const read = (p: string) => fs.readFileSync(path.resolve(__dirname, '..', '..', p), 'utf-8');
@@ -176,27 +179,34 @@ describe('η στήλη στον καταμετρητή', () => {
     expect(html).toContain('δεσμίδα 100 τμχ');
   });
 
-  it('το χρηματοκιβώτιο ΔΕΝ μπαίνει στο Σύνολο Μετρητών του συρταριού', () => {
+  it('οι δεσμίδες μετράνε ως μετρητά: μπαίνουν στο Σύνολο Μετρητών', () => {
     const html = draw({
       denominations: { '20': 5 },
       safe: { bundles: { '50': 2 }, sizes: DEFAULT_SAFE_BUNDLE_SIZES, onChange: noop },
     });
-    // συρτάρι: 5 × 20 € = 100 €. Χρηματοκιβώτιο: 2 × 1.000 € = 2.000 €.
-    const drawer = html.split('Σύνολο Μετρητών')[1].split('</span>')[1];
-    expect(drawer).toContain('100,00');
-    expect(drawer).not.toContain('2.100');
-    expect(html).toContain('2.000,00');
+    // συρτάρι: 5 × 20 € = 100 €. Χρηματοκιβώτιο: 2 × 1.000 € = 2.000 €. Σύνολο: 2.100 €.
+    const total = html.split('Σύνολο Μετρητών')[1].split('</span>')[1];
+    expect(total).toContain('2.100,00');
+    expect(html).toContain('Εκ των οποίων χρηματοκιβώτιο');
     expect(html).toContain('2 δεσμ.');
   });
 
-  it('και το άθροισμα που κρίνεται η βάρδια (calculateCountedCash) δεν ξέρει τίποτα για το χρηματοκιβώτιο', () => {
-    expect(calculateCountedCash({ '20': 5 })).toBe(100);
-    expect(calculateCountedCash({ '20': 5, safe_count: 99999 } as never)).toBe(100);
+  it('χωρίς τη στήλη, το Σύνολο Μετρητών είναι όπως πάντα: μόνο το συρτάρι', () => {
+    const html = draw({ denominations: { '20': 5 } });
+    const total = html.split('Σύνολο Μετρητών')[1].split('</span>')[1];
+    expect(total).toContain('100,00');
+    expect(total).not.toContain('2.100');
   });
 
-  it('το μηδενισμός του συρταριού δεν αγγίζει το χρηματοκιβώτιο', () => {
+  it('η συνάρτηση του συρταριού (calculateCountedCash) μένει του συρταριού· οι δεσμίδες προστίθενται χωριστά', () => {
+    expect(calculateCountedCash({ '20': 5 })).toBe(100);
+    expect(calculateCountedCash({ '20': 5, safe_count: 99999 } as never)).toBe(100);
+    expect(calculateCountedCash({ '20': 5 }) + safeTotal({ '50': 2 }, DEFAULT_SAFE_BUNDLE_SIZES)).toBe(2100);
+  });
+
+  it('το μηδενισμός του συρταριού δεν αγγίζει τις δεσμίδες', () => {
     const html = draw({ safe: { bundles: {}, sizes: DEFAULT_SAFE_BUNDLE_SIZES, onChange: noop } });
-    expect(html).toContain('όχι του χρηματοκιβωτίου');
+    expect(html).toContain('όχι των δεσμίδων του χρηματοκιβωτίου');
   });
 });
 
@@ -210,7 +220,8 @@ describe('η σύνοψη του χρηματοκιβωτίου', () => {
     const html = renderToStaticMarkup(
       React.createElement(SafeCountSummary, { count: buildSafeCount({ '20': 2, '100': 1 }, DEFAULT_SAFE_BUNDLE_SIZES) })
     );
-    expect(html).toContain('εκτός ισοζυγίου');
+    expect(html).toContain('μετράνε στα μετρητά');
+    expect(html).not.toContain('εκτός ισοζυγίου');
     expect(html).toContain('20 €: 2 × 50 τμχ');
     expect(html).toContain('100 €: 1 × 10 τμχ');
     expect(html).toContain('3.000,00');
@@ -280,10 +291,27 @@ describe('το χρηματοκιβώτιο στο κλείσιμο και στ�
     expect(wizard).toMatch(/\.\.\.\(safeCountEnabled \? \{ safe_count: safeCount \} : \{\}\)/);
   });
 
-  it('ΔΕΝ μπαίνει στο συρτάρι ούτε στην απόκλιση', () => {
+  it('μετράει ως μετρητά: μπαίνει στο counted_cash, άρα στο σύνολο καταμέτρησης και στην απόκλιση', () => {
+    expect(wizard).toMatch(/const safeBundlesCash = safeCount\?\.total \?\? 0;/);
+    expect(wizard).toMatch(/const countedCash = roundCurrency\(coinTotals\.countedForReconciliation \+ safeBundlesCash\);/);
+    expect(wizard).toMatch(/countedCashInDrawer: countedCash,/);
+    expect(wizard).toMatch(/counted_cash: countedCash,/);
+  });
+
+  it('το συρτάρι μένει του συρταριού: ο φάκελος και τα κοψίματα δεν ξέρουν τίποτα για τις δεσμίδες', () => {
     expect(wizard).toMatch(/drawerCash: calculateCountedCash\(denominations\)/);
-    expect(wizard).not.toMatch(/calculateCountedCash\([^)]*safe/i);
-    expect(wizard).not.toMatch(/countedCash\s*=[^;\n]*safeCount/);
+    expect(wizard).toMatch(/countedNotes: banknotesAndCoins\.banknotes,/);
+    expect(wizard).not.toMatch(/countedNotes:[^\n]*safe/i);
+  });
+
+  it('προειδοποιεί όταν τα ίδια χρήματα θα μπορούσαν να γραφτούν και ως κατάθεση χρηματοκιβωτίου (διπλή μέτρηση)', () => {
+    expect(wizard).toMatch(/safeBundlesCash > 0 && totalSafeDrops\(safeDrops\) > 0/);
+    expect(wizard).toContain('data-testid="safe-double-count-warning"');
+    expect(wizard).toContain('θα προστεθούν δύο φορές');
+  });
+
+  it('η επιβεβαίωση έχει γραμμή «Δεσμίδες χρηματοκιβωτίου», ώστε οι γραμμές να βγάζουν το Σύνολο', () => {
+    expect(wizard).toContain('Δεσμίδες χρηματοκιβωτίου:');
   });
 
   it('μια βάρδια που έχει ήδη καταμέτρηση κρατάει τα μεγέθη δεσμίδας της στιγμής εκείνης', () => {
@@ -337,5 +365,72 @@ describe('τα «Μετρητά στα VLTs» (τα ILink) έφυγαν εντε
     const wizard = read('src/components/shifts/ShiftClosingWizard.tsx');
     expect(wizard).toContain('Μετρητά στα VLTs (€)');
     expect(wizard).toMatch(/vlts_cash_in: safeNum\(vltsIn\)/);
+  });
+});
+
+/**
+ * Ο καταμετρητής σε τρεις στήλες είναι ~300 px η καθεμία. Μια γραμμή με όνομα,
+ * ποσό, stepper και «×» δεν χωράει σε 300 px: τα ποσά πατούσαν πάνω στα ονόματα
+ * («10 €» έβγαινε «10 «», «δεσμίδα 50 τμχ» κομμένο). Η γραμμή τώρα σπάει σε δύο:
+ * πάνω όνομα και ποσό, κάτω το stepper σε όλο το πλάτος (και μεγάλο για το δάχτυλο
+ * στο κινητό). Σε φαρδιά στήλη μένει όπως ήταν, σε μία γραμμή.
+ */
+describe('οι γραμμές του καταμετρητή χωράνε σε στενή στήλη', () => {
+  const src = read('src/components/shifts/CashDenominationCounter.tsx');
+
+  it('κάθε στήλη είναι container, ώστε η γραμμή να κρίνεται από το πλάτος της στήλης και όχι της οθόνης', () => {
+    expect(src.match(/className=\{`@container transition p-4 sm:p-5 rounded-2xl border space-y-4/g)?.length).toBe(3);
+  });
+
+  it('οι γραμμές κερμάτων, χαρτονομισμάτων και χρηματοκιβωτίου επιτρέπουν αναδίπλωση', () => {
+    expect(src.match(/rounded-xl border flex flex-wrap items-center gap-x-2 gap-y-1\.5/g)?.length).toBe(2);
+  });
+
+  it('το stepper παίρνει όλο το πλάτος στη στενή στήλη και μικραίνει στη φαρδιά', () => {
+    expect(src.match(/gap-0\.5 w-full @sm:w-auto @sm:shrink-0/g)?.length).toBe(2);
+    expect(src.match(/flex-1 @sm:flex-none @sm:w-1[24]/g)?.length).toBe(2);
+  });
+
+  it('το ποσό δεν τεντώνει πια και δεν σπρώχνει το όνομα', () => {
+    expect(src).not.toMatch(/flex items-center gap-2 flex-1 min-w-0 justify-end/);
+    expect(src.match(/flex items-center gap-2 shrink-0 justify-end/g)?.length).toBe(2);
+  });
+
+  it('τα σύνολα της κεφαλίδας δεν σπάνε στη μέση: αναδιπλώνονται ολόκληρα', () => {
+    expect(src.match(/whitespace-nowrap/g)!.length).toBeGreaterThanOrEqual(9);
+    expect(src).not.toMatch(/<div className="flex items-center space-x-2">/);
+  });
+});
+
+
+describe('η καταμέτρηση που βγαίνει: οι δεσμίδες είναι μέσα στο counted_cash και το ελέγχει το audit', () => {
+  it('ένα αποθηκευμένο counted_cash με τις δεσμίδες βγαίνει, και η γραμμή τους φαίνεται', () => {
+    const a = auditCountedCash({ notes: 100, coins: 20, safeBundles: 2000, stored: 2120 });
+    expect(a.computed).toBe(2120);
+    expect(a.balances).toBe(true);
+    expect(a.lines.find((l) => l.key === 'SAFE')).toMatchObject({ amount: 2000, label: 'Χρηματοκιβώτιο (δεσμίδες)' });
+  });
+
+  it('αν οι δεσμίδες λείπουν από το αποθηκευμένο σύνολο, η διαφορά ονομάζεται, δεν κρύβεται', () => {
+    const a = auditCountedCash({ notes: 100, coins: 20, safeBundles: 2000, stored: 120 });
+    expect(a.balances).toBe(false);
+    expect(a.unexplained).toBe(-2000);
+  });
+
+  it('μια βάρδια χωρίς δεσμίδες βγαίνει όπως πάντα, και δεν παίρνει γραμμή', () => {
+    const a = auditCountedCash({ notes: 100, coins: 20, stored: 120 });
+    expect(a.balances).toBe(true);
+    expect(a.lines.find((l) => l.key === 'SAFE')!.onlyWhenSet).toBe(true);
+  });
+
+  it('το μικτό της στήλης βγαίνει όταν το counted_cash τις περιέχει', () => {
+    const counted = auditCountedCash({ notes: 100, coins: 20, safeBundles: 2000, stored: 2120 }).stored;
+    const g = auditGrossCount({ counted, storePos: 50, stored: 2170 });
+    expect(g.balances).toBe(true);
+  });
+
+  it('οι οθόνες που δείχνουν μια βάρδια περνούν τις δεσμίδες στο audit', () => {
+    expect(read('src/components/shifts/ShiftDetailsModal.tsx')).toContain('safeBundles: readSafeCount(shift.custom_field_values)?.total');
+    expect(read('src/components/shifts/ShiftSheet.tsx')).toContain('safeBundles: readSafeCount(shift.custom_field_values)?.total');
   });
 });

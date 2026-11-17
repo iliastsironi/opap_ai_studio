@@ -23,7 +23,7 @@
  * the same rule the discrepancy ledger already follows.
  */
 
-export type InspectionKind = 'CASH' | 'COINS' | 'SCRATCH' | 'LOTTERY';
+export type InspectionKind = 'CASH' | 'COINS' | 'SAFE' | 'SCRATCH' | 'LOTTERY';
 
 export interface InspectionLine {
   key: string;
@@ -79,6 +79,7 @@ export function lineFinding(line: InspectionLine): LineFinding {
     switch (line.kind) {
       case 'CASH':
       case 'COINS':
+      case 'SAFE':
       case 'LOTTERY':
         // Less than declared is missing.
         return Math.max(0, round2(expected - found));
@@ -88,7 +89,7 @@ export function lineFinding(line: InspectionLine): LineFinding {
     }
   })();
 
-  const unit = line.kind === 'CASH' || line.kind === 'COINS'
+  const unit = line.kind === 'CASH' || line.kind === 'COINS' || line.kind === 'SAFE'
     ? 1
     : Math.max(0, num(line.unitPrice));
 
@@ -158,7 +159,9 @@ export interface InspectionHandover {
   notes: number;
   /** Κέρματα που δηλώθηκαν. */
   coins: number;
-  /** notes + coins - τα μετρητά του συρταριού. */
+  /** Χρηματοκιβώτιο (δεσμίδες) που δηλώθηκε. */
+  safe: number;
+  /** notes + coins + safe - όλα τα μετρητά που παραλαμβάνονται. */
   money: number;
   /** Λαχεία: τεμάχια που απομένουν και η αξία τους. */
   /**
@@ -180,7 +183,7 @@ export interface InspectionHandover {
 }
 
 export function inspectionHandover(lines: InspectionLine[]): InspectionHandover {
-  let notes = 0, coins = 0, lotteryUnits = 0, lotteryValue = 0, scratchLines = 0;
+  let notes = 0, coins = 0, safe = 0, lotteryUnits = 0, lotteryValue = 0, scratchLines = 0;
 
   for (const line of lines ?? []) {
     const expected = num(line.expected);
@@ -190,6 +193,9 @@ export function inspectionHandover(lines: InspectionLine[]): InspectionHandover 
         break;
       case 'COINS':
         coins = round2(coins + expected);
+        break;
+      case 'SAFE':
+        safe = round2(safe + expected);
         break;
       case 'LOTTERY':
         lotteryUnits += Math.max(0, Math.round(expected));
@@ -204,8 +210,8 @@ export function inspectionHandover(lines: InspectionLine[]): InspectionHandover 
   const lotteryLines = (lines ?? []).filter((l) => l.kind === 'LOTTERY').length;
 
   return {
-    notes, coins,
-    money: round2(notes + coins),
+    notes, coins, safe,
+    money: round2(notes + coins + safe),
     lotteryUnits, lotteryValue, lotteryLines,
     scratchLines,
     ticketLines: scratchLines + lotteryLines,

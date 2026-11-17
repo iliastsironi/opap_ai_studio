@@ -16,6 +16,7 @@ import {
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
+import { resolveOpeningSafe } from '../../lib/safeBundles.ts';
 import { openBlockedReason } from '../../lib/shiftOpenRules.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType, nextShiftType } from '../../lib/shiftTypeOptions.ts';
@@ -113,6 +114,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   const shiftTypeTouched = useRef(false);
   const [openingBanknotes, setOpeningBanknotes] = useState<string>('150.00');
   const [openingCoins, setOpeningCoins] = useState<string>('50.00');
+  // Το τρίτο κομμάτι του αρχικού ταμείου: το χρηματοκιβώτιο, με όσο το άφησε το
+  // προηγούμενο βράδυ. Οι δεσμίδες μετράνε ως μετρητά στο κλείσιμο, άρα το άνοιγμα τις περιέχει.
+  const [openingSafe, setOpeningSafe] = useState<string>('0.00');
+  const [safeCountEnabled, setSafeCountEnabled] = useState(true);
   // The store's configured starting float. Defaults match what this screen
   // used to hardcode, so nothing moves until an Owner sets their own.
   const [floatNotes, setFloatNotes] = useState<number>(150);
@@ -195,11 +200,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
   const banknotesNum = parseFloat(openingBanknotes.replace(',', '.')) || 0;
   const coinsNum = parseFloat(openingCoins.replace(',', '.')) || 0;
+  const safeNum = safeCountEnabled ? parseFloat(openingSafe.replace(',', '.')) || 0 : 0;
   // Three figures, not two. A προσαύξηση made earlier today is in the drawer
   // - the envelope only takes what is above the float - but nobody records
   // whether it was notes or coins, so it is shown on its own rather than
   // folded into a box and claiming something unknown.
-  const totalOpeningCash = roundCurrency(banknotesNum + coinsNum + inheritedTopUps);
+  const totalOpeningCash = roundCurrency(banknotesNum + coinsNum + safeNum + inheritedTopUps);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +284,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setFloatNotes(floatNotes);
         setFloatCoins(floatCoins);
         setFloatEditableByEmployee(config?.opening_float_employee_editable === true);
+        const safeEnabled = (config as any)?.safe_count_enabled !== false;
+        setSafeCountEnabled(safeEnabled);
         // Σε τι μετράει το μαγαζί κάθε λαχείο. Η επιθεώρηση το χρειάζεται για
         // να δείξει πεντάδες εκεί που το ταμείο δείχνει πεντάδες - ο αριθμός
         // που γράφεται μένει σε κομμάτια.
@@ -343,6 +351,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         };
 
         let resolvedFloat = { notes: floatNotes, coins: floatCoins };
+        // Το χρηματοκιβώτιο με το οποίο ανοίγει αυτή η βάρδια. Μηδέν όσο δεν υπάρχει
+        // τίποτα να μεταφερθεί (ή το κατάστημα δεν το μετράει).
+        let openingSafeResolved = 0;
 
         if (todaySnapshot) {
           // A shift is already on record for today, so this one continues the
@@ -363,6 +374,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           resolvedFloat = { notes: float.notes, coins: float.coins };
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
+          // Το χρηματοκιβώτιο με το οποίο άνοιξε η μέρα, όπως τα κέρματα.
+          const daySafe = resolveOpeningSafe({
+            enabled: safeEnabled,
+            continuingDay: true,
+            dayOpeningSafe: (todaySnapshot as any).opening_safe,
+          });
+          setOpeningSafe(daySafe.toFixed(2));
+          openingSafeResolved = daySafe;
           setIsAutoFetched(float.carriedOver);
           setInheritedTopUps(float.topUpsInherited);
         } else {
@@ -403,6 +422,15 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           resolvedFloat = { notes: float.notes, coins: float.coins };
           setOpeningBanknotes(float.notes.toFixed(2));
           setOpeningCoins(float.coins.toFixed(2));
+          // Το χρηματοκιβώτιο που μέτρησε το προηγούμενο βράδυ γίνεται το άνοιγμα
+          // του πρωινού: κέρματα, χαρτονομίσματα και χρηματοκιβώτιο, και τα τρία.
+          const nightSafe = resolveOpeningSafe({
+            enabled: safeEnabled,
+            continuingDay: false,
+            previousSafeCount: (prev as any)?.safe_count,
+          });
+          setOpeningSafe(nightSafe.toFixed(2));
+          openingSafeResolved = nightSafe;
           setIsAutoFetched(float.carriedOver);
           setInheritedTopUps(0);
           setFloatShortfall(float.shortfall);
@@ -447,7 +475,14 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
         if (inspectable) {
           setInspectionLines(
-            buildInspectionLines(resolvedFloat, (prev!.scratch_ticket_items ?? []) as any[])
+            buildInspectionLines(
+              {
+                ...resolvedFloat,
+                // Γραμμή χρηματοκιβωτίου μόνο όταν το κατάστημα το μετράει.
+                safe: safeEnabled ? openingSafeResolved : undefined,
+              },
+              (prev!.scratch_ticket_items ?? []) as any[]
+            )
           );
           setInspectionUnavailable(null);
         } else {
@@ -693,6 +728,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // the P&L - just a note so the closing screen can say the money
           // is already in the figure and stop it being typed again.
           inherited_topups: inheritedTopUps,
+          // Το χρηματοκιβώτιο που περιέχεται στο opening_cash: οι δεσμίδες μετράνε ως
+          // μετρητά, οπότε το άνοιγμα τις κουβαλάει (0089).
+          opening_safe: safeNum,
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1080,6 +1118,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 // the previous shift's gap.
                 if (key === 'cash') setOpeningBanknotes(found.toFixed(2));
                 if (key === 'coins') setOpeningCoins(found.toFixed(2));
+                if (key === 'safe') setOpeningSafe(found.toFixed(2));
               }}
               onSkip={() => setInspectionSkipped(true)}
             />
@@ -1129,7 +1168,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${safeCountEnabled ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
               <div>
                 <label htmlFor="opening-banknotes" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
                   <span>💵 {toGreekUpper('Χαρτονομισματα')} (€)</span>
@@ -1189,6 +1228,38 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Το τρίτο κομμάτι: το χρηματοκιβώτιο, από ό,τι μέτρησε το προηγούμενο βράδυ. */}
+              {safeCountEnabled && (
+                <div data-testid="opening-safe-field">
+                  <label htmlFor="opening-safe" className="block text-micro font-bold text-slate-600 mb-1 flex items-center justify-between">
+                    <span>🏦 {toGreekUpper('Χρηματοκιβωτιο')} (€)</span>
+                    {continuingDay && (
+                      <span className="text-micro text-slate-500 font-mono">{toGreekUpper('Αυτοματο')}</span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="opening-safe"
+                      type="text"
+                      inputMode="decimal"
+                      maxLength={MAX_LABEL_LENGTH}
+                      value={openingSafe}
+                      onChange={(e) => setOpeningSafe(e.target.value)}
+                      placeholder="0.00"
+                      disabled={!floatIsAsked || isAutoFetched}
+                      className={`w-full pl-3 pr-8 py-2 rounded-xl border text-sm font-bold font-mono text-slate-900 ${
+                        isAutoFetched
+                          ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-90'
+                          : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand'
+                      }`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
+                      €
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Its own line, beneath the two boxes. Read-only: it belongs to
@@ -1206,6 +1277,9 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
             )}
 
             <p className="text-micro text-slate-500">
+              {safeCountEnabled && !continuingDay
+                ? 'Το χρηματοκιβώτιο είναι όσο το μέτρησε το προηγούμενο βράδυ. '
+                : ''}
               {continuingDay
                 ? 'Τα ποσά είναι αυτά που όρισε η πρώτη βάρδια της ημέρας και δεν αλλάζουν μέσα στην ημέρα.'
                 : morningCoinsCarryOver

@@ -115,6 +115,12 @@ export interface HandoverSnapshot {
   shift_status: string | null;
   inspection_status: 'OK' | 'FLAGGED' | 'SKIPPED' | null;
   opened_by_user_id: string | null;
+  /**
+   * Τι μέτρησε η βάρδια στο χρηματοκιβώτιο, σε δεσμίδες (0089): {bundles, sizes, total}.
+   * Undefined όσο δεν έχει τρέξει το 0089 - διαβάζεται ως «δεν ξέρουμε» και το
+   * χρηματοκιβώτιο ανοίγει στο μηδέν, όχι σε ένα επινοημένο νούμερο.
+   */
+  safe_count?: { total?: number } | null;
 }
 
 export async function fetchHandoverSnapshot(
@@ -198,6 +204,11 @@ export interface DayOpeningSnapshot {
    * την παλιά συμπεριφορά - δες lib/shiftTypeOptions.ts.
    */
   shift_types_today?: string[] | null;
+  /**
+   * Με πόσο χρηματοκιβώτιο άνοιξε η μέρα (0089). Οι επόμενες βάρδιες της ίδιας
+   * ημέρας ανοίγουν με το ίδιο, όπως με τα χαρτονομίσματα και τα κέρματα.
+   */
+  opening_safe?: number | null;
 }
 
 /**

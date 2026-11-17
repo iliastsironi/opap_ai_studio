@@ -1352,8 +1352,8 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               <span>
                 <span className="block text-xs font-bold text-slate-900">Χρηματοκιβώτιο στην καταμέτρηση (δεσμίδες)</span>
                 <span className="block text-micro text-slate-500 mt-0.5">
-                  Τρίτη στήλη δίπλα στα κέρματα και τα χαρτονομίσματα. Ξεχωριστή καταμέτρηση — δεν
-                  μπαίνει στο σύνολο μετρητών ούτε στην απόκλιση.
+                  Τρίτη στήλη δίπλα στα κέρματα και τα χαρτονομίσματα. Οι δεσμίδες μετράνε ως
+                  μετρητά της βάρδιας: μπαίνουν στο σύνολο καταμέτρησης και στην απόκλιση.
                 </span>
               </span>
               {template.safe_count_enabled !== false ? (

@@ -498,6 +498,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               topUp1: openingTopUp1,
               topUp2: openingTopUp2,
               inherited: shift.custom_field_values?.inherited_topups,
+              safe: shift.custom_field_values?.opening_safe,
               stored: shift.opening_cash,
             });
             const openingCashTotal = openingAudit.stored;
@@ -557,6 +558,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               coins: banknotesAndCoins.coins,
               ownHandover: shift.coin_handover,
               carriedToday: carriedCoins,
+              safeBundles: readSafeCount(shift.custom_field_values)?.total,
               stored: shift.counted_cash,
             });
 
@@ -927,6 +929,14 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Κέρματα:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(openingCoinsAmount)}</span>
                         </div>
+                        {safeNum(shift.custom_field_values?.opening_safe) > 0 && (
+                          <div className="flex justify-between text-slate-300 py-0.5" data-testid="details-opening-safe">
+                            <span>Χρηματοκιβώτιο:</span>
+                            <span className="font-mono font-bold text-white">
+                              {formatCurrency(safeNum(shift.custom_field_values?.opening_safe))}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Προσαύξηση #1:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(openingTopUp1)}</span>

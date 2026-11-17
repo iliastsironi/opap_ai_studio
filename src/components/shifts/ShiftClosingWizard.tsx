@@ -202,6 +202,7 @@ import {
   buildSafeCount,
   normalizeBundleSizes,
   normalizeBundles,
+  readOpeningSafe,
   readSafeCount,
 } from '../../lib/safeBundles.ts';
 import { SafeCountSummary } from './SafeCountSummary.tsx';
@@ -308,6 +309,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       ? String(localDraft.opening_cash_coins)
       : String(roundCurrency(initialOpeningCash - Math.floor(initialOpeningCash)))
   );
+  // Το χρηματοκιβώτιο με το οποίο άνοιξε η βάρδια (0089): το τρίτο κομμάτι του
+  // αρχικού ταμείου, δίπλα στα χαρτονομίσματα και τα κέρματα. Οι δεσμίδες μετράνε
+  // ως μετρητά στο κλείσιμο, άρα και το άνοιγμα τις περιέχει.
+  const [openingSafeAmount, setOpeningSafeAmount] = useState<string>(() => {
+    const saved = readOpeningSafe(shift.custom_field_values ?? localDraft?.custom_field_values);
+    return saved > 0 ? String(saved) : '';
+  });
   // A list, not two fixed slots. A till can be topped up more than twice in a
   // shift, and «Προσαύξηση #2» was simply where the third one had nowhere to
   // go.
@@ -360,6 +368,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const openingCashTotal = roundCurrency(
     safeNum(openingNotesAmount) +
     safeNum(openingCoinsAmount) +
+    safeNum(openingSafeAmount) +
     topUpTotal +
     inheritedTopUps
   );
@@ -1568,7 +1577,10 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     ownHandover: coinHandover,
     carriedToday: carriedCoinHandover,
   });
-  const countedCash = roundCurrency(coinTotals.countedForReconciliation);
+  // Οι δεσμίδες του χρηματοκιβωτίου μετράνε ως μετρητά, κανονικά: μπαίνουν στο
+  // σύνολο καταμέτρησης και άρα στην απόκλιση, όπως τα χαρτονομίσματα του συρταριού.
+  const safeBundlesCash = safeCount?.total ?? 0;
+  const countedCash = roundCurrency(coinTotals.countedForReconciliation + safeBundlesCash);
 
   const banknotesAndCoins = calculateBanknotesAndCoins(denominations);
 
@@ -1813,6 +1825,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
         safe_drops: safeDrops,
+        opening_safe: safeNum(openingSafeAmount),
         // Η καταμέτρηση του χρηματοκιβωτίου, με τα μεγέθη δεσμίδας της στιγμής.
         // Μόνο όταν η στήλη είναι ανοιχτή: κλειστή, δεν αγγίζει ό,τι υπάρχει.
         ...(safeCountEnabled ? { safe_count: safeCount } : {}),
@@ -2596,6 +2609,22 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed"
                   />
                 </div>
+
+                {/* Το τρίτο κομμάτι του αρχικού ταμείου: το χρηματοκιβώτιο. */}
+                {(safeCountEnabled || safeNum(openingSafeAmount) > 0) && (
+                  <div className="col-span-2" data-testid="wizard-opening-safe">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Χρηματοκιβώτιο (€)
+                    </label>
+                    <MoneyField
+                      value={openingSafeAmount}
+                      disabled={!floatEditableByEmployee}
+                      onChange={(next) => setOpeningSafeAmount(next)}
+                      placeholder="0.00"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-base font-bold font-mono text-slate-900 bg-white focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                )}
 
                 {/* Its own figure, counted in the float above but not typed
                     here. This is where the habit lives: the evening operator
@@ -3494,7 +3523,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 {safeCountEnabled
-                  ? 'Μετρήστε τα κέρματα και τα χαρτονομίσματα στο συρτάρι, και το χρηματοκιβώτιο σε δεσμίδες.'
+                  ? 'Μετρήστε τα κέρματα και τα χαρτονομίσματα στο συρτάρι, και τις δεσμίδες του χρηματοκιβωτίου. Όλα μετράνε ως μετρητά της βάρδιας.'
                   : 'Μετρήστε τα χαρτονομίσματα και τα κέρματα στο συρτάρι.'}
               </p>
             </div>
@@ -3504,8 +3533,16 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 <span className="text-micro font-extrabold text-slate-600 uppercase tracking-wider block">
                   Μετρητά Συρταριού
                 </span>
-                <span className="text-xl font-black text-slate-900">{formatCurrency(countedCash)}</span>
+                <span className="text-xl font-black text-slate-900">{formatCurrency(roundCurrency(countedCash - safeBundlesCash))}</span>
               </div>
+              {safeBundlesCash > 0 && (
+                <div className="text-right bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
+                  <span className="text-micro font-extrabold text-slate-600 uppercase tracking-wider block">
+                    Δεσμίδες Χρηματοκιβωτίου
+                  </span>
+                  <span className="text-xl font-black text-slate-900">{formatCurrency(safeBundlesCash)}</span>
+                </div>
+              )}
               <div className="text-right bg-indigo-600 text-white px-4 py-2 rounded-2xl border border-indigo-700 shadow-xs">
                 <span className="text-micro font-extrabold text-indigo-100 uppercase tracking-wider block">
                   Σύνολο Καταμέτρησης
@@ -3752,6 +3789,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                 {formatCurrency(totalSafeDrops(safeDrops))}
               </span>
             </div>
+
+            {/* Οι δεσμίδες του χρηματοκιβωτίου μετράνε ήδη ως μετρητά. Τα ίδια χρήματα
+                γραμμένα και εδώ, ως κατάθεση, θα προστίθονταν δύο φορές. */}
+            {safeBundlesCash > 0 && totalSafeDrops(safeDrops) > 0 && (
+              <p
+                className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-300 rounded-xl p-3"
+                data-testid="safe-double-count-warning"
+              >
+                Προσοχή: έχετε μετρήσει {formatCurrency(safeBundlesCash)} σε δεσμίδες χρηματοκιβωτίου, που
+                μετράνε ήδη ως μετρητά, και έχετε και καταθέσεις {formatCurrency(totalSafeDrops(safeDrops))}.
+                Αν είναι τα ίδια χρήματα, θα προστεθούν δύο φορές στο σύνολο.
+              </p>
+            )}
 
             {safeDrops.length === 0 ? (
               <p className="text-xs text-slate-500">
@@ -4290,6 +4340,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span>Κέρματα:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingCoinsAmount))}</span>
                     </div>
+                    {safeNum(openingSafeAmount) > 0 && (
+                      <div className="flex justify-between text-slate-300 py-0.5">
+                        <span>Χρηματοκιβώτιο:</span>
+                        <span className="font-mono font-bold text-white">{formatCurrency(safeNum(openingSafeAmount))}</span>
+                      </div>
+                    )}
                     {topUps.map((value, idx) =>
                       safeNum(value) === 0 ? null : (
                         <div key={idx} className="flex justify-between text-slate-300 py-0.5">
@@ -4391,6 +4447,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span>Χρηματοκιβώτιο:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(safeNum(bankDeposits))}</span>
                     </div>
+                    {safeBundlesCash > 0 && (
+                      <div className="flex justify-between text-slate-300 py-0.5">
+                        <span>Δεσμίδες χρηματοκιβωτίου:</span>
+                        <span className="font-mono font-bold text-white">{formatCurrency(safeBundlesCash)}</span>
+                      </div>
+                    )}
                     {storePosItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-slate-300 py-0.5">
                         <span>{item.name || `Pos #${idx + 1}`}:</span>

@@ -6,11 +6,13 @@
  * (ανά κατάστημα), με προεπιλογή: 5, 10, 20 € σε δεσμίδες των 50, τα 50 € των
  * 20, και τα υπόλοιπα (100, 200, 500 €) των 10.
  *
- * ΞΕΧΩΡΙΣΤΗ ΚΑΤΑΜΕΤΡΗΣΗ. Δεν μπαίνει στο «Σύνολο Μετρητών» ούτε στην απόκλιση:
- * το χρηματοκιβώτιο δεν είναι το συρτάρι που κρίνεται η βάρδια, και προσθέτοντάς
- * το θα έβγαινε απόκλιση ίση με όσα έχει μέσα. Γράφεται πάνω στη βάρδια με τα
- * μεγέθη δεσμίδας εκείνης της στιγμής, ώστε μια αλλαγή ρύθμισης αύριο να μην
- * αλλάζει τι μετρήθηκε σήμερα.
+ * ΜΕΤΡΑΝΕ ΩΣ ΜΕΤΡΗΤΑ. Οι δεσμίδες είναι μετρητά της βάρδιας, κανονικά: μπαίνουν
+ * στο «Σύνολο Μετρητών» και άρα στην απόκλιση, όπως τα χαρτονομίσματα του συρταριού
+ * (λόγια του ιδιοκτήτη: «οι δεσμίδες θέλουμε να μετράνε σαν μετρητά κανονικά»).
+ * Αρχικά είχε ζητηθεί ξεχωριστή καταμέτρηση· η απόφαση άλλαξε.
+ *
+ * Γράφεται πάνω στη βάρδια με τα μεγέθη δεσμίδας εκείνης της στιγμής, ώστε μια
+ * αλλαγή ρύθμισης αύριο να μην αλλάζει τι μετρήθηκε σήμερα.
  *
  * Σε λεπτά με ακέραιους, όπως κάθε άθροισμα χρημάτων εδώ.
  */
@@ -133,4 +135,55 @@ export function readSafeCount(customFieldValues: unknown): SafeCount | null {
   const r = raw as Record<string, unknown>;
   const built = buildSafeCount(r.bundles, r.sizes);
   return built;
+}
+
+
+/**
+ * ΤΟ ΑΝΟΙΓΜΑ ΤΗΣ ΒΑΡΔΙΑΣ: «έχεις κέρματα τόσα, χαρτονομίσματα τόσα και χρηματοκιβώτιο τόσο».
+ *
+ * Οι δεσμίδες μετράνε ως μετρητά στο κλείσιμο, άρα το επόμενο άνοιγμα πρέπει να
+ * τις περιέχει, αλλιώς κάθε βάρδια θα έδειχνε πλεόνασμα ίσο με όσα έχει το
+ * χρηματοκιβώτιο. Ο κανόνας είναι ο ίδιος με των κερμάτων:
+ *
+ *   - συνέχεια ημέρας: ανοίγει με ό,τι άνοιξε η μέρα, δεν διαπραγματεύεται στις 15:00·
+ *   - πρώτη βάρδια της ημέρας: με ό,τι μέτρησε το προηγούμενο βράδυ.
+ *
+ * Ό,τι δεν είναι γνωστό (δεν έτρεξε ακόμα το 0089, η προηγούμενη βάρδια δεν
+ * μέτρησε χρηματοκιβώτιο, το κατάστημα δεν το έχει ανοιχτό) είναι μηδέν. Ποτέ
+ * επινοημένο νούμερο.
+ */
+export function resolveOpeningSafe(input: {
+  /** Το κατάστημα έχει τη στήλη του χρηματοκιβωτίου ανοιχτή. */
+  enabled: boolean;
+  /** Αυτή η βάρδια συνεχίζει μια μέρα που ήδη άνοιξε. */
+  continuingDay: boolean;
+  /** Το opening_safe της πρώτης βάρδιας της ημέρας (shift_day_opening). */
+  dayOpeningSafe?: unknown;
+  /** Το safe_count της προηγούμενης βάρδιας (shift_handover_snapshot): {total}. */
+  previousSafeCount?: unknown;
+}): number {
+  if (!input.enabled) return 0;
+  const money = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
+    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+  };
+  if (input.continuingDay) return money(input.dayOpeningSafe);
+  const prev = input.previousSafeCount;
+  if (prev && typeof prev === 'object') {
+    const built = buildSafeCount(
+      (prev as Record<string, unknown>).bundles,
+      (prev as Record<string, unknown>).sizes
+    );
+    // Το σύνολο ξαναϋπολογίζεται από τις δεσμίδες· αν λείπουν, ισχύει το αποθηκευμένο.
+    return built ? built.total : money((prev as Record<string, unknown>).total);
+  }
+  return 0;
+}
+
+/** Το χρηματοκιβώτιο με το οποίο άνοιξε μια βάρδια (custom_field_values.opening_safe). */
+export function readOpeningSafe(customFieldValues: unknown): number {
+  if (!customFieldValues || typeof customFieldValues !== 'object') return 0;
+  const raw = (customFieldValues as Record<string, unknown>).opening_safe;
+  const n = typeof raw === 'number' ? raw : parseFloat(String(raw ?? '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
 }

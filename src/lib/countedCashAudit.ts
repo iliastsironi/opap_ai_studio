@@ -46,12 +46,14 @@ export interface CountedCashInput {
   ownHandover?: unknown;
   /** Κέρματα που έστειλε νωρίτερα σήμερα άλλη βάρδια. */
   carriedToday?: unknown;
+  /** Οι δεσμίδες του χρηματοκιβωτίου: μετράνε ως μετρητά της βάρδιας. */
+  safeBundles?: unknown;
   /** Το αποθηκευμένο counted_cash της βάρδιας - ό,τι λέει η βάση. */
   stored?: unknown;
 }
 
 export interface CountedCashLine {
-  key: 'NOTES' | 'COINS' | 'OWN_CUP' | 'CARRIED_CUP' | 'UNEXPLAINED';
+  key: 'NOTES' | 'COINS' | 'SAFE' | 'OWN_CUP' | 'CARRIED_CUP' | 'UNEXPLAINED';
   label: string;
   amount: number;
   /** Γραμμή που υπάρχει μόνο όταν έχει νόημα να τη δει κανείς. */
@@ -75,7 +77,9 @@ export function auditCountedCash(input: CountedCashInput): CountedCashAudit {
   const coins = round2(num(input.coins));
   const own = round2(Math.max(0, num(input.ownHandover)));
   const carried = round2(Math.max(0, num(input.carriedToday)));
-  const computed = round2(notes + coins + own + carried);
+  // Οι δεσμίδες του χρηματοκιβωτίου είναι μετρητά της βάρδιας, όπως τα κοψίματα.
+  const safe = round2(Math.max(0, num(input.safeBundles)));
+  const computed = round2(notes + coins + safe + own + carried);
 
   // Χωρίς αποθηκευμένο σύνολο δεν υπάρχει τίποτα να συγκριθεί, και ένα
   // επινοημένο μηδέν θα κατηγορούσε κάθε βάρδια για ολόκληρο το ταμείο της.
@@ -86,6 +90,13 @@ export function auditCountedCash(input: CountedCashInput): CountedCashAudit {
   const lines: CountedCashLine[] = [
     { key: 'NOTES', label: 'Χαρτονομίσματα', amount: notes, onlyWhenSet: false },
     { key: 'COINS', label: 'Κέρματα συρταριού', amount: coins, onlyWhenSet: false },
+    {
+      key: 'SAFE',
+      label: 'Χρηματοκιβώτιο (δεσμίδες)',
+      amount: safe,
+      onlyWhenSet: true,
+      hint: 'Μετρήθηκαν σε δεσμίδες και μπαίνουν στα μετρητά της βάρδιας.',
+    },
     {
       key: 'OWN_CUP',
       label: 'Παράδοση κερμάτων αυτής της βάρδιας',
@@ -186,6 +197,8 @@ export interface OpeningCashInput {
   topUp2?: unknown;
   /** Προσαύξηση που έδωσε προηγούμενη βάρδια της ίδιας ημέρας. */
   inherited?: unknown;
+  /** Το χρηματοκιβώτιο με το οποίο άνοιξε η βάρδια (custom_field_values.opening_safe). */
+  safe?: unknown;
   /** Το αποθηκευμένο opening_cash. */
   stored?: unknown;
 }
@@ -201,7 +214,12 @@ export interface OpeningCashAudit {
 export function auditOpeningCash(input: OpeningCashInput): OpeningCashAudit {
   const inherited = round2(num(input.inherited));
   const computed = round2(
-    num(input.notes) + num(input.coins) + num(input.topUp1) + num(input.topUp2) + inherited
+    num(input.notes) +
+      num(input.coins) +
+      Math.max(0, num(input.safe)) +
+      num(input.topUp1) +
+      num(input.topUp2) +
+      inherited
   );
   const hasStored =
     input.stored !== undefined && input.stored !== null && String(input.stored) !== '';

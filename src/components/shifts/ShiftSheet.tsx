@@ -1,3 +1,4 @@
+import { readSafeCount } from '../../lib/safeBundles.ts';
 import React, { useState, useEffect } from 'react';
 import { auditCountedCash } from '../../lib/countedCashAudit.ts';
 import {
@@ -836,6 +837,7 @@ export const ShiftSheet: React.FC<ShiftSheetProps> = ({
                       coins: coinsTotal,
                       ownHandover: shift.coin_handover,
                       carriedToday: carriedCoinHandover,
+                      safeBundles: readSafeCount(shift.custom_field_values)?.total,
                       stored: shift.counted_cash,
                     });
                     const shown = audit.lines.filter(

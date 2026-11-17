@@ -84,7 +84,7 @@ describe('τα παραδοτέα της επιθεώρησης', () => {
   it('answers zero on an empty inspection', () => {
     const h = inspectionHandover([]);
     expect(h).toEqual({
-      notes: 0, coins: 0, money: 0,
+      notes: 0, coins: 0, safe: 0, money: 0,
       lotteryUnits: 0, lotteryValue: 0, lotteryLines: 0, scratchLines: 0, ticketLines: 0,
     });
   });
