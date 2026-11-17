@@ -1,3 +1,10 @@
+import { formatCurrency } from '../../lib/formatters.ts';
+import {
+  DEFAULT_SAFE_BUNDLE_SIZES,
+  MAX_BUNDLE_SIZE,
+  SAFE_DENOMINATIONS,
+  normalizeBundleSizes,
+} from '../../lib/safeBundles.ts';
 import React, { useState, useEffect } from 'react';
 import {
   Sliders,
@@ -1328,30 +1335,91 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               )}
             </button>
 
+            {/* Η τρίτη στήλη της καταμέτρησης: το χρηματοκιβώτιο σε δεσμίδες (0087). */}
             <button
               type="button"
               role="switch"
-              aria-checked={template.vlt_machine_cash_enabled === true}
+              aria-checked={template.safe_count_enabled !== false}
               disabled={!canManageScratchMode}
-              onClick={() => canManageScratchMode && setTemplate((prev) => ({ ...prev, vlt_machine_cash_enabled: !prev.vlt_machine_cash_enabled }))}
+              onClick={() =>
+                canManageScratchMode &&
+                setTemplate((prev) => ({ ...prev, safe_count_enabled: prev.safe_count_enabled === false }))
+              }
               className={`flex items-center justify-between gap-3 p-3 rounded-xl border text-left transition-colors ${
                 canManageScratchMode ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default opacity-70'
-              } ${template.vlt_machine_cash_enabled ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+              } ${template.safe_count_enabled !== false ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
             >
               <span>
-                <span className="block text-xs font-bold text-slate-900">Καταγραφή μετρητών μέσα στα μηχανήματα</span>
+                <span className="block text-xs font-bold text-slate-900">Χρηματοκιβώτιο στην καταμέτρηση (δεσμίδες)</span>
                 <span className="block text-micro text-slate-500 mt-0.5">
-                  Τι κρατάει κάθε ILink στο κλείσιμο. Καταγραφή μόνο — δεν μπαίνει στο ταμείο
-                  ούτε στην απόκλιση.
+                  Τρίτη στήλη δίπλα στα κέρματα και τα χαρτονομίσματα. Ξεχωριστή καταμέτρηση — δεν
+                  μπαίνει στο σύνολο μετρητών ούτε στην απόκλιση.
                 </span>
               </span>
-              {template.vlt_machine_cash_enabled ? (
+              {template.safe_count_enabled !== false ? (
                 <ToggleRight className="w-6 h-6 text-emerald-600 shrink-0" />
               ) : (
                 <ToggleLeft className="w-6 h-6 text-slate-500 shrink-0" />
               )}
             </button>
           </div>
+
+          {template.safe_count_enabled !== false && (
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3" data-testid="safe-bundle-sizes">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900">Μέγεθος δεσμίδας ανά χαρτονόμισμα</p>
+                  <p className="text-micro text-slate-500 mt-0.5 max-w-2xl">
+                    Πόσα τεμάχια έχει μία δεσμίδα στο χρηματοκιβώτιο. Ισχύει για ό,τι μετριέται από
+                    εδώ και πέρα· μια βάρδια που έχει ήδη μετρηθεί κρατάει το μέγεθος της στιγμής
+                    εκείνης.
+                  </p>
+                </div>
+                {canManageScratchMode && (
+                  <button
+                    type="button"
+                    onClick={() => setTemplate((prev) => ({ ...prev, safe_bundle_sizes: { ...DEFAULT_SAFE_BUNDLE_SIZES } }))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-micro font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Επαναφορά προεπιλογών
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                {SAFE_DENOMINATIONS.map((d) => {
+                  const sizes = normalizeBundleSizes(template.safe_bundle_sizes);
+                  const size = sizes[d.key];
+                  return (
+                    <label key={d.key} className="block p-2.5 rounded-xl bg-white border border-slate-200">
+                      <span className="block text-xs font-black text-slate-900">{d.label}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={MAX_BUNDLE_SIZE}
+                        step={1}
+                        disabled={!canManageScratchMode}
+                        value={size}
+                        onFocus={(e) => e.target.select()}
+                        aria-label={`Τεμάχια ανά δεσμίδα των ${d.label}`}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value, 10);
+                          if (!Number.isFinite(n) || n < 1 || n > MAX_BUNDLE_SIZE) return;
+                          setTemplate((prev) => ({
+                            ...prev,
+                            safe_bundle_sizes: { ...normalizeBundleSizes(prev.safe_bundle_sizes), [d.key]: n },
+                          }));
+                        }}
+                        className="mt-1 w-full px-2 py-1.5 rounded-lg border border-slate-300 font-mono font-bold text-slate-900 text-right disabled:bg-slate-50"
+                      />
+                      <span className="block mt-1 text-micro text-slate-500">
+                        τμχ · {formatCurrency(size * d.value)} η δεσμίδα
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
         </AdvancedSection>
       )}

@@ -1,3 +1,4 @@
+import { DEFAULT_SAFE_BUNDLE_SIZES } from '../lib/safeBundles.ts';
 import { supabase, unknownColumnFrom } from './supabase.ts';
 import { ShiftTemplateConfig } from '../types/index.ts';
 import { overridesFor } from '../lib/storeTypeDefaults.ts';
@@ -34,7 +35,9 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   // Off everywhere. A PLAY store turns these on in «Διαμόρφωση»; no existing
   // agency's closing screen changes until somebody does.
   pos_batch_close_enabled: false,
-  vlt_machine_cash_enabled: false,
+  // Η τρίτη στήλη της καταμέτρησης, το χρηματοκιβώτιο σε δεσμίδες (0087).
+  safe_count_enabled: true,
+  safe_bundle_sizes: { ...DEFAULT_SAFE_BUNDLE_SIZES },
   // Matches today's implicit per-row inference exactly (Σκρατς: front+back,
   // Λαχεία: plain pieces) - existing orgs see zero behavior change until an
   // owner flips one of these in the Configurator.

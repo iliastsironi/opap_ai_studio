@@ -1,12 +1,33 @@
 import React, { useState } from 'react';
 import { EUR_DENOMINATIONS } from '../../services/financialCalculator.ts';
-import { RotateCcw, Banknote, Coins as CoinsIcon, Calculator, Minus, Plus, X } from 'lucide-react';
+import { RotateCcw, Banknote, Coins as CoinsIcon, Calculator, Minus, Plus, Vault, X } from 'lucide-react';
 import { MAX_DENOMINATION_QUANTITY } from '../../lib/limits.ts';
 import { formatCurrency } from '../../lib/formatters.ts';
+import {
+  MAX_BUNDLES,
+  SAFE_DENOMINATIONS,
+  normalizeBundleSizes,
+  normalizeBundles,
+  safeBundleCount,
+  safePieceCount,
+  safeTotal,
+} from '../../lib/safeBundles.ts';
 
 export interface CashDenominationCounterProps {
   denominations: Record<string, number>;
   onChange: (updated: Record<string, number>) => void;
+  /**
+   * Η τρίτη στήλη: το χρηματοκιβώτιο, σε δεσμίδες. ΞΕΧΩΡΙΣΤΗ καταμέτρηση - δεν
+   * μπαίνει στο «Σύνολο Μετρητών» που κρίνεται η βάρδια. Αν λείπει, δεν υπάρχει
+   * η στήλη (το κατάστημα την έχει κλειστή στη Διαμόρφωση).
+   */
+  safe?: {
+    /** Δεσμίδες ανά αξία: {"5": 3, "50": 1}. */
+    bundles: Record<string, number>;
+    /** Τεμάχια ανά δεσμίδα ανά αξία, όπως τα όρισε ο admin. */
+    sizes: Record<string, number>;
+    onChange: (next: Record<string, number>) => void;
+  };
   readOnly?: boolean;
   className?: string;
   theme?: 'light' | 'dark';
@@ -18,8 +39,20 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
   readOnly = false,
   className = '',
   theme = 'light',
+  safe,
 }) => {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'notes' | 'coins'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'notes' | 'coins' | 'safe'>('all');
+
+  // Η στήλη του χρηματοκιβωτίου. Δουλεύει με δεσμίδες, όχι με τεμάχια: το «3» στα
+  // 50 € είναι τρεις δεσμίδες των 20 χαρτονομισμάτων.
+  const safeBundles = normalizeBundles(safe?.bundles);
+  const safeSizes = normalizeBundleSizes(safe?.sizes);
+  const safeTotalEuro = safeTotal(safeBundles, safeSizes);
+  const setSafeBundle = (key: string, value: number) => {
+    if (readOnly || !safe) return;
+    const clamped = Math.min(MAX_BUNDLES, Math.max(0, Math.floor(value) || 0));
+    safe.onChange({ ...safeBundles, [key]: clamped });
+  };
 
   // Handle count updates
   const updateCount = (key: string, delta: number) => {
@@ -259,6 +292,112 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
     );
   };
 
+  const renderSafeRow = (denom: (typeof SAFE_DENOMINATIONS)[number]) => {
+    const bundles = safeBundles[denom.key] || 0;
+    const size = safeSizes[denom.key];
+    const perBundle = size * denom.value;
+    const subtotal = bundles * perBundle;
+    return (
+      <div
+        key={denom.key}
+        className={`transition px-2.5 py-1.5 rounded-xl border flex items-center gap-2 ${
+          isDark
+            ? 'bg-slate-900/90 border-slate-700 hover:border-slate-500 shadow-2xs'
+            : 'bg-white border-slate-300/90 hover:border-slate-500 hover:shadow-xs'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 min-w-0 w-28 shrink-0">
+          <div
+            className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
+              isDark ? 'bg-slate-800 text-slate-300 border border-slate-600' : 'bg-slate-100 text-slate-700 border border-slate-300'
+            }`}
+          >
+            <Banknote className="w-3 h-3" />
+          </div>
+          <div className="min-w-0">
+            <span className={`block text-xs font-black tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {denom.label}
+            </span>
+            {/* Τι είναι μία δεσμίδα, γραμμένο στη γραμμή: ο υπάλληλος δεν
+                πρέπει να θυμάται ότι τα 50 € είναι των 20 και τα 20 € των 50. */}
+            <span className={`block text-micro leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              δεσμίδα {size} τμχ · {formatCurrency(perBundle)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+          <span
+            className={`text-xs font-black font-mono px-2.5 py-1 rounded-lg border shadow-2xs shrink-0 ${
+              subtotal > 0
+                ? isDark
+                  ? 'bg-slate-800 text-slate-100 border-slate-500'
+                  : 'bg-slate-900 text-white border-slate-900'
+                : isDark
+                ? 'bg-slate-900 text-slate-500 border-slate-800'
+                : 'bg-slate-50 text-slate-500 border-slate-200'
+            }`}
+          >
+            {formatCurrency(subtotal)}
+          </span>
+        </div>
+
+        <div
+          className={`flex items-center p-0.5 rounded-lg border shadow-2xs transition-colors gap-0.5 shrink-0 ${
+            isDark
+              ? 'bg-slate-950 border-slate-700 focus-within:border-brand'
+              : 'bg-slate-50/90 border-slate-200 focus-within:bg-white focus-within:border-brand focus-within:ring-2 focus-within:ring-indigo-100'
+          }`}
+        >
+          <button
+            type="button"
+            disabled={readOnly || bundles <= 0}
+            onClick={() => setSafeBundle(denom.key, bundles - 1)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 active:scale-95 transition-all select-none ${
+              readOnly || bundles <= 0
+                ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                : 'bg-white text-slate-800 hover:bg-slate-200 border border-slate-200/80 cursor-pointer'
+            }`}
+            title="Μείωση κατά 1 δεσμίδα"
+            aria-label={`Μείωση δεσμίδων των ${denom.label}`}
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <div className="w-12 flex items-center justify-center px-0.5">
+            <input
+              type="number"
+              min="0"
+              max={MAX_BUNDLES}
+              step="1"
+              disabled={readOnly}
+              value={bundles === 0 ? '0' : bundles}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setSafeBundle(denom.key, e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+              aria-label={`Δεσμίδες των ${denom.label}`}
+              className={`w-full min-w-0 text-center font-black font-mono text-sm bg-transparent border-none focus:outline-hidden focus:ring-0 p-0 ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={readOnly || bundles >= MAX_BUNDLES}
+            onClick={() => setSafeBundle(denom.key, bundles + 1)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center text-white active:scale-95 transition-all select-none shrink-0 ${
+              readOnly || bundles >= MAX_BUNDLES
+                ? 'bg-slate-300 cursor-not-allowed'
+                : 'cursor-pointer shadow-2xs bg-slate-800 hover:bg-slate-900'
+            }`}
+            title="Αύξηση κατά 1 δεσμίδα"
+            aria-label={`Αύξηση δεσμίδων των ${denom.label}`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Top Header Summary & Controls Bar */}
@@ -326,6 +465,20 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               <CoinsIcon className="w-3.5 h-3.5" />
               <span>Κέρματα</span>
             </button>
+            {safe && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter('safe')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-colors flex items-center space-x-1 cursor-pointer ${
+                  activeFilter === 'safe'
+                    ? isDark ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-2xs'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Vault className="w-3.5 h-3.5" />
+                <span>Χρηματοκιβώτιο</span>
+              </button>
+            )}
           </div>
 
           {/* Reset Button */}
@@ -338,7 +491,7 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
                   ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-rose-950/60 hover:border-rose-800 hover:text-rose-300'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700'
               }`}
-              title="Μηδενισμός όλων των ποσοτήτων"
+              title={safe ? 'Μηδενισμός κερμάτων και χαρτονομισμάτων (όχι του χρηματοκιβωτίου)' : 'Μηδενισμός όλων των ποσοτήτων'}
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Μηδενισμός</span>
@@ -360,13 +513,29 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
               {formatCurrency(grandTotal)}
             </span>
           </div>
+
+          {/* Ξεχωριστά, ποτέ μέσα στο σύνολο δεξιά: το χρηματοκιβώτιο δεν είναι το
+              συρτάρι που κρίνεται η βάρδια. */}
+          {safe && (
+            <div
+              className={`px-4 py-2 rounded-xl border flex flex-col text-right ${
+                isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-300 text-slate-900'
+              }`}
+              title="Ξεχωριστή καταμέτρηση: δεν μπαίνει στο Σύνολο Μετρητών ούτε στην απόκλιση."
+            >
+              <span className="text-micro font-extrabold uppercase tracking-wider block opacity-80">
+                Χρηματοκιβώτιο
+              </span>
+              <span className="text-xl font-black font-mono leading-tight">{formatCurrency(safeTotalEuro)}</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Κέρματα αριστερά, χαρτονομίσματα δεξιά. Counting a drawer goes down
           the coins and up the notes, and the two lists are read side by side
           rather than one under the other. */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className={`grid grid-cols-1 gap-4 items-start ${safe ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         {/* SECTION 2: COINS (ΚΕΡΜΑΤΑ 2€ - 0,05€) */}
         {(activeFilter === 'all' || activeFilter === 'coins') && (
           <div
@@ -532,6 +701,71 @@ export const CashDenominationCounter: React.FC<CashDenominationCounterProps> = (
             <div className="space-y-2">
               {banknotes.map((denom) => renderDenomCard(denom, false))}
             </div>
+          </div>
+        )}
+
+        {/* SECTION 3: ΧΡΗΜΑΤΟΚΙΒΩΤΙΟ - σε δεσμίδες, ξεχωριστά από το συρτάρι */}
+        {safe && (activeFilter === 'all' || activeFilter === 'safe') && (
+          <div
+            className={`transition p-4 sm:p-5 rounded-2xl border space-y-4 ${
+              isDark ? 'bg-slate-900/60 border-slate-700 shadow-sm' : 'bg-slate-50/60 border-slate-300/80 shadow-2xs'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
+              <div className="flex items-center space-x-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${
+                    isDark ? 'bg-slate-800 text-slate-200 border border-slate-600' : 'bg-slate-900 text-white border border-slate-900'
+                  }`}
+                >
+                  <Vault className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5
+                    className={`font-black text-sm uppercase tracking-wide flex items-center space-x-2 ${
+                      isDark ? 'text-slate-100' : 'text-slate-900'
+                    }`}
+                  >
+                    <span>Χρηματοκιβώτιο</span>
+                    <span className="text-xs font-normal opacity-70 font-mono">(δεσμίδες)</span>
+                  </h5>
+                  <p className={`text-micro font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Ξεχωριστά — δεν μπαίνει στο σύνολο μετρητών ούτε στην απόκλιση
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                {!readOnly && safeBundleCount(safeBundles) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => safe.onChange(normalizeBundles({}))}
+                    className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1 cursor-pointer select-none bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-300 shadow-2xs"
+                    title="Μηδενισμός μόνο του χρηματοκιβωτίου"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Μηδενισμός</span>
+                  </button>
+                )}
+                <span
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg border font-mono bg-white text-slate-700 border-slate-300"
+                  title={`${safePieceCount(safeBundles, safeSizes)} χαρτονομίσματα`}
+                >
+                  {safeBundleCount(safeBundles)} δεσμ.
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black font-mono px-3.5 py-1.5 rounded-xl border shadow-2xs ${
+                    safeTotalEuro > 0
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                      : 'bg-white text-slate-900 border-slate-300'
+                  }`}
+                >
+                  Σύνολο: {formatCurrency(safeTotalEuro)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">{SAFE_DENOMINATIONS.map((denom) => renderSafeRow(denom))}</div>
           </div>
         )}
       </div>

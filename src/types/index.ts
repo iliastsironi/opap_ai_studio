@@ -344,7 +344,6 @@ export interface Shift {
   pos_batch_total?: number;
   pos_after_close?: number | null;
   /** Μετρητά μέσα στα μηχανήματα. Καταγραφή μόνο - εκτός ισοζυγίου. */
-  vlt_machine_cash?: Array<{ label: string; amount: number }>;
   custom_field_values?: Record<string, any>;
   actual_cash?: number;
 
@@ -423,8 +422,10 @@ export interface ShiftTemplateConfig {
   /** Μονάδα ανά λαχείο (0059): {"scr_laiko":"BUNDLES"}. */
   lottery_units?: Record<string, 'BUNDLES' | 'PIECES' | 'DUAL'>;
   pos_batch_close_enabled?: boolean;
-  /** Καταγραφή μετρητών μέσα στα μηχανήματα (ILink), εκτός ισοζυγίου. */
-  vlt_machine_cash_enabled?: boolean;
+  /** Η στήλη «Χρηματοκιβώτιο» (δεσμίδες) στην καταμέτρηση. Ανοιχτή από προεπιλογή (0087). */
+  safe_count_enabled?: boolean;
+  /** Τεμάχια ανά δεσμίδα ανά ονομαστική αξία: {"5":50,"50":20,"100":10} (0087). */
+  safe_bundle_sizes?: Record<string, number>;
   // Org/store-level defaults for how never-explicitly-configured Σκρατς/
   // Λαχεία rows count: front-only vs front+back for Σκρατς, and plain
   // pieces vs €10 bundles for Λαχεία. A row's own explicit override (set

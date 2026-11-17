@@ -1,3 +1,5 @@
+import { SafeCountSummary } from './SafeCountSummary.tsx';
+import { readSafeCount } from '../../lib/safeBundles.ts';
 import React, { useState, useEffect, useRef } from 'react';
 import { canDeleteShift, deleteShiftLabel } from '../../lib/shiftDeletePermission.ts';
 import {
@@ -528,10 +530,6 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               posTailTonight,
               shift.card_payments
             );
-            const machineCash = Array.isArray(shift.vlt_machine_cash)
-              ? shift.vlt_machine_cash
-              : [];
-
             // Ποια από αυτά τα έξοδα είναι του καφέ.
             //
             // Η γραμμή «Έξοδα FnB» έγραφε 0,00 € σε κάθε βάρδια, γιατί
@@ -1224,35 +1222,9 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           </p>
                         )}
                       </div>
-
-                      {/* Μετρητά μέσα στα μηχανήματα (0051). Its own block,
-                          deliberately below the Σύνολο: this money is inside
-                          the machines and is not part of anything above it.
-                          Folding it into the reconciliation would read as
-                          cash the shift is answerable for. */}
-                      {machineCash.length > 0 && (
-                        <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1">
-                          <div className="text-center font-black text-slate-400 border-b border-slate-800 pb-1 text-micro uppercase tracking-wider">
-                            Μετρητά στα VLTs — εκτός ισοζυγίου
-                          </div>
-                          {machineCash.map((reading, idx) => (
-                            <div key={idx} className="flex justify-between text-slate-300 py-0.5">
-                              <span>{reading.label || `ILink #${idx + 1}`}:</span>
-                              <span className="font-mono font-bold text-white">
-                                {formatCurrency(safeNum(reading.amount))}
-                              </span>
-                            </div>
-                          ))}
-                          <div className="flex justify-between text-slate-400 font-bold border-t border-slate-800 pt-1">
-                            <span>Σύνολο:</span>
-                            <span className="font-mono text-slate-200">
-                              {formatCurrency(
-                                machineCash.reduce((t, r) => t + safeNum(r.amount), 0)
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      {/* Η καταμέτρηση του χρηματοκιβωτίου σε δεσμίδες: δικό της κουτί κάτω από το
+                          Σύνολο, εκτός ισοζυγίου. */}
+                      <SafeCountSummary count={readSafeCount(shift.custom_field_values)} />
                     </div>
 
                     {/* Bottom Right Blue Bar */}

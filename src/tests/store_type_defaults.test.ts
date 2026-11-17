@@ -36,7 +36,8 @@ describe('what a PLAY hall changes', () => {
 
   it('keeps the machines, which are the whole point', () => {
     expect(PLAY_TEMPLATE_OVERRIDES.show_vlts).toBe(true);
-    expect(PLAY_TEMPLATE_OVERRIDES.vlt_machine_cash_enabled).toBe(true);
+    // the ILink machine-cash recording was removed on the owner's request
+    expect('vlt_machine_cash_enabled' in PLAY_TEMPLATE_OVERRIDES).toBe(false);
   });
 
   it('turns on the midnight batch arithmetic', () => {

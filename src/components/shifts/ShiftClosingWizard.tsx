@@ -195,13 +195,18 @@ import { presetsForCategory, suppliersForCategory, EXPENSE_CATEGORY_KEYS } from 
 import { useExpenseCategories } from '../modules/useExpenseCategories.ts';
 import { ExpenseCategoryDef, isCompanyCategory, isFnbCategory, tillExpensesOnly } from '../../lib/expenseCategories.ts';
 import { compareGreek } from '../../lib/greekSort.ts';
+import { useTenant } from '../../context/TenantContext.tsx';
+import { mergesVltAndExpenses, visibleSteps } from '../../lib/closingSteps.ts';
+import {
+  DEFAULT_SAFE_BUNDLE_SIZES,
+  buildSafeCount,
+  normalizeBundleSizes,
+  normalizeBundles,
+  readSafeCount,
+} from '../../lib/safeBundles.ts';
+import { SafeCountSummary } from './SafeCountSummary.tsx';
 import { newCreditLineId } from '../../lib/creditIdempotency.ts';
 import { posBreakdownText, posFromBatchClose } from '../../lib/posBatchClose.ts';
-import {
-  machineLabel,
-  normalizeMachineReadings,
-  vltMachineTotal,
-} from '../../lib/vltMachineCash.ts';
 import { seedRowsFor } from '../../lib/scratchSeedSource.ts';
 import { earlierRowsForFloor } from '../../lib/earlierShiftFloor.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
@@ -249,6 +254,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   onSubmitted,
 }) => {
   const { token, roles, permissions, user, organization, isLoading: isAuthLoading } = useAuth();
+  const { stores: tenantStores } = useTenant();
+  // Στο ταμείο ενός PLAY οι ΜΗΧΑΝΕΣ και τα έξοδα είναι μία οθόνη: δεν υπάρχουν
+  // πωλήσεις ΟΠΑΠ να χωρίσουν το «ΟΠΑΠ & VLTs» από τα «Έξοδα».
+  const mergeVltAndExpenses = mergesVltAndExpenses(
+    tenantStores.find((st) => st.id === shift.store_id)?.store_type
+  );
   const { categories: expenseCategories, options: expenseCategoryOptions } =
     useExpenseCategories(shift.organization_id || organization?.id);
   /**
@@ -451,16 +462,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     return saved === undefined || saved === null ? '' : String(saved);
   });
   const [posCarry, setPosCarry] = useState(0);
-  /** Μετρητά μέσα στα μηχανήματα. Καταγραφή μόνο - ποτέ στο ισοζύγιο. */
-  const [vltMachineCashEnabled, setVltMachineCashEnabled] = useState(false);
-  // Text, not numbers, for exactly as long as it is on screen - see
-  // MachineReadingInput. normalizeMachineReadings turns it back on save.
-  const [machineReadings, setMachineReadings] = useState<Array<{ label: string; amount: string }>>(
-    () =>
-      normalizeMachineReadings(
-        shift.vlt_machine_cash ?? localDraft?.vlt_machine_cash
-      ).map((r) => ({ label: r.label, amount: r.amount ? String(r.amount) : '' }))
-  );
   /**
    * The suppliers with their own categories, not just their names.
    *
@@ -739,8 +740,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         // that predates 0051, and a template row without the column must not
         // switch a shop onto a different POS arithmetic by accident.
         setPosBatchCloseEnabled(config.pos_batch_close_enabled === true);
-        setVltMachineCashEnabled(config.vlt_machine_cash_enabled === true);
         setTopUpAllowedForEmployee(config.topup_employee_allowed === true);
+        // Ανοιχτό εκτός αν το κατάστημα το έκλεισε ρητά (0087).
+        setSafeCountEnabled((config as any).safe_count_enabled !== false);
+        if (!storedSafeSizesRef.current) {
+          setSafeBundleSizes(normalizeBundleSizes((config as any).safe_bundle_sizes));
+        }
         setSafeDropAllowedForEmployee((config as any).safedrop_employee_allowed === true);
         setSafeDirection(normalizeSafeDirection((config as any).safe_direction));
         // The store's rule, not this shift's. A shift already closed keeps the
@@ -1157,6 +1162,19 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const [discrepancySettlement] = useState<DiscrepancySettlement>('CHARGE');
 
   // Denominations State
+  // Το χρηματοκιβώτιο σε δεσμίδες: ξεχωριστή καταμέτρηση, ποτέ μέσα στο
+  // «Σύνολο Μετρητών» ούτε στην απόκλιση. Αν η βάρδια έχει ήδη γραμμένη
+  // καταμέτρηση, κρατάει τα μεγέθη δεσμίδας εκείνης της στιγμής.
+  const storedSafeCount = readSafeCount(shift.custom_field_values ?? localDraft?.custom_field_values);
+  const storedSafeSizesRef = useRef<Record<string, number> | null>(storedSafeCount?.sizes ?? null);
+  const [safeBundles, setSafeBundles] = useState<Record<string, number>>(() =>
+    normalizeBundles(storedSafeCount?.bundles)
+  );
+  const [safeBundleSizes, setSafeBundleSizes] = useState<Record<string, number>>(
+    () => storedSafeCount?.sizes ?? { ...DEFAULT_SAFE_BUNDLE_SIZES }
+  );
+  const [safeCountEnabled, setSafeCountEnabled] = useState(true);
+  const safeCount = safeCountEnabled ? buildSafeCount(safeBundles, safeBundleSizes) : null;
   const [denominations, setDenominations] = useState<Record<string, number>>(
     shift.counted_denominations || localDraft?.counted_denominations || {}
   );
@@ -1418,7 +1436,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   const totalStorePos = posBatchCloseEnabled
     ? posBatch.amount
     : storePosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
-  const machineCashTotal = vltMachineTotal(machineReadings);
   const totalToraPos = toraPosItems.reduce((acc, item) => acc + safeNum(item.amount), 0);
   const totalArithmoNet =
     safeNum(arithmoGross) - safeNum(arithmoCancels) - safeNum(arithmoPayouts) + safeNum(arithmoVouchers);
@@ -1755,9 +1772,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       // and must mean «counted, and it was nothing».
       pos_batch_total: posBatchCloseEnabled ? safeNum(posBatchTotal) : null,
       pos_after_close: posBatchCloseEnabled ? safeNum(posAfterClose) : null,
-      vlt_machine_cash: vltMachineCashEnabled
-        ? normalizeMachineReadings(machineReadings)
-        : null,
 
       clever_point_total: safeNum(cleverPointTotal),
       ippodromos_balance: safeNum(ippodromosBalance),
@@ -1799,6 +1813,9 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         ...(shift.custom_field_values || {}),
         ...(localDraft?.custom_field_values || {}),
         safe_drops: safeDrops,
+        // Η καταμέτρηση του χρηματοκιβωτίου, με τα μεγέθη δεσμίδας της στιγμής.
+        // Μόνο όταν η στήλη είναι ανοιχτή: κλειστή, δεν αγγίζει ό,τι υπάρχει.
+        ...(safeCountEnabled ? { safe_count: safeCount } : {}),
         opening_topups: topUps.map((v) => safeNum(v)).filter((n) => n !== 0),
         ...topUpsForLegacyFields(topUps),
         customer_credits: customerCredits,
@@ -1953,7 +1970,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
   };
 
   // Trigger draft save when changing step
-  const handleStepChange = (newStep: number) => {
+  const handleStepChange = (requested: number) => {
+    // Όταν τα VLTs και τα έξοδα είναι μία οθόνη, το βήμα 3 δεν υπάρχει: προς τα
+    // εμπρός το «Επόμενο» πηδάει στην Καταμέτρηση, προς τα πίσω το «Προηγούμενο»
+    // γυρίζει στα VLTs & Έξοδα.
+    const newStep =
+      mergeVltAndExpenses && requested === 3 ? (currentStep < 3 ? 4 : 2) : requested;
     saveDraft();
     setCurrentStep(newStep);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2191,15 +2213,20 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
     }
   };
 
-  const steps = [
+  const allSteps = [
     { num: 1, name: 'Έναρξη', icon: Building2 },
-    { num: 2, name: 'ΟΠΑΠ & VLTs', icon: Ticket },
+    { num: 2, name: mergeVltAndExpenses ? 'VLTs & Έξοδα' : 'ΟΠΑΠ & VLTs', icon: Ticket },
     // A store without a café has no FnB step to speak of - the step is still
     // where expenses are entered, so it stays, under a name that is true.
     { num: 3, name: modules.fnb ? 'FnB & Έξοδα' : 'Έξοδα', icon: modules.fnb ? Coffee : Receipt },
     { num: 4, name: 'Καταμέτρηση', icon: Coins },
     { num: 5, name: 'Επιβεβαίωση', icon: CheckCircle2 },
   ];
+  // Ό,τι δείχνει το πάνω μέρος: χωρίς το βήμα 3 όταν είναι ενωμένο, και με
+  // αριθμούς που μετράνε ό,τι φαίνεται (1, 2, 3, 4), όχι τα εσωτερικά βήματα.
+  const steps = visibleSteps(allSteps, mergeVltAndExpenses);
+  const stepBadge = (internal: number) =>
+    mergeVltAndExpenses ? (internal === 3 ? 2 : internal > 3 ? internal - 1 : internal) : internal;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -2479,7 +2506,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
         </div>
 
         {/* Step Indicator Bar */}
-        <div className="mt-6 pt-5 border-t border-slate-800/80 grid grid-cols-5 gap-2">
+        <div
+          className={`mt-6 pt-5 border-t border-slate-800/80 grid gap-2 ${
+            steps.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
+          }`}
+        >
           {steps.map((step) => {
             const Icon = step.icon;
             const isActive = currentStep === step.num;
@@ -2499,7 +2530,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               >
                 <Icon className="w-4 h-4 mb-1" />
                 <span className="text-xs truncate w-full hidden sm:inline">{step.name}</span>
-                <span className="text-micro font-bold sm:hidden">{step.num}</span>
+                <span className="text-micro font-bold sm:hidden">{step.shown}</span>
               </button>
             );
           })}
@@ -2691,7 +2722,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
                 <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">2</span>
-                <span>Αναφορές ΟΠΑΠ, VLTs & Υπηρεσιών</span>
+                <span>{mergeVltAndExpenses ? 'VLTs & Έξοδα' : 'Αναφορές ΟΠΑΠ, VLTs & Υπηρεσιών'}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Εισάγετε τα ποσά ανά κατηγορία από την ημερήσια αναφορά του τερματικού ΟΠΑΠ & POS.
@@ -3101,14 +3132,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
       )}
 
       {/* STEP 3: FnB, EXPENSES & CUSTOMER CREDITS */}
-      {currentStep === 3 && (
+      {(currentStep === 3 || (mergeVltAndExpenses && currentStep === 2)) && (
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-8 transition-opacity duration-150 starting:opacity-0">
           {/* FnB Sales */}
           {modules.fnb && (
           <div className="space-y-4">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">3</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">{stepBadge(3)}</span>
                 <span>Πωλήσεις Καφέ / Αναψυκτηρίου (FnB)</span>
               </h3>
             </div>
@@ -3458,11 +3489,13 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">4</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">{stepBadge(4)}</span>
                 <span>Καταμέτρηση Μετρητών Ταμείου</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Μετρήστε τα χαρτονομίσματα και τα κέρματα στο συρτάρι.
+                {safeCountEnabled
+                  ? 'Μετρήστε τα κέρματα και τα χαρτονομίσματα στο συρτάρι, και το χρηματοκιβώτιο σε δεσμίδες.'
+                  : 'Μετρήστε τα χαρτονομίσματα και τα κέρματα στο συρτάρι.'}
               </p>
             </div>
 
@@ -3496,6 +3529,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <CashDenominationCounter
             denominations={denominations}
             onChange={setDenominations}
+            safe={
+              safeCountEnabled
+                ? { bundles: safeBundles, sizes: safeBundleSizes, onChange: setSafeBundles }
+                : undefined
+            }
             theme="light"
           />
 
@@ -3700,97 +3738,6 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
             )}
           </div>
 
-          {/* Μετρητά μέσα στα μηχανήματα (0051).
-              Recorded and totalled for whoever goes to empty them. Never part
-              of the expected cash: that money is inside the machines, and
-              counting it as till cash would leave the shop thousands short
-              every night. */}
-          {vltMachineCashEnabled && (
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-2">
-                <div>
-                  <h4 className="font-extrabold text-sm text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-slate-600" />
-                    <span>Μετρητά στα VLTs</span>
-                  </h4>
-                  <p className="text-micro font-medium text-slate-600 mt-0.5">
-                    Καταγραφή μόνο — δεν μπαίνει στο ταμείο ούτε στην απόκλιση.
-                  </p>
-                </div>
-                <span className="text-xs font-black text-slate-800 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs font-mono">
-                  Σύνολο: {formatCurrency(machineCashTotal)}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {machineReadings.map((reading, idx) => (
-                  <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 shadow-2xs">
-                    <div className="flex items-center justify-between gap-2">
-                      {canManage ? (
-                        <input
-                          type="text"
-                          maxLength={MAX_LABEL_LENGTH}
-                          value={reading.label}
-                          onChange={(e) =>
-                            setMachineReadings((prev) =>
-                              prev.map((r, i) => (i === idx ? { ...r, label: e.target.value } : r))
-                            )
-                          }
-                          className="text-xs font-bold text-slate-800 border-b border-transparent hover:border-slate-300 focus:border-brand focus:outline-hidden px-1 py-0.5 min-w-0 flex-1"
-                          placeholder={machineLabel(idx)}
-                        />
-                      ) : (
-                        <span className="text-xs font-bold text-slate-800 truncate">{reading.label}</span>
-                      )}
-
-                      {canManage && machineReadings.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMachineReadings((prev) => prev.filter((_, i) => i !== idx))
-                          }
-                          aria-label={`Αφαίρεση ${reading.label}`}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <MoneyField
-                        value={reading.amount}
-                        onChange={(next) =>
-                          setMachineReadings((prev) =>
-                            prev.map((r, i) => (i === idx ? { ...r, amount: next } : r))
-                          )
-                        }
-                        placeholder="0.00"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-slate-950 bg-white focus:ring-2 focus:ring-brand font-black font-mono text-base shadow-2xs"
-                      />
-                      <span className="absolute right-3 top-3 text-xs font-bold text-slate-500">€</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setMachineReadings((prev) => [
-                      ...prev,
-                      { label: machineLabel(prev.length), amount: '' },
-                    ])
-                  }
-                  className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-600 cursor-pointer transition-colors"
-                >
-                  + Προσθήκη μηχανήματος
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Καταθέσεις χρηματοκιβωτίου (safe drops).
               Money that left the drawer during the shift and is not missing:
               the reconciliation adds it back, which is why it is listed here
@@ -3910,7 +3857,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
           <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
-                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">5</span>
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 font-extrabold flex items-center justify-center text-sm">{stepBadge(5)}</span>
                 <span>Τελικός Έλεγχος & Επιβεβαίωση</span>
               </h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -4471,6 +4418,7 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span className="font-mono text-white">{formatCurrency(reconciliationBreakdown.grossTotal)}</span>
                     </div>
                   </div>
+                  <SafeCountSummary count={safeCount} />
                 </div>
 
                 {/* Bottom Right Blue Bar */}

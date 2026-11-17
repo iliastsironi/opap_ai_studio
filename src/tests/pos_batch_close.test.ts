@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { carriedFromStored, posBreakdownText, posFromBatchClose } from '../lib/posBatchClose.ts';
-import {
-  defaultMachineReadings,
-  normalizeMachineReadings,
-  vltMachineTotal,
-} from '../lib/vltMachineCash.ts';
 
 describe('the POS figure a PLAY till is measured against', () => {
   // The Owner's own sheet for 15/10/26 writes the POS as «=1563,50 + 20»:
@@ -114,54 +109,5 @@ describe('reading the night back on the approval screen', () => {
   it('reads a carry bigger than the report without flipping its sign', () => {
     const r = posFromBatchClose({ batchTotal: 50, afterClose: 10, carriedAfterClose: 400 });
     expect(carriedFromStored(r.batchTotal, r.afterClose, r.amount)).toBe(400);
-  });
-});
-
-describe('the cash inside the machines', () => {
-  it('totals the Owner’s two ILinks', () => {
-    expect(vltMachineTotal([
-      { label: 'ILink #1', amount: 8900 },
-      { label: 'ILink #2', amount: 7375 },
-    ])).toBe(16275);
-  });
-
-  it('starts a shop off with two machines at zero', () => {
-    expect(defaultMachineReadings()).toEqual([
-      { label: 'ILink #1', amount: 0 },
-      { label: 'ILink #2', amount: 0 },
-    ]);
-  });
-
-  it('gives a hall as many rows as it has machines', () => {
-    expect(defaultMachineReadings(6)).toHaveLength(6);
-    expect(defaultMachineReadings(6)[5].label).toBe('ILink #6');
-  });
-
-  it('keeps a stored reading, label and all', () => {
-    expect(normalizeMachineReadings([{ label: 'Μηχάνημα Α', amount: '125.5' }])).toEqual([
-      { label: 'Μηχάνημα Α', amount: 125.5 },
-    ]);
-  });
-
-  it('totals what the operator typed, commas and all', () => {
-    expect(vltMachineTotal([
-      { label: 'ILink #1', amount: '8900,50' },
-      { label: 'ILink #2', amount: '7375,25' },
-    ])).toBe(16275.75);
-  });
-
-  it('names an unlabelled row by its position', () => {
-    expect(normalizeMachineReadings([{ amount: 10 }, { amount: 20 }])[1].label).toBe('ILink #2');
-  });
-
-  it('falls back to the default when the column holds nothing usable', () => {
-    expect(normalizeMachineReadings(null)).toHaveLength(2);
-    expect(normalizeMachineReadings([])).toHaveLength(2);
-    expect(normalizeMachineReadings('ουπς')).toHaveLength(2);
-  });
-
-  it('totals nothing as nothing', () => {
-    expect(vltMachineTotal([])).toBe(0);
-    expect(vltMachineTotal(null)).toBe(0);
   });
 });
