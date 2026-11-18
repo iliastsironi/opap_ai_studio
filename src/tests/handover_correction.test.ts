@@ -160,22 +160,26 @@ describe('οι οθόνες', () => {
     expect(modal).toMatch(/handoverFoundNow \? \{ found: handoverFoundNow, note: handoverNote \} : null/);
   });
 
-  it('ποσό που δεν διαβάζεται κλειδώνει και την αποδοχή και το «Έναρξη»', () => {
+  it('ποσό που δεν διαβάζεται κλειδώνει το «Επιβεβαίωση & Έναρξη»', () => {
     expect(modal).toMatch(/if \(handoverCorrectionInvalid\) \{\s+setError\(/);
-    expect(modal).toMatch(/\(handoverToAccept !== null && !handoverAccepted\) \|\| handoverCorrectionInvalid/);
-    expect(modal).toMatch(/disabled=\{loading \|\| handoverCorrectionInvalid\}/);
+    expect(modal).toMatch(/type="submit"\s+disabled=\{loading \|\| fetchingPrev \|\| blockedReason !== null \|\| handoverCorrectionInvalid\}/);
   });
 
-  it('αλλαγή ποσού ή άνοιγμα/κλείσιμο της διόρθωσης αφαιρεί την αποδοχή που είχε δοθεί', () => {
-    const block = modal.slice(modal.indexOf('data-testid="handover-correct-toggle"'), modal.indexOf('data-testid="handover-correction"'));
-    expect(block).toMatch(/setHandoverAccepted\(false\)/);
-    const inputs = modal.slice(modal.indexOf('handover-found-notes'), modal.indexOf('id="handover-note"'));
-    expect(inputs).toMatch(/setHandoverAccepted\(false\)/);
+  it('η αποδοχή είναι το ίδιο το «Επιβεβαίωση & Έναρξη»: κανένα κουτάκι, καμία ξεχωριστή κατάσταση', () => {
+    expect(modal).not.toContain('handoverAccepted');
+    expect(modal).not.toContain('Έλαβα και αποδέχομαι');
+    const card = modal.slice(modal.indexOf('data-testid="handover-acceptance"'), modal.indexOf('<ShiftInspectionPanel'));
+    expect(card).not.toContain('type="checkbox"');
+    // Η εγγραφή γράφεται πάντα όταν η κάρτα φάνηκε, χωρίς δεύτερη συνθήκη.
+    expect(modal).toMatch(/\.\.\.\(handoverToAccept\n\s+\? \{\s+handover_acceptance: acceptanceRecord\(/);
+    // Η γραμμή απλώς το λέει.
+    expect(card).toContain('data-testid="handover-accept-note"');
+    expect(card).toContain('Με το «Επιβεβαίωση & Έναρξη» αποδέχεστε την παραλαβή');
   });
 
   it('η διόρθωση ΔΕΝ αγγίζει τα ποσά της βάρδιας (η μέρα συνεχίζει από το αρχικό της)', () => {
     const start = modal.indexOf('data-testid="handover-correct-toggle"');
-    const end = modal.indexOf('Έλαβα και αποδέχομαι την παραλαβή των παραπάνω ποσών');
+    const end = modal.indexOf('data-testid="handover-accept-note"');
     const block = modal.slice(start, end);
     for (const setter of ['setOpeningBanknotes', 'setOpeningCoins', 'setOpeningSafe', 'setFloatShortfall', 'recordShiftInspection']) {
       expect(block, setter).not.toContain(setter);

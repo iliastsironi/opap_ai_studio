@@ -136,7 +136,6 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // Η παραλαβή που ζητά αποδοχή (μόνο βάρδιες μετά την πρώτη της ημέρας, μόνο όπου το ζητά το
   // κατάστημα). Null = δεν ζητείται. Δεν μετράει τίποτα: δείχνει και κρατά ότι αποδέχτηκε.
   const [handoverToAccept, setHandoverToAccept] = useState<HandoverFigures | null>(null);
-  const [handoverAccepted, setHandoverAccepted] = useState<boolean>(false);
   // Ο εισερχόμενος βρήκε κάτι διαφορετικό: τα ποσά που πληκτρολογεί και μια σημείωση. Δεν αλλάζουν
   // τα ποσά της βάρδιας· καταγράφονται, για τον υπεύθυνο.
   const [handoverCorrecting, setHandoverCorrecting] = useState<boolean>(false);
@@ -538,7 +537,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
         setInspectionError(null);
 
         // Η αποδοχή παραλαβής: μόνο βάρδιες ΜΕΤΑ την πρώτη της ημέρας, μόνο όπου την ζητά το
-        // κατάστημα. Δεν μετράει τίποτα - δείχνει τι άφησε η προηγούμενη και ζητά ένα «αποδέχομαι».
+        // κατάστημα. Δεν μετράει τίποτα - δείχνει τι άφησε η προηγούμενη· η αποδοχή είναι το «Επιβεβαίωση & Έναρξη».
         setHandoverToAccept(
           (() => {
             const figures = computeHandoverFigures(prev, { safeEnabled });
@@ -551,7 +550,6 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
               : null;
           })()
         );
-        setHandoverAccepted(false);
         setHandoverCorrecting(false);
         setHandoverNote('');
       } catch (e) {
@@ -625,13 +623,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       return;
     }
 
-    // Η παραλαβή δεν ανοίγει χωρίς αποδοχή: είναι ακριβώς ό,τι ζητήθηκε από το Play.
+    // Η αποδοχή της παραλαβής είναι το ίδιο το «Επιβεβαίωση & Έναρξη»: κανένα ξεχωριστό βήμα. Αν όμως
+    // ο εισερχόμενος γράφει τι βρήκε και κάποιο ποσό δεν διαβάζεται, δεν γράφεται τίποτα στη θέση του.
     if (handoverCorrectionInvalid) {
       setError('Γράψτε σωστά τα ποσά που βρήκατε, με τελεία ή κόμμα για τα λεπτά (π.χ. 1250,50).');
-      return;
-    }
-    if (handoverToAccept && !handoverAccepted) {
-      setError('Αποδεχτείτε πρώτα την παραλαβή από την προηγούμενη βάρδια.');
       return;
     }
 
@@ -799,7 +794,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           // κλείσιμο δεν υπάρχει φάκελος χαρτονομισμάτων. Μόνο όπου ισχύει· το πρακτορείο δεν το παίρνει.
           ...(morningNotesCarryOver ? { notes_carry_over: true } : {}),
           // Η αποδοχή της παραλαβής: ποιος, πότε, και τι είδε. Δεν είναι επιθεώρηση: δεν μετρήθηκε τίποτα.
-          ...(handoverToAccept && handoverAccepted
+          ...(handoverToAccept
             ? {
                 handover_acceptance: acceptanceRecord(
                   handoverToAccept,
@@ -886,7 +881,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       </button>
       <button
         type="submit"
-        disabled={loading || fetchingPrev || blockedReason !== null || (handoverToAccept !== null && !handoverAccepted) || handoverCorrectionInvalid}
+        disabled={loading || fetchingPrev || blockedReason !== null || handoverCorrectionInvalid}
         title={blockedReason ?? undefined}
         className="px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
       >
@@ -1177,7 +1172,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
 
           {/* Η αποδοχή παραλαβής (Play, βάρδιες μετά την πρώτη): τι άφησε η προηγούμενη βάρδια, όπως
               το μέτρησε στο κλείσιμο. Δεν είναι επιθεώρηση - δεν μετράει τίποτα και δεν γράφει
-              έλλειμμα· ζητά μόνο ένα «αποδέχομαι», γιατί τα ποσά είναι μεγάλα. */}
+              έλλειμμα· η αποδοχή είναι το ίδιο το «Επιβεβαίωση & Έναρξη», γιατί τα ποσά είναι μεγάλα. */}
           {handoverToAccept && (
             <div
               className="p-4 rounded-xl border-2 border-indigo-300 bg-indigo-50/60 space-y-3"
@@ -1231,7 +1226,6 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                       });
                       setHandoverCorrecting(true);
                     }
-                    setHandoverAccepted(false);
                   }}
                   className="text-xs font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900 cursor-pointer disabled:opacity-50"
                 >
@@ -1264,8 +1258,6 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                             onChange={(e) => {
                               const value = e.target.value;
                               setHandoverFound((current) => ({ ...current, [key]: value }));
-                              // Άλλαξε το ποσό: η αποδοχή που είχε δοθεί αφορούσε άλλο.
-                              setHandoverAccepted(false);
                             }}
                             className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold font-mono text-slate-900 focus:ring-2 focus:ring-brand"
                           />
@@ -1306,20 +1298,12 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   </div>
                 )}
 
-                <label className="flex items-start gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={handoverAccepted}
-                    disabled={loading || handoverCorrectionInvalid}
-                    onChange={(e) => setHandoverAccepted(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-indigo-950">
-                    {handoverDiffers && handoverDiff
-                      ? `Έλαβα και αποδέχομαι την παραλαβή με τα ποσά που βρήκα (διαφορά ${formatCurrency(handoverDiff.total, { showSign: true })}).`
-                      : 'Έλαβα και αποδέχομαι την παραλαβή των παραπάνω ποσών.'}
-                  </span>
-                </label>
+                {/* Όχι κουτάκι: η αποδοχή γίνεται με το «Επιβεβαίωση & Έναρξη». Η γραμμή το λέει μόνο. */}
+                <p className="text-micro font-bold text-indigo-900" data-testid="handover-accept-note">
+                  {handoverDiffers && handoverDiff
+                    ? `Με το «Επιβεβαίωση & Έναρξη» αποδέχεστε την παραλαβή με τα ποσά που βρήκατε (διαφορά ${formatCurrency(handoverDiff.total, { showSign: true })}).`
+                    : 'Με το «Επιβεβαίωση & Έναρξη» αποδέχεστε την παραλαβή των παραπάνω ποσών.'}
+                </p>
               </div>
             </div>
           )}

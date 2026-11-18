@@ -199,15 +199,15 @@ describe('οι οθόνες διαβάζουν «ανοιχτό μόνο αν ε
     expect(modal).toContain('(config as any)?.morning_notes_carry_over === true');
     expect(modal).toContain('morningNotesCarryOver: carryNotes,');
     expect(modal).not.toMatch(/morning_notes_carry_over !== false/);
-    // Η αποδοχή: μόνο με ρητό true, και μπλοκάρει το άνοιγμα.
+    // Η αποδοχή: μόνο με ρητό true. Δεν υπάρχει ξεχωριστό κουτάκι: αποδέχεσαι με το «Επιβεβαίωση & Έναρξη».
     expect(modal).toContain('enabled: (config as any)?.handover_acceptance_enabled,');
-    expect(modal).toContain('(handoverToAccept !== null && !handoverAccepted)');
-    expect(modal).toContain("if (handoverToAccept && !handoverAccepted) {");
+    expect(modal).not.toContain('handoverAccepted');
+    expect(modal).not.toMatch(/type="checkbox"[\s\S]{0,200}handover/);
   });
 
   it('η βάρδια παίρνει το σημάδι και την αποδοχή μόνο όπου ισχύουν', () => {
     expect(modal).toContain('...(morningNotesCarryOver ? { notes_carry_over: true } : {}),');
-    expect(modal).toContain('...(handoverToAccept && handoverAccepted');
+    expect(modal).toContain('...(handoverToAccept\n');
   });
 
   it('η οθόνη κλεισίματος περνά το σημάδι στον φάκελο, και αλλάζει το κείμενο', () => {
