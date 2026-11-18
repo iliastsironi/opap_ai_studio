@@ -17,7 +17,11 @@ import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
 import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 import { resolveOpeningFloat } from '../../lib/openingFloat.ts';
 import { resolveOpeningSafe } from '../../lib/safeBundles.ts';
-import { handoverFigures as computeHandoverFigures, shouldAskAcceptance, acceptanceRecord, type HandoverFigures } from '../../lib/handoverAcceptance.ts';
+import {
+  handoverFigures as computeHandoverFigures, shouldAskAcceptance, acceptanceRecord,
+  foundFigures, handoverDifference, hasDifference, HANDOVER_NOTE_MAX,
+  type HandoverFigures,
+} from '../../lib/handoverAcceptance.ts';
 import { openBlockedReason } from '../../lib/shiftOpenRules.ts';
 import { athensDateKey } from '../../lib/pnlEngine.ts';
 import { shiftTypeOptions, resolveShiftType, nextShiftType } from '../../lib/shiftTypeOptions.ts';
@@ -133,6 +137,11 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
   // κατάστημα). Null = δεν ζητείται. Δεν μετράει τίποτα: δείχνει και κρατά ότι αποδέχτηκε.
   const [handoverToAccept, setHandoverToAccept] = useState<HandoverFigures | null>(null);
   const [handoverAccepted, setHandoverAccepted] = useState<boolean>(false);
+  // Ο εισερχόμενος βρήκε κάτι διαφορετικό: τα ποσά που πληκτρολογεί και μια σημείωση. Δεν αλλάζουν
+  // τα ποσά της βάρδιας· καταγράφονται, για τον υπεύθυνο.
+  const [handoverCorrecting, setHandoverCorrecting] = useState<boolean>(false);
+  const [handoverFound, setHandoverFound] = useState({ notes: '', coins: '', safe: '' });
+  const [handoverNote, setHandoverNote] = useState<string>('');
   // What today started on, when this shift is continuing a day rather than
   // starting one. Null means this IS the day's first shift.
   // How many shifts this store runs, so the type dropdown offers its shifts
@@ -543,6 +552,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
           })()
         );
         setHandoverAccepted(false);
+        setHandoverCorrecting(false);
+        setHandoverNote('');
       } catch (e) {
         console.warn('Error loading previous shift:', e);
       } finally {
@@ -590,6 +601,17 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     shifts: storeShifts,
   });
 
+  // Η διόρθωση της παραλαβής, όπως διαβάζεται τώρα: null όταν δεν διορθώνει ή όταν κάποιο ποσό δεν
+  // διαβάζεται (τότε η αποδοχή μένει κλειστή, δεν μαντεύεται τίποτα).
+  const handoverFoundNow =
+    handoverToAccept && handoverCorrecting
+      ? foundFigures(handoverFound, { includeSafe: safeCountEnabled })
+      : null;
+  const handoverCorrectionInvalid = !!handoverToAccept && handoverCorrecting && handoverFoundNow === null;
+  const handoverDiff =
+    handoverToAccept && handoverFoundNow ? handoverDifference(handoverToAccept, handoverFoundNow) : null;
+  const handoverDiffers = handoverDiff !== null && hasDifference(handoverDiff);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -604,6 +626,10 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
     }
 
     // Η παραλαβή δεν ανοίγει χωρίς αποδοχή: είναι ακριβώς ό,τι ζητήθηκε από το Play.
+    if (handoverCorrectionInvalid) {
+      setError('Γράψτε σωστά τα ποσά που βρήκατε, με τελεία ή κόμμα για τα λεπτά (π.χ. 1250,50).');
+      return;
+    }
     if (handoverToAccept && !handoverAccepted) {
       setError('Αποδεχτείτε πρώτα την παραλαβή από την προηγούμενη βάρδια.');
       return;
@@ -778,7 +804,8 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                 handover_acceptance: acceptanceRecord(
                   handoverToAccept,
                   { userId: effectiveOperatorId || null, name: effectiveOperatorName },
-                  new Date()
+                  new Date(),
+                  handoverFoundNow ? { found: handoverFoundNow, note: handoverNote } : null
                 ),
               }
             : {}),
@@ -859,7 +886,7 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
       </button>
       <button
         type="submit"
-        disabled={loading || fetchingPrev || blockedReason !== null || (handoverToAccept !== null && !handoverAccepted)}
+        disabled={loading || fetchingPrev || blockedReason !== null || (handoverToAccept !== null && !handoverAccepted) || handoverCorrectionInvalid}
         title={blockedReason ?? undefined}
         className="px-5 py-2.5 rounded-xl active:scale-[0.97] disabled:active:scale-100 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
       >
@@ -1186,18 +1213,114 @@ export const ShiftOpeningModal: React.FC<ShiftOpeningModalProps> = ({
                   <dd className="text-sm font-black font-mono text-white">{formatCurrency(handoverToAccept.total)}</dd>
                 </div>
               </dl>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={handoverAccepted}
+              {/* Αν δεν συμφωνούν: γράφει τι βρήκε. Δεν αλλάζει τα ποσά της βάρδιας και δεν χρεώνει κανέναν·
+                  καταγράφεται για τον υπεύθυνο. */}
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  data-testid="handover-correct-toggle"
                   disabled={loading}
-                  onChange={(e) => setHandoverAccepted(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
-                />
-                <span className="text-xs font-bold text-indigo-950">
-                  Έλαβα και αποδέχομαι την παραλαβή των παραπάνω ποσών.
-                </span>
-              </label>
+                  onClick={() => {
+                    if (handoverCorrecting) {
+                      setHandoverCorrecting(false);
+                    } else {
+                      setHandoverFound({
+                        notes: handoverToAccept.notes.toFixed(2),
+                        coins: handoverToAccept.coins.toFixed(2),
+                        safe: handoverToAccept.safe.toFixed(2),
+                      });
+                      setHandoverCorrecting(true);
+                    }
+                    setHandoverAccepted(false);
+                  }}
+                  className="text-xs font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900 cursor-pointer disabled:opacity-50"
+                >
+                  {handoverCorrecting ? 'Τα ποσά συμφωνούν, ακύρωση διόρθωσης' : 'Βρήκα διαφορετικά ποσά'}
+                </button>
+
+                {handoverCorrecting && (
+                  <div className="p-3 rounded-lg bg-white border-2 border-amber-300 space-y-2.5" data-testid="handover-correction">
+                    <p className="text-micro text-amber-900 font-bold">
+                      Γράψτε τι βρήκατε πραγματικά. Τα ποσά της βάρδιας δεν αλλάζουν και κανείς δεν χρεώνεται:
+                      η διαφορά καταγράφεται και τη βλέπει ο υπεύθυνος.
+                    </p>
+                    <div className={`grid gap-2 ${safeCountEnabled ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
+                      {([
+                        ['notes', '💵 Χαρτονομίσματα', 'handover-found-notes'],
+                        ['coins', '🪙 Κέρματα', 'handover-found-coins'],
+                        ...(safeCountEnabled ? [['safe', '🏦 Χρηματοκιβώτιο', 'handover-found-safe']] : []),
+                      ] as Array<[ 'notes' | 'coins' | 'safe', string, string ]>).map(([key, label, id]) => (
+                        <div key={key}>
+                          <label htmlFor={id} className="block text-micro font-bold text-slate-600 mb-1">
+                            {toGreekUpper(label)} (€)
+                          </label>
+                          <input
+                            id={id}
+                            type="text"
+                            inputMode="decimal"
+                            maxLength={12}
+                            value={handoverFound[key]}
+                            disabled={loading}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setHandoverFound((current) => ({ ...current, [key]: value }));
+                              // Άλλαξε το ποσό: η αποδοχή που είχε δοθεί αφορούσε άλλο.
+                              setHandoverAccepted(false);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold font-mono text-slate-900 focus:ring-2 focus:ring-brand"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {handoverCorrectionInvalid ? (
+                      <p className="text-micro font-bold text-rose-700" role="alert">
+                        Γράψτε ποσό με τελεία ή κόμμα για τα λεπτά, π.χ. 1250,50.
+                      </p>
+                    ) : handoverDiff && handoverDiffers ? (
+                      <p className="text-xs font-black text-amber-900" data-testid="handover-difference">
+                        Διαφορά από τη δήλωση: {formatCurrency(handoverDiff.total, { showSign: true })}
+                        {' '}(βρέθηκαν {formatCurrency(handoverFoundNow!.total)} αντί {formatCurrency(handoverToAccept.total)})
+                      </p>
+                    ) : (
+                      <p className="text-micro font-bold text-slate-500">
+                        Τα ποσά που γράψατε είναι ίδια με της παράδοσης.
+                      </p>
+                    )}
+
+                    <div>
+                      <label htmlFor="handover-note" className="block text-micro font-bold text-slate-600 mb-1">
+                        Σημείωση (προαιρετικά)
+                      </label>
+                      <textarea
+                        id="handover-note"
+                        rows={2}
+                        maxLength={HANDOVER_NOTE_MAX}
+                        value={handoverNote}
+                        disabled={loading}
+                        onChange={(e) => setHandoverNote(e.target.value)}
+                        placeholder="Τι βρήκατε και πού διαφέρει"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-brand"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={handoverAccepted}
+                    disabled={loading || handoverCorrectionInvalid}
+                    onChange={(e) => setHandoverAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-brand cursor-pointer"
+                  />
+                  <span className="text-xs font-bold text-indigo-950">
+                    {handoverDiffers && handoverDiff
+                      ? `Έλαβα και αποδέχομαι την παραλαβή με τα ποσά που βρήκα (διαφορά ${formatCurrency(handoverDiff.total, { showSign: true })}).`
+                      : 'Έλαβα και αποδέχομαι την παραλαβή των παραπάνω ποσών.'}
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 

@@ -42,6 +42,7 @@ import { splitShiftExpenses } from '../../lib/expenseSplit.ts';
 import { tillExpensesOnly } from '../../lib/expenseCategories.ts';
 import { packIsGone, packWarning } from '../../lib/scratchPackWarning.ts';
 import { activePackLabel } from '../../lib/scratchOnTheCounter.ts';
+import { readHandoverDispute } from '../../lib/handoverAcceptance.ts';
 import { formatQuantity, quantityView } from '../../lib/lotteryQuantityView.ts';
 import type { LegacyUnitSettings } from '../../lib/lotteryUnits.ts';
 import { getShiftTemplateConfig } from '../../services/shiftTemplateService.ts';
@@ -683,6 +684,49 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                     {formatCurrency(discrepancyFromColumns, { showSign: true })}. Ελέγξτε τη βάρδια.
                   </div>
                 )}
+
+                {/* Η παραλαβή με διαφορά: ο εισερχόμενος αποδέχτηκε γράφοντας άλλα ποσά από της παράδοσης.
+                    Δεν άλλαξε τίποτα στη βάρδια και κανείς δεν χρεώθηκε· είναι ενημέρωση για τον υπεύθυνο. */}
+                {(() => {
+                  const dispute = readHandoverDispute(shift.custom_field_values);
+                  if (!dispute) return null;
+                  const lines: Array<[string, number, number, number]> = [
+                    ['Χαρτονομίσματα', dispute.declared.notes, dispute.found.notes, dispute.difference.notes],
+                    ['Κέρματα', dispute.declared.coins, dispute.found.coins, dispute.difference.coins],
+                    ['Χρηματοκιβώτιο', dispute.declared.safe, dispute.found.safe, dispute.difference.safe],
+                  ];
+                  return (
+                    <div
+                      className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 space-y-1.5"
+                      data-testid="details-handover-dispute"
+                    >
+                      <p>
+                        <strong>Παραλαβή με διαφορά.</strong>{' '}
+                        {dispute.acceptedByName ?? 'Ο εισερχόμενος'} παρέλαβε
+                        {dispute.fromOperatorName ? ` από ${dispute.fromOperatorName}` : ' από την προηγούμενη βάρδια'} και
+                        βρήκε {formatCurrency(dispute.found.total)} αντί {formatCurrency(dispute.declared.total)}{' '}
+                        ({formatCurrency(dispute.difference.total, { showSign: true })}).
+                      </p>
+                      <ul className="space-y-0.5">
+                        {lines
+                          .filter(([, declared, found]) => declared > 0 || found > 0)
+                          .map(([label, declared, found, diff]) => (
+                            <li key={label} className="flex justify-between gap-3 font-mono">
+                              <span>{label}</span>
+                              <span>
+                                {formatCurrency(declared)} → {formatCurrency(found)}
+                                {Math.abs(diff) >= 0.005 && <strong> ({formatCurrency(diff, { showSign: true })})</strong>}
+                              </span>
+                            </li>
+                          ))}
+                      </ul>
+                      {dispute.note && <p>Σημείωση: «{dispute.note}»</p>}
+                      <p className="text-micro text-amber-800">
+                        Τα ποσά της βάρδιας δεν άλλαξαν και δεν χρεώθηκε κανείς· αποφασίζει ο υπεύθυνος.
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* 2-COLUMN SIDE-BY-SIDE RECONCILIATION VIEW */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
