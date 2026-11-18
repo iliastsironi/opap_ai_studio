@@ -138,6 +138,11 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
    */
   const [lotteryUnits, setLotteryUnits] = useState<Record<string, unknown>>({});
   const [legacyUnits, setLegacyUnits] = useState<LegacyUnitSettings | null>(null);
+  /**
+   * Έχει το κατάστημα καφέ (ο διακόπτης «FnB / Καφέ»); Μόνο τότε ξεχωρίζουν τα έξοδα του καφέ από
+   * του καταστήματος. Χωρίς απάντηση (πριν φορτώσει, ή αν αποτύχει) η οθόνη δείχνει ό,τι έδειχνε.
+   */
+  const [storeHasCafe, setStoreHasCafe] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +153,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
       .then((config) => {
         if (cancelled) return;
         setLotteryUnits(((config as any)?.lottery_units ?? {}) as Record<string, unknown>);
+        setStoreHasCafe((config as any)?.show_fnb !== false);
         setLegacyUnits({
           special_edition_x5_bundles: (config as any)?.special_edition_x5_bundles,
           special_edition_x10_bundles: (config as any)?.special_edition_x10_bundles,
@@ -548,6 +554,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
               storedFnb: shift.custom_field_values?.expenses_fnb_cash,
               rows: tillRows,
               categories: expenseCategories,
+              hasCafe: storeHasCafe,
             });
             const expensesGpCashTotal = expenseSplit.gp;
             const expensesFnbCashTotal = expenseSplit.fnb;
@@ -1228,6 +1235,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Έξοδα ΓΠ:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(expensesGpCashTotal)}</span>
                         </div>
+                        {storeHasCafe !== false && (
                         <div
                           className="flex justify-between text-slate-300 py-0.5"
                           title="Έξοδα με κατηγορία του κυλικείου. Μετρημένα ήδη μέσα στο σύνολο — εδώ απλώς ξεχωρίζουν."
@@ -1235,6 +1243,7 @@ export const ShiftDetailsModal: React.FC<ShiftDetailsModalProps> = ({
                           <span>Έξοδα FnB:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(expensesFnbCashTotal)}</span>
                         </div>
+                        )}
                         <div className="flex justify-between text-slate-300 py-0.5">
                           <span>Πιστώσεις:</span>
                           <span className="font-mono font-bold text-white">{formatCurrency(creditGrantedTotal)}</span>

@@ -1520,7 +1520,11 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
    * Owner can name his own café category, and a hard-coded list would have
    * filed every one of them under ΓΠ without saying so.
    */
-  const isFnbExpense = (category?: string) => isFnbCategory(category, expenseCategories);
+  //
+  // Και μόνο σε κατάστημα που έχει καφέ (modules.fnb, ο διακόπτης «FnB / Καφέ»). Σε κατάστημα
+  // χωρίς καφέ - το Play - ένα έξοδο με κατηγορία «Έξοδα FnB» είναι απλώς έξοδο του καταστήματος:
+  // μένει στο ΓΠ και δεν εμφανίζεται δεύτερη γραμμή. Το ΣΥΝΟΛΟ του ταμείου δεν αλλάζει.
+  const isFnbExpense = (category?: string) => modules.fnb && isFnbCategory(category, expenseCategories);
 
   // Calculated figures using isolated Financial Calculator service
   // Entries from earlier shifts of the same day collapse into one summary;
@@ -3288,10 +3292,14 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold">
-                  <span className="text-slate-600">ΓΠ: <span className="text-slate-900 font-mono">{formatCurrency(expensesGpCashTotal)}</span></span>
-                  <span className="text-slate-300">|</span>
-                  <span className="text-slate-600">FnB: <span className="text-slate-900 font-mono">{formatCurrency(expensesFnbCashTotal)}</span></span>
-                  <span className="text-slate-300">|</span>
+                  {modules.fnb ? (
+                    <>
+                      <span className="text-slate-600">ΓΠ: <span className="text-slate-900 font-mono">{formatCurrency(expensesGpCashTotal)}</span></span>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-slate-600">FnB: <span className="text-slate-900 font-mono">{formatCurrency(expensesFnbCashTotal)}</span></span>
+                      <span className="text-slate-300">|</span>
+                    </>
+                  ) : null}
                   <span className="text-indigo-700">Σύνολο: <span className="font-mono">{formatCurrency(expensesCashTotal)}</span></span>
                 </div>
 
@@ -4528,10 +4536,12 @@ export const ShiftClosingWizard: React.FC<ShiftClosingWizardProps> = ({
                       <span>Έξοδα ΓΠ:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(expensesGpCashTotal)}</span>
                     </div>
+                    {modules.fnb && (
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Έξοδα FnB:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(expensesFnbCashTotal)}</span>
                     </div>
+                    )}
                     <div className="flex justify-between text-slate-300 py-0.5">
                       <span>Πιστώσεις:</span>
                       <span className="font-mono font-bold text-white">{formatCurrency(creditGrantedTotal)}</span>

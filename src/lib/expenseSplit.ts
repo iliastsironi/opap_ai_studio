@@ -79,6 +79,12 @@ export function splitShiftExpenses(input: {
   /** Οι γραμμές εξόδων που μέτρησε η βάρδια - δικές της και κληρονομημένες. */
   rows?: readonly SplittableExpense[] | null;
   categories?: readonly ExpenseCategoryDef[];
+  /**
+   * Έχει το κατάστημα καφέ; Μόνο το `false` κλείνει τον διαχωρισμό: σε κατάστημα χωρίς καφέ
+   * (το Play) ένα έξοδο με κατηγορία «Έξοδα FnB» είναι έξοδο του καταστήματος, όχι δεύτερης
+   * επιχείρησης, και μένει ολόκληρο στο ΓΠ. Το σύνολο δεν αλλάζει.
+   */
+  hasCafe?: boolean;
 }): ExpenseSplit {
   // Αν κάποτε το κλείσιμο αρχίσει να γράφει τον διαχωρισμό, αυτός κερδίζει:
   // είναι ό,τι είδε και υπέγραψε ο υπάλληλος.
@@ -96,9 +102,10 @@ export function splitShiftExpenses(input: {
   }
 
   const linesTotal = round2(rows.reduce((acc, e) => acc + num(e.amount), 0));
-  const fnbLines = round2(
-    rows.reduce((acc, e) => (isFnbCategory(e.category, input.categories) ? acc + num(e.amount) : acc), 0)
-  );
+  const fnbLines =
+    input.hasCafe === false
+      ? 0
+      : round2(rows.reduce((acc, e) => (isFnbCategory(e.category, input.categories) ? acc + num(e.amount) : acc), 0));
 
   // Ποτέ πάνω από το σύνολο και ποτέ κάτω από το μηδέν: το ΓΠ βγαίνει ως
   // υπόλοιπο, και ένα αρνητικό ΓΠ θα ήταν χειρότερο από το πρόβλημα.

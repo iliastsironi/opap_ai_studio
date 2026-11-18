@@ -27,6 +27,7 @@ import {
   payrollTotal,
   shiftMonthKey,
 } from '../lib/pnlEngine.ts';
+import { storeHasCafe } from '../lib/storeTypeDefaults.ts';
 
 const COMMISSIONS_TABLE = 'pnl_commission_entries';
 const FIXED_TABLE = 'fixed_expenses';
@@ -38,6 +39,7 @@ const EXPENSES_TABLE = 'shift_expenses';
 const CATEGORIES_TABLE = 'expense_categories';
 const SHIFTS_TABLE = 'shifts';
 const VLT_TABLE = 'vlt_reconciliations';
+const TEMPLATES_TABLE = 'shift_templates';
 
 const COMPANY_COST_CATEGORY: Record<PnlCompanyCostKind, string> = { FIXED: 'Έξοδα Εταιρίας', LOAN: 'Δάνεια' };
 const DAY_MS = 86_400_000;
@@ -159,6 +161,26 @@ const toVltCount = (r: any): PnlVltCount => ({
   allwynnet: r.opap_net_amount === null || r.opap_net_amount === undefined ? null : num(r.opap_net_amount),
 });
 
+/**
+ * Ποια καταστήματα έχουν δηλωμένο καφέ, από τον διακόπτη «FnB / Καφέ» του προτύπου τους.
+ *
+ * Αν η ανάγνωση αποτύχει, τα καταστήματα γυρίζουν ΩΣ ΕΧΟΥΝ (χωρίς απάντηση) και το P&L κάνει ό,τι
+ * έκανε πριν. Δεν πρέπει να πέσει όλη η αναφορά για μια πληροφορία που μόνο κρύβει μια μονάδα.
+ */
+async function withCafeDeclaration(orgId: string, stores: PnlStore[]): Promise<PnlStore[]> {
+  try {
+    const { data, error } = await supabase.from(TEMPLATES_TABLE).select('store_id, show_fnb').eq('organization_id', orgId);
+    if (error) throw error;
+    const switches = new Map<string, unknown>(
+      (data ?? []).filter((row: any) => row.store_id).map((row: any) => [row.store_id as string, row.show_fnb])
+    );
+    return stores.map((store) => ({ ...store, hasCafe: storeHasCafe(switches.get(store.id), store.storeType) }));
+  } catch (err) {
+    console.warn('[pnlService] Could not read which stores have a café; keeping the F&B split as it was:', err);
+    return stores;
+  }
+}
+
 export async function fetchMonthlyPnlInput(orgId: string, month: string, stores: PnlStore[]): Promise<MonthlyPnlInput> {
   const days = daysOfMonth(month);
   const first = days[0];
@@ -168,7 +190,7 @@ export async function fetchMonthlyPnlInput(orgId: string, month: string, stores:
   const shiftsFrom = new Date(Date.parse(`${first}T00:00:00Z`) - DAY_MS).toISOString();
   const shiftsTo = new Date(Date.parse(`${monthPeriod(shiftMonthKey(month, 1))}T00:00:00Z`) + DAY_MS).toISOString();
 
-  const [commissions, fixedCosts, payroll, companyCosts, companyDaily, expenses, shifts, fnbManualDays, vltCounts, expenseCategories] =
+  const [commissions, fixedCosts, payroll, companyCosts, companyDaily, expenses, shifts, fnbManualDays, vltCounts, expenseCategories, storesWithCafe] =
     await Promise.all([
       list(
         COMMISSIONS_TABLE,
@@ -227,11 +249,13 @@ export async function fetchMonthlyPnlInput(orgId: string, month: string, stores:
       // Η πλευρά κάθε κατηγορίας - χωρίς αυτήν το P&L δεν ξέρει ποιο έξοδο
       // είναι του καφέ και ποιο του πρακτορείου.
       fetchExpenseCategories(orgId),
+      // Ποιο κατάστημα έχει καφέ: μόνο εκεί υπάρχει διαχωρισμός πρακτορείου / F&B.
+      withCafeDeclaration(orgId, stores),
     ]);
 
   return {
     month,
-    stores,
+    stores: storesWithCafe,
     commissions,
     fixedCosts,
     payroll,

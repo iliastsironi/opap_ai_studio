@@ -109,6 +109,19 @@ export interface PnlStore {
   code: string;
   name: string;
   storeType: string;
+  /**
+   * Έχει αυτό το κατάστημα καφέ μέσα, δηλωμένο;
+   *
+   * Η απάντηση είναι ο διακόπτης «FnB / Καφέ» του καταστήματος, ο ίδιος που δείχνει ή κρύβει το
+   * κομμάτι του καφέ στο κλείσιμο της βάρδιας. Μόνο `false` κλείνει τον διαχωρισμό: ό,τι δεν
+   * ξέρουμε (καλών χωρίς την πληροφορία) μένει όπως ήταν, ώστε να μην αλλάξουν τα βιβλία.
+   *
+   * ΓΙΑΤΙ ΧΡΕΙΑΖΕΤΑΙ: ένα έξοδο με κατηγορία «Έξοδα FnB» πήγαινε στη μονάδα F&B του καταστήματος
+   * που το έγραψε, είτε το κατάστημα είχε καφέ είτε όχι. Το Play έχει κάβα και καφέδες για τους
+   * πελάτες του· δεν είναι ξεχωριστή επιχείρηση. Τα 28 έξοδά του (4.540,35 €) εμφανίζονταν ως
+   * «Play · F&B», δίπλα στον καφέ του πρακτορείου, με μηδέν έσοδα και αρνητικό αποτέλεσμα.
+   */
+  hasCafe?: boolean;
 }
 
 export interface PnlCommissionEntry {
@@ -649,14 +662,11 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
       // του ούτε στου καφέ. Τα μαζεύει το companyFromStores παραπάνω.
       .filter((e) => !isCompany(e.category));
     const toGridItem = (e: PnlExpense) => ({ date: e.date, column: e.recipient.trim() || NO_SUPPLIER_LABEL, amount: e.amount });
-    // Ποια πλευρά πληρώνει το κάθε έξοδο το λέει η κατηγορία του, και η
-    // ερώτηση απαντιέται σε ένα σημείο - στο isFnbCategory.
-    const dailyExpenses = buildDayGrid(days, storeExpenses.filter((e) => !isFnb(e.category)).map(toGridItem));
-    const fnbExpenses = buildDayGrid(days, storeExpenses.filter((e) => isFnb(e.category)).map(toGridItem));
 
+    // Τα έσοδα του καφέ πρώτα: χρειάζονται για να απαντηθεί αν αυτό το κατάστημα έχει καφέ.
     // F&B income: a day's shift F&B wins over a manual row, so a day is never counted twice.
     const storeShifts = shifts.filter((s) => s.storeId === store.id);
-    const fnbDays: PnlFnbDay[] = days.map((date, index) => {
+    const fnbIncome = days.map((date) => {
       const dayShifts = storeShifts.filter((s) => s.day === date);
       const shiftCash = sum(dayShifts.map((s) => s.fnbCash));
       const shiftPos = sum(dayShifts.map((s) => s.fnbCard));
@@ -664,21 +674,38 @@ export function computeMonthlyPnl(input: MonthlyPnlInput): MonthlyPnlResult {
       const useShifts = shiftCash + shiftPos > 0;
       const cash = useShifts ? shiftCash : (manual?.cash ?? 0);
       const pos = useShifts ? shiftPos : (manual?.pos ?? 0);
-      const turnover = round2(cash + pos);
-      const dayExpenses = fnbExpenses.days[index].total;
       return {
         date,
         cash,
         pos,
-        turnover,
-        expenses: dayExpenses,
-        net: round2(turnover - dayExpenses),
-        source: useShifts ? 'SHIFTS' : manual ? 'MANUAL' : 'NONE',
+        turnover: round2(cash + pos),
+        source: (useShifts ? 'SHIFTS' : manual ? 'MANUAL' : 'NONE') as PnlFnbDay['source'],
       };
     });
-    const fnbTurnover = sum(fnbDays.map((d) => d.turnover));
+    const fnbTurnover = sum(fnbIncome.map((d) => d.turnover));
     const storePayroll = payroll.filter((p) => p.storeId === store.id);
     const fnbPayroll = storePayroll.filter((p) => p.unit === 'FNB');
+
+    // Ο διαχωρισμός πρακτορείο / καφέ υπάρχει ΜΟΝΟ σε κατάστημα που έχει δηλωμένο καφέ.
+    //
+    // Σε κατάστημα χωρίς καφέ (το Play) τα έξοδα με κατηγορία «Έξοδα FnB» δεν είναι δεύτερη
+    // επιχείρηση: είναι έξοδα του καταστήματος και μετράνε στο σύνολό του. Το ΣΥΝΟΛΟ των εξόδων
+    // δεν αλλάζει - αλλάζει κουβά, από «F&B» στα έξοδα ημέρας του ίδιου καταστήματος.
+    //
+    // Αν όμως το κατάστημα έχει ήδη τζίρο ή μισθοδοσία καφέ γραμμένα (χειροκίνητη ημέρα, γραμμή
+    // μισθοδοσίας F&B), ο καφές υπάρχει όπως κι αν είναι ο διακόπτης: τα λεφτά που έχουν γραφτεί
+    // δεν κρύβονται από τα βιβλία επειδή κάποιος έκλεισε έναν διακόπτη.
+    const runsCafe = store.hasCafe !== false || fnbTurnover !== 0 || fnbPayroll.length > 0;
+    // Ποια πλευρά πληρώνει το κάθε έξοδο το λέει η κατηγορία του, και η ερώτηση
+    // απαντιέται σε ένα σημείο - στο isFnbCategory. Εδώ προστίθεται μόνο το «έχει καφέ;».
+    const isCafeExpense = (category: string) => runsCafe && isFnb(category);
+    const dailyExpenses = buildDayGrid(days, storeExpenses.filter((e) => !isCafeExpense(e.category)).map(toGridItem));
+    const fnbExpenses = buildDayGrid(days, storeExpenses.filter((e) => isCafeExpense(e.category)).map(toGridItem));
+
+    const fnbDays: PnlFnbDay[] = fnbIncome.map((day, index) => {
+      const dayExpenses = fnbExpenses.days[index].total;
+      return { ...day, expenses: dayExpenses, net: round2(day.turnover - dayExpenses) };
+    });
     const hasFnb = fnbTurnover !== 0 || fnbExpenses.total !== 0 || fnbPayroll.length > 0;
 
     // Διαχείριση Ταμείου - only closed shifts have a meaningful count.

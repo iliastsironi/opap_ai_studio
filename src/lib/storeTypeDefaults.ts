@@ -66,6 +66,22 @@ export const PLAY_TEMPLATE_OVERRIDES = {
   handover_acceptance_enabled: true,
 } as const;
 
+/**
+ * Έχει το κατάστημα καφέ μέσα;
+ *
+ * Η απάντηση είναι ο διακόπτης «FnB / Καφέ» της «Διαμόρφωσης» του καταστήματος - ο ίδιος που
+ * δείχνει ή κρύβει το κομμάτι του καφέ στο κλείσιμο της βάρδιας. Όπου δεν έχει γραφτεί ακόμα
+ * (κατάστημα χωρίς πρότυπο), η απάντηση είναι αυτή που θα έδινε το πρότυπο όταν φτιαχτεί: το
+ * Play δεν έχει καφέ, το πρακτορείο ναι. Έτσι η αναφορά και το κλείσιμο δεν μπορούν να
+ * διαφωνήσουν για το ίδιο κατάστημα.
+ *
+ * Από εδώ κρίνεται ο διαχωρισμός «πρακτορείο / F&B» στα βιβλία: μόνο σε κατάστημα με καφέ.
+ */
+export function storeHasCafe(templateShowFnb: unknown, storeType: unknown): boolean {
+  if (templateShowFnb === true || templateShowFnb === false) return templateShowFnb;
+  return templateShapeFor(storeType) !== 'PLAY';
+}
+
 /** The switches a PLAY hall turns off, for telling somebody what changed. */
 export const PLAY_DISABLED_MODULES: ReadonlyArray<string> = [
   'show_scratch',
