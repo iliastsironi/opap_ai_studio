@@ -14,7 +14,12 @@ export const DEFAULT_OPAP_SHIFT_TEMPLATE: ShiftTemplateConfig = {
   show_vlts: true,
   show_pame_stoixima: true,
   show_number_games: true,
-  show_fnb: true,
+  // Ο καφές είναι ΚΛΕΙΣΤΟΣ εξ ορισμού: ένα νέο πρακτορείο δεν έχει καφέ μέχρι να πει ο διαχειριστής
+  // ότι έχει (διακόπτης «Ταμείο FnB» στη «Διαμόρφωση»). Από αυτόν τον διακόπτη κρίνεται και ο
+  // διαχωρισμός «πρακτορείο / FnB» στα βιβλία (lib/storeTypeDefaults.ts → storeHasCafe). Ισχύει
+  // μόνο για πρότυπο που ΦΤΙΑΧΝΕΤΑΙ τώρα: τα υπάρχοντα καταστήματα έχουν ήδη δικό τους, και κρατούν
+  // ό,τι έχουν.
+  show_fnb: false,
   show_coins_breakdown: true,
   show_notes_breakdown: true,
   // Matching what the shift-opening screen used to default to, so no store
@@ -289,9 +294,14 @@ export async function getShiftTemplateConfig(
     console.warn('[ShiftTemplateService] Could not load template, using default template:', err);
   }
 
-  // Fallback to default
+  // Fallback to default.
+  //
+  // Με τον καφέ ΑΝΟΙΧΤΟ, όχι όπως το προεπιλεγμένο: αυτό εδώ είναι «δεν μπόρεσα να διαβάσω τι
+  // έχει το κατάστημα». Ένα κατάστημα με καφέ δεν πρέπει να χάσει το ταμείο του καφέ από το κλείσιμο
+  // εξαιτίας ενός προσωρινού σφάλματος· ένα κατάστημα χωρίς καφέ απλώς θα δει ένα κενό τμήμα.
   return {
     ...DEFAULT_OPAP_SHIFT_TEMPLATE,
+    show_fnb: true,
     organization_id: orgId,
     store_id: storeId,
   };

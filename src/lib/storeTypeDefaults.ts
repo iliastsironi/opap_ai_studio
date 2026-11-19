@@ -45,7 +45,8 @@ export const PLAY_TEMPLATE_OVERRIDES = {
   show_pame_stoixima: false,
   show_number_games: false,
   // A hall that also runs a bar turns this back on; the Owner's own sheet
-  // has no FnB section at all.
+  // has no FnB section at all. (Closed by default for every store now - said
+  // here too so the hall does not depend on that default staying as it is.)
   show_fnb: false,
   // What the hall DOES have.
   show_vlts: true,
@@ -69,17 +70,16 @@ export const PLAY_TEMPLATE_OVERRIDES = {
 /**
  * Έχει το κατάστημα καφέ μέσα;
  *
- * Η απάντηση είναι ο διακόπτης «FnB / Καφέ» της «Διαμόρφωσης» του καταστήματος - ο ίδιος που
+ * Η απάντηση είναι ο διακόπτης «Ταμείο FnB» της «Διαμόρφωσης» του καταστήματος - ο ίδιος που
  * δείχνει ή κρύβει το κομμάτι του καφέ στο κλείσιμο της βάρδιας. Όπου δεν έχει γραφτεί ακόμα
- * (κατάστημα χωρίς πρότυπο), η απάντηση είναι αυτή που θα έδινε το πρότυπο όταν φτιαχτεί: το
- * Play δεν έχει καφέ, το πρακτορείο ναι. Έτσι η αναφορά και το κλείσιμο δεν μπορούν να
- * διαφωνήσουν για το ίδιο κατάστημα.
+ * (κατάστημα χωρίς πρότυπο), η απάντηση είναι αυτή που θα έδινε το πρότυπο όταν φτιαχτεί: ΟΧΙ.
+ * Ο καφές είναι κλειστός εξ ορισμού σε κάθε κατάστημα και τον ανοίγει ο διαχειριστής εκεί που
+ * υπάρχει. Έτσι η αναφορά και το κλείσιμο δεν μπορούν να διαφωνήσουν για το ίδιο κατάστημα.
  *
  * Από εδώ κρίνεται ο διαχωρισμός «πρακτορείο / F&B» στα βιβλία: μόνο σε κατάστημα με καφέ.
  */
-export function storeHasCafe(templateShowFnb: unknown, storeType: unknown): boolean {
-  if (templateShowFnb === true || templateShowFnb === false) return templateShowFnb;
-  return templateShapeFor(storeType) !== 'PLAY';
+export function storeHasCafe(templateShowFnb: unknown): boolean {
+  return templateShowFnb === true;
 }
 
 /** The switches a PLAY hall turns off, for telling somebody what changed. */

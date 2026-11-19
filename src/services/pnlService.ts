@@ -174,7 +174,7 @@ async function withCafeDeclaration(orgId: string, stores: PnlStore[]): Promise<P
     const switches = new Map<string, unknown>(
       (data ?? []).filter((row: any) => row.store_id).map((row: any) => [row.store_id as string, row.show_fnb])
     );
-    return stores.map((store) => ({ ...store, hasCafe: storeHasCafe(switches.get(store.id), store.storeType) }));
+    return stores.map((store) => ({ ...store, hasCafe: storeHasCafe(switches.get(store.id)) }));
   } catch (err) {
     console.warn('[pnlService] Could not read which stores have a café; keeping the F&B split as it was:', err);
     return stores;

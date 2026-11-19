@@ -8,7 +8,8 @@ import {
   type PnlStore,
 } from '../lib/pnlEngine';
 import { splitShiftExpenses } from '../lib/expenseSplit';
-import { storeHasCafe } from '../lib/storeTypeDefaults';
+import { overridesFor, storeHasCafe } from '../lib/storeTypeDefaults';
+import { DEFAULT_OPAP_SHIFT_TEMPLATE } from '../services/shiftTemplateService';
 import { scopeRule, scopedUnits } from '../lib/reportScope';
 
 /**
@@ -76,15 +77,47 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 describe('ποιο κατάστημα έχει καφέ', () => {
   it('ο διακόπτης του προτύπου αποφασίζει, όπου έχει γραφτεί', () => {
-    expect(storeHasCafe(true, 'PLAY_STORE')).toBe(true);
-    expect(storeHasCafe(false, 'OPAP_AGENCY')).toBe(false);
+    expect(storeHasCafe(true)).toBe(true);
+    expect(storeHasCafe(false)).toBe(false);
   });
 
-  it('χωρίς πρότυπο, η απάντηση που θα έδινε το πρότυπο όταν φτιαχτεί: Play όχι, πρακτορείο ναι', () => {
-    expect(storeHasCafe(undefined, 'PLAY_STORE')).toBe(false);
-    expect(storeHasCafe(null, 'PLAY_STORE')).toBe(false);
-    expect(storeHasCafe(undefined, 'OPAP_AGENCY')).toBe(true);
-    expect(storeHasCafe(null, 'OPAP_FNB')).toBe(true);
+  it('χωρίς πρότυπο, η απάντηση που θα έδινε το πρότυπο όταν φτιαχτεί: όχι - ο καφές είναι κλειστός εξ ορισμού', () => {
+    expect(storeHasCafe(undefined)).toBe(false);
+    expect(storeHasCafe(null)).toBe(false);
+  });
+});
+
+describe('νέο πρακτορείο: ο καφές ξεκινά κλειστός και τον ανοίγει ο διαχειριστής', () => {
+  it('το πρότυπο που φτιάχνεται για νέο πρακτορείο έχει τον καφέ κλειστό', () => {
+    expect(DEFAULT_OPAP_SHIFT_TEMPLATE.show_fnb).toBe(false);
+    for (const type of ['OPAP_AGENCY', 'OPAP_FNB', undefined]) {
+      const created = { ...DEFAULT_OPAP_SHIFT_TEMPLATE, ...overridesFor(type) };
+      expect(created.show_fnb).toBe(false);
+      expect(storeHasCafe(created.show_fnb)).toBe(false);
+    }
+  });
+
+  it('το Play το λέει και μόνο του, χωρίς να στηρίζεται στο προεπιλεγμένο', () => {
+    expect((overridesFor('PLAY_STORE') as Record<string, unknown>).show_fnb).toBe(false);
+  });
+
+  it('όταν ο διαχειριστής ανοίξει τον διακόπτη, το κατάστημα έχει καφέ', () => {
+    const opened = { ...DEFAULT_OPAP_SHIFT_TEMPLATE, show_fnb: true };
+    expect(storeHasCafe(opened.show_fnb)).toBe(true);
+  });
+
+  it('ο διακόπτης υπάρχει στη «Διαμόρφωση» και ενημερώνει τον διαχειριστή τι κρίνει', () => {
+    const cfg = read('src/components/shifts/ShiftTemplateConfigurator.tsx');
+    expect(cfg).toContain("key: 'show_fnb' as keyof ShiftTemplateConfig");
+    expect(cfg).toMatch(/title: 'Ταμείο FnB \(Καφέ \/ Bar\)'/);
+  });
+
+  // Αν το διάβασμα του προτύπου αποτύχει δεν ξέρουμε τι έχει το κατάστημα: ένα κατάστημα
+  // με καφέ δεν πρέπει να χάσει το ταμείο του καφέ από το κλείσιμο λόγω προσωρινού σφάλματος.
+  it('αν το πρότυπο δεν διαβαστεί, το κλείσιμο δείχνει τον καφέ αντί να τον κρύψει', () => {
+    const svc = read('src/services/shiftTemplateService.ts');
+    const fallback = svc.slice(svc.indexOf('// Fallback to default.'));
+    expect(fallback).toMatch(/\.\.\.DEFAULT_OPAP_SHIFT_TEMPLATE,\s*show_fnb: true,/);
   });
 });
 
@@ -222,7 +255,7 @@ describe('σύνδεση: από τη ρύθμιση του καταστήματ
     const svc = read('src/services/pnlService.ts');
     expect(svc).toContain("const TEMPLATES_TABLE = 'shift_templates'");
     expect(svc).toMatch(/select\('store_id, show_fnb'\)\.eq\('organization_id', orgId\)/);
-    expect(svc).toContain('hasCafe: storeHasCafe(switches.get(store.id), store.storeType)');
+    expect(svc).toContain('hasCafe: storeHasCafe(switches.get(store.id))');
     expect(svc).toContain('stores: storesWithCafe,');
     // Αποτυχία → τα καταστήματα γυρίζουν όπως ήταν.
     expect(svc).toMatch(/catch \(err\) \{[\s\S]{0,200}return stores;/);

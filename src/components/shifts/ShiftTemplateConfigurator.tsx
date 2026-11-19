@@ -825,7 +825,7 @@ export const ShiftTemplateConfigurator: React.FC = () => {
               {
                 key: 'show_fnb' as keyof ShiftTemplateConfig,
                 title: 'Ταμείο FnB (Καφέ / Bar)',
-                desc: 'Μετρητά, POS & Έξοδα FnB',
+                desc: 'Μετρητά, POS & Έξοδα FnB. Άνοιξέ το μόνο αν το κατάστημα έχει καφέ: από εδώ κρίνεται και ο διαχωρισμός Πρακτορείο / FnB στα βιβλία',
               },
             ].map((mod) => {
               const isEnabled = Boolean(template[mod.key]);
