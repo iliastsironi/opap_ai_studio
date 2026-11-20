@@ -127,7 +127,7 @@ describe('η οθόνη του συνόλου', () => {
 
   it('η καρτέλα το ζωγραφίζει μόνο όταν υπάρχουν γραμμές', () => {
     const src = fs.readFileSync(path.resolve(__dirname, '..', 'components/shifts/VltReportCheck.tsx'), 'utf-8');
-    expect(src).toMatch(/rows\.length > 0 && <VltMonthSummaryStrip summary=\{monthSummary\} monthText=\{monthLabel\(month\)\} \/>/);
+    expect(src).toMatch(/rows\.length > 0 && \(\s*<VltMonthSummaryStrip\s+summary=\{monthSummary\}\s+monthText=\{monthLabel\(month\)\}/);
     expect(src).toContain('const monthSummary = useMemo(() => summariseVltMonth(rows), [rows]);');
   });
 });

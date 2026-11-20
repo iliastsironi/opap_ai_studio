@@ -24,6 +24,20 @@
  */
 
 import { athensDateKey } from './pnlEngine.ts';
+import { templateShapeFor } from './storeTypeDefaults.ts';
+
+/**
+ * ΣΤΟ PLAY ΤΟ ΝΟΥΜΕΡΟ ΤΗΣ ΗΜΕΡΑΣ ΤΟ ΓΡΑΦΕΙ Ο ΑΝΘΡΩΠΟΣ.
+ *
+ * Ο ιδιοκτήτης: «στον έλεγχο VLTs ΜΟΝΟ ΣΤΟ PLAY να γίνεται manual· το ποσό που μπαίνει μόνο
+ * του από το "μετρητά στα VLTs" να το βάζουμε εμείς.» Η αίθουσα δεν γράφει μετρητά στα VLTs
+ * στις βάρδιές της (στα πραγματικά δεδομένα το πεδίο είναι πάντα 0), οπότε το νούμερο που
+ * τραβιόταν αυτόματα δεν μπορούσε να συγκριθεί με τίποτα. Στο Play η στήλη «από τις βάρδιες»
+ * είναι ένα νούμερο ανά ημέρα που πληκτρολογείται, όπως και το report δίπλα του.
+ *
+ * Το πρακτορείο δεν αλλάζει: εκεί το νούμερο συνεχίζει να βγαίνει από τις βάρδιες.
+ */
+export const usesManualVltCount = (storeType: unknown): boolean => templateShapeFor(storeType) === 'PLAY';
 
 /** Οι καταστάσεις βάρδιας που σημαίνουν «το σύνολο της ημέρας είναι τελικό». */
 export const FINAL_SHIFT_STATUSES: ReadonlyArray<string> = ['SUBMITTED', 'APPROVED'];
@@ -51,6 +65,15 @@ export interface VltReportInput {
   approved_by_name?: string | null;
 }
 
+/** Το νούμερο που πληκτρολογήθηκε για μια ημέρα, σε κατάστημα που το γράφει με το χέρι. */
+export interface VltManualCountInput {
+  id?: string;
+  store_id: string;
+  /** YYYY-MM-DD */
+  count_date: string;
+  amount: unknown;
+}
+
 /** Μια εγκεκριμένη διαφορά: ποιος, πότε, και ποια διαφορά ακριβώς. */
 export interface VltApproval {
   /** Η διαφορά που εγκρίθηκε, σε ευρώ. */
@@ -67,7 +90,12 @@ export type VltDayStatus =
   /** Οι βάρδιες έγραψαν νούμερο, το report δεν έχει έρθει ακόμα. */
   | 'AWAITING_REPORT'
   /** Υπάρχει report, αλλά μια βάρδια της ημέρας δεν έχει κλείσει ακόμα. */
-  | 'SHIFTS_OPEN';
+  | 'SHIFTS_OPEN'
+  /**
+   * Κατάστημα με χειροκίνητο νούμερο (Play), που δεν έχει γραφτεί ακόμα. ΔΕΝ συγκρίνεται: ένα report
+   * απέναντι σε «τίποτα» θα έβγαζε διαφορά ίση με ολόκληρο το report.
+   */
+  | 'AWAITING_COUNT';
 
 export interface VltDayRow {
   /** `${storeId}|${date}` - ταυτότητα της γραμμής. */
@@ -75,8 +103,16 @@ export interface VltDayRow {
   storeId: string;
   /** YYYY-MM-DD, ημέρα Αθήνας. */
   date: string;
-  /** Το νούμερο των βαρδιών, σε ευρώ. */
+  /**
+   * Το νούμερο που συγκρίνεται με το report, σε ευρώ: των βαρδιών, ή - στο Play - αυτό που
+   * γράφτηκε με το χέρι (0 όσο δεν έχει γραφτεί, και τότε η γραμμή περιμένει: `AWAITING_COUNT`).
+   */
   shiftsAmount: number;
+  /** Το νούμερο της ημέρας γράφεται με το χέρι (Play) αντί να βγαίνει από τις βάρδιες. */
+  manual: boolean;
+  /** Το νούμερο που γράφτηκε με το χέρι, ή null (πάντα null όταν `manual` είναι false). */
+  manualAmount: number | null;
+  manualId: string | null;
   shiftCount: number;
   /** Έχουν κλείσει όλες οι βάρδιες της ημέρας; Χωρίς βάρδιες: ναι. */
   shiftsFinal: boolean;
@@ -144,7 +180,11 @@ const keyOf = (storeId: string, date: string) => `${storeId}|${date}`;
 export function buildVltDayRows(input: {
   shifts: ReadonlyArray<VltShiftInput>;
   reports: ReadonlyArray<VltReportInput>;
+  /** Τα καταστήματα που γράφουν το νούμερο με το χέρι (Play). Χωρίς αυτά, όλα βγαίνουν από τις βάρδιες. */
+  manualStoreIds?: ReadonlyArray<string>;
+  manualCounts?: ReadonlyArray<VltManualCountInput>;
 }): VltDayRow[] {
+  const manualStores = new Set(input.manualStoreIds ?? []);
   // 1. Οι βάρδιες ανά κατάστημα και ημέρα.
   const byDay = new Map<string, { storeId: string; date: string; shifts: VltShiftInput[] }>();
   const vltStores = new Set<string>();
@@ -164,9 +204,18 @@ export function buildVltDayRows(input: {
     vltStores.add(r.store_id);
   }
 
+  // 2β. Τα νούμερα που γράφτηκαν με το χέρι, μόνο για καταστήματα που τα γράφουν έτσι.
+  const manualByKey = new Map<string, VltManualCountInput>();
+  for (const c of input.manualCounts ?? []) {
+    if (!manualStores.has(c.store_id)) continue;
+    manualByKey.set(keyOf(c.store_id, c.count_date), c);
+    vltStores.add(c.store_id);
+  }
+
   const keys = new Set<string>();
   for (const [key, g] of byDay) if (vltStores.has(g.storeId)) keys.add(key);
   for (const key of reportByKey.keys()) keys.add(key);
+  for (const key of manualByKey.keys()) keys.add(key);
 
   const rows: VltDayRow[] = [];
   for (const key of keys) {
@@ -185,12 +234,20 @@ export function buildVltDayRows(input: {
         lastPerRegister.set(register, s);
       }
     }
+    const manual = manualStores.has(storeId);
+    const manualRow = manual ? manualByKey.get(key) ?? null : null;
+    const manualAmount = manualRow ? fromCents(toCents(manualRow.amount)) : null;
+
     const shiftsCents = [...lastPerRegister.values()].reduce((t, s) => t + toCents(s.vlts_cash_in), 0);
-    const shiftsFinal = (group?.shifts ?? []).every((s) => FINAL_SHIFT_STATUSES.includes(s.status));
-    const shiftsAmount = fromCents(shiftsCents);
+    // Ένα νούμερο που γράφτηκε με το χέρι είναι ήδη το τελικό της ημέρας: δεν περιμένει να κλείσουν οι βάρδιες.
+    const shiftsFinal = manual || (group?.shifts ?? []).every((s) => FINAL_SHIFT_STATUSES.includes(s.status));
+    const shiftsAmount = manual ? manualAmount ?? 0 : fromCents(shiftsCents);
     const reportAmount = report ? fromCents(toCents(report.amount)) : null;
 
-    const { status, difference } = compareVltDay({ shiftsAmount, shiftsFinal, report: reportAmount });
+    const { status, difference } =
+      manual && manualAmount === null
+        ? { status: 'AWAITING_COUNT' as VltDayStatus, difference: null }
+        : compareVltDay({ shiftsAmount, shiftsFinal, report: reportAmount });
 
     // Εγκεκριμένη μόνο αν υπάρχει διαφορά ΚΑΙ είναι ακριβώς αυτή που εγκρίθηκε, σε λεπτά.
     const approvedRaw = report?.approved_difference;
@@ -205,6 +262,9 @@ export function buildVltDayRows(input: {
       storeId,
       date,
       shiftsAmount,
+      manual,
+      manualAmount,
+      manualId: manualRow?.id ?? null,
       shiftCount: group?.shifts.length ?? 0,
       shiftsFinal,
       report: reportAmount,
@@ -276,11 +336,13 @@ export interface VltMonthSummary {
   awaitingAmount: number;
   /** Ημέρες που δεν συγκρίνονται γιατί μια βάρδια τους είναι ακόμα ανοιχτή. */
   openDays: number;
+  /** Ημέρες καταστήματος με χειροκίνητο νούμερο (Play) που δεν έχει γραφτεί ακόμα. */
+  awaitingCountDays: number;
 }
 
 export function summariseVltMonth(rows: ReadonlyArray<VltDayRow>): VltMonthSummary {
   let shifts = 0, reports = 0, comparedShifts = 0, comparedReports = 0, approvedDev = 0;
-  let comparedDays = 0, differentDays = 0, approvedDays = 0, awaitingDays = 0, awaitingAmount = 0, openDays = 0;
+  let comparedDays = 0, differentDays = 0, approvedDays = 0, awaitingDays = 0, awaitingAmount = 0, openDays = 0, awaitingCountDays = 0;
 
   for (const r of rows) {
     shifts += toCents(r.shiftsAmount);
@@ -305,6 +367,8 @@ export function summariseVltMonth(rows: ReadonlyArray<VltDayRow>): VltMonthSumma
       }
     } else if (r.status === 'SHIFTS_OPEN') {
       openDays += 1;
+    } else if (r.status === 'AWAITING_COUNT') {
+      awaitingCountDays += 1;
     }
   }
 
@@ -321,5 +385,6 @@ export function summariseVltMonth(rows: ReadonlyArray<VltDayRow>): VltMonthSumma
     awaitingDays,
     awaitingAmount: fromCents(awaitingAmount),
     openDays,
+    awaitingCountDays,
   };
 }

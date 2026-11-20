@@ -35,7 +35,12 @@ export function useVltMismatchCount(
         const to = athensDateKey(new Date().toISOString());
         const from = shiftDateKey(to, -VLT_ALERT_WINDOW_DAYS);
         const data = await fetchVltCheckData(orgId, storeId && storeId !== 'ALL' ? [storeId] : null, from, to);
-        const rows = buildVltDayRows({ shifts: data.shifts, reports: data.reports }).filter(
+        const rows = buildVltDayRows({
+          shifts: data.shifts,
+          reports: data.reports,
+          manualStoreIds: data.manualStoreIds,
+          manualCounts: data.manualCounts,
+        }).filter(
           (r) => r.date >= from && r.date <= to
         );
         if (!cancelled) setCount(vltMismatches(rows).length);
