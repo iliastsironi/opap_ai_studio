@@ -24,7 +24,7 @@ const DWRO_5 = row({ id: 'scr_custom_mwakfl3f', name: 'Δώρο 5€', price: 5,
 const DWRO_10 = row({ id: 'scr_custom_mwakh5bs', name: 'Δώρο 10€', price: 10, startNo: '0', endNo: '' });
 
 describe('είχε η γραμμή πακέτο πριν;', () => {
-  it('με αποθήκη, κενός κωδικός σημαίνει κανένα πακέτο ποτέ', () => {
+  it('με αποθήκη, κενός κωδικός ΣΕ ολοκαίνουρια γραμμή σημαίνει κανένα πακέτο ποτέ', () => {
     expect(hadPackBefore(DWRO_5, true)).toBe(false);
     expect(hadPackBefore(row({ packCode: '' }), true)).toBe(false);
     expect(hadPackBefore(row({ packCode: '   ' }), true)).toBe(false);
@@ -108,5 +108,55 @@ describe('ό,τι χρεωνόταν σωστά, χρεώνεται ακόμα',
   it('πρώτο πακέτο με περίεργη τιμή: μηδέν, χωρίς ερώτηση', () => {
     const odd = row({ price: 7, startNo: '0' });
     expect(tailSoldOnNewPack(odd, hadPackBefore(odd, true))).toBe(0);
+  });
+});
+
+/**
+ * Η Στυλίδα, 21/11. Το ΓΑΤΑ 2€ ήταν στο 147 (150 δελτία το πακέτο), ο υπάλληλος
+ * έγραψε τελικό 150 και άνοιξε το 0036479 από την αποθήκη. Η γραμμή δεν είχε
+ * κωδικό - το πακέτο έτρεχε πριν το κατάστημα αρχίσει να καταχωρεί πακέτα - και ο
+ * κενός κωδικός διαβάστηκε ως «πρώτο πακέτο ποτέ»: τα 3 δελτία (6 €) χάθηκαν.
+ *
+ * Η γραμμή είναι αυτή που γράφτηκε στη βάση (custom_field_values.scratch_ticket_items).
+ */
+describe('ένα πακέτο σε χρήση χωρίς κωδικό ΕΧΕΙ ουρά, ακόμα και με αποθήκη', () => {
+  const GATA_2 = row({ id: 'scr_2_gata', name: 'ΓΑΤΑ 2€', price: 2, startNo: '147', endNo: '150', packCode: '' });
+
+  it('ΓΑΤΑ 2€ στο 147: υπήρχε πακέτο, και η ουρά είναι 3 δελτία = 6 €', () => {
+    expect(hadPackBefore(GATA_2, true)).toBe(true);
+    const tail = tailSoldOnNewPack(GATA_2, hadPackBefore(GATA_2, true));
+    expect(tail).toBe(3);
+    expect((tail ?? 0) * GATA_2.price).toBe(6);
+  });
+
+  it('αρκεί ο αρχικός πάνω από το μηδέν, και χωρίς τελικό', () => {
+    const r = row({ price: 2, startNo: '6', endNo: '' });
+    expect(hadPackBefore(r, true)).toBe(true);
+    expect(tailSoldOnNewPack(r, hadPackBefore(r, true))).toBe(144);
+  });
+
+  it('αρκεί ο τελικός πληκτρολογημένος, ακόμα κι αν ο αρχικός είναι μηδέν', () => {
+    const r = row({ price: 5, startNo: '0', endNo: '20' });
+    expect(hadPackBefore(r, true)).toBe(true);
+    expect(tailSoldOnNewPack(r, hadPackBefore(r, true))).toBe(60);
+  });
+
+  it('πακέτο που ήταν ήδη στο τέλος του (60/60): μηδέν, όπως πάντα', () => {
+    const r = row({ price: 5, startNo: '60', endNo: '' });
+    expect(hadPackBefore(r, true)).toBe(true);
+    expect(tailSoldOnNewPack(r, hadPackBefore(r, true))).toBe(0);
+  });
+
+  /** Η διόρθωση δεν πρέπει να ξαναχρεώνει το Δώρο 5€ και το Δώρο 10€. */
+  it('το ολοκαίνουριο παιχνίδι μένει χωρίς ουρά', () => {
+    expect(hadPackBefore(DWRO_5, true)).toBe(false);
+    expect(hadPackBefore(DWRO_10, true)).toBe(false);
+    expect(tailSoldOnNewPack(DWRO_5, hadPackBefore(DWRO_5, true))).toBe(0);
+    expect(tailSoldOnNewPack(DWRO_10, hadPackBefore(DWRO_10, true))).toBe(0);
+  });
+
+  it('κενά διαστήματα στον αρχικό/τελικό δεν μετράνε ως ένδειξη', () => {
+    expect(hadPackBefore(row({ startNo: '  ', endNo: '   ' }), true)).toBe(false);
+    expect(hadPackBefore(row({ startNo: 'abc', endNo: '' }), true)).toBe(false);
   });
 });
